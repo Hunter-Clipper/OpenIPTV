@@ -415,14 +415,46 @@ Top navigation rail (horizontal), D-pad navigable:
 - Tap row → full-screen player
 
 ### Movies Screen
-Poster grid (2 columns phone, 4 columns tablet, 5 columns TV).
-Genre filter chips horizontally scrollable at top.
-Tap poster → Movie detail screen (description, year, genre, rating, Play button).
+```
+┌─────────────────────────────────────────────────┐
+│  [Genre filter chips — horizontally scrollable]  │
+│  All  Action  Comedy  Drama  Horror  ...         │
+├─────────────────────────────────────────────────┤
+│  Continue Watching (row, hidden if empty)        │
+│  [Poster 43:21▶]  [Poster 1:12:00▶]  ...        │
+├─────────────────────────────────────────────────┤
+│  Favourites (row, hidden if empty)               │
+│  [Poster ⭐]  [Poster ⭐]  ...                   │
+├─────────────────────────────────────────────────┤
+│  All Movies (poster grid, 2 col phone / 4 tab)  │
+│  [Poster]  [Poster]                              │
+│  [Poster]  [Poster]                              │
+└─────────────────────────────────────────────────┘
+```
+- Favourited movies float to top in the Favourites row (mirrors Live TV behaviour)
+- Continue Watching row shows partially-watched movies (>0%, <90% complete), most recent first
+- Star icon on each poster for quick favourite toggle
+- Tap poster → Movie detail screen (description, year, genre, rating, Play button, Resume/Start Over)
 
 ### Series Screen
-Same poster grid layout.
-Tap → Series detail (description, season picker, episode list).
-Episode rows show: episode number, title, duration, watched progress bar.
+Same layout as Movies Screen with Continue Watching and Favourites rows.
+```
+┌─────────────────────────────────────────────────┐
+│  [Genre filter chips]                            │
+├─────────────────────────────────────────────────┤
+│  Continue Watching (row, hidden if empty)        │
+│  [Poster S2E4▶]  [Poster S1E1▶]  ...            │
+├─────────────────────────────────────────────────┤
+│  Favourites (row, hidden if empty)               │
+│  [Poster ⭐]  [Poster ⭐]  ...                   │
+├─────────────────────────────────────────────────┤
+│  All Series (poster grid)                        │
+└─────────────────────────────────────────────────┘
+```
+- Continue Watching shows series with any partially-watched episode, most recent first
+- Tap Continue Watching card → goes directly to that episode in the player (skip detail screen)
+- Tap poster → Series detail (description, season picker, episode list)
+- Episode rows show: episode number, title, duration, watched progress bar
 
 ### Player Screen (Full-screen, dark)
 ```
