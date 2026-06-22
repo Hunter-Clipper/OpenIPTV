@@ -100,7 +100,6 @@ class XmltvParser {
       }
     }
 
-    _ = currentChannelId; // suppress unused warning — used for future channel matching
   }
 
   // ---------------------------------------------------------------------------
@@ -172,5 +171,17 @@ class _FakeAttr implements XmlEventAttribute {
   String get namespaceUri => '';
 
   @override
+  String get qualifiedName => '';
+
+  @override
   XmlAttributeType get attributeType => XmlAttributeType.DOUBLE_QUOTE;
+
+  @override
+  XmlStartElementEvent? get parent => null;
+
+  @override
+  XmlStartElementEvent? get parentEvent => null;
+
+  @override
+  void attachParent(XmlStartElementEvent? parent) {}
 }

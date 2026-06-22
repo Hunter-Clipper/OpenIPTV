@@ -104,7 +104,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                 return Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Couldn't load the TV guide. Your channels still work — '
+                    "Couldn't load the TV guide. Your channels still work — "
                     'guide info will retry automatically.',
                     style: theme.textTheme.bodySmall,
                   ),

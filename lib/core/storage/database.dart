@@ -1,7 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
+import 'package:drift/native.dart';
 import 'package:open_iptv/core/models/channel.dart' as model;
 import 'package:open_iptv/core/models/episode.dart' as model;
 import 'package:open_iptv/core/models/movie.dart' as model;
@@ -9,6 +10,8 @@ import 'package:open_iptv/core/models/profile.dart' as model;
 import 'package:open_iptv/core/models/programme.dart' as model;
 import 'package:open_iptv/core/models/series.dart' as model;
 import 'package:open_iptv/core/models/source.dart' as model;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 part 'database.g.dart';
 
@@ -16,6 +19,7 @@ part 'database.g.dart';
 // Table definitions
 // ---------------------------------------------------------------------------
 
+@DataClassName('SourceRow')
 class Sources extends Table {
   TextColumn get id => text()();
   TextColumn get nickname => text()();
@@ -31,6 +35,7 @@ class Sources extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('ChannelRow')
 class Channels extends Table {
   TextColumn get id => text()();
   TextColumn get sourceId => text().references(Sources, #id)();
@@ -47,6 +52,7 @@ class Channels extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('ProgrammeRow')
 class Programmes extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get channelId => text()();
@@ -58,6 +64,7 @@ class Programmes extends Table {
   TextColumn get episodeNum => text().nullable()();
 }
 
+@DataClassName('MovieRow')
 class Movies extends Table {
   TextColumn get id => text()();
   TextColumn get sourceId => text().references(Sources, #id)();
@@ -90,6 +97,7 @@ class SeriesEntries extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('EpisodeRow')
 class Episodes extends Table {
   TextColumn get id => text()();
   TextColumn get seriesId => text()();
@@ -107,6 +115,7 @@ class Episodes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('ProfileRow')
 class Profiles extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -502,7 +511,7 @@ class AppDatabase extends _$AppDatabase {
   // Mapping helpers — Row → model
   // ---------------------------------------------------------------------------
 
-  model.Source _sourceFromRow(Source row) => model.Source(
+  model.Source _sourceFromRow(SourceRow row) => model.Source(
         id: row.id,
         nickname: row.nickname,
         type: row.type == 'xtream' ? model.SourceType.xtream : model.SourceType.m3u,
@@ -514,7 +523,7 @@ class AppDatabase extends _$AppDatabase {
         lastRefreshed: row.lastRefreshed,
       );
 
-  model.Channel _channelFromRow(Channel row) => model.Channel(
+  model.Channel _channelFromRow(ChannelRow row) => model.Channel(
         id: row.id,
         sourceId: row.sourceId,
         name: row.name,
@@ -527,7 +536,7 @@ class AppDatabase extends _$AppDatabase {
         sortOrder: row.sortOrder,
       );
 
-  model.Programme _programmeFromRow(Programme row) => model.Programme(
+  model.Programme _programmeFromRow(ProgrammeRow row) => model.Programme(
         channelId: row.channelId,
         start: row.start,
         end: row.end,
@@ -537,7 +546,7 @@ class AppDatabase extends _$AppDatabase {
         episodeNum: row.episodeNum,
       );
 
-  model.Movie _movieFromRow(Movie row) => model.Movie(
+  model.Movie _movieFromRow(MovieRow row) => model.Movie(
         id: row.id,
         sourceId: row.sourceId,
         title: row.title,
@@ -565,7 +574,7 @@ class AppDatabase extends _$AppDatabase {
         description: row.description,
       );
 
-  model.Episode _episodeFromRow(Episode row) => model.Episode(
+  model.Episode _episodeFromRow(EpisodeRow row) => model.Episode(
         id: row.id,
         seriesId: row.seriesId,
         sourceId: row.sourceId,
@@ -582,7 +591,7 @@ class AppDatabase extends _$AppDatabase {
             : null,
       );
 
-  model.Profile _profileFromRow(Profile row) => model.Profile(
+  model.Profile _profileFromRow(ProfileRow row) => model.Profile(
         id: row.id,
         name: row.name,
         avatarEmoji: row.avatarEmoji,
@@ -708,5 +717,9 @@ class AppDatabase extends _$AppDatabase {
 }
 
 QueryExecutor _openConnection() {
-  return driftDatabase(name: 'open_iptv');
+  return LazyDatabase(() async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'open_iptv.db'));
+    return NativeDatabase.createInBackground(file);
+  });
 }

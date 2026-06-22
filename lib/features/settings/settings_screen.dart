@@ -81,7 +81,7 @@ class SettingsScreen extends ConsumerWidget {
               body:
                   'When this is on, OpenIPTV remembers where you left off '
                   'in movies and series. The next time you open them, '
-                  'you'll be offered the option to resume.',
+                  "you'll be offered the option to resume.",
               child: _ToggleTile(
                 icon: Icons.play_circle_outline,
                 title: 'Continue Watching',
@@ -126,9 +126,9 @@ class SettingsScreen extends ConsumerWidget {
               id: 'settings_hidden_cats',
               title: 'Hidden Categories',
               body:
-                  'Categories you've hidden won't appear in your channel '
-                  'list. Your channels are still there — they're just out '
-                  'of the way. You can unhide them here at any time.',
+                  "Categories you've hidden won't appear in your channel "
+                  "list. Your channels are still there — they're just out "
+                  "of the way. You can unhide them here at any time.",
               child: ListTile(
                 leading: const Icon(Icons.visibility_off_outlined),
                 title: const Text('Hidden Categories'),
@@ -309,7 +309,7 @@ class _SourcesSheet extends ConsumerWidget {
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
               error: (_, __) =>
-                  const Center(child: Text('Couldn't load sources.')),
+                  const Center(child: Text("Couldn't load sources.")),
               data: (sources) {
                 if (sources.isEmpty) {
                   return const Center(child: Text('No sources yet.'));

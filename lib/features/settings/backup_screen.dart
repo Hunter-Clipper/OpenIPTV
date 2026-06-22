@@ -27,7 +27,7 @@ class BackupScreen extends ConsumerWidget {
           loading: () =>
               const Center(child: CircularProgressIndicator()),
           error: (_, __) => const Center(
-              child: Text('Couldn't load profile information.')),
+              child: Text("Couldn't load profile information.")),
           data: (profile) => ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
@@ -40,7 +40,7 @@ class BackupScreen extends ConsumerWidget {
                     'and source list into a single .iptvprofile file. '
                     'If your profile has a PIN, the file will be encrypted '
                     'with that PIN automatically.',
-                tip: 'Save this file somewhere safe — you'll need it to '
+                tip: "Save this file somewhere safe — you'll need it to "
                     'restore your settings on a new device.',
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -75,7 +75,7 @@ class BackupScreen extends ConsumerWidget {
                 body:
                     'Importing reads a .iptvprofile file and adds the profile '
                     'and its sources to this device. '
-                    'If the backup was encrypted, you'll be asked for the PIN '
+                    "If the backup was encrypted, you'll be asked for the PIN "
                     'that was set on the original profile.',
                 tip: 'Importing does not delete anything — your existing '
                     'profiles are kept.',
@@ -136,7 +136,7 @@ class BackupScreen extends ConsumerWidget {
     } catch (e) {
       if (!context.mounted) return;
       _showError(context,
-          'Couldn't create the backup file. Make sure you have storage '
+          "Couldn't create the backup file. Make sure you have storage "
           'permission and try again.');
     }
   }
@@ -155,7 +155,7 @@ class BackupScreen extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       _showError(context,
-          'Couldn't open the file picker. Check that the app has file '
+          "Couldn't open the file picker. Check that the app has file "
           'access permission and try again.');
       return;
     }
@@ -172,8 +172,8 @@ class BackupScreen extends ConsumerWidget {
     if (!fileName.endsWith('.iptvprofile')) {
       if (!context.mounted) return;
       _showError(context,
-          'Couldn't open this backup file. '
-          'Make sure it's a valid .iptvprofile file.');
+          "Couldn't open this backup file. "
+          "Make sure it's a valid .iptvprofile file.");
       return;
     }
 
@@ -215,8 +215,8 @@ class BackupScreen extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       _showError(context,
-          'Couldn't open this backup file. '
-          'Make sure it's a valid .iptvprofile file.');
+          "Couldn't open this backup file. "
+          "Make sure it's a valid .iptvprofile file.");
     }
   }
 

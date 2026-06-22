@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 
 // ---------------------------------------------------------------------------
@@ -225,7 +226,7 @@ class _ErrorView extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, size: 48),
           const SizedBox(height: 16),
-          const Text('Couldn't load episodes. Try again.'),
+          const Text("Couldn't load episodes. Try again."),
           const SizedBox(height: 16),
           FilledButton(onPressed: onRetry, child: const Text('Try Again')),
         ],

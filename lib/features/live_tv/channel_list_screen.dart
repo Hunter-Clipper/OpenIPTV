@@ -295,7 +295,7 @@ class _ErrorView extends StatelessWidget {
             const Icon(Icons.signal_wifi_connected_no_internet_4, size: 48),
             const SizedBox(height: 16),
             Text(
-              'Couldn't load channels. Check your internet connection.',
+              "Couldn't load channels. Check your internet connection.",
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

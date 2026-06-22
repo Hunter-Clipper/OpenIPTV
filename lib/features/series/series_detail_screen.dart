@@ -454,7 +454,7 @@ class _ErrorScaffold extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 48),
             const SizedBox(height: 16),
-            const Text('Couldn't load this series.'),
+            const Text("Couldn't load this series."),
             const SizedBox(height: 16),
             FilledButton(
                 onPressed: onBack, child: const Text('Go Back')),

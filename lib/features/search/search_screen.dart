@@ -8,6 +8,7 @@ import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 

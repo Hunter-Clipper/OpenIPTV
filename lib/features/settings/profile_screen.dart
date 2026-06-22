@@ -30,7 +30,7 @@ class ProfileScreen extends ConsumerWidget {
           loading: () =>
               const Center(child: CircularProgressIndicator()),
           error: (_, __) =>
-              const Center(child: Text('Couldn't load profiles.')),
+              const Center(child: Text("Couldn't load profiles.")),
           data: (profiles) {
             if (profiles.isEmpty) {
               return _EmptyState(
@@ -113,7 +113,7 @@ class ProfileScreen extends ConsumerWidget {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text(
-              'That PIN doesn't seem right. Try again.'),
+              "That PIN doesn't seem right. Try again."),
           behavior: SnackBarBehavior.floating,
         ));
       }
@@ -345,8 +345,8 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
     } catch (e) {
       setState(() {
         _error = e.toString().contains('Maximum')
-            ? 'You've reached the maximum number of profiles (10).'
-            : 'Couldn't create the profile. Try again.';
+            ? "You've reached the maximum number of profiles (10)."
+            : "Couldn't create the profile. Try again.";
       });
     }
   }
@@ -386,7 +386,7 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
                 title: 'Avatar',
                 body:
                     'Choose an emoji to represent this profile. '
-                    'It'll appear when switching between profiles.',
+                    "It'll appear when switching between profiles.",
                 child: const Text('Avatar'),
               ),
               const SizedBox(height: 8),
@@ -471,7 +471,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       setState(() =>
-          _error = 'Couldn't save changes. Try again.');
+          _error = "Couldn't save changes. Try again.");
     }
   }
 
@@ -572,7 +572,7 @@ class _PinManagementDialogState
     final confirm = _confirmPinController.text.trim();
 
     if (newPin != confirm) {
-      setState(() => _error = 'The PINs don't match. Try again.');
+      setState(() => _error = "The PINs don't match. Try again.");
       return;
     }
     if (newPin.length < 4) {
@@ -632,8 +632,8 @@ class _PinManagementDialogState
                 body:
                     'A PIN protects this profile so only people who know '
                     'it can switch to it or import backups. '
-                    'It doesn't protect your streams or account — '
-                    'it's just for switching profiles.',
+                    "It doesn't protect your streams or account — "
+                    "it's just for switching profiles.",
                 child: Text(
                     widget.profile.hasPin
                         ? 'Change or remove your PIN.'

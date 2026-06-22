@@ -1,4 +1,5 @@
 import 'package:media_kit/media_kit.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

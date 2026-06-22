@@ -417,7 +417,7 @@ class _ErrorView extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, size: 48),
           const SizedBox(height: 16),
-          const Text('Couldn't load movies. Try again.'),
+          const Text("Couldn't load movies. Try again."),
           const SizedBox(height: 16),
           FilledButton(onPressed: onRetry, child: const Text('Try Again')),
         ],

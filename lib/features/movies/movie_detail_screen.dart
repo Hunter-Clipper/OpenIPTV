@@ -62,7 +62,7 @@ class MovieDetailScreen extends ConsumerWidget {
           children: [
             const Icon(Icons.error_outline, size: 48),
             const SizedBox(height: 16),
-            const Text('Couldn't load this movie.'),
+            const Text("Couldn't load this movie."),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () => context.pop(),
