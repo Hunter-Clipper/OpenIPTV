@@ -148,7 +148,7 @@ class BackupScreen extends ConsumerWidget {
   Future<void> _importProfile(BuildContext context, WidgetRef ref) async {
     FilePickerResult? result;
     try {
-      result = await FilePicker.platform.pickFiles(
+      result = await FilePicker.pickFiles(
         type: FileType.any,
         withData: true,
       );
