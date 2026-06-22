@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tv SYSTEM "xmltv.dtd">
+<tv source-info-name="Sample EPG" generator-info-name="Test Generator">
+  <channel id="BBC1">
+    <display-name lang="en">BBC One</display-name>
+    <icon src="http://logos.example.com/bbc1.png"/>
+  </channel>
+  <channel id="ITV1">
+    <display-name lang="en">ITV</display-name>
+  </channel>
+  <channel id="CH4">
+    <display-name lang="en">Channel 4</display-name>
+  </channel>
+
+  <programme start="20260622180000 +0000" stop="20260622190000 +0000" channel="BBC1">
+    <title lang="en">The Six O'Clock News</title>
+    <desc lang="en">The latest national and international news from BBC News.</desc>
+    <category lang="en">News</category>
+  </programme>
+  <programme start="20260622190000 +0000" stop="20260622193000 +0000" channel="BBC1">
+    <title lang="en">EastEnders</title>
+    <desc lang="en">Drama set in the fictional London Borough of Walford.</desc>
+    <category lang="en">Drama</category>
+    <episode-num system="xmltv_ns">40.24.0/1</episode-num>
+  </programme>
+  <programme start="20260622193000 +0000" stop="20260622200000 +0000" channel="BBC1">
+    <title lang="en">The One Show</title>
+    <desc lang="en">Magazine programme with interviews and features.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+  <programme start="20260622200000 +0000" stop="20260622210000 +0000" channel="BBC1">
+    <title lang="en">Panorama</title>
+    <desc lang="en">In-depth investigative journalism.</desc>
+    <category lang="en">Documentary</category>
+  </programme>
+  <programme start="20260622210000 +0000" stop="20260622220000 +0000" channel="BBC1">
+    <title lang="en">Casualty</title>
+    <desc lang="en">Long-running medical drama set in an A&amp;E department.</desc>
+    <category lang="en">Drama</category>
+    <episode-num system="xmltv_ns">40.5.0/1</episode-num>
+  </programme>
+
+  <programme start="20260622173000 +0000" stop="20260622180000 +0000" channel="ITV1">
+    <title lang="en">ITV News</title>
+    <desc lang="en">Evening news bulletin.</desc>
+    <category lang="en">News</category>
+  </programme>
+  <programme start="20260622190000 +0000" stop="20260622193000 +0000" channel="ITV1">
+    <title lang="en">Coronation Street</title>
+    <desc lang="en">Britain's longest-running soap opera.</desc>
+    <category lang="en">Drama</category>
+    <episode-num system="xmltv_ns">66.1.0/1</episode-num>
+  </programme>
+  <programme start="20260622193000 +0000" stop="20260622203000 +0000" channel="ITV1">
+    <title lang="en">The Chase</title>
+    <desc lang="en">Quiz show hosted by Bradley Walsh.</desc>
+    <category lang="en">Game Show</category>
+  </programme>
+  <programme start="20260622203000 +0000" stop="20260622213000 +0000" channel="ITV1">
+    <title lang="en">Emmerdale</title>
+    <desc lang="en">British soap opera set in the Yorkshire Dales.</desc>
+    <category lang="en">Drama</category>
+    <episode-num system="xmltv_ns">55.3.0/1</episode-num>
+  </programme>
+
+  <programme start="20260622190000 +0000" stop="20260622200000 +0000" channel="CH4">
+    <title lang="en">Channel 4 News</title>
+    <desc lang="en">Award-winning news programme.</desc>
+    <category lang="en">News</category>
+  </programme>
+  <programme start="20260622200000 +0000" stop="20260622210000 +0000" channel="CH4">
+    <title lang="en">Grand Designs</title>
+    <desc lang="en">Kevin McCloud follows people attempting ambitious self-builds.</desc>
+    <category lang="en">Documentary</category>
+  </programme>
+
+  <!-- Future programmes for 5-day window testing -->
+  <programme start="20260623190000 +0000" stop="20260623200000 +0000" channel="BBC1">
+    <title lang="en">Tomorrow's Show</title>
+    <desc lang="en">A programme airing tomorrow.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+  <programme start="20260627190000 +0000" stop="20260627200000 +0000" channel="BBC1">
+    <title lang="en">Programme Outside Window</title>
+    <desc lang="en">This should be filtered out as it is beyond 5 days.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+
+  <!-- Timezone offset test -->
+  <programme start="20260622213000 +0100" stop="20260622223000 +0100" channel="BBC1">
+    <title lang="en">Timezone Test Programme</title>
+    <desc lang="en">Tests correct parsing of +0100 timezone offset.</desc>
+    <category lang="en">Test</category>
+  </programme>
+  <programme start="20260622213000 -0500" stop="20260622223000 -0500" channel="ITV1">
+    <title lang="en">Negative Timezone Test</title>
+    <desc lang="en">Tests correct parsing of -0500 timezone offset.</desc>
+    <category lang="en">Test</category>
+  </programme>
+
+  <!-- Missing optional fields test -->
+  <programme start="20260622220000 +0000" stop="20260622230000 +0000" channel="CH4">
+    <title lang="en">No Description Programme</title>
+  </programme>
+</tv>

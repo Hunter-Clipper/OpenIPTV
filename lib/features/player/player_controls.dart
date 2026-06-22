@@ -1,0 +1,476 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/models/programme.dart';
+import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/features/live_tv/epg_panel.dart';
+import 'package:media_kit/media_kit.dart';
+
+/// Overlay controls for the full-screen player.
+/// Supports both Live TV and VOD (movie / episode) modes.
+class PlayerControls extends ConsumerStatefulWidget {
+  const PlayerControls({
+    super.key,
+    required this.title,
+    required this.isLive,
+    this.contentType,
+    this.contentId,
+    this.channelId,
+    this.onTap,
+  });
+
+  final String title;
+  final bool isLive;
+  final String? contentType;
+  final String? contentId;
+  final String? channelId;
+  final VoidCallback? onTap;
+
+  @override
+  ConsumerState<PlayerControls> createState() => _PlayerControlsState();
+}
+
+class _PlayerControlsState extends ConsumerState<PlayerControls> {
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration>? _durationSub;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  bool _isSeeking = false;
+  double _seekValue = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final player = ref.read(playbackServiceProvider).player;
+    _position = player.state.position;
+    _duration = player.state.duration;
+    _positionSub = player.stream.position.listen((p) {
+      if (!_isSeeking && mounted) setState(() => _position = p);
+    });
+    _durationSub = player.stream.duration.listen((d) {
+      if (mounted) setState(() => _duration = d);
+    });
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    _durationSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _seek(Duration target) async {
+    await ref.read(playbackServiceProvider).seek(target);
+  }
+
+  Future<void> _seekRelative(Duration delta) async {
+    await ref.read(playbackServiceProvider).seekRelative(delta);
+  }
+
+  void _showEpgPanel(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EpgPanel(
+        channelId: widget.channelId ?? widget.contentId ?? '',
+        channelName: widget.title,
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final h = d.inHours;
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.isLive
+        ? _LiveControls(
+            title: widget.title,
+            contentId: widget.contentId,
+            onBack: () => context.pop(),
+            onEpg: () => _showEpgPanel(context),
+          )
+        : _VodControls(
+            title: widget.title,
+            position: _position,
+            duration: _duration,
+            isSeeking: _isSeeking,
+            seekValue: _seekValue,
+            formatDuration: _formatDuration,
+            onBack: () => context.pop(),
+            onSeekStart: () => setState(() => _isSeeking = true),
+            onSeekUpdate: (v) => setState(() => _seekValue = v),
+            onSeekEnd: (v) {
+              setState(() {
+                _isSeeking = false;
+                _seekValue = v;
+              });
+              final target = Duration(
+                  milliseconds: (v * _duration.inMilliseconds).round());
+              _seek(target);
+            },
+            onSkipBack: () =>
+                _seekRelative(const Duration(seconds: -10)),
+            onSkipForward: () =>
+                _seekRelative(const Duration(seconds: 10)),
+          );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Live TV controls
+// ---------------------------------------------------------------------------
+
+class _LiveControls extends ConsumerWidget {
+  const _LiveControls({
+    required this.title,
+    required this.contentId,
+    required this.onBack,
+    required this.onEpg,
+  });
+
+  final String title;
+  final String? contentId;
+  final VoidCallback onBack;
+  final VoidCallback onEpg;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final isFav = profile?.favoriteChannelIds.contains(contentId) ?? false;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xCC000000),
+            Colors.transparent,
+            Colors.transparent,
+            Color(0xCC000000),
+          ],
+          stops: [0.0, 0.25, 0.75, 1.0],
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    color: Colors.white,
+                    onPressed: onBack,
+                  ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium!
+                          .copyWith(color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // LIVE badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Favourite toggle
+                  if (contentId != null && profile != null)
+                    IconButton(
+                      icon: Icon(
+                        isFav ? Icons.star : Icons.star_border,
+                        color: isFav ? Colors.amber : Colors.white,
+                      ),
+                      onPressed: () => ref
+                          .read(profileServiceProvider)
+                          .toggleFavoriteChannel(profile.id, contentId!),
+                    ),
+                  // EPG button
+                  IconButton(
+                    icon: const Icon(Icons.list_alt),
+                    color: Colors.white,
+                    tooltip: 'TV Guide',
+                    onPressed: onEpg,
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            // Current programme at bottom
+            if (contentId != null)
+              _LiveProgrammeBar(channelId: contentId!),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveProgrammeBar extends ConsumerWidget {
+  const _LiveProgrammeBar({required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final epg = ref.watch(epgServiceProvider);
+    return FutureBuilder<Programme?>(
+      future: epg.getCurrentProgramme(channelId),
+      builder: (context, snapshot) {
+        final prog = snapshot.data;
+        if (prog == null) return const SizedBox.shrink();
+        final progress = prog.progressAt(DateTime.now());
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                prog.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.white24,
+                  color: Colors.white,
+                  minHeight: 3,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// VOD controls
+// ---------------------------------------------------------------------------
+
+class _VodControls extends ConsumerWidget {
+  const _VodControls({
+    required this.title,
+    required this.position,
+    required this.duration,
+    required this.isSeeking,
+    required this.seekValue,
+    required this.formatDuration,
+    required this.onBack,
+    required this.onSeekStart,
+    required this.onSeekUpdate,
+    required this.onSeekEnd,
+    required this.onSkipBack,
+    required this.onSkipForward,
+  });
+
+  final String title;
+  final Duration position;
+  final Duration duration;
+  final bool isSeeking;
+  final double seekValue;
+  final String Function(Duration) formatDuration;
+  final VoidCallback onBack;
+  final VoidCallback onSeekStart;
+  final void Function(double) onSeekUpdate;
+  final void Function(double) onSeekEnd;
+  final VoidCallback onSkipBack;
+  final VoidCallback onSkipForward;
+
+  double get _sliderValue {
+    if (isSeeking) return seekValue;
+    if (duration.inMilliseconds == 0) return 0;
+    return (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final service = ref.watch(playbackServiceProvider);
+    final player = service.player;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xCC000000),
+            Colors.transparent,
+            Colors.transparent,
+            Color(0xCC000000),
+          ],
+          stops: [0.0, 0.3, 0.7, 1.0],
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    color: Colors.white,
+                    onPressed: onBack,
+                  ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium!
+                          .copyWith(color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Centre play/pause + skip zones
+            Expanded(
+              child: Row(
+                children: [
+                  // ‑10s double-tap zone
+                  Expanded(
+                    child: GestureDetector(
+                      onDoubleTap: onSkipBack,
+                      child: Container(
+                        color: Colors.transparent,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.replay_10,
+                          color: Colors.white70,
+                          size: 36,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Centre play/pause
+                  StreamBuilder<bool>(
+                    stream: player.stream.playing,
+                    initialData: player.state.playing,
+                    builder: (context, snap) {
+                      final playing = snap.data ?? false;
+                      return GestureDetector(
+                        onTap: () => service.togglePlayPause(),
+                        child: Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: BorderRadius.circular(32),
+                          ),
+                          child: Icon(
+                            playing ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 36,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // +10s double-tap zone
+                  Expanded(
+                    child: GestureDetector(
+                      onDoubleTap: onSkipForward,
+                      child: Container(
+                        color: Colors.transparent,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.forward_10,
+                          color: Colors.white70,
+                          size: 36,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Bottom seek bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Column(
+                children: [
+                  // Time labels
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        formatDuration(position),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12),
+                      ),
+                      Text(
+                        duration.inSeconds > 0
+                            ? formatDuration(duration)
+                            : '',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 6),
+                      trackHeight: 3,
+                      activeTrackColor: Colors.white,
+                      inactiveTrackColor: Colors.white30,
+                      thumbColor: Colors.white,
+                      overlayColor: Colors.white24,
+                    ),
+                    child: Slider(
+                      value: _sliderValue,
+                      onChangeStart: (_) => onSeekStart(),
+                      onChanged: onSeekUpdate,
+                      onChangeEnd: onSeekEnd,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "live_categories": [
+    {"category_id": "1", "category_name": "News", "parent_id": 0},
+    {"category_id": "2", "category_name": "Sports", "parent_id": 0},
+    {"category_id": "3", "category_name": "Entertainment", "parent_id": 0}
+  ],
+  "live_streams": [
+    {
+      "num": 1,
+      "name": "BBC One",
+      "stream_type": "live",
+      "stream_id": 101,
+      "stream_icon": "http://logos.example.com/bbc1.png",
+      "epg_channel_id": "BBC1",
+      "added": "1609459200",
+      "category_id": "3",
+      "category_name": "Entertainment",
+      "custom_sid": "",
+      "tv_archive": 0,
+      "direct_source": "",
+      "tv_archive_duration": 0
+    },
+    {
+      "num": 2,
+      "name": "Sky Sports 1",
+      "stream_type": "live",
+      "stream_id": 102,
+      "stream_icon": "",
+      "epg_channel_id": "SSP1",
+      "added": "1609459200",
+      "category_id": "2",
+      "category_name": "Sports",
+      "custom_sid": "",
+      "tv_archive": 0,
+      "direct_source": "",
+      "tv_archive_duration": 0
+    },
+    {
+      "num": 3,
+      "name": "CNN International",
+      "stream_type": "live",
+      "stream_id": 103,
+      "stream_icon": "",
+      "epg_channel_id": "CNN",
+      "added": "1609459200",
+      "category_id": "1",
+      "category_name": "News",
+      "custom_sid": "",
+      "tv_archive": 0,
+      "direct_source": "",
+      "tv_archive_duration": 0
+    }
+  ],
+  "vod_categories": [
+    {"category_id": "10", "category_name": "Action", "parent_id": 0},
+    {"category_id": "11", "category_name": "Drama", "parent_id": 0}
+  ],
+  "vod_streams": [
+    {
+      "num": 1,
+      "name": "Interstellar",
+      "stream_type": "movie",
+      "stream_id": 201,
+      "stream_icon": "http://logos.example.com/interstellar.jpg",
+      "rating": "8.6",
+      "rating_5based": 4.3,
+      "added": "1609459200",
+      "category_id": "10",
+      "container_extension": "mp4",
+      "genre": "Adventure, Drama, Sci-Fi",
+      "year": "2014",
+      "plot": "A team of explorers travel through a wormhole in space."
+    },
+    {
+      "num": 2,
+      "name": "The Dark Knight",
+      "stream_type": "movie",
+      "stream_id": 202,
+      "stream_icon": "",
+      "rating": "9.0",
+      "rating_5based": 4.5,
+      "added": "1609459200",
+      "category_id": "10",
+      "container_extension": "mkv",
+      "genre": "Action, Crime, Drama",
+      "year": "2008",
+      "plot": "Batman faces the Joker, a criminal mastermind."
+    }
+  ],
+  "series_categories": [
+    {"category_id": "20", "category_name": "Drama", "parent_id": 0},
+    {"category_id": "21", "category_name": "Comedy", "parent_id": 0}
+  ],
+  "all_series": [
+    {
+      "series_id": 301,
+      "name": "Breaking Bad",
+      "cover": "http://logos.example.com/bb.jpg",
+      "plot": "A high school chemistry teacher turns to manufacturing methamphetamine.",
+      "cast": "Bryan Cranston, Aaron Paul",
+      "director": "Vince Gilligan",
+      "genre": "Crime, Drama, Thriller",
+      "releaseDate": "2008",
+      "last_modified": "1609459200",
+      "rating": "9.5",
+      "rating_5based": 4.75,
+      "backdrop_path": ["http://backdrops.example.com/bb.jpg"],
+      "youtube_trailer": "",
+      "episode_run_time": "47",
+      "category_id": "20"
+    }
+  ],
+  "series_info": {
+    "info": {
+      "name": "Breaking Bad",
+      "cover": "http://logos.example.com/bb.jpg",
+      "plot": "A high school chemistry teacher turns to manufacturing methamphetamine.",
+      "cast": "Bryan Cranston, Aaron Paul",
+      "genre": "Crime, Drama, Thriller",
+      "releaseDate": "2008",
+      "rating": "9.5",
+      "episode_run_time": "47"
+    },
+    "episodes": {
+      "1": [
+        {
+          "id": "1001",
+          "episode_num": 1,
+          "title": "Pilot",
+          "container_extension": "mp4",
+          "info": {
+            "movie_image": "http://stills.example.com/bb_s01e01.jpg",
+            "duration_secs": 3060,
+            "duration": "51:00",
+            "video": {},
+            "audio": {}
+          },
+          "custom_sid": "",
+          "added": "1609459200",
+          "season": 1,
+          "direct_source": ""
+        },
+        {
+          "id": "1002",
+          "episode_num": 2,
+          "title": "Cat's in the Bag",
+          "container_extension": "mp4",
+          "info": {
+            "movie_image": "",
+            "duration_secs": 2820,
+            "duration": "47:00",
+            "video": {},
+            "audio": {}
+          },
+          "custom_sid": "",
+          "added": "1609459200",
+          "season": 1,
+          "direct_source": ""
+        }
+      ],
+      "2": [
+        {
+          "id": "1003",
+          "episode_num": 1,
+          "title": "Seven Thirty-Seven",
+          "container_extension": "mp4",
+          "info": {
+            "movie_image": "",
+            "duration_secs": 2820,
+            "duration": "47:00",
+            "video": {},
+            "audio": {}
+          },
+          "custom_sid": "",
+          "added": "1609459200",
+          "season": 2,
+          "direct_source": ""
+        }
+      ]
+    }
+  },
+  "short_epg": {
+    "epg_listings": [
+      {
+        "id": "5001",
+        "epg_id": "1",
+        "title": "VGhlIFNpeCBP",
+        "lang": "en",
+        "start": "2026-06-22 18:00:00",
+        "end": "2026-06-22 19:00:00",
+        "description": "TmV3cyBidWxsZXRpbg==",
+        "channel_id": "BBC1",
+        "start_timestamp": "1750622400",
+        "stop_timestamp": "1750626000"
+      }
+    ]
+  }
+}

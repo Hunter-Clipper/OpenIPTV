@@ -1,0 +1,97 @@
+#EXTM3U url-tvg="http://epg.example.com/guide.xml" tvg-shift=0
+#EXTINF:-1 tvg-id="BBC1" tvg-name="BBC One" tvg-logo="http://logos.example.com/bbc1.png" group-title="News",BBC One
+http://streams.example.com/live/bbc1.ts
+#EXTINF:-1 tvg-id="ITV1" tvg-name="ITV" tvg-logo="http://logos.example.com/itv.png" group-title="Entertainment",ITV
+http://streams.example.com/live/itv1.ts
+#EXTINF:-1 tvg-id="CH4" tvg-name="Channel 4" tvg-logo="" group-title="Entertainment",Channel 4
+http://streams.example.com/live/ch4.ts
+#EXTINF:-1 tvg-id="SKY1" tvg-name="Sky One" tvg-logo="" group-title="Entertainment",Sky One
+http://streams.example.com/live/sky1.ts
+#EXTINF:-1 tvg-id="BBCN" tvg-name="BBC News" tvg-logo="" group-title="News",BBC News
+http://streams.example.com/live/bbcnews.ts
+#EXTINF:-1 tvg-id="ESPN" tvg-name="ESPN" tvg-logo="" group-title="Sports",ESPN
+http://streams.example.com/live/espn.ts
+#EXTINF:-1 tvg-id="SKY" tvg-name="Sky Sports" tvg-logo="" group-title="Sports",Sky Sports
+http://streams.example.com/live/skysports.ts
+#EXTINF:-1 tvg-id="CBBC" tvg-name="CBBC" tvg-logo="" group-title="Kids",CBBC
+http://streams.example.com/live/cbbc.ts
+#EXTINF:-1 tvg-id="CITV" tvg-name="CITV" tvg-logo="" group-title="Kids",CITV
+http://streams.example.com/live/citv.ts
+#EXTINF:-1 tvg-id="DISC" tvg-name="Discovery" tvg-logo="" group-title="Documentary",Discovery Channel
+http://streams.example.com/live/discovery.ts
+#EXTINF:-1 tvg-logo="http://logos.example.com/interstellar.jpg" group-title="Movies",Interstellar (2014)
+http://streams.example.com/vod/interstellar.mp4
+#EXTINF:-1 tvg-logo="" group-title="Movies",The Dark Knight (2008)
+http://streams.example.com/vod/darkknight.mp4
+#EXTINF:-1 tvg-logo="" group-title="Movies",Inception (2010)
+http://streams.example.com/vod/inception.mp4
+#EXTINF:-1 tvg-logo="" group-title="Movies | Action",Mad Max: Fury Road (2015)
+http://streams.example.com/vod/madmax.mp4
+#EXTINF:-1 tvg-logo="" group-title="Films",Parasite (2019)
+http://streams.example.com/vod/parasite.mp4
+#EXTINF:-1 tvg-logo="" group-title="Series",Breaking Bad S01E01 Pilot
+http://streams.example.com/vod/bb_s01e01.mp4
+#EXTINF:-1 tvg-logo="" group-title="Series",Breaking Bad S01E02 Cat's in the Bag
+http://streams.example.com/vod/bb_s01e02.mp4
+#EXTINF:-1 tvg-logo="" group-title="Series",Breaking Bad S01E03 ...And the Bag's in the River
+http://streams.example.com/vod/bb_s01e03.mp4
+#EXTINF:-1 tvg-logo="" group-title="Series",Breaking Bad S02E01 Seven Thirty-Seven
+http://streams.example.com/vod/bb_s02e01.mp4
+#EXTINF:-1 tvg-logo="" group-title="Shows",The Office S01E01 Pilot
+http://streams.example.com/vod/office_s01e01.mp4
+#EXTINF:-1 tvg-logo="" group-title="Shows",The Office S01E02 Diversity Day
+http://streams.example.com/vod/office_s01e02.mp4
+#EXTINF:-1 tvg-logo="" group-title="Shows",Succession S03E01 Secession
+http://streams.example.com/vod/succ_s03e01.mp4
+#EXTINF:-1 tvg-id="CNN" tvg-name="CNN" tvg-logo="" group-title="News",CNN International
+http://streams.example.com/live/cnn.ts
+#EXTINF:-1 tvg-id="BBC2" tvg-name="BBC Two" tvg-logo="" group-title="Entertainment",BBC Two
+http://streams.example.com/live/bbc2.ts
+#EXTINF:-1 tvg-id="BBC3" tvg-name="BBC Three" tvg-logo="" group-title="Entertainment",BBC Three
+http://streams.example.com/live/bbc3.ts
+#EXTINF:-1 tvg-id="BBCF" tvg-name="BBC Four" tvg-logo="" group-title="Entertainment",BBC Four
+http://streams.example.com/live/bbc4.ts
+#EXTINF:-1 tvg-id="SKY2" tvg-name="Sky Two" tvg-logo="" group-title="Entertainment",Sky Two
+http://streams.example.com/live/sky2.ts
+#EXTINF:-1 tvg-id="CH5" tvg-name="Channel 5" tvg-logo="" group-title="Entertainment",Channel 5
+http://streams.example.com/live/ch5.ts
+#EXTINF:-1 tvg-logo="" group-title="Movies",Tenet (2020)
+http://streams.example.com/vod/tenet.mp4
+#EXTINF:-1 tvg-logo="" group-title="Movies",Oppenheimer (2023)
+http://streams.example.com/vod/oppenheimer.mp4
+#EXTINF:-1 tvg-logo="" group-title="Series",Succession S03E02 Mass in Time of War
+http://streams.example.com/vod/succ_s03e02.mp4
+#EXTINF:-1 tvg-id="AL" tvg-name="Al Jazeera English" tvg-logo="" group-title="News",Al Jazeera English
+http://streams.example.com/live/aljazeera.ts
+#EXTINF:-1 tvg-id="TLC" tvg-name="TLC" tvg-logo="" group-title="Entertainment",TLC
+http://streams.example.com/live/tlc.ts
+#EXTINF:-1 tvg-id="MTV" tvg-name="MTV" tvg-logo="" group-title="Entertainment",MTV
+http://streams.example.com/live/mtv.ts
+#EXTINF:-1 tvg-id="VH1" tvg-name="VH1" tvg-logo="" group-title="Entertainment",VH1
+http://streams.example.com/live/vh1.ts
+#EXTINF:-1 tvg-id="NAT" tvg-name="National Geographic" tvg-logo="" group-title="Documentary",National Geographic
+http://streams.example.com/live/natgeo.ts
+#EXTINF:-1 tvg-id="HIST" tvg-name="History Channel" tvg-logo="" group-title="Documentary",History Channel
+http://streams.example.com/live/history.ts
+#EXTINF:-1 tvg-logo="" group-title="Movies",Avatar: The Way of Water (2022)
+http://streams.example.com/vod/avatar2.mp4
+#EXTINF:-1 tvg-logo="" group-title="Series",The Office S01E03 Health Care
+http://streams.example.com/vod/office_s01e03.mp4
+#EXTINF:-1 tvg-id="CIN" tvg-name="Cinemax" tvg-logo="" group-title="Entertainment",Cinemax
+http://streams.example.com/live/cinemax.ts
+#EXTINF:-1 tvg-id="BOX" tvg-name="Box Nation" tvg-logo="" group-title="Sports",Box Nation
+http://streams.example.com/live/boxnation.ts
+#EXTINF:-1 tvg-id="BT" tvg-name="BT Sport 1" tvg-logo="" group-title="Sports",BT Sport 1
+http://streams.example.com/live/btsport1.ts
+#EXTINF:-1 tvg-id="BT2" tvg-name="BT Sport 2" tvg-logo="" group-title="Sports",BT Sport 2
+http://streams.example.com/live/btsport2.ts
+#EXTINF:-1 tvg-id="E4" tvg-name="E4" tvg-logo="" group-title="Entertainment",E4
+http://streams.example.com/live/e4.ts
+#EXTINF:-1 tvg-id="MORE4" tvg-name="More4" tvg-logo="" group-title="Entertainment",More4
+http://streams.example.com/live/more4.ts
+#EXTINF:-1 tvg-logo="" group-title="Movies",Everything Everywhere All at Once (2022)
+http://streams.example.com/vod/eeaao.mp4
+#EXTINF:-1 channel-number="99" group-title="",No Category Channel
+http://streams.example.com/live/nocategory.ts
+#EXTINF:-1 group-title="Entertainment",No Logo Channel
+http://streams.example.com/live/nologoch.ts
