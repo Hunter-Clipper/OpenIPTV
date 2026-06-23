@@ -167,61 +167,70 @@ class _LiveControls extends ConsumerWidget {
         child: Column(
           children: [
             // Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: Colors.white,
-                    onPressed: onBack,
-                  ),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium!
-                          .copyWith(color: Colors.white),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // LIVE badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'LIVE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Favourite toggle
-                  if (contentId != null && profile != null)
+            DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xDD000000), Colors.transparent],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
                     IconButton(
-                      icon: Icon(
-                        isFav ? Icons.star : Icons.star_border,
-                        color: isFav ? Colors.amber : Colors.white,
-                      ),
-                      onPressed: () => ref
-                          .read(profileServiceProvider)
-                          .toggleFavoriteChannel(profile.id, contentId!),
+                      icon: const Icon(Icons.arrow_back),
+                      color: Colors.white,
+                      onPressed: onBack,
                     ),
-                  // EPG button
-                  IconButton(
-                    icon: const Icon(Icons.list_alt),
-                    color: Colors.white,
-                    tooltip: 'TV Guide',
-                    onPressed: onEpg,
-                  ),
-                ],
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleMedium!
+                            .copyWith(color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // LIVE badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'LIVE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Favourite toggle
+                    if (contentId != null && profile != null)
+                      IconButton(
+                        icon: Icon(
+                          isFav ? Icons.star : Icons.star_border,
+                          color: isFav ? Colors.amber : Colors.white,
+                        ),
+                        onPressed: () => ref
+                            .read(profileServiceProvider)
+                            .toggleFavoriteChannel(profile.id, contentId!),
+                      ),
+                    // EPG button
+                    IconButton(
+                      icon: const Icon(Icons.list_alt),
+                      color: Colors.white,
+                      tooltip: 'TV Guide',
+                      onPressed: onEpg,
+                    ),
+                  ],
+                ),
               ),
             ),
             const Spacer(),
@@ -250,7 +259,7 @@ class _LiveProgrammeBar extends ConsumerWidget {
         if (prog == null) return const SizedBox.shrink();
         final progress = prog.progressAt(DateTime.now());
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -343,25 +352,34 @@ class _VodControls extends ConsumerWidget {
         child: Column(
           children: [
             // Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: Colors.white,
-                    onPressed: onBack,
-                  ),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium!
-                          .copyWith(color: Colors.white),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xDD000000), Colors.transparent],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      color: Colors.white,
+                      onPressed: onBack,
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleMedium!
+                            .copyWith(color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             // Centre play/pause + skip zones
@@ -427,7 +445,7 @@ class _VodControls extends ConsumerWidget {
             ),
             // Bottom seek bar
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
               child: Column(
                 children: [
                   // Time labels

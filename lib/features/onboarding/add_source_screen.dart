@@ -239,6 +239,24 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                         'Your provider will give you either an M3U link or Xtream credentials.',
                         style: theme.textTheme.bodyMedium,
                       ),
+                      const SizedBox(height: 24),
+                      InfoTooltip(
+                        id: 'add_source_nickname',
+                        title: 'Nickname',
+                        body:
+                            'A friendly name for this source so you can tell it apart from others. '
+                            'For example: "Home Server" or "Work VPN".',
+                        child: Text('Nickname',
+                            style: theme.textTheme.bodyMedium),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _nicknameController,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Home Server',
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
                     ],
                   ),
                 ),
@@ -278,24 +296,6 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 8),
-                      InfoTooltip(
-                        id: 'add_source_nickname',
-                        title: 'Nickname',
-                        body:
-                            'A friendly name for this source so you can tell it apart from others. '
-                            'For example: "Home Server" or "Work VPN".',
-                        child: Text('Nickname',
-                            style: theme.textTheme.bodyMedium),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _nicknameController,
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. Home Server',
-                        ),
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 16),
                       InfoTooltip(
                         id: 'add_source_epg',
                         title: 'TV Guide URL (optional)',

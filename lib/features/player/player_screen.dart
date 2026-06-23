@@ -62,8 +62,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _hideTimer?.cancel();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // Save progress on exit for VOD content.
+    // Save progress then stop — order matters so position is captured first.
     _saveProgressIfNeeded();
+    ref.read(playbackServiceProvider).stop();
     super.dispose();
   }
 
