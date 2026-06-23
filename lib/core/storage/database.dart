@@ -230,12 +230,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertChannels(List<model.Channel> channelList) async {
-    await batch((b) {
-      b.insertAllOnConflictUpdate(
-        channels,
-        channelList.map(_channelToCompanion).toList(),
-      );
-    });
+    final companions = channelList.map(_channelToCompanion).toList();
+    for (var i = 0; i < companions.length; i += 500) {
+      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
+      await batch((b) => b.insertAllOnConflictUpdate(channels, chunk));
+    }
   }
 
   Future<void> deleteChannelsForSource(String sourceId) async {
@@ -258,12 +257,11 @@ class AppDatabase extends _$AppDatabase {
   // ---------------------------------------------------------------------------
 
   Future<void> upsertProgrammes(List<model.Programme> programmes) async {
-    await batch((b) {
-      b.insertAllOnConflictUpdate(
-        this.programmes,
-        programmes.map(_programmeToCompanion).toList(),
-      );
-    });
+    final companions = programmes.map(_programmeToCompanion).toList();
+    for (var i = 0; i < companions.length; i += 500) {
+      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
+      await batch((b) => b.insertAllOnConflictUpdate(this.programmes, chunk));
+    }
   }
 
   Future<void> deleteOldProgrammes() async {
@@ -362,12 +360,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertMovies(List<model.Movie> movieList) async {
-    await batch((b) {
-      b.insertAllOnConflictUpdate(
-        movies,
-        movieList.map(_movieToCompanion).toList(),
-      );
-    });
+    final companions = movieList.map(_movieToCompanion).toList();
+    for (var i = 0; i < companions.length; i += 500) {
+      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
+      await batch((b) => b.insertAllOnConflictUpdate(movies, chunk));
+    }
   }
 
   Future<void> updateMovieProgress(
@@ -408,12 +405,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertSeries(List<model.Series> seriesList) async {
-    await batch((b) {
-      b.insertAllOnConflictUpdate(
-        seriesEntries,
-        seriesList.map(_seriesToCompanion).toList(),
-      );
-    });
+    final companions = seriesList.map(_seriesToCompanion).toList();
+    for (var i = 0; i < companions.length; i += 500) {
+      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
+      await batch((b) => b.insertAllOnConflictUpdate(seriesEntries, chunk));
+    }
   }
 
   Future<void> deleteSeriesForSource(String sourceId) async {
@@ -452,12 +448,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertEpisodes(List<model.Episode> episodeList) async {
-    await batch((b) {
-      b.insertAllOnConflictUpdate(
-        episodes,
-        episodeList.map(_episodeToCompanion).toList(),
-      );
-    });
+    final companions = episodeList.map(_episodeToCompanion).toList();
+    for (var i = 0; i < companions.length; i += 500) {
+      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
+      await batch((b) => b.insertAllOnConflictUpdate(episodes, chunk));
+    }
   }
 
   Future<void> updateEpisodeProgress(
