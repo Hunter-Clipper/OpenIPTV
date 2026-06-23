@@ -237,67 +237,75 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Add your first source',
-                          style: theme.textTheme.headlineMedium),
-                      const SizedBox(height: 8),
-                      Text(
-                        'A source is where your channels come from. '
-                        'Your provider will give you either an M3U link or Xtream credentials.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 24),
-                      InfoTooltip(
-                        id: 'add_source_nickname',
-                        title: 'Nickname',
-                        body:
-                            'A friendly name for this source so you can tell it apart from others. '
-                            'For example: "Home Server" or "Work VPN".',
-                        child: Text('Nickname',
-                            style: theme.textTheme.bodyMedium),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _nicknameController,
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. Home Server',
+                child: IgnorePointer(
+                  ignoring: _isLoading,
+                  child: AnimatedOpacity(
+                    opacity: _isLoading ? 0.38 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Add your first source',
+                                  style: theme.textTheme.headlineMedium),
+                              const SizedBox(height: 8),
+                              Text(
+                                'A source is where your channels come from. '
+                                'Your provider will give you either an M3U link or Xtream credentials.',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 24),
+                              InfoTooltip(
+                                id: 'add_source_nickname',
+                                title: 'Nickname',
+                                body:
+                                    'A friendly name for this source so you can tell it apart from others. '
+                                    'For example: "Home Server" or "Work VPN".',
+                                child: Text('Nickname',
+                                    style: theme.textTheme.bodyMedium),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _nicknameController,
+                                decoration: const InputDecoration(
+                                  hintText: 'e.g. Home Server',
+                                ),
+                                textInputAction: TextInputAction.next,
+                              ),
+                            ],
+                          ),
                         ),
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(text: 'M3U URL'),
-                    Tab(text: 'Xtream'),
-                  ],
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 420,
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _M3uTab(urlController: _m3uUrlController),
-                      _XtreamTab(
-                        hostController: _xtreamHostController,
-                        usernameController: _xtreamUsernameController,
-                        passwordController: _xtreamPasswordController,
-                        passwordVisible: _xtreamPasswordVisible,
-                        onTogglePassword: () => setState(() =>
-                            _xtreamPasswordVisible = !_xtreamPasswordVisible),
-                      ),
-                    ],
+                        TabBar(
+                          controller: _tabController,
+                          tabs: const [
+                            Tab(text: 'M3U URL'),
+                            Tab(text: 'Xtream'),
+                          ],
+                        ),
+                        SizedBox(
+                          height: 420,
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _M3uTab(urlController: _m3uUrlController),
+                              _XtreamTab(
+                                hostController: _xtreamHostController,
+                                usernameController: _xtreamUsernameController,
+                                passwordController: _xtreamPasswordController,
+                                passwordVisible: _xtreamPasswordVisible,
+                                onTogglePassword: () => setState(() =>
+                                    _xtreamPasswordVisible =
+                                        !_xtreamPasswordVisible),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

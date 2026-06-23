@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -34,8 +36,10 @@ class EpgService {
       db.searchProgrammes(query);
 
   /// Fetches and stores EPG data for a source.
-  /// Runs from a background context — never call on the main isolate with await
-  /// in a UI build; schedule via a background service or WorkManager.
+  ///
+  /// Streams the HTTP response body through the XML parser so the full feed
+  /// is never held in memory. DB writes are flushed every 1 000 rows so peak
+  /// memory stays flat even for large XMLTV feeds.
   Future<void> refreshEpg(Source source) async {
     final epgUrl = source.epgUrl;
     if (epgUrl == null || epgUrl.isEmpty) return;
@@ -44,15 +48,33 @@ class EpgService {
       await db.deleteOldProgrammes();
 
       final uri = Uri.parse(epgUrl);
-      final response = await http.get(uri).timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) return;
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', uri);
+        // Timeout covers only initial connection; streaming continues until done.
+        final streamed = await client
+            .send(request)
+            .timeout(const Duration(seconds: 60));
+        if (streamed.statusCode != 200) return;
 
-      // Stream-parse via XmltvParser.
-      final chunk = Stream.value(response.body);
-      final programmes = await XmltvParser.parse(chunk).toList();
+        // Decode byte stream → string chunks for the SAX-style XML parser.
+        final bodyStream = streamed.stream.transform(utf8.decoder);
 
-      if (programmes.isNotEmpty) {
-        await db.upsertProgrammes(programmes);
+        // Parse and flush to DB every 1 000 rows — avoids collecting
+        // hundreds of thousands of Programme objects at once.
+        final buffer = <Programme>[];
+        await for (final prog in XmltvParser.parse(bodyStream)) {
+          buffer.add(prog);
+          if (buffer.length >= 1000) {
+            await db.upsertProgrammes(List.of(buffer));
+            buffer.clear();
+          }
+        }
+        if (buffer.isNotEmpty) {
+          await db.upsertProgrammes(buffer);
+        }
+      } finally {
+        client.close();
       }
     } catch (_) {
       // EPG errors are non-fatal — channels still work without guide data.
