@@ -303,22 +303,21 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                       if (_tabController.index == 0) ...[
                         const SizedBox(height: 8),
                         InfoTooltip(
-                          id: ‘add_source_epg’,
-                          title: ‘TV Guide URL (optional)’,
-                          body:
-                              ‘A link to an XMLTV file that provides programme schedules ‘
-                              ‘for your channels. Your provider may supply this separately. ‘
-                              ‘Leave it blank if you’re not sure — it can be added later.’,
-                          tip: ‘Many M3U playlists already include a guide URL. ‘
-                              ‘OpenIPTV will detect it automatically.’,
-                          child: Text(‘TV Guide URL (optional)’,
+                          id: "add_source_epg",
+                          title: "TV Guide URL (optional)",
+                          body: "A link to an XMLTV file that provides programme schedules "
+                              "for your channels. Your provider may supply this separately. "
+                              "Leave it blank if you’re not sure — it can be added later.",
+                          tip: "Many M3U playlists already include a guide URL. "
+                              "OpenIPTV will detect it automatically.",
+                          child: Text("TV Guide URL (optional)",
                               style: theme.textTheme.bodyMedium),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _epgUrlController,
                           decoration: const InputDecoration(
-                            hintText: ‘https://example.com/epg.xml’,
+                            hintText: "https://example.com/epg.xml",
                           ),
                           keyboardType: TextInputType.url,
                           textInputAction: TextInputAction.done,
