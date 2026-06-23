@@ -6,7 +6,6 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -193,6 +192,7 @@ class _ChannelRow extends ConsumerWidget {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
         'contentType': 'live',
+        'contentId': channel.id,
       }),
     );
   }

@@ -269,32 +269,68 @@ class _LiveControls extends ConsumerWidget {
   }
 }
 
-class _LiveProgrammeBar extends ConsumerWidget {
+class _LiveProgrammeBar extends ConsumerStatefulWidget {
   const _LiveProgrammeBar({required this.channelId});
 
   final String channelId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LiveProgrammeBar> createState() => _LiveProgrammeBarState();
+}
+
+class _LiveProgrammeBarState extends ConsumerState<_LiveProgrammeBar> {
+  Timer? _ticker;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the progress position every 30 seconds.
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final epg = ref.watch(epgServiceProvider);
     return FutureBuilder<Programme?>(
-      future: epg.getCurrentProgramme(channelId),
+      future: epg.getCurrentProgramme(widget.channelId),
       builder: (context, snapshot) {
         final prog = snapshot.data;
         if (prog == null) return const SizedBox.shrink();
-        final progress = prog.progressAt(DateTime.now());
+        final progress = prog.progressAt(_now);
+        final remaining = prog.end.difference(_now);
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                prog.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      prog.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '-${_fmtDuration(remaining)}',
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               ClipRRect(
@@ -311,6 +347,12 @@ class _LiveProgrammeBar extends ConsumerWidget {
         );
       },
     );
+  }
+
+  String _fmtDuration(Duration d) {
+    final h = d.inHours;
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    return h > 0 ? '${h}h ${m}m' : '${m}m';
   }
 }
 
