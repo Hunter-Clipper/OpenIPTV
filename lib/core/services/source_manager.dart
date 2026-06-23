@@ -265,6 +265,16 @@ class SourceManager {
       sourceId: source.id,
     );
 
+    // Auto-set XMLTV EPG URL for Xtream sources if not already configured.
+    if (source.epgUrl == null || source.epgUrl!.isEmpty) {
+      final host = source.xtreamHost!.endsWith('/')
+          ? source.xtreamHost!
+          : '${source.xtreamHost!}/';
+      final epgUrl =
+          '${host}xmltv.php?username=${source.xtreamUsername}&password=${source.xtreamPassword}';
+      await db.upsertSource(source.copyWith(epgUrl: epgUrl));
+    }
+
     try {
       onProgress?.call('Connecting to provider…');
       await db.deleteChannelsForSource(source.id);

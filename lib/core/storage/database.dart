@@ -264,6 +264,21 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Remaps programme channelId values from XMLTV IDs (e.g. 'BBC1.uk') to the
+  /// app's internal channel IDs (e.g. '{sourceId}_ch_30581') by joining on
+  /// channels.tvg_id. Must be called after EPG import.
+  Future<void> remapProgrammeChannelIds() async {
+    await customStatement(
+      'UPDATE programmes '
+      'SET channel_id = ('
+      '  SELECT id FROM channels WHERE tvg_id = programmes.channel_id LIMIT 1'
+      ') '
+      'WHERE channel_id IN ('
+      '  SELECT tvg_id FROM channels WHERE tvg_id IS NOT NULL'
+      ')',
+    );
+  }
+
   Future<void> deleteOldProgrammes() async {
     final cutoff = DateTime.now().subtract(const Duration(hours: 1));
     await (delete(programmes)..where((t) => t.end.isSmallerThanValue(cutoff)))

@@ -102,8 +102,11 @@ class EpgService {
           totalWritten += buffer.length;
         }
 
+        onProgress?.call('Mapping guide to channels…');
+        await db.remapProgrammeChannelIds();
+
         sw.stop();
-        dev.log('[EPG] Done — $totalWritten total programmes in ${sw.elapsedMilliseconds}ms',
+        dev.log('[EPG] Done — $totalWritten total programmes in ${sw.elapsedMilliseconds}ms (remap complete)',
             name: 'EpgService');
       } finally {
         client.close();
