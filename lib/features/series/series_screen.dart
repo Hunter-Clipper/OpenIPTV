@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -77,9 +76,9 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         data: (all) {
           final genres = _buildGenres(all);
           final filtered = _filteredSeries(all);
-          final favIds = profile?.favoriteSeriesIds ?? [];
+          final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
           final favourites =
-              all.where((s) => favIds.contains(s.id)).toList();
+              all.where((s) => favIdSet.contains(s.id)).toList();
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -264,12 +263,8 @@ class _PosterCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isFav = ref
-            .watch(activeProfileProvider)
-            .valueOrNull
-            ?.favoriteSeriesIds
-            .contains(series.id) ??
-        false;
+    final isFav = ref.watch(activeProfileProvider.select(
+        (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
 
     return GestureDetector(
       onTap: () => context.push('/series/${series.id}'),

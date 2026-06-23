@@ -25,6 +25,12 @@ final _categoriesProvider = Provider<List<String>>((ref) {
   return ['All', 'Favourites', ...cats];
 });
 
+// Caches EPG programme per channel so scrolling doesn't re-fire DB queries.
+final _nowProgrammeProvider =
+    FutureProvider.autoDispose.family<Programme?, String>((ref, channelId) {
+  return ref.read(epgServiceProvider).getCurrentProgramme(channelId);
+});
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -256,21 +262,13 @@ class _NowNextText extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final epg = ref.watch(epgServiceProvider);
-    return FutureBuilder<Programme?>(
-      future: epg.getCurrentProgramme(channelId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null) {
-          return const SizedBox.shrink();
-        }
-        final prog = snapshot.data!;
-        return Text(
-          prog.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall,
-        );
-      },
+    final prog = ref.watch(_nowProgrammeProvider(channelId)).valueOrNull;
+    if (prog == null) return const SizedBox.shrink();
+    return Text(
+      prog.title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall,
     );
   }
 }

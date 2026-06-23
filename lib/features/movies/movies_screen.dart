@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -84,9 +83,9 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           final genres = _buildGenres(all);
           final filtered = _filteredMovies(all);
           final inProgress = inProgressAsync.valueOrNull ?? [];
-          final favIds = profile?.favoriteMovieIds ?? [];
+          final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
           final favourites =
-              all.where((m) => favIds.contains(m.id)).toList();
+              all.where((m) => favIdSet.contains(m.id)).toList();
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -292,7 +291,6 @@ class _PosterCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => context.push('/movies/${movie.id}'),
       child: Stack(
@@ -321,12 +319,8 @@ class _PosterCard extends ConsumerWidget {
             top: 4,
             right: 4,
             child: _StarButton(
-              isFavourite: ref
-                      .watch(activeProfileProvider)
-                      .valueOrNull
-                      ?.favoriteMovieIds
-                      .contains(movie.id) ??
-                  false,
+              isFavourite: ref.watch(activeProfileProvider.select((a) =>
+                  a.valueOrNull?.favoriteMovieIds.contains(movie.id) ?? false)),
               onTap: profileId == null
                   ? null
                   : () => ref
