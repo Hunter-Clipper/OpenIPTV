@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/epg_panel.dart';
-import 'package:media_kit/media_kit.dart';
 
 /// Overlay controls for the full-screen player.
 /// Supports both Live TV and VOD (movie / episode) modes.
@@ -37,10 +37,21 @@ class PlayerControls extends ConsumerStatefulWidget {
 class _PlayerControlsState extends ConsumerState<PlayerControls> {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<VideoParams>? _videoParamsSub;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  VideoParams _videoParams = const VideoParams();
   bool _isSeeking = false;
   double _seekValue = 0;
+
+  String? get _qualityLabel {
+    final h = _videoParams.h ?? _videoParams.dh;
+    if (h == null || h == 0) return null;
+    if (h >= 2160) return '4K';
+    if (h >= 1080) return 'FHD';
+    if (h >= 720) return 'HD';
+    return 'SD';
+  }
 
   @override
   void initState() {
@@ -48,11 +59,15 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     final player = ref.read(playbackServiceProvider).player;
     _position = player.state.position;
     _duration = player.state.duration;
+    _videoParams = player.state.videoParams;
     _positionSub = player.stream.position.listen((p) {
       if (!_isSeeking && mounted) setState(() => _position = p);
     });
     _durationSub = player.stream.duration.listen((d) {
       if (mounted) setState(() => _duration = d);
+    });
+    _videoParamsSub = player.stream.videoParams.listen((vp) {
+      if (mounted) setState(() => _videoParams = vp);
     });
   }
 
@@ -60,6 +75,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   void dispose() {
     _positionSub?.cancel();
     _durationSub?.cancel();
+    _videoParamsSub?.cancel();
     super.dispose();
   }
 
@@ -96,11 +112,13 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ? _LiveControls(
             title: widget.title,
             contentId: widget.contentId,
+            qualityLabel: _qualityLabel,
             onBack: () => context.pop(),
             onEpg: () => _showEpgPanel(context),
           )
         : _VodControls(
             title: widget.title,
+            qualityLabel: _qualityLabel,
             position: _position,
             duration: _duration,
             isSeeking: _isSeeking,
@@ -136,10 +154,12 @@ class _LiveControls extends ConsumerWidget {
     required this.contentId,
     required this.onBack,
     required this.onEpg,
+    this.qualityLabel,
   });
 
   final String title;
   final String? contentId;
+  final String? qualityLabel;
   final VoidCallback onBack;
   final VoidCallback onEpg;
 
@@ -193,6 +213,11 @@ class _LiveControls extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // Quality badge
+                    if (qualityLabel != null) ...[
+                      _QualityBadge(label: qualityLabel!),
+                      const SizedBox(width: 8),
+                    ],
                     // LIVE badge
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -307,9 +332,11 @@ class _VodControls extends ConsumerWidget {
     required this.onSeekEnd,
     required this.onSkipBack,
     required this.onSkipForward,
+    this.qualityLabel,
   });
 
   final String title;
+  final String? qualityLabel;
   final Duration position;
   final Duration duration;
   final bool isSeeking;
@@ -378,6 +405,10 @@ class _VodControls extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (qualityLabel != null) ...[
+                      _QualityBadge(label: qualityLabel!),
+                      const SizedBox(width: 8),
+                    ],
                   ],
                 ),
               ),
@@ -487,6 +518,36 @@ class _VodControls extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared quality badge
+// ---------------------------------------------------------------------------
+
+class _QualityBadge extends StatelessWidget {
+  const _QualityBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white24,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white38),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
         ),
       ),
     );
