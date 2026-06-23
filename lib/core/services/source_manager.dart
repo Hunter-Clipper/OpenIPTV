@@ -92,6 +92,7 @@ class SourceManager {
     String? xtreamUsername,
     String? xtreamPassword,
     String? epgUrl,
+    void Function(String)? onProgress,
   }) async {
     final source = Source(
       id: _uuid.v4(),
@@ -105,17 +106,18 @@ class SourceManager {
     );
 
     await db.upsertSource(source);
-    await refreshSource(source);
+    await refreshSource(source, onProgress: onProgress);
     return source;
   }
 
-  Future<void> refreshSource(Source source) async {
+  Future<void> refreshSource(Source source, {void Function(String)? onProgress}) async {
     if (source.type == SourceType.m3u) {
-      await _refreshM3u(source);
+      await _refreshM3u(source, onProgress: onProgress);
     } else {
-      await _refreshXtream(source);
+      await _refreshXtream(source, onProgress: onProgress);
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
+    onProgress?.call('Loading TV guide…');
     await epgService.refreshEpg(source);
   }
 
@@ -131,10 +133,11 @@ class SourceManager {
   // M3U refresh
   // ---------------------------------------------------------------------------
 
-  Future<void> _refreshM3u(Source source) async {
+  Future<void> _refreshM3u(Source source, {void Function(String)? onProgress}) async {
     final url = source.m3uUrl;
     if (url == null) return;
 
+    onProgress?.call('Connecting to provider…');
     final response = await http.get(Uri.parse(url)).timeout(
           const Duration(seconds: 30),
         );
@@ -142,6 +145,7 @@ class SourceManager {
       throw Exception('http_${response.statusCode}');
     }
 
+    onProgress?.call('Parsing channels…');
     final result = await M3uParser.parse(response.body, source.id);
 
     // Auto-detect EPG URL from M3U header if not already set.
@@ -149,6 +153,7 @@ class SourceManager {
       await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
     }
 
+    onProgress?.call('Saving to database…');
     await db.deleteChannelsForSource(source.id);
     await db.deleteMoviesForSource(source.id);
     await db.deleteSeriesForSource(source.id);
@@ -164,7 +169,7 @@ class SourceManager {
   // Xtream refresh
   // ---------------------------------------------------------------------------
 
-  Future<void> _refreshXtream(Source source) async {
+  Future<void> _refreshXtream(Source source, {void Function(String)? onProgress}) async {
     final client = XtreamClient(
       host: source.xtreamHost!,
       username: source.xtreamUsername!,
@@ -173,17 +178,21 @@ class SourceManager {
     );
 
     try {
+      onProgress?.call('Connecting to provider…');
       await db.deleteChannelsForSource(source.id);
       await db.deleteMoviesForSource(source.id);
       await db.deleteSeriesForSource(source.id);
       await db.deleteEpisodesForSource(source.id);
 
+      onProgress?.call('Fetching channels…');
       final channels = await client.getLiveStreams();
       if (channels.isNotEmpty) await db.upsertChannels(channels);
 
+      onProgress?.call('Fetching movies…');
       final movies = await client.getVodStreams();
       if (movies.isNotEmpty) await db.upsertMovies(movies);
 
+      onProgress?.call('Fetching series…');
       final seriesList = await client.getAllSeries();
       if (seriesList.isNotEmpty) await db.upsertSeries(seriesList);
 

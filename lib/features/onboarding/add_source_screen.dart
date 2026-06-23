@@ -33,6 +33,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
   bool _isLoading = false;
   bool _isDetecting = false;
   String? _errorMessage;
+  String? _progressStep;
 
   @override
   void initState() {
@@ -127,6 +128,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
   Future<void> _addSource() async {
     setState(() {
       _isLoading = true;
+      _progressStep = null;
       _errorMessage = null;
     });
 
@@ -134,6 +136,10 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
     final nickname = _nicknameController.text.trim();
     final epgUrl =
         _epgUrlController.text.trim().isEmpty ? null : _epgUrlController.text.trim();
+
+    void onProgress(String step) {
+      if (mounted) setState(() => _progressStep = step);
+    }
 
     try {
       if (_tabController.index == 0) {
@@ -157,6 +163,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
           type: SourceType.m3u,
           m3uUrl: url,
           epgUrl: epgUrl,
+          onProgress: onProgress,
         );
       } else {
         final host = _xtreamHostController.text.trim();
@@ -184,6 +191,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
           xtreamUsername: user,
           xtreamPassword: pass,
           epgUrl: epgUrl,
+          onProgress: onProgress,
         );
       }
 
@@ -351,46 +359,44 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                         ),
                         const SizedBox(height: 16),
                       ],
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isDetecting || _isLoading
-                                  ? null
-                                  : _detectSourceType,
-                              icon: _isDetecting
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.search),
-                              label: Text(
-                                  _isDetecting ? 'Detecting...' : 'Auto-detect'),
+                      if (_isLoading) ...[
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 12),
+                        Text(
+                          _progressStep ?? 'Starting…',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 32),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _isDetecting ? null : _detectSourceType,
+                                icon: _isDetecting
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.search),
+                                label: Text(
+                                    _isDetecting ? 'Detecting...' : 'Auto-detect'),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: FilledButton(
-                              onPressed: _isLoading || _isDetecting
-                                  ? null
-                                  : _addSource,
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white),
-                                    )
-                                  : const Text('Add Source'),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: FilledButton(
+                                onPressed: _isDetecting ? null : _addSource,
+                                child: const Text('Add Source'),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                      ],
                     ],
                   ),
                 ),
