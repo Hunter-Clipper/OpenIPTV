@@ -38,6 +38,10 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 1) _epgUrlController.clear();
+      setState(() {});
+    });
   }
 
   @override
@@ -295,29 +299,33 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
-                      InfoTooltip(
-                        id: 'add_source_epg',
-                        title: 'TV Guide URL (optional)',
-                        body:
-                            'A link to an XMLTV file that provides programme schedules '
-                            'for your channels. Your provider may supply this separately. '
-                            'Leave it blank if you’re not sure — it can be added later.',
-                        tip: 'Many M3U playlists already include a guide URL. '
-                            'OpenIPTV will detect it automatically.',
-                        child: Text('TV Guide URL (optional)',
-                            style: theme.textTheme.bodyMedium),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _epgUrlController,
-                        decoration: const InputDecoration(
-                          hintText: 'https://example.com/epg.xml',
+                      // Xtream has built-in EPG; only show external EPG for M3U.
+                      if (_tabController.index == 0) ...[
+                        const SizedBox(height: 8),
+                        InfoTooltip(
+                          id: ‘add_source_epg’,
+                          title: ‘TV Guide URL (optional)’,
+                          body:
+                              ‘A link to an XMLTV file that provides programme schedules ‘
+                              ‘for your channels. Your provider may supply this separately. ‘
+                              ‘Leave it blank if you’re not sure — it can be added later.’,
+                          tip: ‘Many M3U playlists already include a guide URL. ‘
+                              ‘OpenIPTV will detect it automatically.’,
+                          child: Text(‘TV Guide URL (optional)’,
+                              style: theme.textTheme.bodyMedium),
                         ),
-                        keyboardType: TextInputType.url,
-                        textInputAction: TextInputAction.done,
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _epgUrlController,
+                          decoration: const InputDecoration(
+                            hintText: ‘https://example.com/epg.xml’,
+                          ),
+                          keyboardType: TextInputType.url,
+                          textInputAction: TextInputAction.done,
+                        ),
+                        const SizedBox(height: 24),
+                      ] else
+                        const SizedBox(height: 8),
                       if (_errorMessage != null) ...[
                         Container(
                           padding: const EdgeInsets.all(12),
