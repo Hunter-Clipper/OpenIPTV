@@ -6,7 +6,7 @@ import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 
 Channel _ch(String id, String name) => Channel(
-      id: id, sourceId: 'src', name: name, streamUrl: 'http://x', sortOrder: 0);
+    id: id, sourceId: 'src', name: name, streamUrl: 'http://x', sortOrder: 0);
 
 Movie _mv(String id, String title) =>
     Movie(id: id, sourceId: 'src', title: title, streamUrl: 'http://x');
@@ -14,14 +14,13 @@ Movie _mv(String id, String title) =>
 Series _sr(String id, String title) =>
     Series(id: id, sourceId: 'src', title: title);
 
-Programme _pr(String channelId, String title, {String? desc}) {
+Programme _pr(String channelId, String title) {
   final now = DateTime.now();
   return Programme(
     channelId: channelId,
     start: now.subtract(const Duration(minutes: 10)),
     end: now.add(const Duration(minutes: 50)),
     title: title,
-    description: desc,
   );
 }
 
@@ -34,6 +33,7 @@ void main() {
     _ch('3', 'BBC News'),
     _ch('4', 'ITV'),
     _ch('5', 'Sky Sports 1'),
+    _ch('6', 'FX'),
   ];
 
   final movies = [
@@ -41,6 +41,7 @@ void main() {
     _mv('m2', 'Inception'),
     _mv('m3', 'The Dark Knight'),
     _mv('m4', 'Mad Max: Fury Road'),
+    _mv('m5', 'Avatar'),
   ];
 
   final series = [
@@ -49,10 +50,10 @@ void main() {
     _sr('s3', 'The Office'),
   ];
 
-  final programmes = [
-    _pr('1', 'EastEnders', desc: 'Drama set in London'),
-    _pr('2', 'Coronation Street', desc: 'Soap from Manchester'),
-    _pr('3', 'BBC News at Ten'),
+  // FX is currently airing Avatar — EPG match test
+  final currentProgrammes = [
+    _pr('6', 'Avatar'),
+    _pr('1', 'EastEnders'),
   ];
 
   group('SearchService.search', () {
@@ -60,7 +61,7 @@ void main() {
       final result = service.search(
         query: 'b',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
@@ -71,47 +72,58 @@ void main() {
       final result = service.search(
         query: '  ',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
       expect(result.isEmpty, isTrue);
     });
 
-    test('substring match (pass 1) scores higher than in-order match (pass 2)',
-        () {
-      // 'BBC' is a substring of 'BBC One' (score 1.0)
-      // 'BBC' chars are in order in 'Broadcast BBC-like Content' — not in our data
-      // Simpler test: exact substring results appear before fuzzy results.
+    test('matches channels by name (case-insensitive)', () {
       final result = service.search(
-        query: 'bbc',
+        query: 'BBC',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
       expect(result.channels.length, 3);
-      // All three BBC channels should appear.
       expect(result.channels.map((c) => c.name),
           containsAll(['BBC One', 'BBC Two', 'BBC News']));
     });
 
-    test('case-insensitive substring match', () {
+    test('matches channel via current EPG programme title', () {
+      // FX is showing Avatar — searching "avatar" should return FX channel
       final result = service.search(
-        query: 'BBC',
+        query: 'avatar',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: currentProgrammes,
         movies: movies,
         series: series,
       );
-      expect(result.channels.length, 3);
+      expect(result.channels.any((c) => c.name == 'FX'), isTrue);
+    });
+
+    test('EPG match does not return duplicate when name also matches', () {
+      // BBC One is named "BBC One" and its EPG has "EastEnders" — searching
+      // "bbc" matches by name; no duplicate should appear.
+      final result = service.search(
+        query: 'bbc',
+        channels: channels,
+        currentProgrammes: currentProgrammes,
+        movies: movies,
+        series: series,
+      );
+      final bbcChannels =
+          result.channels.where((c) => c.name.startsWith('BBC')).toList();
+      expect(bbcChannels.length, 3);
     });
 
     test('searches movie titles', () {
       final result = service.search(
         query: 'inter',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
@@ -123,7 +135,7 @@ void main() {
       final result = service.search(
         query: 'break',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
@@ -131,70 +143,42 @@ void main() {
       expect(result.series.first.title, 'Breaking Bad');
     });
 
-    test('searches programme titles', () {
-      final result = service.search(
-        query: 'east',
-        channels: channels,
-        programmes: programmes,
-        movies: movies,
-        series: series,
-      );
-      expect(result.programmes.length, 1);
-      expect(result.programmes.first.title, 'EastEnders');
-    });
-
-    test('searches programme descriptions', () {
-      final result = service.search(
-        query: 'manchester',
-        channels: channels,
-        programmes: programmes,
-        movies: movies,
-        series: series,
-      );
-      expect(result.programmes, isNotEmpty);
-      expect(result.programmes.first.title, 'Coronation Street');
-    });
-
-    test('hides empty groups when no results', () {
+    test('no results for non-matching query', () {
       final result = service.search(
         query: 'xyz_no_match_12345',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
       expect(result.channels, isEmpty);
       expect(result.movies, isEmpty);
       expect(result.series, isEmpty);
-      expect(result.programmes, isEmpty);
       expect(result.isEmpty, isTrue);
     });
 
-    test('in-order character match (pass 2) finds non-substring results', () {
-      // 'bbc' chars in order in 'Baseball Broadcaster Club' — not in data.
-      // Test with something we have: 'skys' → chars s,k,y,s in 'Sky Sports 1'
+    test('strict contains — does not match non-substring patterns', () {
+      // 'skys' is not a substring of 'Sky Sports 1'
       final result = service.search(
         query: 'skys',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: [],
         movies: movies,
         series: series,
       );
-      // 'Sky Sports 1' contains 's','k','y','s' in order
-      expect(result.channels.any((c) => c.name == 'Sky Sports 1'), isTrue);
+      expect(result.channels.any((c) => c.name == 'Sky Sports 1'), isFalse);
     });
 
-    test('multiple content types can match simultaneously', () {
-      // 'bbc' matches channels AND a programme title
+    test('avatar returns both movie and EPG-matched channel', () {
       final result = service.search(
-        query: 'bbc',
+        query: 'avatar',
         channels: channels,
-        programmes: programmes,
+        currentProgrammes: currentProgrammes,
         movies: movies,
         series: series,
       );
-      expect(result.channels, isNotEmpty);
-      expect(result.programmes, isNotEmpty);
+      expect(result.movies.any((m) => m.title == 'Avatar'), isTrue);
+      expect(result.channels.any((c) => c.name == 'FX'), isTrue);
     });
   });
 }

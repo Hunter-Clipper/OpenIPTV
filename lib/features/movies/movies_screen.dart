@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -31,12 +32,20 @@ class MoviesScreen extends ConsumerStatefulWidget {
 }
 
 class _MoviesScreenState extends ConsumerState<MoviesScreen> {
-  String _selectedGenre = 'All';
+  // null = genre grid; non-null = filtered movie grid
+  String? _selectedGenre;
 
   Future<void> _refresh() async {
-    ref.invalidate(_allMoviesProvider);
-    ref.invalidate(_moviesInProgressProvider);
-    await ref.read(_allMoviesProvider.future);
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      for (final s in sources) {
+        await ref.read(sourceManagerProvider).refreshMovies(s);
+      }
+    } finally {
+      ref.invalidate(_allMoviesProvider);
+      ref.invalidate(_moviesInProgressProvider);
+      await ref.read(_allMoviesProvider.future);
+    }
   }
 
   List<String> _buildGenres(List<Movie> movies) {
@@ -47,14 +56,14 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         .toSet()
         .toList()
       ..sort();
-    return ['All', ...genres];
+    return genres;
   }
 
-  List<Movie> _filteredMovies(List<Movie> all) {
-    if (_selectedGenre == 'All') return all;
+  List<Movie> _filteredMovies(List<Movie> all, String genre) {
+    if (genre == 'All') return all;
     return all.where((m) {
-      final genre = m.genre ?? '';
-      return genre.toLowerCase().contains(_selectedGenre.toLowerCase());
+      final g = m.genre ?? '';
+      return g.toLowerCase().contains(genre.toLowerCase());
     }).toList();
   }
 
@@ -68,7 +77,15 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Movies'),
+        leading: _selectedGenre != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _selectedGenre = null),
+              )
+            : null,
+        title: Text(_selectedGenre != null
+            ? (_selectedGenre == 'All' ? 'All Movies' : _selectedGenre!)
+            : 'Movies'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -80,74 +97,91 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _ErrorView(onRetry: _refresh),
         data: (all) {
-          final genres = _buildGenres(all);
-          final filtered = _filteredMovies(all);
           final inProgress = inProgressAsync.valueOrNull ?? [];
           final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
-          final favourites =
-              all.where((m) => favIdSet.contains(m.id)).toList();
+          final favorites = all.where((m) => favIdSet.contains(m.id)).toList();
 
+          if (_selectedGenre == null) {
+            // Genre selection screen with Favorites + Continue Watching on top
+            final genres = _buildGenres(all);
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: CustomScrollView(
+                slivers: [
+                  // Continue Watching
+                  if (inProgress.isNotEmpty) ...[
+                    _SectionHeader(title: 'Continue Watching'),
+                    SliverToBoxAdapter(
+                      child: _HorizontalPosterRow(
+                        movies: inProgress,
+                        profileId: profile?.id,
+                        showProgress: true,
+                      ),
+                    ),
+                  ],
+
+                  // Favorites
+                  if (favorites.isNotEmpty) ...[
+                    _SectionHeader(title: 'Favorites'),
+                    SliverToBoxAdapter(
+                      child: _HorizontalPosterRow(
+                        movies: favorites,
+                        profileId: profile?.id,
+                        showProgress: false,
+                      ),
+                    ),
+                  ],
+
+                  // Genre tiles
+                  _SectionHeader(title: 'Browse by Genre'),
+                  SliverToBoxAdapter(
+                    child: _GenreTileList(
+                      genres: ['All', ...genres],
+                      movieCounts: {
+                        'All': all.length,
+                        for (final g in genres)
+                          g: all
+                              .where((m) => (m.genre ?? '').contains(g))
+                              .length,
+                      },
+                      onTap: (g) => setState(() => _selectedGenre = g),
+                    ),
+                  ),
+                  const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+                ],
+              ),
+            );
+          }
+
+          // Filtered movie grid
+          final filtered = _filteredMovies(all, _selectedGenre!);
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
               slivers: [
-                // Genre chips
-                SliverToBoxAdapter(
-                  child: _GenreFilterRow(
-                    genres: genres,
-                    selected: _selectedGenre,
-                    onSelected: (g) => setState(() => _selectedGenre = g),
-                  ),
-                ),
-
-                // Continue Watching
-                if (inProgress.isNotEmpty) ...[
-                  _SectionHeader(title: 'Continue Watching'),
-                  SliverToBoxAdapter(
-                    child: _HorizontalPosterRow(
-                      movies: inProgress,
-                      profileId: profile?.id,
-                      showProgress: true,
-                    ),
-                  ),
-                ],
-
-                // Favourites
-                if (favourites.isNotEmpty) ...[
-                  _SectionHeader(title: 'Favourites'),
-                  SliverToBoxAdapter(
-                    child: _HorizontalPosterRow(
-                      movies: favourites,
-                      profileId: profile?.id,
-                      showProgress: false,
-                    ),
-                  ),
-                ],
-
-                // All movies grid
-                _SectionHeader(title: 'All Movies'),
-                filtered.isEmpty
-                    ? const SliverFillRemaining(child: _EmptyView())
-                    : SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        sliver: SliverGrid(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, i) => _PosterCard(
-                              movie: filtered[i],
-                              profileId: profile?.id,
-                            ),
-                            childCount: filtered.length,
-                          ),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: AppTheme.posterAspectRatio,
-                          ),
+                if (filtered.isEmpty)
+                  const SliverFillRemaining(child: _EmptyView())
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    sliver: SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _PosterCard(
+                          movie: filtered[i],
+                          profileId: profile?.id,
                         ),
+                        childCount: filtered.length,
                       ),
+                      gridDelegate:
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: AppTheme.posterAspectRatio,
+                      ),
+                    ),
+                  ),
                 const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
               ],
             ),
@@ -159,35 +193,47 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Genre filter row
+// Genre tile list
 // ---------------------------------------------------------------------------
 
-class _GenreFilterRow extends StatelessWidget {
-  const _GenreFilterRow({
+class _GenreTileList extends StatelessWidget {
+  const _GenreTileList({
     required this.genres,
-    required this.selected,
-    required this.onSelected,
+    required this.movieCounts,
+    required this.onTap,
   });
 
   final List<String> genres;
-  final String selected;
-  final void Function(String) onSelected;
+  final Map<String, int> movieCounts;
+  final void Function(String) onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: genres.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) => ChoiceChip(
-          label: Text(genres[i]),
-          selected: genres[i] == selected,
-          onSelected: (_) => onSelected(genres[i]),
-        ),
-      ),
+    final theme = Theme.of(context);
+    return Column(
+      children: genres.map((g) {
+        return ListTile(
+          leading: Icon(
+            g == 'All' ? Icons.movie_outlined : Icons.category_outlined,
+            color: theme.colorScheme.primary,
+          ),
+          title: Text(g),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                (movieCounts[g] ?? 0).toString(),
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+          onTap: () => onTap(g),
+        );
+      }).toList(),
     );
   }
 }
@@ -213,7 +259,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Horizontal poster row (Continue Watching / Favourites)
+// Horizontal poster row (Continue Watching / Favorites)
 // ---------------------------------------------------------------------------
 
 class _HorizontalPosterRow extends ConsumerWidget {
@@ -299,7 +345,6 @@ class _PosterCard extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             child: _PosterImage(posterUrl: movie.posterUrl),
           ),
-          // Progress bar at bottom
           if (movie.isInProgress)
             Positioned(
               bottom: 0,
@@ -314,12 +359,11 @@ class _PosterCard extends ConsumerWidget {
                 ),
               ),
             ),
-          // Star icon
           Positioned(
             top: 4,
             right: 4,
             child: _StarButton(
-              isFavourite: ref.watch(activeProfileProvider.select((a) =>
+              isFavorite: ref.watch(activeProfileProvider.select((a) =>
                   a.valueOrNull?.favoriteMovieIds.contains(movie.id) ?? false)),
               onTap: profileId == null
                   ? null
@@ -370,9 +414,9 @@ class _PosterImage extends StatelessWidget {
 }
 
 class _StarButton extends StatelessWidget {
-  const _StarButton({required this.isFavourite, required this.onTap});
+  const _StarButton({required this.isFavorite, required this.onTap});
 
-  final bool isFavourite;
+  final bool isFavorite;
   final VoidCallback? onTap;
 
   @override
@@ -387,9 +431,9 @@ class _StarButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(
-          isFavourite ? Icons.star : Icons.star_border,
+          isFavorite ? Icons.star : Icons.star_border,
           size: 16,
-          color: isFavourite
+          color: isFavorite
               ? Theme.of(context).colorScheme.primary
               : Colors.white70,
         ),

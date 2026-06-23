@@ -118,7 +118,95 @@ class SourceManager {
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
     onProgress?.call('Loading TV guide…');
+    await epgService.refreshEpg(source, onProgress: onProgress);
+  }
+
+  /// Refreshes only live channels (and EPG) for a source.
+  Future<void> refreshChannels(Source source) async {
+    if (source.type == SourceType.m3u) {
+      final url = source.m3uUrl;
+      if (url == null) return;
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) throw Exception('http_${response.statusCode}');
+      final result = await M3uParser.parse(response.body, source.id);
+      if (source.epgUrl == null && result.epgUrl != null) {
+        await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
+      }
+      await db.deleteChannelsForSource(source.id);
+      if (result.channels.isNotEmpty) await db.upsertChannels(result.channels);
+    } else {
+      final client = XtreamClient(
+        host: source.xtreamHost!,
+        username: source.xtreamUsername!,
+        password: source.xtreamPassword!,
+        sourceId: source.id,
+      );
+      try {
+        await db.deleteChannelsForSource(source.id);
+        final channels = await client.getLiveStreams();
+        if (channels.isNotEmpty) await db.upsertChannels(channels);
+      } finally {
+        client.dispose();
+      }
+    }
+    await db.updateSourceRefreshTime(source.id, DateTime.now());
     await epgService.refreshEpg(source);
+  }
+
+  /// Refreshes only movies for a source.
+  Future<void> refreshMovies(Source source) async {
+    if (source.type == SourceType.m3u) {
+      final url = source.m3uUrl;
+      if (url == null) return;
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) throw Exception('http_${response.statusCode}');
+      final result = await M3uParser.parse(response.body, source.id);
+      await db.deleteMoviesForSource(source.id);
+      if (result.movies.isNotEmpty) await db.upsertMovies(result.movies);
+    } else {
+      final client = XtreamClient(
+        host: source.xtreamHost!,
+        username: source.xtreamUsername!,
+        password: source.xtreamPassword!,
+        sourceId: source.id,
+      );
+      try {
+        await db.deleteMoviesForSource(source.id);
+        final movies = await client.getVodStreams();
+        if (movies.isNotEmpty) await db.upsertMovies(movies);
+      } finally {
+        client.dispose();
+      }
+    }
+    await db.updateSourceRefreshTime(source.id, DateTime.now());
+  }
+
+  /// Refreshes only series for a source.
+  Future<void> refreshSeries(Source source) async {
+    if (source.type == SourceType.m3u) {
+      final url = source.m3uUrl;
+      if (url == null) return;
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) throw Exception('http_${response.statusCode}');
+      final result = await M3uParser.parse(response.body, source.id);
+      await db.deleteSeriesForSource(source.id);
+      if (result.series.isNotEmpty) await db.upsertSeries(result.series);
+    } else {
+      final client = XtreamClient(
+        host: source.xtreamHost!,
+        username: source.xtreamUsername!,
+        password: source.xtreamPassword!,
+        sourceId: source.id,
+      );
+      try {
+        await db.deleteSeriesForSource(source.id);
+        final seriesList = await client.getAllSeries();
+        if (seriesList.isNotEmpty) await db.upsertSeries(seriesList);
+      } finally {
+        client.dispose();
+      }
+    }
+    await db.updateSourceRefreshTime(source.id, DateTime.now());
   }
 
   Future<void> deleteSource(String sourceId) async {

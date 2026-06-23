@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -27,11 +28,19 @@ class SeriesScreen extends ConsumerStatefulWidget {
 }
 
 class _SeriesScreenState extends ConsumerState<SeriesScreen> {
-  String _selectedGenre = 'All';
+  // null = genre grid; non-null = filtered series grid
+  String? _selectedGenre;
 
   Future<void> _refresh() async {
-    ref.invalidate(_allSeriesProvider);
-    await ref.read(_allSeriesProvider.future);
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      for (final s in sources) {
+        await ref.read(sourceManagerProvider).refreshSeries(s);
+      }
+    } finally {
+      ref.invalidate(_allSeriesProvider);
+      await ref.read(_allSeriesProvider.future);
+    }
   }
 
   List<String> _buildGenres(List<Series> all) {
@@ -42,14 +51,14 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         .toSet()
         .toList()
       ..sort();
-    return ['All', ...genres];
+    return genres;
   }
 
-  List<Series> _filteredSeries(List<Series> all) {
-    if (_selectedGenre == 'All') return all;
+  List<Series> _filteredSeries(List<Series> all, String genre) {
+    if (genre == 'All') return all;
     return all.where((s) {
-      final genre = s.genre ?? '';
-      return genre.toLowerCase().contains(_selectedGenre.toLowerCase());
+      final g = s.genre ?? '';
+      return g.toLowerCase().contains(genre.toLowerCase());
     }).toList();
   }
 
@@ -62,7 +71,15 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Series'),
+        leading: _selectedGenre != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _selectedGenre = null),
+              )
+            : null,
+        title: Text(_selectedGenre != null
+            ? (_selectedGenre == 'All' ? 'All Series' : _selectedGenre!)
+            : 'Series'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -74,63 +91,78 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _ErrorView(onRetry: _refresh),
         data: (all) {
-          final genres = _buildGenres(all);
-          final filtered = _filteredSeries(all);
           final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
-          final favourites =
+          final favorites =
               all.where((s) => favIdSet.contains(s.id)).toList();
 
+          if (_selectedGenre == null) {
+            // Genre selection screen with Favorites row on top
+            final genres = _buildGenres(all);
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: CustomScrollView(
+                slivers: [
+                  // Favorites
+                  if (favorites.isNotEmpty) ...[
+                    _SectionHeader(title: 'Favorites'),
+                    SliverToBoxAdapter(
+                      child: _HorizontalPosterRow(
+                        items: favorites,
+                        profileId: profile?.id,
+                      ),
+                    ),
+                  ],
+
+                  // Genre tiles
+                  _SectionHeader(title: 'Browse by Genre'),
+                  SliverToBoxAdapter(
+                    child: _GenreTileList(
+                      genres: ['All', ...genres],
+                      seriesCounts: {
+                        'All': all.length,
+                        for (final g in genres)
+                          g: all
+                              .where((s) => (s.genre ?? '').contains(g))
+                              .length,
+                      },
+                      onTap: (g) => setState(() => _selectedGenre = g),
+                    ),
+                  ),
+                  const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+                ],
+              ),
+            );
+          }
+
+          // Filtered series grid
+          final filtered = _filteredSeries(all, _selectedGenre!);
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
               slivers: [
-                // Genre chips
-                SliverToBoxAdapter(
-                  child: _GenreFilterRow(
-                    genres: genres,
-                    selected: _selectedGenre,
-                    onSelected: (g) => setState(() => _selectedGenre = g),
-                  ),
-                ),
-
-                // Favourites row
-                if (favourites.isNotEmpty) ...[
-                  _SectionHeader(title: 'Favourites'),
-                  SliverToBoxAdapter(
-                    child: _HorizontalPosterRow(
-                      items: favourites,
-                      profileId: profile?.id,
+                if (filtered.isEmpty)
+                  const SliverFillRemaining(child: _EmptyView())
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    sliver: SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _PosterCard(
+                          series: filtered[i],
+                          profileId: profile?.id,
+                        ),
+                        childCount: filtered.length,
+                      ),
+                      gridDelegate:
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: AppTheme.posterAspectRatio,
+                      ),
                     ),
                   ),
-                ],
-
-                // All series grid
-                _SectionHeader(
-                    title: _selectedGenre == 'All'
-                        ? 'All Series'
-                        : _selectedGenre),
-                filtered.isEmpty
-                    ? const SliverFillRemaining(child: _EmptyView())
-                    : SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        sliver: SliverGrid(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, i) => _PosterCard(
-                              series: filtered[i],
-                              profileId: profile?.id,
-                            ),
-                            childCount: filtered.length,
-                          ),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: AppTheme.posterAspectRatio,
-                          ),
-                        ),
-                      ),
                 const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
               ],
             ),
@@ -142,35 +174,49 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Genre filter row
+// Genre tile list
 // ---------------------------------------------------------------------------
 
-class _GenreFilterRow extends StatelessWidget {
-  const _GenreFilterRow({
+class _GenreTileList extends StatelessWidget {
+  const _GenreTileList({
     required this.genres,
-    required this.selected,
-    required this.onSelected,
+    required this.seriesCounts,
+    required this.onTap,
   });
 
   final List<String> genres;
-  final String selected;
-  final void Function(String) onSelected;
+  final Map<String, int> seriesCounts;
+  final void Function(String) onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: genres.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) => ChoiceChip(
-          label: Text(genres[i]),
-          selected: genres[i] == selected,
-          onSelected: (_) => onSelected(genres[i]),
-        ),
-      ),
+    final theme = Theme.of(context);
+    return Column(
+      children: genres.map((g) {
+        return ListTile(
+          leading: Icon(
+            g == 'All'
+                ? Icons.video_library_outlined
+                : Icons.category_outlined,
+            color: theme.colorScheme.primary,
+          ),
+          title: Text(g),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                (seriesCounts[g] ?? 0).toString(),
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+          onTap: () => onTap(g),
+        );
+      }).toList(),
     );
   }
 }
@@ -196,7 +242,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Horizontal favourites row
+// Horizontal favorites row
 // ---------------------------------------------------------------------------
 
 class _HorizontalPosterRow extends ConsumerWidget {

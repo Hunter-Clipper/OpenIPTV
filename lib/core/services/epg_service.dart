@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/models/programme.dart';
@@ -35,14 +36,28 @@ class EpgService {
   Future<List<Programme>> searchProgrammes(String query) =>
       db.searchProgrammes(query);
 
+  Future<List<Programme>> searchCurrentProgrammes(String query) =>
+      db.searchCurrentProgrammes(query);
+
   /// Fetches and stores EPG data for a source.
   ///
   /// Streams the HTTP response body through the XML parser so the full feed
   /// is never held in memory. DB writes are flushed every 1 000 rows so peak
   /// memory stays flat even for large XMLTV feeds.
-  Future<void> refreshEpg(Source source) async {
+  Future<void> refreshEpg(
+    Source source, {
+    void Function(String)? onProgress,
+  }) async {
     final epgUrl = source.epgUrl;
-    if (epgUrl == null || epgUrl.isEmpty) return;
+    if (epgUrl == null || epgUrl.isEmpty) {
+      dev.log('[EPG] No EPG URL configured for source "${source.nickname}" — skipping.',
+          name: 'EpgService');
+      return;
+    }
+
+    dev.log('[EPG] Starting fetch for "${source.nickname}": $epgUrl',
+        name: 'EpgService');
+    final sw = Stopwatch()..start();
 
     try {
       await db.deleteOldProgrammes();
@@ -51,32 +66,52 @@ class EpgService {
       final client = http.Client();
       try {
         final request = http.Request('GET', uri);
-        // Timeout covers only initial connection; streaming continues until done.
         final streamed = await client
             .send(request)
             .timeout(const Duration(seconds: 60));
-        if (streamed.statusCode != 200) return;
 
-        // Decode byte stream → string chunks for the SAX-style XML parser.
+        dev.log('[EPG] Connected in ${sw.elapsedMilliseconds}ms — HTTP ${streamed.statusCode}',
+            name: 'EpgService');
+
+        if (streamed.statusCode != 200) {
+          dev.log('[EPG] Aborting — unexpected status ${streamed.statusCode}',
+              name: 'EpgService');
+          return;
+        }
+
         final bodyStream = streamed.stream.transform(utf8.decoder);
 
-        // Parse and flush to DB every 1 000 rows — avoids collecting
-        // hundreds of thousands of Programme objects at once.
+        var totalWritten = 0;
+        var batchCount = 0;
         final buffer = <Programme>[];
+
         await for (final prog in XmltvParser.parse(bodyStream)) {
           buffer.add(prog);
           if (buffer.length >= 1000) {
             await db.upsertProgrammes(List.of(buffer));
+            totalWritten += buffer.length;
+            batchCount++;
+            dev.log('[EPG] Batch $batchCount — $totalWritten programmes written (${sw.elapsedMilliseconds}ms)',
+                name: 'EpgService');
+            onProgress?.call('Loading TV guide… ($totalWritten programs)');
             buffer.clear();
           }
         }
         if (buffer.isNotEmpty) {
           await db.upsertProgrammes(buffer);
+          totalWritten += buffer.length;
         }
+
+        sw.stop();
+        dev.log('[EPG] Done — $totalWritten total programmes in ${sw.elapsedMilliseconds}ms',
+            name: 'EpgService');
       } finally {
         client.close();
       }
-    } catch (_) {
+    } catch (e, st) {
+      sw.stop();
+      dev.log('[EPG] Error after ${sw.elapsedMilliseconds}ms: $e',
+          name: 'EpgService', error: e, stackTrace: st);
       // EPG errors are non-fatal — channels still work without guide data.
     }
   }

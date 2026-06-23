@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -108,7 +109,7 @@ class SettingsScreen extends ConsumerWidget {
               id: 'settings_epg_window',
               title: 'TV Guide Time Window',
               body:
-                  'How many days of programme guide to keep on your device. '
+                  'How many days of program guide to keep on your device. '
                   'A longer window uses more storage. The guide is fetched '
                   'automatically when you add or refresh a source.',
               child: ListTile(
@@ -139,11 +140,19 @@ class SettingsScreen extends ConsumerWidget {
 
             // --------------- ABOUT ---------------
             _SectionHeader(title: 'About'),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('About OpenIPTV'),
-              subtitle: const Text('Version 1.0.0'),
-              onTap: () => _showAboutDialog(context),
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snap) {
+                final version = snap.hasData
+                    ? 'Version ${snap.data!.version}'
+                    : 'OpenIPTV';
+                return ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('About OpenIPTV'),
+                  subtitle: Text(version),
+                  onTap: () => _showAboutDialog(context, snap.data),
+                );
+              },
             ),
             const SizedBox(height: 32),
           ],
@@ -203,11 +212,11 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAboutDialog(BuildContext context) {
+  void _showAboutDialog(BuildContext context, PackageInfo? info) {
     showAboutDialog(
       context: context,
       applicationName: 'OpenIPTV',
-      applicationVersion: '1.0.0',
+      applicationVersion: info != null ? info.version : '',
       applicationLegalese:
           '© 2024 OpenIPTV contributors. Licensed under GPL-3.0.',
       children: [
@@ -273,11 +282,74 @@ class _ToggleTile extends StatelessWidget {
 // Sources bottom sheet
 // ---------------------------------------------------------------------------
 
-class _SourcesSheet extends ConsumerWidget {
+class _SourcesSheet extends ConsumerStatefulWidget {
   const _SourcesSheet();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SourcesSheet> createState() => _SourcesSheetState();
+}
+
+class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
+  final _refreshing = <String>{};
+
+  Future<void> _refreshSource(String id) async {
+    if (_refreshing.contains(id)) return;
+    setState(() => _refreshing.add(id));
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      final source = sources.firstWhere((s) => s.id == id);
+      await ref.read(sourceManagerProvider).refreshSource(source);
+      ref.invalidate(allSourcesProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${source.nickname}" refreshed.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Refresh failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _refreshing.remove(id));
+    }
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String id,
+    String nickname,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Source?'),
+        content: Text(
+            'This will remove "$nickname" and all its channels, '
+            'movies, and series. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(sourceManagerProvider).deleteSource(id);
+      ref.invalidate(allSourcesProvider);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final sourcesAsync = ref.watch(allSourcesProvider);
     return DraggableScrollableSheet(
       expand: false,
@@ -319,6 +391,7 @@ class _SourcesSheet extends ConsumerWidget {
                   itemCount: sources.length,
                   itemBuilder: (context, i) {
                     final s = sources[i];
+                    final isRefreshing = _refreshing.contains(s.id);
                     return ListTile(
                       leading: const Icon(Icons.playlist_play),
                       title: Text(s.nickname),
@@ -329,18 +402,28 @@ class _SourcesSheet extends ConsumerWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.refresh),
-                            tooltip: 'Refresh',
-                            onPressed: () => ref
-                                .read(sourceManagerProvider)
-                                .refreshSource(s),
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: isRefreshing
+                                ? const Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.refresh),
+                                    tooltip: 'Refresh',
+                                    onPressed: () => _refreshSource(s.id),
+                                  ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline),
                             tooltip: 'Remove',
-                            onPressed: () => _confirmDelete(
-                                context, ref, s.id, s.nickname),
+                            onPressed: isRefreshing
+                                ? null
+                                : () => _confirmDelete(
+                                    context, s.id, s.nickname),
                           ),
                         ],
                       ),
@@ -353,40 +436,6 @@ class _SourcesSheet extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-    String id,
-    String nickname,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Source?'),
-        content: Text(
-            'This will remove "$nickname" and all its channels, '
-            'movies, and series. This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-                backgroundColor:
-                    Theme.of(ctx).colorScheme.error),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await ref.read(sourceManagerProvider).deleteSource(id);
-      ref.invalidate(allSourcesProvider);
-    }
   }
 }
 

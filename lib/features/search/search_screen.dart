@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/movie.dart';
-import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -31,12 +30,12 @@ final _searchResultsProvider =
   final channels = await db.getAllChannels();
   final movies = await db.getAllMovies();
   final series = await db.getAllSeries();
-  final programmes = await epg.searchProgrammes(query);
+  final currentProgrammes = await epg.searchCurrentProgrammes(query);
 
   return const SearchService().search(
     query: query,
     channels: channels,
-    programmes: programmes,
+    currentProgrammes: currentProgrammes,
     movies: movies,
     series: series,
   );
@@ -149,16 +148,6 @@ class _ResultsList extends StatelessWidget {
               'contentId': c.id,
             }),
           ),
-        if (results.programmes.isNotEmpty)
-          _ResultGroup<Programme>(
-            title: 'On TV',
-            items: results.programmes,
-            icon: Icons.calendar_today_outlined,
-            labelOf: (p) => p.title,
-            subtitleOf: (p) =>
-                '${_formatTime(p.start)} – ${_formatTime(p.end)}',
-            onTap: (_) {}, // Programmes are info-only — no navigation
-          ),
         if (results.movies.isNotEmpty)
           _ResultGroup<Movie>(
             title: 'Movies',
@@ -179,12 +168,6 @@ class _ResultsList extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  static String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
   }
 }
 

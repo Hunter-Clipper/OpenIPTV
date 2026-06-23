@@ -6,6 +6,7 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -13,16 +14,6 @@ import 'package:open_iptv/core/services/profile_service.dart';
 
 final _allChannelsProvider = FutureProvider<List<Channel>>((ref) {
   return ref.watch(appDatabaseProvider).getAllChannels();
-});
-
-final _categoriesProvider = Provider<List<String>>((ref) {
-  final channels = ref.watch(_allChannelsProvider).valueOrNull ?? [];
-  final cats = channels
-      .map((c) => c.groupTitle ?? 'Uncategorised')
-      .toSet()
-      .toList()
-    ..sort();
-  return ['All', 'Favourites', ...cats];
 });
 
 // Caches EPG programme per channel so scrolling doesn't re-fire DB queries.
@@ -43,25 +34,33 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
-  String _selectedCategory = 'All';
+  // null = showing category grid; non-null = showing channels in that category
+  String? _selectedCategory;
 
-  Future<void> _refresh() async {
-    ref.invalidate(_allChannelsProvider);
-    await ref.read(_allChannelsProvider.future);
+  Future<void> _refreshChannels() async {
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      for (final s in sources) {
+        await ref.read(sourceManagerProvider).refreshChannels(s);
+      }
+    } finally {
+      ref.invalidate(_allChannelsProvider);
+      await ref.read(_allChannelsProvider.future);
+    }
   }
 
-  List<Channel> _filteredChannels(List<Channel> all, Set<String> favIds) {
+  List<Channel> _channelsForCategory(
+      List<Channel> all, Set<String> favIds, String category) {
     List<Channel> result;
-    if (_selectedCategory == 'All') {
+    if (category == 'All') {
       result = List.of(all);
-    } else if (_selectedCategory == 'Favourites') {
+    } else if (category == 'Favorites') {
       result = all.where((c) => favIds.contains(c.id)).toList();
     } else {
       result = all
-          .where((c) => (c.groupTitle ?? 'Uncategorised') == _selectedCategory)
+          .where((c) => (c.groupTitle ?? 'Uncategorized') == category)
           .toList();
     }
-
     result.sort((a, b) {
       final aFav = favIds.contains(a.id);
       final bFav = favIds.contains(b.id);
@@ -72,10 +71,18 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     return result;
   }
 
+  List<String> _buildCategories(List<Channel> channels) {
+    final cats = channels
+        .map((c) => c.groupTitle ?? 'Uncategorized')
+        .toSet()
+        .toList()
+      ..sort();
+    return cats;
+  }
+
   @override
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(_allChannelsProvider);
-    final categories = ref.watch(_categoriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
     final profileId = profile?.id;
@@ -83,7 +90,13 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Live TV'),
+        leading: _selectedCategory != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _selectedCategory = null),
+              )
+            : null,
+        title: Text(_selectedCategory ?? 'Live TV'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -94,35 +107,70 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
       ),
       body: channelsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(onRetry: _refresh),
+        error: (e, _) => _ErrorView(
+            onRetry: () {
+              ref.invalidate(_allChannelsProvider);
+            }),
         data: (all) {
-          final channels = _filteredChannels(all, favIds);
-          return Column(
-            children: [
-              _CategoryTabBar(
-                categories: categories,
-                selected: _selectedCategory,
-                onSelected: (cat) => setState(() => _selectedCategory = cat),
+          if (_selectedCategory == null) {
+            // Category grid
+            final cats = _buildCategories(all);
+            final favCount = favIds.length;
+            return RefreshIndicator(
+              onRefresh: _refreshChannels,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  if (favCount > 0)
+                    _CategoryTile(
+                      label: 'Favorites',
+                      count: favCount,
+                      icon: Icons.star_outlined,
+                      onTap: () =>
+                          setState(() => _selectedCategory = 'Favorites'),
+                    ),
+                  _CategoryTile(
+                    label: 'All',
+                    count: all.length,
+                    icon: Icons.live_tv_outlined,
+                    onTap: () => setState(() => _selectedCategory = 'All'),
+                  ),
+                  ...cats.map((cat) {
+                    final count = all
+                        .where((c) =>
+                            (c.groupTitle ?? 'Uncategorized') == cat)
+                        .length;
+                    return _CategoryTile(
+                      label: cat,
+                      count: count,
+                      icon: Icons.folder_outlined,
+                      onTap: () =>
+                          setState(() => _selectedCategory = cat),
+                    );
+                  }),
+                ],
               ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: channels.isEmpty
-                      ? const _EmptyView()
-                      : ListView.builder(
-                          itemCount: channels.length,
-                          itemBuilder: (context, i) {
-                            final ch = channels[i];
-                            return _ChannelRow(
-                              channel: ch,
-                              profileId: profileId,
-                              isFavorite: favIds.contains(ch.id),
-                            );
-                          },
-                        ),
-                ),
-              ),
-            ],
+            );
+          }
+
+          // Channel list for selected category
+          final channels =
+              _channelsForCategory(all, favIds, _selectedCategory!);
+          return RefreshIndicator(
+            onRefresh: _refreshChannels,
+            child: channels.isEmpty
+                ? const _EmptyView()
+                : ListView.builder(
+                    itemCount: channels.length,
+                    itemBuilder: (context, i) {
+                      final ch = channels[i];
+                      return _ChannelRow(
+                        channel: ch,
+                        profileId: profileId,
+                        isFavorite: favIds.contains(ch.id),
+                      );
+                    },
+                  ),
           );
         },
       ),
@@ -131,39 +179,42 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Category tab bar
+// Category tile
 // ---------------------------------------------------------------------------
 
-class _CategoryTabBar extends StatelessWidget {
-  const _CategoryTabBar({
-    required this.categories,
-    required this.selected,
-    required this.onSelected,
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.onTap,
   });
 
-  final List<String> categories;
-  final String selected;
-  final void Function(String) onSelected;
+  final String label;
+  final int count;
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final cat = categories[i];
-          final isSelected = cat == selected;
-          return ChoiceChip(
-            label: Text(cat),
-            selected: isSelected,
-            onSelected: (_) => onSelected(cat),
-          );
-        },
+    final theme = Theme.of(context);
+    return ListTile(
+      leading: Icon(icon, color: theme.colorScheme.primary),
+      title: Text(label),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            count.toString(),
+            style: theme.textTheme.bodySmall!.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right),
+        ],
       ),
+      onTap: onTap,
     );
   }
 }

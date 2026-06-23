@@ -318,10 +318,24 @@ class AppDatabase extends _$AppDatabase {
   Future<List<model.Programme>> searchProgrammes(String query) async {
     final q = '%${query.toLowerCase()}%';
     final rows = await (select(programmes)
-          ..where((t) =>
-              t.title.lower().like(q) | t.description.lower().like(q))
+          ..where((t) => t.title.lower().like(q))
           ..orderBy([(t) => OrderingTerm.asc(t.start)])
           ..limit(50))
+        .get();
+    return rows.map(_programmeFromRow).toList();
+  }
+
+  /// Returns programmes currently airing whose title contains [query].
+  /// Used to surface channels in search results via EPG title matching.
+  Future<List<model.Programme>> searchCurrentProgrammes(String query) async {
+    final now = DateTime.now();
+    final q = '%${query.toLowerCase()}%';
+    final rows = await (select(programmes)
+          ..where((t) =>
+              t.title.lower().like(q) &
+              t.start.isSmallerOrEqualValue(now) &
+              t.end.isBiggerThanValue(now))
+          ..limit(100))
         .get();
     return rows.map(_programmeFromRow).toList();
   }
