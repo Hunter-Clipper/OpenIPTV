@@ -50,22 +50,23 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     await ref.read(_allChannelsProvider.future);
   }
 
-  List<Channel> _filteredChannels(List<Channel> all, String? profileId) {
+  List<Channel> _filteredChannels(List<Channel> all, Set<String> favIds) {
     List<Channel> result;
     if (_selectedCategory == 'All') {
       result = List.of(all);
     } else if (_selectedCategory == 'Favourites') {
-      result = all.where((c) => c.isFavorite).toList();
+      result = all.where((c) => favIds.contains(c.id)).toList();
     } else {
       result = all
           .where((c) => (c.groupTitle ?? 'Uncategorised') == _selectedCategory)
           .toList();
     }
 
-    // Always put favourites at the top.
     result.sort((a, b) {
-      if (a.isFavorite && !b.isFavorite) return -1;
-      if (!a.isFavorite && b.isFavorite) return 1;
+      final aFav = favIds.contains(a.id);
+      final bFav = favIds.contains(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
       return a.sortOrder.compareTo(b.sortOrder);
     });
     return result;
@@ -76,7 +77,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final channelsAsync = ref.watch(_allChannelsProvider);
     final categories = ref.watch(_categoriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profileId = profileAsync.valueOrNull?.id;
+    final profile = profileAsync.valueOrNull;
+    final profileId = profile?.id;
+    final favIds = (profile?.favoriteChannelIds ?? []).toSet();
 
     return Scaffold(
       appBar: AppBar(
@@ -93,7 +96,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorView(onRetry: _refresh),
         data: (all) {
-          final channels = _filteredChannels(all, profileId);
+          final channels = _filteredChannels(all, favIds);
           return Column(
             children: [
               _CategoryTabBar(
@@ -109,9 +112,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       : ListView.builder(
                           itemCount: channels.length,
                           itemBuilder: (context, i) {
+                            final ch = channels[i];
                             return _ChannelRow(
-                              channel: channels[i],
+                              channel: ch,
                               profileId: profileId,
+                              isFavorite: favIds.contains(ch.id),
                             );
                           },
                         ),
@@ -168,10 +173,15 @@ class _CategoryTabBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ChannelRow extends ConsumerWidget {
-  const _ChannelRow({required this.channel, required this.profileId});
+  const _ChannelRow({
+    required this.channel,
+    required this.profileId,
+    required this.isFavorite,
+  });
 
   final Channel channel;
   final String? profileId;
+  final bool isFavorite;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -183,8 +193,8 @@ class _ChannelRow extends ConsumerWidget {
       subtitle: _NowNextText(channelId: channel.id),
       trailing: IconButton(
         icon: Icon(
-          channel.isFavorite ? Icons.star : Icons.star_border,
-          color: channel.isFavorite
+          isFavorite ? Icons.star : Icons.star_border,
+          color: isFavorite
               ? theme.colorScheme.primary
               : theme.colorScheme.onSurfaceVariant,
         ),

@@ -29,6 +29,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   late VideoController _videoController;
+  late final PlaybackService _playbackService;
   bool _controlsVisible = true;
   Timer? _hideTimer;
   bool _resumeDialogShown = false;
@@ -46,10 +47,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    final service = ref.read(playbackServiceProvider);
-    _videoController = VideoController(service.player);
+    _playbackService = ref.read(playbackServiceProvider);
+    _videoController = VideoController(_playbackService.player);
 
-    // Start playback after first frame so the dialog can show if needed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
     });
@@ -62,14 +62,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _hideTimer?.cancel();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // Save progress then stop — order matters so position is captured first.
     _saveProgressIfNeeded();
-    ref.read(playbackServiceProvider).stop();
+    _playbackService.stop();
     super.dispose();
   }
 
   Future<void> _startPlayback() async {
-    final service = ref.read(playbackServiceProvider);
+    final service = _playbackService;
 
     // Show resume dialog if there is a saved position and user didn't
     // explicitly choose "Start Over" (i.e. resumePosition != Duration.zero).
@@ -120,7 +119,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_isLive) return;
     final id = widget.contentId;
     if (id == null) return;
-    final service = ref.read(playbackServiceProvider);
+    final service = _playbackService;
     final total = service.player.state.duration;
     if (widget.contentType == 'movie') {
       service.saveMovieProgress(id, total);
@@ -158,8 +157,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Video
-            Video(controller: _videoController),
+            Video(
+              controller: _videoController,
+              controls: NoVideoControls,
+            ),
             // Controls overlay
             AnimatedOpacity(
               opacity: _controlsVisible ? 1.0 : 0.0,

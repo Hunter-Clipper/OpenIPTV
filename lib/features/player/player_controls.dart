@@ -184,6 +184,7 @@ class _LiveControls extends ConsumerWidget {
         ),
       ),
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // Top bar
@@ -307,8 +308,9 @@ class _LiveProgrammeBarState extends ConsumerState<_LiveProgrammeBar> {
         if (prog == null) return const SizedBox.shrink();
         final progress = prog.progressAt(_now);
         final remaining = prog.end.difference(_now);
+        final bottomPad = MediaQuery.of(context).viewPadding.bottom + 16;
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, bottomPad),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -418,6 +420,7 @@ class _VodControls extends ConsumerWidget {
         ),
       ),
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // Top bar
@@ -518,7 +521,8 @@ class _VodControls extends ConsumerWidget {
             ),
             // Bottom seek bar
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+              padding: EdgeInsets.fromLTRB(
+                  12, 0, 12, MediaQuery.of(context).viewPadding.bottom + 16),
               child: Column(
                 children: [
                   // Time labels
