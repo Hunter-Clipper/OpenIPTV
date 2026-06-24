@@ -290,29 +290,53 @@ class _SourcesSheet extends ConsumerStatefulWidget {
 }
 
 class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
-  final _refreshing = <String>{};
+  final _refreshingPlaylist = <String>{};
+  final _refreshingEpg = <String>{};
 
-  Future<void> _refreshSource(String id) async {
-    if (_refreshing.contains(id)) return;
-    setState(() => _refreshing.add(id));
+  Future<void> _refreshPlaylist(String id) async {
+    if (_refreshingPlaylist.contains(id) || _refreshingEpg.contains(id)) return;
+    setState(() => _refreshingPlaylist.add(id));
     try {
       final sources = await ref.read(allSourcesProvider.future);
       final source = sources.firstWhere((s) => s.id == id);
-      await ref.read(sourceManagerProvider).refreshSource(source);
+      await ref.read(sourceManagerProvider).refreshPlaylist(source);
       ref.invalidate(allSourcesProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${source.nickname}" refreshed.')),
+          SnackBar(content: Text('"${source.nickname}" playlist refreshed.')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Refresh failed: $e')),
+          SnackBar(content: Text('Playlist refresh failed: $e')),
         );
       }
     } finally {
-      if (mounted) setState(() => _refreshing.remove(id));
+      if (mounted) setState(() => _refreshingPlaylist.remove(id));
+    }
+  }
+
+  Future<void> _refreshEpg(String id) async {
+    if (_refreshingPlaylist.contains(id) || _refreshingEpg.contains(id)) return;
+    setState(() => _refreshingEpg.add(id));
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      final source = sources.firstWhere((s) => s.id == id);
+      await ref.read(sourceManagerProvider).refreshEpgOnly(source);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${source.nickname}" TV guide refreshed.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('TV guide refresh failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _refreshingEpg.remove(id));
     }
   }
 
@@ -391,7 +415,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                   itemCount: sources.length,
                   itemBuilder: (context, i) {
                     final s = sources[i];
-                    final isRefreshing = _refreshing.contains(s.id);
+                    final isPlaylistRefreshing = _refreshingPlaylist.contains(s.id);
+                    final isEpgRefreshing = _refreshingEpg.contains(s.id);
+                    final isBusy = isPlaylistRefreshing || isEpgRefreshing;
                     return ListTile(
                       leading: const Icon(Icons.playlist_play),
                       title: Text(s.nickname),
@@ -402,28 +428,42 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Playlist refresh
                           SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: isRefreshing
+                            width: 36,
+                            height: 36,
+                            child: isPlaylistRefreshing
                                 ? const Padding(
-                                    padding: EdgeInsets.all(10),
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                    padding: EdgeInsets.all(8),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
                                   )
                                 : IconButton(
-                                    icon: const Icon(Icons.refresh),
-                                    tooltip: 'Refresh',
-                                    onPressed: () => _refreshSource(s.id),
+                                    icon: const Icon(Icons.sync, size: 20),
+                                    tooltip: 'Refresh Playlist',
+                                    onPressed: isBusy ? null : () => _refreshPlaylist(s.id),
+                                  ),
+                          ),
+                          // EPG refresh
+                          SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: isEpgRefreshing
+                                ? const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.tv, size: 20),
+                                    tooltip: 'Refresh TV Guide',
+                                    onPressed: isBusy ? null : () => _refreshEpg(s.id),
                                   ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline),
+                            icon: const Icon(Icons.delete_outline, size: 20),
                             tooltip: 'Remove',
-                            onPressed: isRefreshing
+                            onPressed: isBusy
                                 ? null
-                                : () => _confirmDelete(
-                                    context, s.id, s.nickname),
+                                : () => _confirmDelete(context, s.id, s.nickname),
                           ),
                         ],
                       ),

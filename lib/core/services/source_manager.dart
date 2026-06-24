@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/m3u_parser.dart';
@@ -37,7 +40,6 @@ class SourceManager {
   // Auto-detection
   // ---------------------------------------------------------------------------
 
-  /// Returns the detected source type without persisting anything.
   Future<SourceDetectionResult> detectSourceType({
     String? url,
     String? xtreamHost,
@@ -67,7 +69,6 @@ class SourceManager {
   Future<bool> _probeM3u(String url) async {
     try {
       final uri = Uri.parse(url);
-      // Try HEAD first; fall back to GET if HEAD fails.
       var response = await http.head(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
         response = await http.get(uri).timeout(const Duration(seconds: 10));
@@ -110,18 +111,38 @@ class SourceManager {
     return source;
   }
 
+  /// Full refresh: playlist (channels/movies/series) then EPG fires in background.
   Future<void> refreshSource(Source source, {void Function(String)? onProgress}) async {
+    Source updated;
     if (source.type == SourceType.m3u) {
-      await _refreshM3u(source, onProgress: onProgress);
+      updated = await _refreshM3u(source, onProgress: onProgress);
     } else {
-      await _refreshXtream(source, onProgress: onProgress);
+      updated = await _refreshXtream(source, onProgress: onProgress);
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
-    onProgress?.call('Loading TV guide…');
-    await epgService.refreshEpg(source, onProgress: onProgress);
+    // Pass the updated source so the auto-set EPG URL is included.
+    unawaited(epgService.refreshEpg(updated));
   }
 
-  /// Refreshes only live channels (and EPG) for a source.
+  /// Refreshes only the playlist (channels/movies/series) — no EPG.
+  /// Used by the "Refresh Playlist" button in Settings.
+  Future<void> refreshPlaylist(Source source) async {
+    if (source.type == SourceType.m3u) {
+      await _refreshM3u(source);
+    } else {
+      await _refreshXtream(source);
+    }
+    await db.updateSourceRefreshTime(source.id, DateTime.now());
+  }
+
+
+  /// Refreshes only the EPG for a source.
+  /// Used by the "Refresh TV Guide" button in Settings.
+  Future<void> refreshEpgOnly(Source source) async {
+    await epgService.refreshEpg(source);
+  }
+
+  /// Refreshes only live channels then EPG in background (for Live TV pull-to-refresh).
   Future<void> refreshChannels(Source source) async {
     if (source.type == SourceType.m3u) {
       final url = source.m3uUrl;
@@ -150,7 +171,7 @@ class SourceManager {
       }
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
-    await epgService.refreshEpg(source);
+    unawaited(epgService.refreshEpg(source));
   }
 
   /// Refreshes only movies for a source.
@@ -221,9 +242,9 @@ class SourceManager {
   // M3U refresh
   // ---------------------------------------------------------------------------
 
-  Future<void> _refreshM3u(Source source, {void Function(String)? onProgress}) async {
+  Future<Source> _refreshM3u(Source source, {void Function(String)? onProgress}) async {
     final url = source.m3uUrl;
-    if (url == null) return;
+    if (url == null) return source;
 
     onProgress?.call('Connecting to provider…');
     final response = await http.get(Uri.parse(url)).timeout(
@@ -236,9 +257,10 @@ class SourceManager {
     onProgress?.call('Parsing channels…');
     final result = await M3uParser.parse(response.body, source.id);
 
-    // Auto-detect EPG URL from M3U header if not already set.
+    Source updated = source;
     if (source.epgUrl == null && result.epgUrl != null) {
-      await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
+      updated = source.copyWith(epgUrl: result.epgUrl);
+      await db.upsertSource(updated);
     }
 
     onProgress?.call('Saving to database…');
@@ -251,13 +273,14 @@ class SourceManager {
     if (result.movies.isNotEmpty) await db.upsertMovies(result.movies);
     if (result.series.isNotEmpty) await db.upsertSeries(result.series);
     if (result.episodes.isNotEmpty) await db.upsertEpisodes(result.episodes);
+    return updated;
   }
 
   // ---------------------------------------------------------------------------
   // Xtream refresh
   // ---------------------------------------------------------------------------
 
-  Future<void> _refreshXtream(Source source, {void Function(String)? onProgress}) async {
+  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) async {
     final client = XtreamClient(
       host: source.xtreamHost!,
       username: source.xtreamUsername!,
@@ -266,13 +289,15 @@ class SourceManager {
     );
 
     // Auto-set XMLTV EPG URL for Xtream sources if not already configured.
+    Source updated = source;
     if (source.epgUrl == null || source.epgUrl!.isEmpty) {
       final host = source.xtreamHost!.endsWith('/')
           ? source.xtreamHost!
           : '${source.xtreamHost!}/';
       final epgUrl =
           '${host}xmltv.php?username=${source.xtreamUsername}&password=${source.xtreamPassword}';
-      await db.upsertSource(source.copyWith(epgUrl: epgUrl));
+      updated = source.copyWith(epgUrl: epgUrl);
+      await db.upsertSource(updated);
     }
 
     try {
@@ -283,20 +308,34 @@ class SourceManager {
       await db.deleteEpisodesForSource(source.id);
 
       onProgress?.call('Fetching channels…');
+      var t = DateTime.now();
       final channels = await client.getLiveStreams();
-      if (channels.isNotEmpty) await db.upsertChannels(channels);
+      debugPrint('[Source] channels: ${channels.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
+      if (channels.isNotEmpty) {
+        onProgress?.call('Saving ${channels.length} channels…');
+        await db.upsertChannels(channels);
+      }
 
       onProgress?.call('Fetching movies…');
+      t = DateTime.now();
       final movies = await client.getVodStreams();
-      if (movies.isNotEmpty) await db.upsertMovies(movies);
+      debugPrint('[Source] movies: ${movies.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
+      if (movies.isNotEmpty) {
+        onProgress?.call('Saving ${movies.length} movies…');
+        await db.upsertMovies(movies);
+      }
 
       onProgress?.call('Fetching series…');
+      t = DateTime.now();
       final seriesList = await client.getAllSeries();
-      if (seriesList.isNotEmpty) await db.upsertSeries(seriesList);
-
-      // Episodes are fetched lazily (per-series) to avoid hammering the API.
+      debugPrint('[Source] series: ${seriesList.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
+      if (seriesList.isNotEmpty) {
+        onProgress?.call('Saving ${seriesList.length} series…');
+        await db.upsertSeries(seriesList);
+      }
     } finally {
       client.dispose();
     }
+    return updated;
   }
 }

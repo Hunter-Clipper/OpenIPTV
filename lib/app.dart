@@ -44,8 +44,20 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   // running onCreate/onUpgrade at the exact moment the first redirect fires —
   // causing SqliteException(5) "database is locked".  By serialising startup
   // here we guarantee the isolate is idle and the connection is ready.
+  //
+  // Retries handle the rare case where an OS-level file lock (Android backup
+  // service, WAL recovery) outlasts the 5s busy_timeout set in _dbSetup.
   Future<void> _openDb() async {
-    await ref.read(appDatabaseProvider).customSelect('SELECT 1').get();
+    const maxAttempts = 5;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        await ref.read(appDatabaseProvider).customSelect('SELECT 1').get();
+        break;
+      } catch (e) {
+        if (attempt == maxAttempts - 1) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
+    }
     if (mounted) setState(() => _dbReady = true);
   }
 

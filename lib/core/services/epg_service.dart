@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
+import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -10,6 +11,27 @@ import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'epg_service.g.dart';
+
+// Top-level so Isolate.run can reference it.
+// Fetches + stream-parses the XMLTV feed entirely off the main thread,
+// returning all programmes at once for batch DB writes on the caller.
+Future<List<Programme>> _fetchAndParseAll(String epgUrl) async {
+  final client = http.Client();
+  final programmes = <Programme>[];
+  try {
+    final request = http.Request('GET', Uri.parse(epgUrl));
+    final streamed =
+        await client.send(request).timeout(const Duration(seconds: 90));
+    if (streamed.statusCode != 200) return programmes;
+    final bodyStream = streamed.stream.transform(utf8.decoder);
+    await for (final prog in XmltvParser.parse(bodyStream)) {
+      programmes.add(prog);
+    }
+  } finally {
+    client.close();
+  }
+  return programmes;
+}
 
 @Riverpod(keepAlive: true)
 EpgService epgService(EpgServiceRef ref) {
@@ -41,97 +63,62 @@ class EpgService {
 
   /// Fetches and stores EPG data for a source.
   ///
-  /// Streams the HTTP response body through the XML parser so the full feed
-  /// is never held in memory. DB writes are flushed every 1 000 rows so peak
-  /// memory stays flat even for large XMLTV feeds.
+  /// HTTP fetch and XMLTV parse run in a temporary background isolate via
+  /// Isolate.run so the main thread stays free. The completed list of
+  /// programmes is returned to the main isolate for batched DB writes (which
+  /// themselves go through the Drift background isolate, keeping I/O off the
+  /// main thread too).
   Future<void> refreshEpg(
     Source source, {
     void Function(String)? onProgress,
   }) async {
     final epgUrl = source.epgUrl;
     if (epgUrl == null || epgUrl.isEmpty) {
-      dev.log('[EPG] No EPG URL configured for source "${source.nickname}" — skipping.',
-          name: 'EpgService');
+      debugPrint(
+          '[EPG] No EPG URL for "${source.nickname}" — skipping.');
       return;
     }
 
-    dev.log('[EPG] Starting fetch for "${source.nickname}": $epgUrl',
-        name: 'EpgService');
+    debugPrint('[EPG] Starting fetch for "${source.nickname}": $epgUrl');
     final sw = Stopwatch()..start();
 
     try {
       await db.deleteOldProgrammes();
 
-      final uri = Uri.parse(epgUrl);
-      final client = http.Client();
-      try {
-        final request = http.Request('GET', uri);
-        final streamed = await client
-            .send(request)
-            .timeout(const Duration(seconds: 60));
+      onProgress?.call('Downloading TV guide…');
+      final programmes = await Isolate.run(
+        () => _fetchAndParseAll(epgUrl),
+        debugName: 'epg-parse',
+      );
 
-        dev.log('[EPG] Connected in ${sw.elapsedMilliseconds}ms — HTTP ${streamed.statusCode}',
-            name: 'EpgService');
+      debugPrint(
+          '[EPG] Parsed ${programmes.length} programmes in ${sw.elapsedMilliseconds}ms');
 
-        if (streamed.statusCode != 200) {
-          dev.log('[EPG] Aborting — unexpected status ${streamed.statusCode}',
-              name: 'EpgService');
-          return;
-        }
+      var totalWritten = 0;
+      for (var i = 0; i < programmes.length; i += 1000) {
+        final batch =
+            programmes.sublist(i, (i + 1000).clamp(0, programmes.length));
+        await db.upsertProgrammes(batch);
+        totalWritten += batch.length;
+        onProgress?.call('Loading TV guide… ($totalWritten programs)');
+      }
 
-        final bodyStream = streamed.stream.transform(utf8.decoder);
+      debugPrint(
+          '[EPG] Wrote $totalWritten programmes in ${sw.elapsedMilliseconds}ms');
 
-        var totalWritten = 0;
-        var batchCount = 0;
-        final buffer = <Programme>[];
-
-        await for (final prog in XmltvParser.parse(bodyStream)) {
-          buffer.add(prog);
-          if (buffer.length >= 1000) {
-            await db.upsertProgrammes(List.of(buffer));
-            totalWritten += buffer.length;
-            batchCount++;
-            dev.log('[EPG] Batch $batchCount — $totalWritten programmes written (${sw.elapsedMilliseconds}ms)',
-                name: 'EpgService');
-            onProgress?.call('Loading TV guide… ($totalWritten programs)');
-            buffer.clear();
-          }
-        }
-        if (buffer.isNotEmpty) {
-          await db.upsertProgrammes(buffer);
-          totalWritten += buffer.length;
-        }
-
+      if (totalWritten > 0) {
         onProgress?.call('Mapping guide to channels…');
         await db.remapProgrammeChannelIds();
-
-        sw.stop();
-        dev.log('[EPG] Done — $totalWritten total programmes in ${sw.elapsedMilliseconds}ms (remap complete)',
-            name: 'EpgService');
-      } finally {
-        client.close();
       }
+
+      sw.stop();
+      debugPrint(
+          '[EPG] Done — $totalWritten total in ${sw.elapsedMilliseconds}ms (remap complete)');
     } catch (e, st) {
       sw.stop();
-      dev.log('[EPG] Error after ${sw.elapsedMilliseconds}ms: $e',
-          name: 'EpgService', error: e, stackTrace: st);
-      // EPG errors are non-fatal — channels still work without guide data.
+      debugPrint('[EPG] Error after ${sw.elapsedMilliseconds}ms: $e\n$st');
     }
   }
 
-  /// Matches XMLTV channel IDs to app Channel IDs using the priority:
-  /// 1. Exact tvg-id match
-  /// 2. Exact tvg-name match (case-insensitive)
-  /// 3. Fuzzy name match
-  ///
-  /// Remap is performed in-DB: channelId stored in Programmes rows already
-  /// uses the XMLTV channel attribute. Post-fetch, this method rewrites
-  /// channelId values to match the app's internal Channel IDs.
-  Future<void> applyEpgOverrides(Map<String, String> overrides) async {
-    // overrides: {channelId → tvgId}
-    // Applied when profile has custom epgOverrides.
-    // Implementation: update programmes where channelId matches old tvgId.
-    // Deferred to Phase 1 completion — EPG matching works without this for
-    // providers where tvg-id aligns with Xtream stream ID.
-  }
+  Future<void> applyEpgOverrides(Map<String, String> overrides) async {}
 }

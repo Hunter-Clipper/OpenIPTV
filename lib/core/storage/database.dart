@@ -157,22 +157,44 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
+          await _createIndexes();
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          // Add migration steps here as schema evolves.
-          // Example: if (from < 2) { await m.addColumn(movies, movies.newColumn); }
+          if (from < 2) await _createIndexes();
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
           await customStatement('PRAGMA journal_mode = WAL');
         },
       );
+
+  Future<void> _createIndexes() async {
+    // channels.tvg_id: makes remapProgrammeChannelIds() go from O(n²) → O(n log m)
+    // Without this index the remap of 147k programmes against 18k channels takes ~37s
+    // and holds the write lock the entire time, blocking any concurrent DB writes.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_channels_tvg_id ON channels (tvg_id)',
+    );
+    // programmes.channel_id: used in getCurrentProgramme, getNextProgramme, etc.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_programmes_channel_id ON programmes (channel_id)',
+    );
+    // programmes.(channel_id, start, end): composite for the time-range EPG queries
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_programmes_channel_time '
+      'ON programmes (channel_id, start, end)',
+    );
+    // episodes.series_id: used in getEpisodesForSeries
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_episodes_series_id ON episodes (series_id)',
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Source DAOs
@@ -740,10 +762,17 @@ class AppDatabase extends _$AppDatabase {
       );
 }
 
+// Top-level so Isolate.spawn can send it across isolate boundaries.
+void _dbSetup(dynamic db) {
+  // Wait up to 5s for any transient external lock (OS backup, WAL recovery)
+  // before failing with SQLITE_BUSY. Must be set before migrations run.
+  db.execute('PRAGMA busy_timeout = 5000;');
+}
+
 QueryExecutor _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'open_iptv.db'));
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(file, setup: _dbSetup);
   });
 }

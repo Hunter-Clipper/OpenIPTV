@@ -196,6 +196,9 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
       }
 
       if (!mounted) return;
+      // Invalidate the cached sources list so the router redirect sees the
+      // newly-added source and doesn't loop us back to /onboarding.
+      ref.invalidate(allSourcesProvider);
       context.go('/live');
     } catch (e) {
       if (!mounted) return;
