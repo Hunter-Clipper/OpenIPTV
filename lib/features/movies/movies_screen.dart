@@ -18,8 +18,8 @@ final _allMoviesProvider = FutureProvider<List<Movie>>((ref) {
   return ref.watch(appDatabaseProvider).getAllMovies();
 });
 
-final _moviesInProgressProvider = FutureProvider<List<Movie>>((ref) {
-  return ref.watch(appDatabaseProvider).getMoviesInProgress();
+final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
+  return ref.watch(appDatabaseProvider).watchMoviesInProgress();
 });
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,6 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
       }
     } finally {
       ref.invalidate(_allMoviesProvider);
-      ref.invalidate(_moviesInProgressProvider);
       await ref.read(_allMoviesProvider.future);
     }
   }
@@ -119,6 +118,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                         movies: inProgress,
                         profileId: profile?.id,
                         showProgress: true,
+                        isContinueWatchingRow: true,
                       ),
                     ),
                   ],
@@ -316,14 +316,16 @@ class _HorizontalPosterRow extends ConsumerWidget {
     required this.profileId,
     required this.showProgress,
     this.isFavoritesRow = false,
+    this.isContinueWatchingRow = false,
   });
 
   final List<Movie> movies;
   final String? profileId;
   final bool showProgress;
   final bool isFavoritesRow;
+  final bool isContinueWatchingRow;
 
-  void _showRemoveSheet(BuildContext context, WidgetRef ref, Movie movie) {
+  void _showRowOptions(BuildContext context, WidgetRef ref, Movie movie) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
@@ -331,19 +333,31 @@ class _HorizontalPosterRow extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.star_border),
-              title: const Text('Remove from Favorites'),
-              onTap: () async {
-                Navigator.pop(context);
-                if (profileId != null) {
+            if (isFavoritesRow)
+              ListTile(
+                leading: const Icon(Icons.star_border),
+                title: const Text('Remove from Favorites'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  if (profileId != null) {
+                    await ref
+                        .read(profileServiceProvider)
+                        .toggleFavoriteMovie(profileId!, movie.id);
+                    ref.invalidate(activeProfileProvider);
+                  }
+                },
+              ),
+            if (isContinueWatchingRow)
+              ListTile(
+                leading: const Icon(Icons.remove_circle_outline),
+                title: const Text('Remove from Continue Watching'),
+                onTap: () async {
+                  Navigator.pop(context);
                   await ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteMovie(profileId!, movie.id);
-                  ref.invalidate(activeProfileProvider);
-                }
-              },
-            ),
+                      .read(appDatabaseProvider)
+                      .clearMovieProgress(movie.id);
+                },
+              ),
           ],
         ),
       ),
@@ -361,10 +375,11 @@ class _HorizontalPosterRow extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final movie = movies[i];
+          final hasLongPress = isFavoritesRow || isContinueWatchingRow;
           return GestureDetector(
             onTap: () => context.push('/movies/${movie.id}'),
-            onLongPress: isFavoritesRow && profileId != null
-                ? () => _showRemoveSheet(context, ref, movie)
+            onLongPress: hasLongPress
+                ? () => _showRowOptions(context, ref, movie)
                 : null,
             child: SizedBox(
               width: 110,

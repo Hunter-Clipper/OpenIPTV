@@ -410,6 +410,30 @@ class AppDatabase extends _$AppDatabase {
         .toList();
   }
 
+  Stream<List<model.Movie>> watchMoviesInProgress() {
+    return (select(movies)
+          ..where((t) =>
+              t.watchedDurationSeconds.isNotNull() &
+              t.watchedDurationSeconds.isBiggerThanValue(0) &
+              t.totalDurationSeconds.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)]))
+        .watch()
+        .map((rows) => rows
+            .map(_movieFromRow)
+            .where((m) => m.isInProgress)
+            .toList());
+  }
+
+  Future<void> clearMovieProgress(String id) async {
+    await (update(movies)..where((t) => t.id.equals(id))).write(
+      const MoviesCompanion(
+        watchedDurationSeconds: Value(0),
+        totalDurationSeconds: Value(0),
+        lastWatchedAt: Value.absent(),
+      ),
+    );
+  }
+
   Future<void> upsertMovies(List<model.Movie> movieList) async {
     final companions = movieList.map(_movieToCompanion).toList();
     for (var i = 0; i < companions.length; i += 500) {
