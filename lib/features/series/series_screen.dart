@@ -308,6 +308,37 @@ class _PosterCard extends ConsumerWidget {
   final Series series;
   final String? profileId;
 
+  void _showOptions(BuildContext context, WidgetRef ref) {
+    final isFav = ref
+            .read(activeProfileProvider)
+            .valueOrNull
+            ?.favoriteSeriesIds
+            .contains(series.id) ??
+        false;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(isFav ? Icons.star_border : Icons.star),
+              title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+              onTap: () {
+                Navigator.pop(context);
+                if (profileId != null) {
+                  ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteSeries(profileId!, series.id);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -316,6 +347,7 @@ class _PosterCard extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () => context.push('/series/${series.id}'),
+      onLongPress: profileId == null ? null : () => _showOptions(context, ref),
       child: Stack(
         fit: StackFit.expand,
         children: [

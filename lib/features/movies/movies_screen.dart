@@ -337,10 +337,42 @@ class _PosterCard extends ConsumerWidget {
   final Movie movie;
   final String? profileId;
 
+  void _showOptions(BuildContext context, WidgetRef ref) {
+    final isFav = ref
+            .read(activeProfileProvider)
+            .valueOrNull
+            ?.favoriteMovieIds
+            .contains(movie.id) ??
+        false;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(isFav ? Icons.star_border : Icons.star),
+              title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+              onTap: () {
+                Navigator.pop(context);
+                if (profileId != null) {
+                  ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteMovie(profileId!, movie.id);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: () => context.push('/movies/${movie.id}'),
+      onLongPress: profileId == null ? null : () => _showOptions(context, ref),
       child: Stack(
         children: [
           ClipRRect(
