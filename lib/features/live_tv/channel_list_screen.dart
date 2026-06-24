@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -153,6 +154,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       onLongPress: profileId == null
                           ? null
                           : () async {
+                              HapticFeedback.mediumImpact();
                               final hide = await showModalBottomSheet<bool>(
                                 context: context,
                                 builder: (_) =>
@@ -161,7 +163,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                               if (hide == true && mounted) {
                                 await ref
                                     .read(profileServiceProvider)
-                                    .hideCategory(profileId!, cat);
+                                    .hideCategory(profileId, cat);
                                 ref.invalidate(activeProfileProvider);
                               }
                             },
@@ -286,7 +288,9 @@ class _ChannelRow extends ConsumerWidget {
       }),
       onLongPress: profileId == null
           ? null
-          : () => showModalBottomSheet<void>(
+          : () {
+              HapticFeedback.mediumImpact();
+              showModalBottomSheet<void>(
                 context: context,
                 builder: (_) => _ChannelOptionsSheet(
                   isFavorite: isFavorite,
@@ -294,7 +298,8 @@ class _ChannelRow extends ConsumerWidget {
                       .read(profileServiceProvider)
                       .toggleFavoriteChannel(profileId!, channel.id),
                 ),
-              ),
+              );
+            },
     );
   }
 }

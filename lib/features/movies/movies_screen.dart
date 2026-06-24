@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
@@ -146,6 +147,42 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                               .length,
                       },
                       onTap: (g) => setState(() => _selectedGenre = g),
+                      profileId: profile?.id,
+                      onHideGenre: profile?.id == null
+                          ? null
+                          : (g) async {
+                              HapticFeedback.mediumImpact();
+                              final hide =
+                                  await showModalBottomSheet<bool>(
+                                context: context,
+                                builder: (_) => SafeArea(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ListTile(
+                                        leading: const Icon(
+                                            Icons.visibility_off_outlined),
+                                        title:
+                                            const Text('Hide Genre'),
+                                        subtitle: Text(g,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall),
+                                        onTap: () =>
+                                            Navigator.of(context)
+                                                .pop(true),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                              if (hide == true) {
+                                await ref
+                                    .read(profileServiceProvider)
+                                    .hideCategory(profile!.id, g);
+                                ref.invalidate(activeProfileProvider);
+                              }
+                            },
                     ),
                   ),
                   const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
@@ -203,11 +240,15 @@ class _GenreTileList extends StatelessWidget {
     required this.genres,
     required this.movieCounts,
     required this.onTap,
+    this.profileId,
+    this.onHideGenre,
   });
 
   final List<String> genres;
   final Map<String, int> movieCounts;
   final void Function(String) onTap;
+  final String? profileId;
+  final void Function(String)? onHideGenre;
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +275,9 @@ class _GenreTileList extends StatelessWidget {
             ],
           ),
           onTap: () => onTap(g),
+          onLongPress: g == 'All' || onHideGenre == null
+              ? null
+              : () => onHideGenre!(g),
         );
       }).toList(),
     );
@@ -338,6 +382,7 @@ class _PosterCard extends ConsumerWidget {
   final String? profileId;
 
   void _showOptions(BuildContext context, WidgetRef ref) {
+    HapticFeedback.mediumImpact();
     final isFav = ref
             .read(activeProfileProvider)
             .valueOrNull
