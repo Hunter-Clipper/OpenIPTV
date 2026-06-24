@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 
@@ -83,6 +84,19 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               loading: false,
             ),
             data: (episodes) {
+              // If no episodes in DB yet, fetch them lazily from the API.
+              if (episodes.isEmpty && series != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  if (!mounted) return;
+                  await ref
+                      .read(sourceManagerProvider)
+                      .fetchEpisodesForSeries(series.id, series.sourceId);
+                  if (mounted) {
+                    ref.invalidate(_seriesEpisodesProvider(widget.seriesId));
+                  }
+                });
+              }
+
               // Auto-select first available season.
               final seasons = episodes
                   .map((e) => e.season)

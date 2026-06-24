@@ -1,4 +1,5 @@
 import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -18,10 +19,14 @@ PlaybackService playbackService(PlaybackServiceRef ref) {
 class PlaybackService {
   PlaybackService({required this.db}) {
     _player = Player();
+    // Keep VideoController alive alongside the Player so native FFI callbacks
+    // are never invoked on a GC'd Dart object (Callback invoked after deleted).
+    videoController = VideoController(_player);
   }
 
   final AppDatabase db;
   late final Player _player;
+  late final VideoController videoController;
 
   Player get player => _player;
 

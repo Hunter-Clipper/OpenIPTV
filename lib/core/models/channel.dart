@@ -10,6 +10,7 @@ class Channel {
     this.tvgId,
     this.tvgName,
     this.isFavorite = false,
+    this.lastWatchedAt,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class Channel {
   final String? tvgName;
   final bool isFavorite;
   final int sortOrder;
+  final DateTime? lastWatchedAt;
 
   Channel copyWith({
     String? id,
@@ -34,6 +36,7 @@ class Channel {
     String? tvgName,
     bool? isFavorite,
     int? sortOrder,
+    DateTime? lastWatchedAt,
   }) {
     return Channel(
       id: id ?? this.id,
@@ -46,6 +49,7 @@ class Channel {
       tvgName: tvgName ?? this.tvgName,
       isFavorite: isFavorite ?? this.isFavorite,
       sortOrder: sortOrder ?? this.sortOrder,
+      lastWatchedAt: lastWatchedAt ?? this.lastWatchedAt,
     );
   }
 }

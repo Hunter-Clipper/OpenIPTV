@@ -28,7 +28,6 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
-  late VideoController _videoController;
   late final PlaybackService _playbackService;
   bool _controlsVisible = true;
   Timer? _hideTimer;
@@ -48,7 +47,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _playbackService = ref.read(playbackServiceProvider);
-    _videoController = VideoController(_playbackService.player);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
@@ -68,6 +66,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _startPlayback() async {
+    // Stamp last-watched time for live channels so Recently Watched updates.
+    if (_isLive && widget.contentId != null) {
+      _playbackService.db.updateChannelLastWatched(widget.contentId!);
+    }
     final service = _playbackService;
 
     // Show resume dialog if there is a saved position and user didn't
@@ -158,7 +160,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           fit: StackFit.expand,
           children: [
             Video(
-              controller: _videoController,
+              controller: _playbackService.videoController,
               controls: NoVideoControls,
             ),
             // Controls overlay

@@ -230,6 +230,27 @@ class SourceManager {
     await db.updateSourceRefreshTime(source.id, DateTime.now());
   }
 
+  // Fetches episodes for a single series on demand (Xtream only).
+  // Called lazily from the series detail screen the first time a series is opened.
+  Future<void> fetchEpisodesForSeries(String seriesId, String sourceId) async {
+    final source = await db.getSourceById(sourceId);
+    if (source == null || source.type != SourceType.xtream) return;
+    // App internal ID format: "${sourceId}_ser_${xtreamSeriesId}"
+    final xtreamId = seriesId.replaceFirst('${sourceId}_ser_', '');
+    final client = XtreamClient(
+      host: source.xtreamHost!,
+      username: source.xtreamUsername!,
+      password: source.xtreamPassword!,
+      sourceId: sourceId,
+    );
+    try {
+      final episodes = await client.getSeriesEpisodes(xtreamId);
+      if (episodes.isNotEmpty) await db.upsertEpisodes(episodes);
+    } finally {
+      client.dispose();
+    }
+  }
+
   Future<void> deleteSource(String sourceId) async {
     await db.deleteChannelsForSource(sourceId);
     await db.deleteMoviesForSource(sourceId);

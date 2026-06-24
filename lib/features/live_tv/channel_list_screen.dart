@@ -18,6 +18,10 @@ final _allChannelsProvider = FutureProvider<List<Channel>>((ref) {
   return ref.watch(appDatabaseProvider).getAllChannels();
 });
 
+final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
+  return ref.watch(appDatabaseProvider).watchRecentChannels();
+});
+
 // Caches EPG programme per channel so scrolling doesn't re-fire DB queries.
 final _nowProgrammeProvider =
     FutureProvider.autoDispose.family<Programme?, String>((ref, channelId) {
@@ -120,11 +124,16 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             // Category grid
             final cats = _buildCategories(all, hiddenCats);
             final favCount = favIds.length;
+            final recent = ref.watch(_recentChannelsProvider).valueOrNull ?? [];
             return RefreshIndicator(
               onRefresh: _refreshChannels,
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
+                  if (recent.isNotEmpty) ...[
+                    _SectionHeader(title: 'Recently Watched'),
+                    _RecentChannelsRow(channels: recent),
+                  ],
                   if (favCount > 0)
                     _CategoryTile(
                       label: 'Favorites',
@@ -483,6 +492,115 @@ class _ErrorView extends StatelessWidget {
             FilledButton(onPressed: onRetry, child: const Text('Try Again')),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recently Watched row
+// ---------------------------------------------------------------------------
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+    );
+  }
+}
+
+class _RecentChannelsRow extends ConsumerWidget {
+  const _RecentChannelsRow({required this.channels});
+  final List<Channel> channels;
+
+  void _showRemoveSheet(BuildContext context, WidgetRef ref, Channel ch) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.remove_circle_outline),
+              title: const Text('Remove from Recently Watched'),
+              onTap: () async {
+                Navigator.pop(context);
+                await ref
+                    .read(appDatabaseProvider)
+                    .clearChannelLastWatched(ch.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 88,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: channels.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) {
+          final ch = channels[i];
+          return GestureDetector(
+            onTap: () => context.push('/player', extra: {
+              'streamUrl': ch.streamUrl,
+              'title': ch.name,
+              'contentType': 'live',
+              'contentId': ch.id,
+            }),
+            onLongPress: () => _showRemoveSheet(context, ref, ch),
+            child: SizedBox(
+              width: 80,
+              child: Column(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ch.logoUrl != null && ch.logoUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              ch.logoUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.tv),
+                            ),
+                          )
+                        : const Icon(Icons.tv),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    ch.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

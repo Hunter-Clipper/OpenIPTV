@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -16,6 +17,10 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 final _allSeriesProvider = FutureProvider<List<Series>>((ref) {
   return ref.watch(appDatabaseProvider).getAllSeries();
+});
+
+final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
+  return ref.watch(appDatabaseProvider).watchEpisodesInProgress();
 });
 
 // ---------------------------------------------------------------------------
@@ -101,6 +106,8 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             // Genre selection screen with Favorites row on top
             final hidden = profile?.hiddenCategories.toSet() ?? {};
             final genres = _buildGenres(all, hidden);
+            final inProgress =
+                ref.watch(_episodesInProgressProvider).valueOrNull ?? [];
             return RefreshIndicator(
               onRefresh: _refresh,
               child: CustomScrollView(
@@ -113,6 +120,14 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                         items: favorites,
                         profileId: profile?.id,
                       ),
+                    ),
+                  ],
+
+                  // Continue Watching (episodes in progress)
+                  if (inProgress.isNotEmpty) ...[
+                    _SectionHeader(title: 'Continue Watching'),
+                    SliverToBoxAdapter(
+                      child: _EpisodeContinueWatchingRow(episodes: inProgress),
                     ),
                   ],
 
@@ -462,6 +477,131 @@ class _PosterCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Episode continue watching row
+// ---------------------------------------------------------------------------
+
+class _EpisodeContinueWatchingRow extends ConsumerWidget {
+  const _EpisodeContinueWatchingRow({required this.episodes});
+  final List<Episode> episodes;
+
+  void _showRemoveSheet(BuildContext context, WidgetRef ref, Episode ep) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.remove_circle_outline),
+              title: const Text('Remove from Continue Watching'),
+              onTap: () async {
+                Navigator.pop(context);
+                await ref
+                    .read(appDatabaseProvider)
+                    .clearEpisodeProgress(ep.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 120,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: episodes.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) {
+          final ep = episodes[i];
+          return GestureDetector(
+            onTap: () => context.push('/player', extra: {
+              'streamUrl': ep.streamUrl,
+              'title': '${ep.episodeLabel} – ${ep.title}',
+              'contentId': ep.id,
+              'contentType': 'episode',
+              'resumePosition': ep.watchedDuration,
+            }),
+            onLongPress: () => _showRemoveSheet(context, ref, ep),
+            child: SizedBox(
+              width: 160,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.cardRadius),
+                          child: ep.stillUrl != null && ep.stillUrl!.isNotEmpty
+                              ? Image.network(
+                                  ep.stillUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: theme.colorScheme
+                                        .surfaceContainerHighest,
+                                    child: const Icon(
+                                        Icons.video_library_outlined),
+                                  ),
+                                )
+                              : Container(
+                                  color: theme.colorScheme
+                                      .surfaceContainerHighest,
+                                  child: const Icon(
+                                      Icons.video_library_outlined),
+                                ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(AppTheme.cardRadius)),
+                            child: LinearProgressIndicator(
+                              value: ep.watchProgress,
+                              minHeight: 3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    ep.episodeLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    ep.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

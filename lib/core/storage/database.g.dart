@@ -560,6 +560,12 @@ class $ChannelsTable extends Channels
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _lastWatchedAtMeta =
+      const VerificationMeta('lastWatchedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastWatchedAt =
+      GeneratedColumn<DateTime>('last_watched_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -571,7 +577,8 @@ class $ChannelsTable extends Channels
         tvgId,
         tvgName,
         isFavorite,
-        sortOrder
+        sortOrder,
+        lastWatchedAt
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -634,6 +641,12 @@ class $ChannelsTable extends Channels
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
+    if (data.containsKey('last_watched_at')) {
+      context.handle(
+          _lastWatchedAtMeta,
+          lastWatchedAt.isAcceptableOrUnknown(
+              data['last_watched_at']!, _lastWatchedAtMeta));
+    }
     return context;
   }
 
@@ -663,6 +676,8 @@ class $ChannelsTable extends Channels
           .read(DriftSqlType.bool, data['${effectivePrefix}is_favorite'])!,
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      lastWatchedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_watched_at']),
     );
   }
 
@@ -683,6 +698,7 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
   final String? tvgName;
   final bool isFavorite;
   final int sortOrder;
+  final DateTime? lastWatchedAt;
   const ChannelRow(
       {required this.id,
       required this.sourceId,
@@ -693,7 +709,8 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       this.tvgId,
       this.tvgName,
       required this.isFavorite,
-      required this.sortOrder});
+      required this.sortOrder,
+      this.lastWatchedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -715,6 +732,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
     }
     map['is_favorite'] = Variable<bool>(isFavorite);
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || lastWatchedAt != null) {
+      map['last_watched_at'] = Variable<DateTime>(lastWatchedAt);
+    }
     return map;
   }
 
@@ -737,6 +757,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           : Value(tvgName),
       isFavorite: Value(isFavorite),
       sortOrder: Value(sortOrder),
+      lastWatchedAt: lastWatchedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastWatchedAt),
     );
   }
 
@@ -754,6 +777,7 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       tvgName: serializer.fromJson<String?>(json['tvgName']),
       isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      lastWatchedAt: serializer.fromJson<DateTime?>(json['lastWatchedAt']),
     );
   }
   @override
@@ -770,6 +794,7 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       'tvgName': serializer.toJson<String?>(tvgName),
       'isFavorite': serializer.toJson<bool>(isFavorite),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'lastWatchedAt': serializer.toJson<DateTime?>(lastWatchedAt),
     };
   }
 
@@ -783,7 +808,8 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           Value<String?> tvgId = const Value.absent(),
           Value<String?> tvgName = const Value.absent(),
           bool? isFavorite,
-          int? sortOrder}) =>
+          int? sortOrder,
+          Value<DateTime?> lastWatchedAt = const Value.absent()}) =>
       ChannelRow(
         id: id ?? this.id,
         sourceId: sourceId ?? this.sourceId,
@@ -795,6 +821,8 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
         tvgName: tvgName.present ? tvgName.value : this.tvgName,
         isFavorite: isFavorite ?? this.isFavorite,
         sortOrder: sortOrder ?? this.sortOrder,
+        lastWatchedAt:
+            lastWatchedAt.present ? lastWatchedAt.value : this.lastWatchedAt,
       );
   ChannelRow copyWithCompanion(ChannelsCompanion data) {
     return ChannelRow(
@@ -810,6 +838,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       isFavorite:
           data.isFavorite.present ? data.isFavorite.value : this.isFavorite,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      lastWatchedAt: data.lastWatchedAt.present
+          ? data.lastWatchedAt.value
+          : this.lastWatchedAt,
     );
   }
 
@@ -825,14 +856,15 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           ..write('tvgId: $tvgId, ')
           ..write('tvgName: $tvgName, ')
           ..write('isFavorite: $isFavorite, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('lastWatchedAt: $lastWatchedAt')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, sourceId, name, logoUrl, streamUrl,
-      groupTitle, tvgId, tvgName, isFavorite, sortOrder);
+      groupTitle, tvgId, tvgName, isFavorite, sortOrder, lastWatchedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -846,7 +878,8 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           other.tvgId == this.tvgId &&
           other.tvgName == this.tvgName &&
           other.isFavorite == this.isFavorite &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.lastWatchedAt == this.lastWatchedAt);
 }
 
 class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
@@ -860,6 +893,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
   final Value<String?> tvgName;
   final Value<bool> isFavorite;
   final Value<int> sortOrder;
+  final Value<DateTime?> lastWatchedAt;
   final Value<int> rowid;
   const ChannelsCompanion({
     this.id = const Value.absent(),
@@ -872,6 +906,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     this.tvgName = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.lastWatchedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChannelsCompanion.insert({
@@ -885,6 +920,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     this.tvgName = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.lastWatchedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         sourceId = Value(sourceId),
@@ -901,6 +937,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     Expression<String>? tvgName,
     Expression<bool>? isFavorite,
     Expression<int>? sortOrder,
+    Expression<DateTime>? lastWatchedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -914,6 +951,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
       if (tvgName != null) 'tvg_name': tvgName,
       if (isFavorite != null) 'is_favorite': isFavorite,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (lastWatchedAt != null) 'last_watched_at': lastWatchedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -929,6 +967,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
       Value<String?>? tvgName,
       Value<bool>? isFavorite,
       Value<int>? sortOrder,
+      Value<DateTime?>? lastWatchedAt,
       Value<int>? rowid}) {
     return ChannelsCompanion(
       id: id ?? this.id,
@@ -941,6 +980,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
       tvgName: tvgName ?? this.tvgName,
       isFavorite: isFavorite ?? this.isFavorite,
       sortOrder: sortOrder ?? this.sortOrder,
+      lastWatchedAt: lastWatchedAt ?? this.lastWatchedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -978,6 +1018,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (lastWatchedAt.present) {
+      map['last_watched_at'] = Variable<DateTime>(lastWatchedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -997,6 +1040,7 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
           ..write('tvgName: $tvgName, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('lastWatchedAt: $lastWatchedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4114,6 +4158,7 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   Value<String?> tvgName,
   Value<bool> isFavorite,
   Value<int> sortOrder,
+  Value<DateTime?> lastWatchedAt,
   Value<int> rowid,
 });
 typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
@@ -4127,6 +4172,7 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<String?> tvgName,
   Value<bool> isFavorite,
   Value<int> sortOrder,
+  Value<DateTime?> lastWatchedAt,
   Value<int> rowid,
 });
 
@@ -4157,6 +4203,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<String?> tvgName = const Value.absent(),
             Value<bool> isFavorite = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<DateTime?> lastWatchedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelsCompanion(
@@ -4170,6 +4217,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             tvgName: tvgName,
             isFavorite: isFavorite,
             sortOrder: sortOrder,
+            lastWatchedAt: lastWatchedAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4183,6 +4231,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<String?> tvgName = const Value.absent(),
             Value<bool> isFavorite = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<DateTime?> lastWatchedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelsCompanion.insert(
@@ -4196,6 +4245,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             tvgName: tvgName,
             isFavorite: isFavorite,
             sortOrder: sortOrder,
+            lastWatchedAt: lastWatchedAt,
             rowid: rowid,
           ),
         ));
@@ -4246,6 +4296,11 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $state.composableBuilder(
       column: $state.table.sortOrder,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastWatchedAt => $state.composableBuilder(
+      column: $state.table.lastWatchedAt,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -4307,6 +4362,11 @@ class $$ChannelsTableOrderingComposer
 
   ColumnOrderings<int> get sortOrder => $state.composableBuilder(
       column: $state.table.sortOrder,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastWatchedAt => $state.composableBuilder(
+      column: $state.table.lastWatchedAt,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 

@@ -47,6 +47,7 @@ class Channels extends Table {
   TextColumn get tvgName => text().nullable()();
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastWatchedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -157,7 +158,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -167,6 +168,15 @@ class AppDatabase extends _$AppDatabase {
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) await _createIndexes();
+          if (from < 3) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(channels)').get();
+            final hasCol = tableInfo
+                .any((r) => r.data['name'] == 'last_watched_at');
+            if (!hasCol) {
+              await m.addColumn(channels, channels.lastWatchedAt);
+            }
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -434,6 +444,59 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Channel recently-watched
+  // ---------------------------------------------------------------------------
+
+  Future<void> updateChannelLastWatched(String id) async {
+    await (update(channels)..where((t) => t.id.equals(id))).write(
+      ChannelsCompanion(lastWatchedAt: Value(DateTime.now())),
+    );
+  }
+
+  Future<void> clearChannelLastWatched(String id) async {
+    await (update(channels)..where((t) => t.id.equals(id))).write(
+      const ChannelsCompanion(lastWatchedAt: Value.absent()),
+    );
+  }
+
+  Stream<List<model.Channel>> watchRecentChannels({int limit = 20}) {
+    return (select(channels)
+          ..where((t) => t.lastWatchedAt.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)])
+          ..limit(limit))
+        .watch()
+        .map((rows) => rows.map(_channelFromRow).toList());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Episode continue-watching stream
+  // ---------------------------------------------------------------------------
+
+  Stream<List<model.Episode>> watchEpisodesInProgress() {
+    return (select(episodes)
+          ..where((t) =>
+              t.watchedDurationSeconds.isNotNull() &
+              t.watchedDurationSeconds.isBiggerThanValue(0) &
+              t.totalDurationSeconds.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)]))
+        .watch()
+        .map((rows) => rows
+            .map(_episodeFromRow)
+            .where((e) => e.isInProgress)
+            .toList());
+  }
+
+  Future<void> clearEpisodeProgress(String id) async {
+    await (update(episodes)..where((t) => t.id.equals(id))).write(
+      const EpisodesCompanion(
+        watchedDurationSeconds: Value(0),
+        totalDurationSeconds: Value(0),
+        lastWatchedAt: Value.absent(),
+      ),
+    );
+  }
+
   Future<void> upsertMovies(List<model.Movie> movieList) async {
     final companions = movieList.map(_movieToCompanion).toList();
     for (var i = 0; i < companions.length; i += 500) {
@@ -604,6 +667,7 @@ class AppDatabase extends _$AppDatabase {
         tvgName: row.tvgName,
         isFavorite: row.isFavorite,
         sortOrder: row.sortOrder,
+        lastWatchedAt: row.lastWatchedAt,
       );
 
   model.Programme _programmeFromRow(ProgrammeRow row) => model.Programme(
