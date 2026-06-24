@@ -276,9 +276,12 @@ class _ChannelRow extends ConsumerWidget {
         ),
         onPressed: profileId == null
             ? null
-            : () => ref
-                .read(profileServiceProvider)
-                .toggleFavoriteChannel(profileId!, channel.id),
+            : () async {
+                await ref
+                    .read(profileServiceProvider)
+                    .toggleFavoriteChannel(profileId!, channel.id);
+                ref.invalidate(activeProfileProvider);
+              },
       ),
       onTap: () => context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
@@ -294,9 +297,12 @@ class _ChannelRow extends ConsumerWidget {
                 context: context,
                 builder: (_) => _ChannelOptionsSheet(
                   isFavorite: isFavorite,
-                  onToggle: () => ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteChannel(profileId!, channel.id),
+                  onToggle: () async {
+                    await ref
+                        .read(profileServiceProvider)
+                        .toggleFavoriteChannel(profileId!, channel.id);
+                    ref.invalidate(activeProfileProvider);
+                  },
                 ),
               );
             },
@@ -426,7 +432,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
   });
 
   final bool isFavorite;
-  final VoidCallback onToggle;
+  final Future<void> Function() onToggle;
 
   @override
   Widget build(BuildContext context) {

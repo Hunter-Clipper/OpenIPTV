@@ -45,11 +45,11 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     }
   }
 
-  List<String> _buildGenres(List<Series> all) {
+  List<String> _buildGenres(List<Series> all, Set<String> hidden) {
     final genres = all
         .map((s) => s.genre ?? 'Other')
         .expand((g) => g.split(',').map((s) => s.trim()))
-        .where((g) => g.isNotEmpty)
+        .where((g) => g.isNotEmpty && !hidden.contains(g))
         .toSet()
         .toList()
       ..sort();
@@ -99,7 +99,8 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
 
           if (_selectedGenre == null) {
             // Genre selection screen with Favorites row on top
-            final genres = _buildGenres(all);
+            final hidden = profile?.hiddenCategories.toSet() ?? {};
+            final genres = _buildGenres(all, hidden);
             return RefreshIndicator(
               onRefresh: _refresh,
               child: CustomScrollView(
@@ -369,12 +370,13 @@ class _PosterCard extends ConsumerWidget {
             ListTile(
               leading: Icon(isFav ? Icons.star_border : Icons.star),
               title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
                 if (profileId != null) {
-                  ref
+                  await ref
                       .read(profileServiceProvider)
                       .toggleFavoriteSeries(profileId!, series.id);
+                  ref.invalidate(activeProfileProvider);
                 }
               },
             ),
@@ -406,9 +408,12 @@ class _PosterCard extends ConsumerWidget {
             child: GestureDetector(
               onTap: profileId == null
                   ? null
-                  : () => ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteSeries(profileId!, series.id),
+                  : () async {
+                      await ref
+                          .read(profileServiceProvider)
+                          .toggleFavoriteSeries(profileId!, series.id);
+                      ref.invalidate(activeProfileProvider);
+                    },
               child: Container(
                 width: 28,
                 height: 28,

@@ -50,11 +50,11 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     }
   }
 
-  List<String> _buildGenres(List<Movie> movies) {
+  List<String> _buildGenres(List<Movie> movies, Set<String> hidden) {
     final genres = movies
         .map((m) => m.genre ?? 'Other')
         .expand((g) => g.split(',').map((s) => s.trim()))
-        .where((g) => g.isNotEmpty)
+        .where((g) => g.isNotEmpty && !hidden.contains(g))
         .toSet()
         .toList()
       ..sort();
@@ -105,7 +105,8 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
 
           if (_selectedGenre == null) {
             // Genre selection screen with Favorites + Continue Watching on top
-            final genres = _buildGenres(all);
+            final hidden = profile?.hiddenCategories.toSet() ?? {};
+            final genres = _buildGenres(all, hidden);
             return RefreshIndicator(
               onRefresh: _refresh,
               child: CustomScrollView(
@@ -398,12 +399,13 @@ class _PosterCard extends ConsumerWidget {
             ListTile(
               leading: Icon(isFav ? Icons.star_border : Icons.star),
               title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
                 if (profileId != null) {
-                  ref
+                  await ref
                       .read(profileServiceProvider)
                       .toggleFavoriteMovie(profileId!, movie.id);
+                  ref.invalidate(activeProfileProvider);
                 }
               },
             ),
@@ -446,9 +448,12 @@ class _PosterCard extends ConsumerWidget {
                   a.valueOrNull?.favoriteMovieIds.contains(movie.id) ?? false)),
               onTap: profileId == null
                   ? null
-                  : () => ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteMovie(profileId!, movie.id),
+                  : () async {
+                      await ref
+                          .read(profileServiceProvider)
+                          .toggleFavoriteMovie(profileId!, movie.id);
+                      ref.invalidate(activeProfileProvider);
+                    },
             ),
           ),
         ],
