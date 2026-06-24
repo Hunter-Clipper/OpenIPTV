@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
@@ -57,6 +58,14 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         if (attempt == maxAttempts - 1) rethrow;
         await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
+    }
+    // Auto-create a Default profile if none exists so profile-gated features
+    // (favourites, hidden categories) work before backlog #2 is built.
+    final db = ref.read(appDatabaseProvider);
+    final prefs = await ref.read(appPreferencesProvider.future);
+    final profiles = await db.getAllProfiles();
+    if (profiles.isEmpty) {
+      await ProfileService(db: db, prefs: prefs).createProfile(name: 'Default');
     }
     if (mounted) setState(() => _dbReady = true);
   }
