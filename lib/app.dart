@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
@@ -28,11 +29,24 @@ class OpenIPTVApp extends ConsumerStatefulWidget {
 class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   late final GoRouter _router;
   final _tooltipController = InfoTooltipController();
+  bool _dbReady = false;
 
   @override
   void initState() {
     super.initState();
     _router = _buildRouter();
+    _openDb();
+  }
+
+  // Touch the DB to force LazyDatabase.ensureOpen() + schema migrations to
+  // complete before GoRouter is mounted.  The router redirect also queries the
+  // DB, and NativeDatabase.createInBackground's background isolate is still
+  // running onCreate/onUpgrade at the exact moment the first redirect fires —
+  // causing SqliteException(5) "database is locked".  By serialising startup
+  // here we guarantee the isolate is idle and the connection is ready.
+  Future<void> _openDb() async {
+    await ref.read(appDatabaseProvider).customSelect('SELECT 1').get();
+    if (mounted) setState(() => _dbReady = true);
   }
 
   @override
@@ -45,7 +59,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     return GoRouter(
       initialLocation: '/live',
       redirect: (context, state) async {
-        final sources = await ref.read(allSourcesProvider.future);
+        // DB is guaranteed open before this fires — see _openDb() above.
+        final sources = await ref.read(appDatabaseProvider).getAllSources();
         if (sources.isEmpty && !state.fullPath!.startsWith('/onboarding')) {
           return '/onboarding';
         }
@@ -132,6 +147,18 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_dbReady) {
+      // Show a dark splash while the background DB isolate opens and migrates.
+      // The router must not be mounted yet — its redirect queries the DB and
+      // would race with migrations if we rendered it here.
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Color(0xFF121212),
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
     // TODO: wire theme from AppPreferences
     return InfoTooltipScope(
       controller: _tooltipController,
