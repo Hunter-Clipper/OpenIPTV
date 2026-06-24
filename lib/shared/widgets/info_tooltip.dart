@@ -74,17 +74,20 @@ class InfoTooltip extends StatelessWidget {
               children: [
                 Expanded(child: child),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => controller.toggle(id),
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: isOpen
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.4),
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: GestureDetector(
+                    onTap: () => controller.toggle(id),
+                    child: Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: isOpen
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.4),
+                    ),
                   ),
                 ),
               ],

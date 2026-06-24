@@ -31,7 +31,6 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
   final _epgUrlController = TextEditingController();
 
   bool _isLoading = false;
-  bool _isDetecting = false;
   String? _errorMessage;
   String? _progressStep;
 
@@ -56,73 +55,6 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
     _nicknameController.dispose();
     _epgUrlController.dispose();
     super.dispose();
-  }
-
-  Future<void> _detectSourceType() async {
-    setState(() {
-      _isDetecting = true;
-      _errorMessage = null;
-    });
-    try {
-      final manager = ref.read(sourceManagerProvider);
-      SourceDetectionResult result;
-      if (_tabController.index == 0) {
-        final url = _m3uUrlController.text.trim();
-        if (url.isEmpty) {
-          setState(() {
-            _errorMessage = 'Please enter a URL to detect the source type.';
-            _isDetecting = false;
-          });
-          return;
-        }
-        result = await manager.detectSourceType(url: url);
-      } else {
-        final host = _xtreamHostController.text.trim();
-        final user = _xtreamUsernameController.text.trim();
-        final pass = _xtreamPasswordController.text.trim();
-        if (host.isEmpty || user.isEmpty || pass.isEmpty) {
-          setState(() {
-            _errorMessage =
-                'Please fill in the server address, username, and password.';
-            _isDetecting = false;
-          });
-          return;
-        }
-        result = await manager.detectSourceType(
-          xtreamHost: host,
-          username: user,
-          password: pass,
-        );
-      }
-
-      if (!mounted) return;
-      if (result == SourceDetectionResult.m3u) {
-        _tabController.animateTo(0);
-        setState(() {
-          _errorMessage = null;
-        });
-        _showSnack('Detected as an M3U channel list.');
-      } else if (result == SourceDetectionResult.xtream) {
-        _tabController.animateTo(1);
-        setState(() {
-          _errorMessage = null;
-        });
-        _showSnack('Detected as an Xtream source.');
-      } else {
-        setState(() {
-          _errorMessage =
-              "Couldn't figure out the source type. Check the URL or credentials and try again.";
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage =
-            'Couldn’t reach this server. Check your internet connection and try again.';
-      });
-    } finally {
-      if (mounted) setState(() => _isDetecting = false);
-    }
   }
 
   Future<void> _addSource() async {
@@ -236,6 +168,15 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
     return InfoTooltipScope(
       controller: _tooltipController,
       child: Scaffold(
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            child: FilledButton(
+              onPressed: _isLoading ? null : _addSource,
+              child: const Text('Add Playlist'),
+            ),
+          ),
+        ),
         body: SafeArea(
           child: CustomScrollView(
             slivers: [
@@ -253,7 +194,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Add your first source',
+                              Text('Add a Playlist',
                                   style: theme.textTheme.headlineMedium),
                               const SizedBox(height: 8),
                               Text(
@@ -377,36 +318,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                           _progressStep ?? 'Starting…',
                           style: theme.textTheme.bodySmall,
                         ),
-                        const SizedBox(height: 32),
-                      ] else ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _isDetecting ? null : _detectSourceType,
-                                icon: _isDetecting
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.search),
-                                label: Text(
-                                    _isDetecting ? 'Detecting...' : 'Auto-detect'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: FilledButton(
-                                onPressed: _isDetecting ? null : _addSource,
-                                child: const Text('Add Source'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
                       ],
                     ],
                   ),

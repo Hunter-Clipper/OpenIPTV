@@ -7,6 +7,7 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/shared/widgets/app_logo.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -95,7 +96,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() => _selectedCategory = null),
               )
-            : null,
+            : const AppLogo(),
         title: Text(_selectedCategory ?? 'Live TV'),
         actions: [
           IconButton(
@@ -161,6 +162,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             child: channels.isEmpty
                 ? const _EmptyView()
                 : ListView.builder(
+                    key: ValueKey(_selectedCategory),
                     itemCount: channels.length,
                     itemBuilder: (context, i) {
                       final ch = channels[i];

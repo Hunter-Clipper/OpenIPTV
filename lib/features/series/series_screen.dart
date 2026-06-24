@@ -6,6 +6,7 @@ import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -76,7 +77,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() => _selectedGenre = null),
               )
-            : null,
+            : const AppLogo(),
         title: Text(_selectedGenre != null
             ? (_selectedGenre == 'All' ? 'All Series' : _selectedGenre!)
             : 'Series'),
