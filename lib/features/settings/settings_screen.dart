@@ -482,9 +482,14 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                     itemBuilder: (context, i) => ListTile(
                       title: Text(hidden[i]),
                       trailing: TextButton(
-                        onPressed: () {
-                          // Unhide logic via profileService
-                        },
+                        onPressed: profile == null
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(profileServiceProvider)
+                                    .unhideCategory(profile.id, hidden[i]);
+                                ref.invalidate(activeProfileProvider);
+                              },
                         child: const Text('Show'),
                       ),
                     ),

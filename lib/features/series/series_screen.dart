@@ -301,6 +301,33 @@ class _HorizontalPosterRow extends ConsumerWidget {
   final List<Series> items;
   final String? profileId;
 
+  void _showRemoveSheet(BuildContext context, WidgetRef ref, Series s) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.star_border),
+              title: const Text('Remove from Favorites'),
+              onTap: () async {
+                Navigator.pop(context);
+                if (profileId != null) {
+                  await ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteSeries(profileId!, s.id);
+                  ref.invalidate(activeProfileProvider);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
@@ -314,6 +341,9 @@ class _HorizontalPosterRow extends ConsumerWidget {
           final s = items[i];
           return GestureDetector(
             onTap: () => context.push('/series/${s.id}'),
+            onLongPress: profileId != null
+                ? () => _showRemoveSheet(context, ref, s)
+                : null,
             child: SizedBox(
               width: 110,
               child: Column(

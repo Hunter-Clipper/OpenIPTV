@@ -170,6 +170,16 @@ class ProfileService {
     }
   }
 
+  Future<void> unhideCategory(String profileId, String category) async {
+    final profile = await db.getProfileById(profileId);
+    if (profile == null) return;
+    final hidden = List<String>.from(profile.hiddenCategories)
+      ..remove(category);
+    await db.upsertProfile(
+      profile.copyWith(hiddenCategories: hidden, updatedAt: DateTime.now()),
+    );
+  }
+
   static String _hashPin(String pin) {
     return sha256.convert(utf8.encode(pin)).toString();
   }

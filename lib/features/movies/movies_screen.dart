@@ -131,6 +131,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                         movies: favorites,
                         profileId: profile?.id,
                         showProgress: false,
+                        isFavoritesRow: true,
                       ),
                     ),
                   ],
@@ -314,11 +315,40 @@ class _HorizontalPosterRow extends ConsumerWidget {
     required this.movies,
     required this.profileId,
     required this.showProgress,
+    this.isFavoritesRow = false,
   });
 
   final List<Movie> movies;
   final String? profileId;
   final bool showProgress;
+  final bool isFavoritesRow;
+
+  void _showRemoveSheet(BuildContext context, WidgetRef ref, Movie movie) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.star_border),
+              title: const Text('Remove from Favorites'),
+              onTap: () async {
+                Navigator.pop(context);
+                if (profileId != null) {
+                  await ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteMovie(profileId!, movie.id);
+                  ref.invalidate(activeProfileProvider);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -333,6 +363,9 @@ class _HorizontalPosterRow extends ConsumerWidget {
           final movie = movies[i];
           return GestureDetector(
             onTap: () => context.push('/movies/${movie.id}'),
+            onLongPress: isFavoritesRow && profileId != null
+                ? () => _showRemoveSheet(context, ref, movie)
+                : null,
             child: SizedBox(
               width: 110,
               child: Column(
