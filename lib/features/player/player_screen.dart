@@ -29,6 +29,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   late final PlaybackService _playbackService;
+  late final VideoController _videoController;
   bool _controlsVisible = true;
   Timer? _hideTimer;
   bool _resumeDialogShown = false;
@@ -47,6 +48,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _playbackService = ref.read(playbackServiceProvider);
+    // Create a fresh VideoController tied to this screen's platform view.
+    // Register it with the service as a GC anchor so that mpv's native opener
+    // thread can never fire Dart callbacks on a collected object.
+    _videoController = VideoController(_playbackService.player);
+    _playbackService.attachVideoController(_videoController);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
@@ -58,6 +64,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _playbackService.detachVideoController();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _saveProgressIfNeeded();
@@ -160,7 +167,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           fit: StackFit.expand,
           children: [
             Video(
-              controller: _playbackService.videoController,
+              controller: _videoController,
               controls: NoVideoControls,
             ),
             // Controls overlay

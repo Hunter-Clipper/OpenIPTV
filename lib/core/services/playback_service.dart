@@ -1,5 +1,5 @@
 import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:media_kit_video/media_kit_video.dart'; // needed for VideoController GC anchor
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -19,14 +19,17 @@ PlaybackService playbackService(PlaybackServiceRef ref) {
 class PlaybackService {
   PlaybackService({required this.db}) {
     _player = Player();
-    // Keep VideoController alive alongside the Player so native FFI callbacks
-    // are never invoked on a GC'd Dart object (Callback invoked after deleted).
-    videoController = VideoController(_player);
   }
 
   final AppDatabase db;
   late final Player _player;
-  late final VideoController videoController;
+
+  // GC anchor: keeps the active VideoController alive while mpv's native
+  // opener thread may still fire Dart callbacks (Callback invoked after deleted).
+  // Set by PlayerScreen.initState, cleared by PlayerScreen.dispose.
+  VideoController? _activeController;
+  void attachVideoController(VideoController c) => _activeController = c;
+  void detachVideoController() => _activeController = null;
 
   Player get player => _player;
 
@@ -56,6 +59,11 @@ class PlaybackService {
     final media = Media(streamUrl);
     await _player.open(media);
     if (startPosition != null && startPosition.inSeconds > 0) {
+      // Seek only once the player is actually playing; seeking right after
+      // open() is silently dropped because the stream hasn't buffered yet.
+      await _player.stream.playing
+          .firstWhere((p) => p)
+          .timeout(const Duration(seconds: 20), onTimeout: () => false);
       await _player.seek(startPosition);
     }
   }

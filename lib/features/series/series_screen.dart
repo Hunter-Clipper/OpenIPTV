@@ -517,8 +517,15 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    // Build a series-id → posterUrl map so each episode card can show the
+    // series poster rather than a still frame (which is often absent).
+    final seriesPosterMap = <String, String?>{};
+    ref.watch(_allSeriesProvider).valueOrNull?.forEach((s) {
+      seriesPosterMap[s.id] = s.posterUrl;
+    });
+
     return SizedBox(
-      height: 120,
+      height: 160,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -526,6 +533,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final ep = episodes[i];
+          final posterUrl = seriesPosterMap[ep.seriesId] ?? ep.stillUrl;
           return GestureDetector(
             onTap: () => context.push('/player', extra: {
               'streamUrl': ep.streamUrl,
@@ -536,7 +544,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
             }),
             onLongPress: () => _showRemoveSheet(context, ref, ep),
             child: SizedBox(
-              width: 160,
+              width: 110,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -547,11 +555,17 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
                         ClipRRect(
                           borderRadius:
                               BorderRadius.circular(AppTheme.cardRadius),
-                          child: ep.stillUrl != null && ep.stillUrl!.isNotEmpty
-                              ? Image.network(
-                                  ep.stillUrl!,
+                          child: posterUrl != null && posterUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: posterUrl,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  placeholder: (_, __) => Container(
+                                    color: theme.colorScheme
+                                        .surfaceContainerHighest,
+                                  ),
+                                  errorWidget: (_, __, ___) => Container(
                                     color: theme.colorScheme
                                         .surfaceContainerHighest,
                                     child: const Icon(

@@ -456,7 +456,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearChannelLastWatched(String id) async {
     await (update(channels)..where((t) => t.id.equals(id))).write(
-      const ChannelsCompanion(lastWatchedAt: Value.absent()),
+      const ChannelsCompanion(lastWatchedAt: Value(null)),
     );
   }
 
