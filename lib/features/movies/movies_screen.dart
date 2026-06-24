@@ -137,9 +137,9 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   _SectionHeader(title: 'Browse by Genre'),
                   SliverToBoxAdapter(
                     child: _GenreTileList(
-                      genres: ['All', ...genres],
+                      genres: genres.isEmpty ? ['All'] : genres,
                       movieCounts: {
-                        'All': all.length,
+                        if (genres.isEmpty) 'All': all.length,
                         for (final g in genres)
                           g: all
                               .where((m) => (m.genre ?? '').contains(g))
@@ -159,6 +159,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
+              key: ValueKey(_selectedGenre),
               slivers: [
                 if (filtered.isEmpty)
                   const SliverFillRemaining(child: _EmptyView())

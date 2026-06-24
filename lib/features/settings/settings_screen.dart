@@ -105,22 +105,6 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => _showSortOrderDialog(context),
               ),
             ),
-            InfoTooltip(
-              id: 'settings_epg_window',
-              title: 'TV Guide Time Window',
-              body:
-                  'How many days of program guide to keep on your device. '
-                  'A longer window uses more storage. The guide is fetched '
-                  'automatically when you add or refresh a source.',
-              child: ListTile(
-                leading: const Icon(Icons.calendar_today_outlined),
-                title: const Text('TV Guide Window'),
-                subtitle: const Text('5 days'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showEpgWindowDialog(context),
-              ),
-            ),
-
             // --------------- APPEARANCE ---------------
             _SectionHeader(title: 'Appearance'),
             InfoTooltip(
@@ -186,21 +170,6 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('A–Z'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showEpgWindowDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('TV Guide Window'),
-        children: [1, 3, 5, 7].map((days) {
-          return SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('$days day${days == 1 ? '' : 's'}'),
-          );
-        }).toList(),
       ),
     );
   }

@@ -72,10 +72,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     return result;
   }
 
-  List<String> _buildCategories(List<Channel> channels) {
+  List<String> _buildCategories(List<Channel> channels, Set<String> hidden) {
     final cats = channels
         .map((c) => c.groupTitle ?? 'Uncategorized')
         .toSet()
+        .where((c) => !hidden.contains(c))
         .toList()
       ..sort();
     return cats;
@@ -88,6 +89,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final profile = profileAsync.valueOrNull;
     final profileId = profile?.id;
     final favIds = (profile?.favoriteChannelIds ?? []).toSet();
+    final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
 
     return Scaffold(
       appBar: AppBar(
@@ -115,7 +117,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         data: (all) {
           if (_selectedCategory == null) {
             // Category grid
-            final cats = _buildCategories(all);
+            final cats = _buildCategories(all, hiddenCats);
             final favCount = favIds.length;
             return RefreshIndicator(
               onRefresh: _refreshChannels,
@@ -130,12 +132,14 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       onTap: () =>
                           setState(() => _selectedCategory = 'Favorites'),
                     ),
-                  _CategoryTile(
-                    label: 'All',
-                    count: all.length,
-                    icon: Icons.live_tv_outlined,
-                    onTap: () => setState(() => _selectedCategory = 'All'),
-                  ),
+                  // Show "All" only when no categories exist
+                  if (cats.isEmpty)
+                    _CategoryTile(
+                      label: 'All',
+                      count: all.length,
+                      icon: Icons.live_tv_outlined,
+                      onTap: () => setState(() => _selectedCategory = 'All'),
+                    ),
                   ...cats.map((cat) {
                     final count = all
                         .where((c) =>
@@ -145,8 +149,22 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       label: cat,
                       count: count,
                       icon: Icons.folder_outlined,
-                      onTap: () =>
-                          setState(() => _selectedCategory = cat),
+                      onTap: () => setState(() => _selectedCategory = cat),
+                      onLongPress: profileId == null
+                          ? null
+                          : () async {
+                              final hide = await showModalBottomSheet<bool>(
+                                context: context,
+                                builder: (_) =>
+                                    _CategoryOptionsSheet(label: cat),
+                              );
+                              if (hide == true && mounted) {
+                                await ref
+                                    .read(profileServiceProvider)
+                                    .hideCategory(profileId!, cat);
+                                ref.invalidate(activeProfileProvider);
+                              }
+                            },
                     );
                   }),
                 ],
@@ -190,12 +208,14 @@ class _CategoryTile extends StatelessWidget {
     required this.count,
     required this.icon,
     required this.onTap,
+    this.onLongPress,
   });
 
   final String label;
   final int count;
   final IconData icon;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +237,7 @@ class _CategoryTile extends StatelessWidget {
         ],
       ),
       onTap: onTap,
+      onLongPress: onLongPress,
     );
   }
 }
@@ -243,7 +264,7 @@ class _ChannelRow extends ConsumerWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: _ChannelLogo(url: channel.logoUrl),
       title: Text(channel.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: _NowNextText(channelId: channel.id),
+      subtitle: _EpgSubtitle(channelId: channel.id),
       trailing: IconButton(
         icon: Icon(
           isFavorite ? Icons.star : Icons.star_border,
@@ -263,6 +284,17 @@ class _ChannelRow extends ConsumerWidget {
         'contentType': 'live',
         'contentId': channel.id,
       }),
+      onLongPress: profileId == null
+          ? null
+          : () => showModalBottomSheet<void>(
+                context: context,
+                builder: (_) => _ChannelOptionsSheet(
+                  isFavorite: isFavorite,
+                  onToggle: () => ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteChannel(profileId!, channel.id),
+                ),
+              ),
     );
   }
 }
@@ -314,11 +346,11 @@ class _ChannelLogo extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Now/next programme subtitle
+// EPG subtitle — programme title + thin progress bar
 // ---------------------------------------------------------------------------
 
-class _NowNextText extends ConsumerWidget {
-  const _NowNextText({required this.channelId});
+class _EpgSubtitle extends ConsumerWidget {
+  const _EpgSubtitle({required this.channelId});
 
   final String channelId;
 
@@ -327,11 +359,87 @@ class _NowNextText extends ConsumerWidget {
     final theme = Theme.of(context);
     final prog = ref.watch(_nowProgrammeProvider(channelId)).valueOrNull;
     if (prog == null) return const SizedBox.shrink();
-    return Text(
-      prog.title,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.bodySmall,
+    final progress = prog.progressAt(DateTime.now()).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          prog.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: progress,
+          minHeight: 2,
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Category long-press options sheet
+// ---------------------------------------------------------------------------
+
+class _CategoryOptionsSheet extends StatelessWidget {
+  const _CategoryOptionsSheet({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.visibility_off_outlined),
+            title: const Text('Hide Category'),
+            subtitle: Text(label,
+                style: Theme.of(context).textTheme.bodySmall),
+            onTap: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Channel long-press options sheet
+// ---------------------------------------------------------------------------
+
+class _ChannelOptionsSheet extends StatelessWidget {
+  const _ChannelOptionsSheet({
+    required this.isFavorite,
+    required this.onToggle,
+  });
+
+  final bool isFavorite;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(isFavorite ? Icons.star_border : Icons.star),
+            title: Text(
+                isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),
+            onTap: () {
+              Navigator.of(context).pop();
+              onToggle();
+            },
+          ),
+        ],
+      ),
     );
   }
 }

@@ -163,11 +163,20 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       // Show a dark splash while the background DB isolate opens and migrates.
       // The router must not be mounted yet — its redirect queries the DB and
       // would race with migrations if we rendered it here.
-      return const MaterialApp(
+      return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-          backgroundColor: Color(0xFF121212),
-          body: Center(child: CircularProgressIndicator()),
+          backgroundColor: const Color(0xFF121212),
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset('assets/images/logo.jpg', width: 140, height: 140),
+                const SizedBox(height: 32),
+                const CircularProgressIndicator(),
+              ],
+            ),
+          ),
         ),
       );
     }
