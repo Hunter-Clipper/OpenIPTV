@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart'; // needed for VideoController GC anchor
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -57,20 +58,24 @@ class PlaybackService {
 
   Future<void> play(String streamUrl, {Duration? startPosition}) async {
     final media = Media(streamUrl);
+    debugPrint('[OTV-play] opening url, startPosition=${startPosition?.inSeconds}s');
     await _player.open(media);
+    debugPrint('[OTV-play] open() returned, state.playing=${_player.state.playing}, state.duration=${_player.state.duration.inSeconds}s');
     if (startPosition != null && startPosition.inSeconds > 0) {
-      // Subscribe to the stream BEFORE checking state so we don't miss the
-      // event in the gap between the check and the subscription (Dart is
-      // single-threaded, so no event fires between these two synchronous lines).
-      final playFuture = _player.stream.playing
-          .firstWhere((p) => p)
-          .timeout(const Duration(seconds: 15), onTimeout: () => false);
-      // If playing is already true (fired before we could subscribe above),
-      // skip the wait — seek immediately.
-      if (!_player.state.playing) {
-        await playFuture;
+      // Wait for mpv to parse the container and populate duration before seeking.
+      // 'playing=true' fires too early (before the index is ready), so a seek
+      // at that point silently no-ops. Duration > 0 means the demuxer has the
+      // seek table and can honor arbitrary position requests.
+      final durationFuture = _player.stream.duration
+          .firstWhere((d) => d > Duration.zero)
+          .timeout(const Duration(seconds: 20), onTimeout: () => Duration.zero);
+      if (_player.state.duration == Duration.zero) {
+        debugPrint('[OTV-play] waiting for duration...');
+        await durationFuture;
       }
+      debugPrint('[OTV-play] duration=${_player.state.duration.inSeconds}s, seeking to ${startPosition.inSeconds}s');
       await _player.seek(startPosition);
+      debugPrint('[OTV-play] seek() returned, state.position=${_player.state.position.inSeconds}s');
     }
   }
 
@@ -91,17 +96,24 @@ class PlaybackService {
 
   Future<void> saveMovieProgress(String movieId, Duration total) async {
     final position = _player.state.position;
-    // Guard on position, not total — many IPTV streams are TS-over-HTTP and
-    // mpv never resolves a duration, so total stays 0. We still want to save
-    // the watched position so the Resume button appears.
-    if (position.inSeconds == 0) return;
+    debugPrint('[OTV-save] saveMovieProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
+    if (position.inSeconds == 0) {
+      debugPrint('[OTV-save] skipping — position is 0');
+      return;
+    }
     await db.updateMovieProgress(movieId, position, total);
+    debugPrint('[OTV-save] updateMovieProgress done');
   }
 
   Future<void> saveEpisodeProgress(String episodeId, Duration total) async {
     final position = _player.state.position;
-    if (position.inSeconds == 0) return;
+    debugPrint('[OTV-save] saveEpisodeProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
+    if (position.inSeconds == 0) {
+      debugPrint('[OTV-save] skipping — position is 0');
+      return;
+    }
     await db.updateEpisodeProgress(episodeId, position, total);
+    debugPrint('[OTV-save] updateEpisodeProgress done');
   }
 
   void dispose() => _player.dispose();

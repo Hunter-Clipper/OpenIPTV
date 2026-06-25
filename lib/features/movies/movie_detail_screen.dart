@@ -12,13 +12,8 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 // ---------------------------------------------------------------------------
 
 final _movieDetailProvider =
-    FutureProvider.family<Movie?, String>((ref, id) async {
-  final all = await ref.watch(appDatabaseProvider).getAllMovies();
-  try {
-    return all.firstWhere((m) => m.id == id);
-  } catch (_) {
-    return null;
-  }
+    StreamProvider.family<Movie?, String>((ref, id) {
+  return ref.watch(appDatabaseProvider).watchMovieById(id);
 });
 
 // ---------------------------------------------------------------------------

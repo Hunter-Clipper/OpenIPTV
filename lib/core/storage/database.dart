@@ -406,6 +406,12 @@ class AppDatabase extends _$AppDatabase {
     return rows.map(_movieFromRow).toList();
   }
 
+  Stream<model.Movie?> watchMovieById(String id) {
+    return (select(movies)..where((t) => t.id.equals(id)))
+        .watchSingleOrNull()
+        .map((row) => row == null ? null : _movieFromRow(row));
+  }
+
   Future<List<model.Movie>> getMoviesInProgress() async {
     final rows = await (select(movies)
           ..where((t) =>

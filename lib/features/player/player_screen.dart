@@ -129,7 +129,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final id = widget.contentId;
     if (id == null) return;
     final service = _playbackService;
+    final pos = service.player.state.position;
     final total = service.player.state.duration;
+    debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${pos.inSeconds}s total=${total.inSeconds}s');
     if (widget.contentType == 'movie') {
       service.saveMovieProgress(id, total);
     } else if (widget.contentType == 'episode') {
