@@ -17,6 +17,7 @@ class Profile {
     this.customChannelOrder = const {},
     this.epgOverrides = const {},
     this.hiddenCategories = const [],
+    this.isKidsProfile = false,
   });
 
   final String id;
@@ -34,6 +35,7 @@ class Profile {
   final Map<String, int> customChannelOrder;
   final Map<String, String> epgOverrides;
   final List<String> hiddenCategories;
+  final bool isKidsProfile;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -61,6 +63,7 @@ class Profile {
     Map<String, int>? customChannelOrder,
     Map<String, String>? epgOverrides,
     List<String>? hiddenCategories,
+    bool? isKidsProfile,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearPin = false,
@@ -81,6 +84,7 @@ class Profile {
       customChannelOrder: customChannelOrder ?? this.customChannelOrder,
       epgOverrides: epgOverrides ?? this.epgOverrides,
       hiddenCategories: hiddenCategories ?? this.hiddenCategories,
+      isKidsProfile: isKidsProfile ?? this.isKidsProfile,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -34,7 +34,7 @@ class SettingsScreen extends ConsumerWidget {
                   ? Text(profile.avatarEmoji,
                       style: const TextStyle(fontSize: 28))
                   : const Icon(Icons.person_outline),
-              title: const Text('Profiles'),
+              title: const Text('Profile'),
               subtitle: profile != null
                   ? Text(profile.name, style: theme.textTheme.bodySmall)
                   : const Text('No profile selected'),
@@ -367,7 +367,7 @@ class SettingsScreen extends ConsumerWidget {
       applicationName: 'OpenIPTV',
       applicationVersion: info != null ? info.version : '',
       applicationLegalese:
-          '© 2024 OpenIPTV contributors. Licensed under GPL-3.0.',
+          '© 2026 OpenIPTV contributors. Licensed under GPL-3.0.',
       children: [
         const SizedBox(height: 16),
         const Text(

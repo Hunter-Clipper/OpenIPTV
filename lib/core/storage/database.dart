@@ -133,6 +133,8 @@ class Profiles extends Table {
   TextColumn get customChannelOrder => text().withDefault(const Constant('{}'))();
   TextColumn get epgOverrides => text().withDefault(const Constant('{}'))();
   TextColumn get hiddenCategories => text().withDefault(const Constant('[]'))();
+  BoolColumn get isKidsProfile =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -158,7 +160,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -175,6 +177,15 @@ class AppDatabase extends _$AppDatabase {
                 .any((r) => r.data['name'] == 'last_watched_at');
             if (!hasCol) {
               await m.addColumn(channels, channels.lastWatchedAt);
+            }
+          }
+          if (from < 4) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(profiles)').get();
+            final hasCol = tableInfo
+                .any((r) => r.data['name'] == 'is_kids_profile');
+            if (!hasCol) {
+              await m.addColumn(profiles, profiles.isKidsProfile);
             }
           }
         },
@@ -753,6 +764,7 @@ class AppDatabase extends _$AppDatabase {
             jsonDecode(row.epgOverrides) as Map),
         hiddenCategories:
             List<String>.from(jsonDecode(row.hiddenCategories) as List),
+        isKidsProfile: row.isKidsProfile,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       );
@@ -851,6 +863,7 @@ class AppDatabase extends _$AppDatabase {
         customChannelOrder: Value(jsonEncode(p.customChannelOrder)),
         epgOverrides: Value(jsonEncode(p.epgOverrides)),
         hiddenCategories: Value(jsonEncode(p.hiddenCategories)),
+        isKidsProfile: Value(p.isKidsProfile),
         createdAt: Value(p.createdAt),
         updatedAt: Value(p.updatedAt),
       );
