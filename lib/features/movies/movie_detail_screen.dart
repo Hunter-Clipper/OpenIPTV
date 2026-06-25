@@ -238,13 +238,13 @@ class _MovieDetailBody extends ConsumerWidget {
 // Action buttons
 // ---------------------------------------------------------------------------
 
-class _ActionButtons extends StatelessWidget {
+class _ActionButtons extends ConsumerWidget {
   const _ActionButtons({required this.movie});
 
   final Movie movie;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (movie.isInProgress) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -272,6 +272,17 @@ class _ActionButtons extends StatelessWidget {
               'contentType': 'movie',
               'resumePosition': Duration.zero,
             }),
+          ),
+          const SizedBox(height: 4),
+          TextButton.icon(
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Clear Progress'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            onPressed: () async {
+              await ref.read(appDatabaseProvider).clearMovieProgress(movie.id);
+            },
           ),
         ],
       );

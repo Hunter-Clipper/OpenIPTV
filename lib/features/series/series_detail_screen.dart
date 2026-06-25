@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
@@ -288,7 +289,7 @@ class _SeriesBody extends ConsumerWidget {
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, i) =>
-                  _EpisodeRow(episode: seasonEpisodes[i]),
+                  _EpisodeRow(episode: seasonEpisodes[i], seriesId: series.id),
               childCount: seasonEpisodes.length,
             ),
           ),
@@ -345,13 +346,40 @@ class _SeasonDropdown extends StatelessWidget {
 // Episode row
 // ---------------------------------------------------------------------------
 
-class _EpisodeRow extends StatelessWidget {
-  const _EpisodeRow({required this.episode});
+class _EpisodeRow extends ConsumerWidget {
+  const _EpisodeRow({required this.episode, required this.seriesId});
 
   final Episode episode;
+  final String seriesId;
+
+  void _showOptions(BuildContext context, WidgetRef ref) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (episode.isInProgress)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Clear Progress'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await ref
+                      .read(appDatabaseProvider)
+                      .clearEpisodeProgress(episode.id);
+                  ref.invalidate(_seriesEpisodesProvider(seriesId));
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return ListTile(
       contentPadding:
@@ -390,6 +418,9 @@ class _EpisodeRow extends StatelessWidget {
         'resumePosition':
             episode.isInProgress ? episode.watchedDuration : null,
       }),
+      onLongPress: episode.isInProgress
+          ? () => _showOptions(context, ref)
+          : null,
     );
   }
 }
