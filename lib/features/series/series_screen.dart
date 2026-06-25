@@ -210,7 +210,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
-              key: ValueKey(_selectedGenre),
+              key: ValueKey('${_selectedGenre}_$sort'),
               slivers: [
                 if (filtered.isEmpty)
                   const SliverFillRemaining(child: _EmptyView())
@@ -221,6 +221,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                     sliver: SliverGrid(
                       delegate: SliverChildBuilderDelegate(
                         (context, i) => _PosterCard(
+                          key: ValueKey(filtered[i].id),
                           series: filtered[i],
                           profileId: profile?.id,
                         ),
@@ -410,7 +411,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _PosterCard extends ConsumerWidget {
-  const _PosterCard({required this.series, required this.profileId});
+  const _PosterCard({super.key, required this.series, required this.profileId});
 
   final Series series;
   final String? profileId;

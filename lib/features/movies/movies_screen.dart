@@ -215,7 +215,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
-              key: ValueKey(_selectedGenre),
+              key: ValueKey('${_selectedGenre}_$sort'),
               slivers: [
                 if (filtered.isEmpty)
                   const SliverFillRemaining(child: _EmptyView())
@@ -226,6 +226,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                     sliver: SliverGrid(
                       delegate: SliverChildBuilderDelegate(
                         (context, i) => _PosterCard(
+                          key: ValueKey(filtered[i].id),
                           movie: filtered[i],
                           profileId: profile?.id,
                         ),
@@ -442,7 +443,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _PosterCard extends ConsumerWidget {
-  const _PosterCard({required this.movie, required this.profileId});
+  const _PosterCard({super.key, required this.movie, required this.profileId});
 
   final Movie movie;
   final String? profileId;
