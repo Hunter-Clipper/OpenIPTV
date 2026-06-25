@@ -411,9 +411,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<model.Movie>> getAllMovies() async {
-    final rows = await (select(movies)
-          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
-        .get();
+    final rows = await select(movies).get();
     return rows.map(_movieFromRow).toList();
   }
 
@@ -553,9 +551,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<model.Series>> getAllSeries() async {
-    final rows = await (select(seriesEntries)
-          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
-        .get();
+    final rows = await select(seriesEntries).get();
     return rows.map(_seriesFromRow).toList();
   }
 
