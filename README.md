@@ -5,34 +5,39 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 **Guiding principle:** *Grandma Standard* — if a non-technical user can't find their show in 3 taps, the UX has failed.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20TV%20%7C%20Desktop-lightgrey)]()
+[![Platform](https://img.shields.io/badge/platform-Android-lightgrey)]()
+[![Latest Release](https://img.shields.io/github/v/release/Hunter-Clipper/OpenIPTV)](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest)
 
 ---
 
 ## What it does
 
-- Add an IPTV source via M3U URL or Xtream credentials — that's it, no account required
-- Live TV with EPG (what's on now / next)
-- Movies and Series with VOD playback and continue-watching
-- Multiple profiles per device (PIN-lockable, emoji avatars)
-- Backup and restore via a single `.iptvprofile` file
-- No ads, no telemetry, no proprietary dependencies
+- Add an IPTV source via M3U URL or Xtream Codes credentials — no account required
+- Live TV with EPG (what's on now / next), channel categories, and favorites
+- Movies and Series with VOD playback, continue-watching, and per-genre browsing
+- Multiple profiles per device — emoji avatars, PIN lock, Kids mode
+- Dark / Light / System theme with 6 accent color choices
+- Content sort toggle — provider order or A-Z, applied to both category lists and content within
+- Backup and restore your full setup via a single `.iptvprofile` file
+- No ads, no telemetry, no accounts
 
 ---
 
-## Current status — Phase 1 in progress
-
-We are building Phase 1: **Android phone + tablet**. All core engine work (parsers, services, database) must be complete and tested before UI work begins.
-
-See [IPTV_BUILD_SPEC.md](./IPTV_BUILD_SPEC.md) for the full specification. See the [GitHub Issues](https://github.com/Hunter-Clipper/OpenIPTV/issues) for the task breakdown.
+## Current status
 
 | Phase | Target | Status |
 |---|---|---|
-| 1 | Android phone + tablet | 🔨 In progress |
+| 1 | Android phone + tablet | ✅ Active development — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
 | 2 | Android TV | Not started |
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
+
+---
+
+## Screenshots
+
+_Coming soon._
 
 ---
 
@@ -48,44 +53,26 @@ See [IPTV_BUILD_SPEC.md](./IPTV_BUILD_SPEC.md) for the full specification. See t
 | Java | 17 (for Android Gradle) |
 
 ```bash
-# Verify your environment
 flutter doctor -v
 ```
 
-### Clone and install
+### Clone and run
 
 ```bash
 git clone https://github.com/Hunter-Clipper/OpenIPTV.git
 cd OpenIPTV
-
-# Once the Flutter project is scaffolded (Issue #1):
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
-```
-
-`build_runner` generates Isar schema adapters and Riverpod providers. Re-run it whenever you add/change an `@collection` class or a `@riverpod` annotation.
-
-### Run on Android
-
-```bash
 flutter run -d <device-id>
-
-# List connected devices
-flutter devices
 ```
+
+`build_runner` generates Drift database code and Riverpod providers. Re-run it after changing any `@DriftDatabase`, `@DataClassName`, or `@riverpod` annotated class.
 
 ### Run tests
 
 ```bash
-# All tests
 flutter test
-
-# Single file
-flutter test test/core/parsers/m3u_parser_test.dart
-
-# With coverage
-flutter test --coverage
-genhtml coverage/lcov.info -o coverage/html
+flutter analyze
 ```
 
 ---
@@ -95,112 +82,78 @@ genhtml coverage/lcov.info -o coverage/html
 ```
 lib/
 ├── core/
-│   ├── parsers/        # M3U, XMLTV, Xtream — the data engine
-│   ├── models/         # Source, Channel, Programme, Movie, Series, Episode, Profile
-│   ├── services/       # SourceManager, EpgService, SearchService, PlaybackService, ProfileService
-│   └── storage/        # Isar DB init, BackupManager, preferences
+│   ├── models/         # Channel, Movie, Series, Episode, Profile, Source
+│   ├── providers/      # theme_providers (ThemeMode, accent color, sort order)
+│   ├── services/       # SourceManager, ProfileService, EpgService
+│   └── storage/        # database.dart (Drift/SQLite), preferences.dart (SharedPreferences)
 │
 ├── features/
-│   ├── onboarding/     # Add Source screen (first-run flow)
-│   ├── live_tv/        # Channel list + EPG panel
-│   ├── movies/         # Movies grid + detail
-│   ├── series/         # Series grid + detail + episode list
+│   ├── live_tv/        # Channel list, category grid, EPG panel
+│   ├── movies/         # Movie genre grid, movie detail
+│   ├── series/         # Series genre grid, series detail, episode list
 │   ├── player/         # Full-screen player (media_kit)
-│   ├── search/         # Global search screen
-│   └── settings/       # Settings, Profile, Backup screens
-│
-├── ui/
-│   ├── phone/          # Phone-specific layouts
-│   ├── tablet/         # Tablet split-view layouts
-│   └── tv/             # TV leanback layouts (Phase 2)
+│   ├── search/         # Global search
+│   └── settings/       # Settings screen, profile overview, profile picker
 │
 ├── shared/
-│   ├── widgets/        # InfoTooltip and other shared widgets
-│   └── theme/          # App theme (dark-first)
+│   ├── theme/          # AppTheme (dark/light/TV variants, accent swatches)
+│   └── widgets/        # AppLogo, shared widgets
 │
-└── main.dart
-
-test/
-├── core/
-│   ├── parsers/        # m3u_parser_test, xmltv_parser_test, xtream_client_test
-│   ├── services/       # epg_service_test, search_service_test, backup_manager_test
-│   └── models/         # profile_test
-└── fixtures/           # sample.m3u, sample.xml, sample_xtream_response.json
+└── app.dart            # App entry, profile picker bootstrap, reactive theme
 ```
 
 ---
 
 ## Architecture
 
-**State management:** Riverpod (`flutter_riverpod`). Providers are code-generated via `riverpod_annotation` + `riverpod_generator`.
+**State management:** Riverpod 2 (`flutter_riverpod`). Providers are code-generated via `riverpod_annotation` + `riverpod_generator`. Theme mode, accent color, and sort order are `StateProvider`s initialized from persisted preferences at startup.
 
-**Database:** Isar (embedded, no SQLite friction). All reads/writes are async and run off the main thread.
+**Database:** Drift (SQLite via `sqlite3_flutter_libs`). Schema is versioned with `schemaVersion` and guarded migrations (`PRAGMA table_info` checks before `addColumn`). All reads/writes are async.
 
-**Navigation:** `go_router` with deep linking. TV D-pad focus is handled at the route level.
+**Navigation:** `go_router` with path-based deep linking.
 
-**Video:** `media_kit` + `media_kit_video` (libmpv/VLC core). Supports HLS, MPEG-TS, RTMP, MP4, hardware decode, subtitle tracks, and TV remote input.
+**Video:** `media_kit` + `media_kit_video` (libmpv core). Supports HLS, MPEG-TS, MP4, hardware decode, subtitle tracks, and resume from last position.
 
-**Parsing:** M3U and XMLTV parsers are custom Dart (no third-party parser). M3U parsing runs in a Dart isolate for large files (100k+ channels). XMLTV is stream-parsed — the full XML is never loaded into memory.
+**Parsing:** Custom Dart M3U and Xtream Codes parsers. No third-party parser dependencies.
 
-**Platform layout selection:**
-```dart
-enum AppLayout { phone, tablet, tv }
-
-class PlatformHelper {
-  static AppLayout getLayout(BuildContext context) {
-    if (_isTV()) return AppLayout.tv;
-    final width = MediaQuery.of(context).size.width;
-    return width >= 600 ? AppLayout.tablet : AppLayout.phone;
-  }
-}
-```
+**Responsive layout:** Grid column count is derived from screen width at runtime; TV leanback layout planned for Phase 2.
 
 ---
 
 ## Key Rules
 
-These are non-negotiable and enforced in code review.
-
-**No analytics or telemetry** that phones home without explicit user opt-in. The app must function 100% offline except for fetching streams.
+**No analytics or telemetry.** The app functions 100% offline except for fetching streams and playlist URLs.
 
 **No accounts required.** Ever.
 
-**F-Droid compatible.** No proprietary dependencies in the main build. If a package pulls in proprietary components, find an alternative.
+**F-Droid compatible target.** No proprietary dependencies in the main build.
 
-**User-facing errors must be plain English.** Never expose stack traces, HTTP status codes, or library error strings to the user. Map everything through the error layer (see `lib/core/services/` and the error table in the build spec).
+**User-facing errors must be plain English.** Never expose stack traces, HTTP codes, or library error strings to the user.
 
-**Parsers before UI.** The M3U, XMLTV, and Xtream parsers must be fully tested before any UI screen is merged. They are the foundation of everything.
-
-**InfoTooltip on every non-obvious setting.** If a user might ask "what does this do?", it needs an `InfoTooltip`. See `lib/shared/widgets/info_tooltip.dart` and the complete tooltip copy in [IPTV_BUILD_SPEC.md](./IPTV_BUILD_SPEC.md).
-
-**Performance floors** (enforced, not aspirational):
+**Performance floors:**
 - Cold start to channel list: < 3 seconds
 - Channel tap to video playing: < 2 seconds
 - Search results: < 300ms post-debounce
-- M3U parsing: in isolate, never blocks UI
 
 ---
 
 ## Contributing
 
-1. Check the [open issues](https://github.com/Hunter-Clipper/OpenIPTV/issues) — start with a Phase 1 issue
-2. Comment on the issue before starting work to avoid duplication
-3. Branch from `main`, name your branch `feature/<issue-number>-short-description`
-4. Write tests first for any parser or service work
-5. Open a PR — reference the issue number in the title
+1. Check the [open issues](https://github.com/Hunter-Clipper/OpenIPTV/issues)
+2. Comment before starting to avoid duplication
+3. Branch from `main` — `feature/<issue-number>-short-description`
+4. Open a PR referencing the issue number
 
-**Commit style:** Short imperative subject line, no trailing period. Examples:
+**Commit style:** Short imperative subject line, no trailing period.
 ```
-add M3U isolate parser with EXTINF tag support
-fix XMLTV timezone offset parsing for negative offsets
-implement InfoTooltip expand/collapse with single-open constraint
+fix: channel list respects sort toggle in category view
+feat: accent color picker with 6 swatches
 ```
 
 **PR checklist:**
 - [ ] `flutter test` passes
 - [ ] `flutter analyze` shows no issues
-- [ ] New parsers/services have unit tests with edge-case coverage
-- [ ] No hardcoded strings that should be user-facing error messages
+- [ ] No hardcoded user-facing strings outside the UI layer
 - [ ] No new dependencies added without discussion in the issue first
 
 ---
