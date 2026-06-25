@@ -59,11 +59,17 @@ class PlaybackService {
     final media = Media(streamUrl);
     await _player.open(media);
     if (startPosition != null && startPosition.inSeconds > 0) {
-      // Seek only once the player is actually playing; seeking right after
-      // open() is silently dropped because the stream hasn't buffered yet.
-      await _player.stream.playing
+      // Subscribe to the stream BEFORE checking state so we don't miss the
+      // event in the gap between the check and the subscription (Dart is
+      // single-threaded, so no event fires between these two synchronous lines).
+      final playFuture = _player.stream.playing
           .firstWhere((p) => p)
-          .timeout(const Duration(seconds: 20), onTimeout: () => false);
+          .timeout(const Duration(seconds: 15), onTimeout: () => false);
+      // If playing is already true (fired before we could subscribe above),
+      // skip the wait — seek immediately.
+      if (!_player.state.playing) {
+        await playFuture;
+      }
       await _player.seek(startPosition);
     }
   }
@@ -85,13 +91,16 @@ class PlaybackService {
 
   Future<void> saveMovieProgress(String movieId, Duration total) async {
     final position = _player.state.position;
-    if (total.inSeconds == 0) return;
+    // Guard on position, not total — many IPTV streams are TS-over-HTTP and
+    // mpv never resolves a duration, so total stays 0. We still want to save
+    // the watched position so the Resume button appears.
+    if (position.inSeconds == 0) return;
     await db.updateMovieProgress(movieId, position, total);
   }
 
   Future<void> saveEpisodeProgress(String episodeId, Duration total) async {
     final position = _player.state.position;
-    if (total.inSeconds == 0) return;
+    if (position.inSeconds == 0) return;
     await db.updateEpisodeProgress(episodeId, position, total);
   }
 
