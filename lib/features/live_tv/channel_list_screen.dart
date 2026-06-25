@@ -8,6 +8,8 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   }
 
   List<Channel> _channelsForCategory(
-      List<Channel> all, Set<String> favIds, String category) {
+      List<Channel> all, Set<String> favIds, String category, String sort) {
     List<Channel> result;
     if (category == 'All') {
       result = List.of(all);
@@ -67,13 +69,17 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           .where((c) => (c.groupTitle ?? 'Uncategorized') == category)
           .toList();
     }
-    result.sort((a, b) {
-      final aFav = favIds.contains(a.id);
-      final bFav = favIds.contains(b.id);
-      if (aFav && !bFav) return -1;
-      if (!aFav && bFav) return 1;
-      return a.sortOrder.compareTo(b.sortOrder);
-    });
+    if (sort == 'az') {
+      result.sort((a, b) => a.name.compareTo(b.name));
+    } else {
+      result.sort((a, b) {
+        final aFav = favIds.contains(a.id);
+        final bFav = favIds.contains(b.id);
+        if (aFav && !bFav) return -1;
+        if (!aFav && bFav) return 1;
+        return a.sortOrder.compareTo(b.sortOrder);
+      });
+    }
     return result;
   }
 
@@ -96,6 +102,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final favIds = (profile?.favoriteChannelIds ?? []).toSet();
     final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
 
+    final sort = ref.watch(contentSortProvider);
     return Scaffold(
       appBar: AppBar(
         leading: _selectedCategory != null
@@ -106,6 +113,17 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             : const AppLogo(),
         title: Text(_selectedCategory ?? 'Live TV'),
         actions: [
+          IconButton(
+            icon: Icon(sort == 'az'
+                ? Icons.sort_by_alpha
+                : Icons.sort),
+            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setContentSort(
+                  ref, sort == 'az' ? 'provider' : 'az', prefs);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
@@ -185,7 +203,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 
           // Channel list for selected category
           final channels =
-              _channelsForCategory(all, favIds, _selectedCategory!);
+              _channelsForCategory(all, favIds, _selectedCategory!, sort);
           return RefreshIndicator(
             onRefresh: _refreshChannels,
             child: channels.isEmpty

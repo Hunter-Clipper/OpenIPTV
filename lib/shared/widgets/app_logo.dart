@@ -8,7 +8,7 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: Image.asset('assets/images/logo.jpg', fit: BoxFit.contain),
+      child: Image.asset('assets/images/app_icon.png', fit: BoxFit.contain),
     );
   }
 }

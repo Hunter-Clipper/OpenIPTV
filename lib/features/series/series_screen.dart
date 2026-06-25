@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -76,6 +78,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final profile = profileAsync.valueOrNull;
     final columns = PlatformHelper.posterColumns(context);
 
+    final sort = ref.watch(contentSortProvider);
     return Scaffold(
       appBar: AppBar(
         leading: _selectedGenre != null
@@ -88,6 +91,15 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             ? (_selectedGenre == 'All' ? 'All Series' : _selectedGenre!)
             : 'Series'),
         actions: [
+          IconButton(
+            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
+            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setContentSort(
+                  ref, sort == 'az' ? 'provider' : 'az', prefs);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push('/settings'),
@@ -190,6 +202,9 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
 
           // Filtered series grid
           final filtered = _filteredSeries(all, _selectedGenre!);
+          if (sort == 'az') {
+            filtered.sort((a, b) => a.title.compareTo(b.title));
+          }
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(

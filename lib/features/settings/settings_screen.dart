@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/settings/profile_picker_screen.dart';
+import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -32,12 +36,31 @@ class SettingsScreen extends ConsumerWidget {
                   : const Icon(Icons.person_outline),
               title: const Text('Profiles'),
               subtitle: profile != null
-                  ? Text(profile.name,
-                      style: theme.textTheme.bodySmall)
+                  ? Text(profile.name, style: theme.textTheme.bodySmall)
                   : const Text('No profile selected'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/settings/profiles'),
             ),
+            Consumer(builder: (context, ref, _) {
+              final all = ref.watch(allProfilesProvider);
+              final count = all.valueOrNull?.length ?? 0;
+              if (count <= 1) return const SizedBox.shrink();
+              return ListTile(
+                leading: const Icon(Icons.switch_account_outlined),
+                title: const Text('Switch Profile'),
+                subtitle: Text('$count profiles available',
+                    style: theme.textTheme.bodySmall),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  builder: (_) => ProfilePickerScreen(
+                    onPicked: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              );
+            }),
 
             // --------------- SOURCES ---------------
             _SectionHeader(title: 'Sources'),
@@ -90,23 +113,56 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (_) {},
               ),
             ),
-            InfoTooltip(
-              id: 'settings_channel_sort',
-              title: 'Channel Sort Order',
-              body:
-                  'Provider order follows the order your provider arranged '
-                  'the channels. A-Z sorts them alphabetically by name. '
-                  'Custom order lets you drag channels into any order you like.',
-              child: ListTile(
+            Consumer(builder: (context, ref, _) {
+              final sort = ref.watch(contentSortProvider);
+              return ListTile(
                 leading: const Icon(Icons.sort),
-                title: const Text('Channel Sort Order'),
-                subtitle: const Text('Provider order'),
+                title: const Text('Content Sort Order'),
+                subtitle: Text(
+                  sort == 'az' ? 'A–Z' : 'Provider order',
+                  style: theme.textTheme.bodySmall,
+                ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showSortOrderDialog(context),
-              ),
-            ),
+                onTap: () => _showSortOrderDialog(context, ref, sort),
+              );
+            }),
             // --------------- APPEARANCE ---------------
             _SectionHeader(title: 'Appearance'),
+            Consumer(builder: (context, ref, _) {
+              final mode = ref.watch(themeModeProvider);
+              return ListTile(
+                leading: const Icon(Icons.brightness_6_outlined),
+                title: const Text('Theme'),
+                subtitle: Text(
+                  switch (mode) {
+                    ThemeMode.light => 'Light',
+                    ThemeMode.system => 'System default',
+                    _ => 'Dark',
+                  },
+                  style: theme.textTheme.bodySmall,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showThemeDialog(context, ref, mode),
+              );
+            }),
+            Consumer(builder: (context, ref, _) {
+              final accent = ref.watch(accentColorProvider);
+              return ListTile(
+                leading: CircleAvatar(
+                    backgroundColor: accent, radius: 12),
+                title: const Text('Accent Color'),
+                subtitle: Text(
+                  AppTheme.accentSwatches
+                      .firstWhere((s) => s.color == accent,
+                          orElse: () =>
+                              (label: 'Custom', color: accent))
+                      .label,
+                  style: theme.textTheme.bodySmall,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showAccentColorPicker(context, ref, accent),
+              );
+            }),
             InfoTooltip(
               id: 'settings_hidden_cats',
               title: 'Hidden Categories',
@@ -155,21 +211,145 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showSortOrderDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showSortOrderDialog(
+      BuildContext context, WidgetRef ref, String current) async {
+    final prefs = await ref.read(appPreferencesProvider.future);
+    if (!context.mounted) return;
+    showDialog<void>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Channel Sort Order'),
+        title: const Text('Content Sort Order'),
         children: [
           SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Provider order'),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await setContentSort(ref, 'provider', prefs);
+            },
+            child: Row(children: [
+              Icon(Icons.check,
+                  size: 18,
+                  color: current == 'provider'
+                      ? Theme.of(ctx).colorScheme.primary
+                      : Colors.transparent),
+              const SizedBox(width: 8),
+              const Text('Provider order'),
+            ]),
           ),
           SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('A–Z'),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await setContentSort(ref, 'az', prefs);
+            },
+            child: Row(children: [
+              Icon(Icons.check,
+                  size: 18,
+                  color: current == 'az'
+                      ? Theme.of(ctx).colorScheme.primary
+                      : Colors.transparent),
+              const SizedBox(width: 8),
+              const Text('A–Z'),
+            ]),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showThemeDialog(
+      BuildContext context, WidgetRef ref, ThemeMode current) async {
+    final prefs = await ref.read(appPreferencesProvider.future);
+    if (!context.mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Theme'),
+        children: [
+          for (final (mode, label) in [
+            (ThemeMode.dark, 'Dark'),
+            (ThemeMode.light, 'Light'),
+            (ThemeMode.system, 'System default'),
+          ])
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await setThemeMode(ref, mode, prefs);
+              },
+              child: Row(children: [
+                Icon(Icons.check,
+                    size: 18,
+                    color: current == mode
+                        ? Theme.of(ctx).colorScheme.primary
+                        : Colors.transparent),
+                const SizedBox(width: 8),
+                Text(label),
+              ]),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showAccentColorPicker(
+      BuildContext context, WidgetRef ref, Color current) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Text('Accent Color',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: AppTheme.accentSwatches.map((swatch) {
+                  final selected = swatch.color == current;
+                  return GestureDetector(
+                    onTap: () async {
+                      Navigator.of(ctx).pop();
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setAccentColor(ref, swatch.color, prefs);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: swatch.color,
+                            shape: BoxShape.circle,
+                            border: selected
+                                ? Border.all(
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurface,
+                                    width: 3)
+                                : null,
+                          ),
+                          child: selected
+                              ? const Icon(Icons.check,
+                                  color: Colors.white, size: 26)
+                              : null,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(swatch.label,
+                            style: Theme.of(ctx).textTheme.bodySmall),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

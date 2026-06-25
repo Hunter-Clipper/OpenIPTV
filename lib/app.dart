@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
@@ -15,6 +16,7 @@ import 'package:open_iptv/features/series/episode_list_screen.dart';
 import 'package:open_iptv/features/series/series_detail_screen.dart';
 import 'package:open_iptv/features/series/series_screen.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
+import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -31,6 +33,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   late final GoRouter _router;
   final _tooltipController = InfoTooltipController();
   bool _dbReady = false;
+  // True once user has picked (or auto-selected) a profile this session.
+  bool _profilePicked = false;
+  // True when multiple profiles exist and user must actively choose.
+  bool _needsProfilePick = false;
 
   @override
   void initState() {
@@ -39,15 +45,6 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     _openDb();
   }
 
-  // Touch the DB to force LazyDatabase.ensureOpen() + schema migrations to
-  // complete before GoRouter is mounted.  The router redirect also queries the
-  // DB, and NativeDatabase.createInBackground's background isolate is still
-  // running onCreate/onUpgrade at the exact moment the first redirect fires —
-  // causing SqliteException(5) "database is locked".  By serialising startup
-  // here we guarantee the isolate is idle and the connection is ready.
-  //
-  // Retries handle the rare case where an OS-level file lock (Android backup
-  // service, WAL recovery) outlasts the 5s busy_timeout set in _dbSetup.
   Future<void> _openDb() async {
     const maxAttempts = 5;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
@@ -59,15 +56,37 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
     }
-    // Auto-create a Default profile if none exists so profile-gated features
-    // (favourites, hidden categories) work before backlog #2 is built.
+
     final db = ref.read(appDatabaseProvider);
     final prefs = await ref.read(appPreferencesProvider.future);
+
+    // Initialise theme + sort state from persisted preferences.
+    ref.read(themeModeProvider.notifier).state =
+        modeFromString(prefs.themeMode);
+    ref.read(accentColorProvider.notifier).state =
+        AppTheme.accentFromHex(prefs.accentColor);
+    ref.read(contentSortProvider.notifier).state = prefs.contentSort;
+
+    // Profile setup.
     final profiles = await db.getAllProfiles();
     if (profiles.isEmpty) {
-      await ProfileService(db: db, prefs: prefs).createProfile(name: 'Default');
+      final svc = ProfileService(db: db, prefs: prefs);
+      await svc.createProfile(name: 'Default');
+    } else if (profiles.length == 1) {
+      // Auto-select single profile (no picker needed).
+      await prefs.setActiveProfileId(profiles.first.id);
     }
-    if (mounted) setState(() => _dbReady = true);
+
+    final updatedProfiles = await db.getAllProfiles();
+    final needsPick = updatedProfiles.length > 1;
+
+    if (mounted) {
+      setState(() {
+        _dbReady = true;
+        _needsProfilePick = needsPick;
+        _profilePicked = !needsPick;
+      });
+    }
   }
 
   @override
@@ -80,7 +99,6 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     return GoRouter(
       initialLocation: '/live',
       redirect: (context, state) async {
-        // DB is guaranteed open before this fires — see _openDb() above.
         final sources = await ref.read(appDatabaseProvider).getAllSources();
         if (sources.isEmpty && !state.fullPath!.startsWith('/onboarding')) {
           return '/onboarding';
@@ -168,10 +186,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    final accent = ref.watch(accentColorProvider);
+
     if (!_dbReady) {
-      // Show a dark splash while the background DB isolate opens and migrates.
-      // The router must not be mounted yet — its redirect queries the DB and
-      // would race with migrations if we rendered it here.
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
@@ -180,7 +198,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset('assets/images/logo.jpg', width: 140, height: 140),
+                Image.asset('assets/images/app_icon.png',
+                    width: 140, height: 140),
                 const SizedBox(height: 32),
                 const CircularProgressIndicator(),
               ],
@@ -189,14 +208,31 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         ),
       );
     }
-    // TODO: wire theme from AppPreferences
+
+    // Show profile picker before mounting the router when multiple
+    // profiles exist and the user hasn't selected one this session.
+    if (_needsProfilePick && !_profilePicked) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(accent),
+        darkTheme: AppTheme.dark(accent),
+        themeMode: themeMode,
+        home: ProfilePickerScreen(
+          onPicked: () => setState(() {
+            _needsProfilePick = false;
+            _profilePicked = true;
+          }),
+        ),
+      );
+    }
+
     return InfoTooltipScope(
       controller: _tooltipController,
       child: MaterialApp.router(
         title: 'OpenIPTV',
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
+        theme: AppTheme.light(accent),
+        darkTheme: AppTheme.dark(accent),
+        themeMode: themeMode,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
       ),
@@ -256,7 +292,6 @@ class _BottomNav extends ConsumerWidget {
   }
 }
 
-// Expose activeProfile as a convenience for the settings gear icon.
 extension ProfileGear on BuildContext {
   void openSettings() => go('/settings');
 }
