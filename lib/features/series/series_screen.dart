@@ -52,14 +52,16 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     }
   }
 
-  List<String> _buildGenres(List<Series> all, Set<String> hidden) {
-    final genres = all
-        .map((s) => s.genre ?? 'Other')
-        .expand((g) => g.split(',').map((s) => s.trim()))
-        .where((g) => g.isNotEmpty && !hidden.contains(g))
-        .toSet()
-        .toList()
-      ..sort();
+  List<String> _buildGenres(
+      List<Series> all, Set<String> hidden, String sort) {
+    final seen = <String>{};
+    final genres = <String>[];
+    for (final s in all) {
+      for (final g in (s.genre ?? 'Other').split(',').map((g) => g.trim())) {
+        if (g.isNotEmpty && !hidden.contains(g) && seen.add(g)) genres.add(g);
+      }
+    }
+    if (sort == 'az') genres.sort();
     return genres;
   }
 
@@ -117,7 +119,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           if (_selectedGenre == null) {
             // Genre selection screen with Favorites row on top
             final hidden = profile?.hiddenCategories.toSet() ?? {};
-            final genres = _buildGenres(all, hidden);
+            final genres = _buildGenres(all, hidden, sort);
             final inProgress =
                 ref.watch(_episodesInProgressProvider).valueOrNull ?? [];
             return RefreshIndicator(

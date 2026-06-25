@@ -83,13 +83,17 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     return result;
   }
 
-  List<String> _buildCategories(List<Channel> channels, Set<String> hidden) {
-    final cats = channels
-        .map((c) => c.groupTitle ?? 'Uncategorized')
-        .toSet()
-        .where((c) => !hidden.contains(c))
-        .toList()
-      ..sort();
+  List<String> _buildCategories(
+      List<Channel> channels, Set<String> hidden, String sort) {
+    // Preserve first-appearance order (channels are already in provider/sortOrder
+    // sequence from the DB), then either keep that or sort A-Z.
+    final seen = <String>{};
+    final cats = <String>[];
+    for (final c in channels) {
+      final cat = c.groupTitle ?? 'Uncategorized';
+      if (!hidden.contains(cat) && seen.add(cat)) cats.add(cat);
+    }
+    if (sort == 'az') cats.sort();
     return cats;
   }
 
@@ -140,7 +144,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         data: (all) {
           if (_selectedCategory == null) {
             // Category grid
-            final cats = _buildCategories(all, hiddenCats);
+            final cats = _buildCategories(all, hiddenCats, sort);
             final favCount = favIds.length;
             final recent = ref.watch(_recentChannelsProvider).valueOrNull ?? [];
             return RefreshIndicator(

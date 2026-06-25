@@ -51,14 +51,16 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     }
   }
 
-  List<String> _buildGenres(List<Movie> movies, Set<String> hidden) {
-    final genres = movies
-        .map((m) => m.genre ?? 'Other')
-        .expand((g) => g.split(',').map((s) => s.trim()))
-        .where((g) => g.isNotEmpty && !hidden.contains(g))
-        .toSet()
-        .toList()
-      ..sort();
+  List<String> _buildGenres(
+      List<Movie> movies, Set<String> hidden, String sort) {
+    final seen = <String>{};
+    final genres = <String>[];
+    for (final m in movies) {
+      for (final g in (m.genre ?? 'Other').split(',').map((s) => s.trim())) {
+        if (g.isNotEmpty && !hidden.contains(g) && seen.add(g)) genres.add(g);
+      }
+    }
+    if (sort == 'az') genres.sort();
     return genres;
   }
 
@@ -117,7 +119,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           if (_selectedGenre == null) {
             // Genre selection screen with Favorites + Continue Watching on top
             final hidden = profile?.hiddenCategories.toSet() ?? {};
-            final genres = _buildGenres(all, hidden);
+            final genres = _buildGenres(all, hidden, sort);
             return RefreshIndicator(
               onRefresh: _refresh,
               child: CustomScrollView(
