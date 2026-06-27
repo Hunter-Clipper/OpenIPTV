@@ -29,8 +29,10 @@ class PlaybackService {
       // if hardware decode is unavailable or the codec isn't supported.
       native.setProperty('hwdec', 'auto');
       native.setProperty('hwdec-codecs', 'all');
-      // Default to no subtitles; user can enable from the CC button.
-      native.setProperty('sid', 'no');
+      // Hide subtitles by default while still allowing mpv to discover and
+      // demux all subtitle/CC tracks (sid=no would suppress discovery on
+      // some live streams). User enables CC from the player controls.
+      native.setProperty('sub-visibility', 'no');
     }
   }
 
@@ -102,8 +104,15 @@ class PlaybackService {
 
   Future<void> stop() => _player.stop();
 
-  Future<void> setSubtitleTrack(SubtitleTrack track) =>
-      _player.setSubtitleTrack(track); // delegates to NativePlayer internally
+  Future<void> setSubtitleTrack(SubtitleTrack track) async {
+    await _player.setSubtitleTrack(track);
+    // sub-visibility is decoupled from track selection — sync it explicitly.
+    final native = _player.platform;
+    if (native is NativePlayer) {
+      await native.setProperty(
+          'sub-visibility', track.id == 'no' ? 'no' : 'yes');
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Progress persistence (VOD)

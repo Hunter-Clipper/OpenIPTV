@@ -185,7 +185,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       onLongPress: profileId == null
                           ? null
                           : () async {
-                              HapticFeedback.mediumImpact();
+                              // ListTile.enableFeedback already fires haptic on long-press.
                               final hide = await showModalBottomSheet<bool>(
                                 context: context,
                                 builder: (_) =>
@@ -323,7 +323,7 @@ class _ChannelRow extends ConsumerWidget {
       onLongPress: profileId == null
           ? null
           : () {
-              HapticFeedback.mediumImpact();
+              // ListTile.enableFeedback already fires haptic on long-press.
               showModalBottomSheet<void>(
                 context: context,
                 builder: (_) => _ChannelOptionsSheet(

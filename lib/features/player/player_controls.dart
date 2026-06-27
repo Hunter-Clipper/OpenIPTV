@@ -64,6 +64,14 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     return 'SD';
   }
 
+  // Non-null only once video is playing; 'HW' if GPU decode is active.
+  String? get _decodeLabel {
+    final h = _videoParams.h ?? _videoParams.dh;
+    if (h == null || h == 0) return null;
+    final hw = _videoParams.hwPixelformat;
+    return (hw != null && hw.isNotEmpty) ? 'HW' : 'SW';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -192,6 +200,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             title: widget.title,
             contentId: widget.contentId,
             qualityLabel: _qualityLabel,
+            decodeLabel: _decodeLabel,
             hasCc: _hasSubtitles,
             ccActive: _ccActive,
             onBack: () => context.pop(),
@@ -201,6 +210,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         : _VodControls(
             title: widget.title,
             qualityLabel: _qualityLabel,
+            decodeLabel: _decodeLabel,
             hasCc: _hasSubtitles,
             ccActive: _ccActive,
             position: _position,
@@ -243,11 +253,13 @@ class _LiveControls extends ConsumerWidget {
     required this.hasCc,
     required this.ccActive,
     this.qualityLabel,
+    this.decodeLabel,
   });
 
   final String title;
   final String? contentId;
   final String? qualityLabel;
+  final String? decodeLabel;
   final bool hasCc;
   final bool ccActive;
   final VoidCallback onBack;
@@ -305,9 +317,13 @@ class _LiveControls extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Quality badge
+                    // Quality + decode badges
                     if (qualityLabel != null) ...[
                       _QualityBadge(label: qualityLabel!),
+                      const SizedBox(width: 4),
+                    ],
+                    if (decodeLabel != null) ...[
+                      _DecodeBadge(label: decodeLabel!),
                       const SizedBox(width: 8),
                     ],
                     // LIVE badge
@@ -483,10 +499,12 @@ class _VodControls extends ConsumerWidget {
     required this.onSkipBack,
     required this.onSkipForward,
     this.qualityLabel,
+    this.decodeLabel,
   });
 
   final String title;
   final String? qualityLabel;
+  final String? decodeLabel;
   final bool hasCc;
   final bool ccActive;
   final Duration position;
@@ -561,6 +579,10 @@ class _VodControls extends ConsumerWidget {
                     ),
                     if (qualityLabel != null) ...[
                       _QualityBadge(label: qualityLabel!),
+                      const SizedBox(width: 4),
+                    ],
+                    if (decodeLabel != null) ...[
+                      _DecodeBadge(label: decodeLabel!),
                       const SizedBox(width: 8),
                     ],
                     if (hasCc)
@@ -691,7 +713,7 @@ class _VodControls extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Shared quality badge
+// Shared badges
 // ---------------------------------------------------------------------------
 
 class _QualityBadge extends StatelessWidget {
@@ -712,6 +734,34 @@ class _QualityBadge extends StatelessWidget {
         label,
         style: const TextStyle(
           color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+}
+
+class _DecodeBadge extends StatelessWidget {
+  const _DecodeBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isHw = label == 'HW';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isHw ? Colors.green.withOpacity(0.3) : Colors.white12,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+            color: isHw ? Colors.greenAccent.withOpacity(0.6) : Colors.white24),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isHw ? Colors.greenAccent : Colors.white54,
           fontWeight: FontWeight.bold,
           fontSize: 11,
         ),
