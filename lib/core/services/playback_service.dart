@@ -20,6 +20,18 @@ PlaybackService playbackService(PlaybackServiceRef ref) {
 class PlaybackService {
   PlaybackService({required this.db}) {
     _player = Player();
+    // setProperty is on NativePlayer and internally awaits initialization,
+    // so calling without await here is safe — all three calls complete
+    // before any media is opened.
+    final native = _player.platform;
+    if (native is NativePlayer) {
+      // Prefer GPU decode for video; libmpv falls back to software automatically
+      // if hardware decode is unavailable or the codec isn't supported.
+      native.setProperty('hwdec', 'auto');
+      native.setProperty('hwdec-codecs', 'all');
+      // Default to no subtitles; user can enable from the CC button.
+      native.setProperty('sid', 'no');
+    }
   }
 
   final AppDatabase db;
@@ -89,6 +101,9 @@ class PlaybackService {
   }
 
   Future<void> stop() => _player.stop();
+
+  Future<void> setSubtitleTrack(SubtitleTrack track) =>
+      _player.setSubtitleTrack(track); // delegates to NativePlayer internally
 
   // ---------------------------------------------------------------------------
   // Progress persistence (VOD)

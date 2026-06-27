@@ -38,11 +38,22 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<VideoParams>? _videoParamsSub;
+  StreamSubscription<Tracks>? _tracksSub;
+  StreamSubscription<Track>? _trackSub;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   VideoParams _videoParams = const VideoParams();
+  Tracks _tracks = const Tracks();
+  Track _currentTrack = const Track();
   bool _isSeeking = false;
   double _seekValue = 0;
+
+  bool get _hasSubtitles => _tracks.subtitle
+      .any((t) => t.id != 'auto' && t.id != 'no');
+
+  bool get _ccActive =>
+      _currentTrack.subtitle.id != 'no' &&
+      _currentTrack.subtitle.id != 'auto';
 
   String? get _qualityLabel {
     final h = _videoParams.h ?? _videoParams.dh;
@@ -60,6 +71,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     _position = player.state.position;
     _duration = player.state.duration;
     _videoParams = player.state.videoParams;
+    _tracks = player.state.tracks;
+    _currentTrack = player.state.track;
     _positionSub = player.stream.position.listen((p) {
       if (!_isSeeking && mounted) setState(() => _position = p);
     });
@@ -69,6 +82,12 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     _videoParamsSub = player.stream.videoParams.listen((vp) {
       if (mounted) setState(() => _videoParams = vp);
     });
+    _tracksSub = player.stream.tracks.listen((t) {
+      if (mounted) setState(() => _tracks = t);
+    });
+    _trackSub = player.stream.track.listen((t) {
+      if (mounted) setState(() => _currentTrack = t);
+    });
   }
 
   @override
@@ -76,6 +95,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _videoParamsSub?.cancel();
+    _tracksSub?.cancel();
+    _trackSub?.cancel();
     super.dispose();
   }
 
@@ -85,6 +106,64 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 
   Future<void> _seekRelative(Duration delta) async {
     await ref.read(playbackServiceProvider).seekRelative(delta);
+  }
+
+  void _showCcPicker(BuildContext context) {
+    final realTracks = _tracks.subtitle
+        .where((t) => t.id != 'auto' && t.id != 'no')
+        .toList();
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text('Subtitles / CC',
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .titleMedium!
+                        .copyWith(fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.subtitles_off_outlined),
+                title: const Text('Off'),
+                selected: !_ccActive,
+                onTap: () {
+                  ref
+                      .read(playbackServiceProvider)
+                      .setSubtitleTrack(SubtitleTrack.no());
+                  Navigator.of(ctx).pop();
+                },
+              ),
+              ...realTracks.map((t) {
+                final label = t.title?.isNotEmpty == true
+                    ? t.title!
+                    : (t.language?.isNotEmpty == true
+                        ? t.language!.toUpperCase()
+                        : 'Track ${t.id}');
+                return ListTile(
+                  leading: const Icon(Icons.subtitles_outlined),
+                  title: Text(label),
+                  selected: _currentTrack.subtitle == t,
+                  onTap: () {
+                    ref
+                        .read(playbackServiceProvider)
+                        .setSubtitleTrack(t);
+                    Navigator.of(ctx).pop();
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showEpgPanel(BuildContext context) {
@@ -113,18 +192,24 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             title: widget.title,
             contentId: widget.contentId,
             qualityLabel: _qualityLabel,
+            hasCc: _hasSubtitles,
+            ccActive: _ccActive,
             onBack: () => context.pop(),
             onEpg: () => _showEpgPanel(context),
+            onCc: () => _showCcPicker(context),
           )
         : _VodControls(
             title: widget.title,
             qualityLabel: _qualityLabel,
+            hasCc: _hasSubtitles,
+            ccActive: _ccActive,
             position: _position,
             duration: _duration,
             isSeeking: _isSeeking,
             seekValue: _seekValue,
             formatDuration: _formatDuration,
             onBack: () => context.pop(),
+            onCc: () => _showCcPicker(context),
             onSeekStart: () => setState(() => _isSeeking = true),
             onSeekUpdate: (v) => setState(() => _seekValue = v),
             onSeekEnd: (v) {
@@ -154,14 +239,20 @@ class _LiveControls extends ConsumerWidget {
     required this.contentId,
     required this.onBack,
     required this.onEpg,
+    required this.onCc,
+    required this.hasCc,
+    required this.ccActive,
     this.qualityLabel,
   });
 
   final String title;
   final String? contentId;
   final String? qualityLabel;
+  final bool hasCc;
+  final bool ccActive;
   final VoidCallback onBack;
   final VoidCallback onEpg;
+  final VoidCallback onCc;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -237,6 +328,18 @@ class _LiveControls extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // CC button
+                    if (hasCc)
+                      IconButton(
+                        icon: Icon(
+                          ccActive
+                              ? Icons.closed_caption
+                              : Icons.closed_caption_off_outlined,
+                          color: ccActive ? Colors.white : Colors.white54,
+                        ),
+                        tooltip: 'Subtitles / CC',
+                        onPressed: onCc,
+                      ),
                     // Favourite toggle
                     if (contentId != null && profile != null)
                       IconButton(
@@ -371,6 +474,9 @@ class _VodControls extends ConsumerWidget {
     required this.seekValue,
     required this.formatDuration,
     required this.onBack,
+    required this.onCc,
+    required this.hasCc,
+    required this.ccActive,
     required this.onSeekStart,
     required this.onSeekUpdate,
     required this.onSeekEnd,
@@ -381,12 +487,15 @@ class _VodControls extends ConsumerWidget {
 
   final String title;
   final String? qualityLabel;
+  final bool hasCc;
+  final bool ccActive;
   final Duration position;
   final Duration duration;
   final bool isSeeking;
   final double seekValue;
   final String Function(Duration) formatDuration;
   final VoidCallback onBack;
+  final VoidCallback onCc;
   final VoidCallback onSeekStart;
   final void Function(double) onSeekUpdate;
   final void Function(double) onSeekEnd;
@@ -454,6 +563,17 @@ class _VodControls extends ConsumerWidget {
                       _QualityBadge(label: qualityLabel!),
                       const SizedBox(width: 8),
                     ],
+                    if (hasCc)
+                      IconButton(
+                        icon: Icon(
+                          ccActive
+                              ? Icons.closed_caption
+                              : Icons.closed_caption_off_outlined,
+                          color: ccActive ? Colors.white : Colors.white54,
+                        ),
+                        tooltip: 'Subtitles / CC',
+                        onPressed: onCc,
+                      ),
                   ],
                 ),
               ),
