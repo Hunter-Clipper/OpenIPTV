@@ -248,16 +248,18 @@ class _Shell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
-        // If go_router has a page to pop (e.g. detail screen), let it handle it.
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-        // At root tab — confirm before exiting the app.
+    // BackButtonListener fires BEFORE go_router's popRoute(), so we can
+    // intercept the back button when at a root tab and show the exit dialog.
+    // PopScope alone doesn't work here: canPop=false causes go_router to see
+    // Navigator.canPop()=false and call SystemNavigator.pop() directly,
+    // skipping onPopInvoked entirely.
+    return BackButtonListener(
+      onBackButtonPressed: () async {
+        // If there are pages to pop (sub-routes, detail screens, etc.),
+        // let go_router handle back navigation normally.
+        if (context.canPop()) return false;
+
+        // At a root tab — confirm before exiting.
         final shouldExit = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -275,9 +277,8 @@ class _Shell extends StatelessWidget {
             ],
           ),
         );
-        if (shouldExit == true) {
-          await SystemNavigator.pop();
-        }
+        if (shouldExit == true) await SystemNavigator.pop();
+        return true; // handled — whether user confirmed exit or cancelled
       },
       child: Scaffold(
         body: child,

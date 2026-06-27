@@ -22,20 +22,15 @@ PlaybackService playbackService(PlaybackServiceRef ref) {
 class PlaybackService {
   PlaybackService({required this.db}) {
     _player = Player();
-    // setProperty is on NativePlayer and internally awaits initialization,
-    // so calling without await here is safe — all three calls complete
-    // before any media is opened.
     final native = _player.platform;
     if (native is NativePlayer) {
-      // Android requires mediacodec-copy to reliably activate GPU decode.
-      // Other platforms use auto which lets libmpv pick the best available decoder.
-      native.setProperty(
-          'hwdec', Platform.isAndroid ? 'mediacodec-copy' : 'auto');
-      native.setProperty('hwdec-codecs', 'all');
-      // Hide subtitles by default while still allowing mpv to discover and
-      // demux all subtitle/CC tracks (sid=no would suppress discovery on
-      // some live streams). User enables CC from the player controls.
+      // Hide subtitles by default while still allowing mpv to discover CC tracks.
+      // sub-visibility=no hides rendering; sid=no would suppress demuxing entirely.
       native.setProperty('sub-visibility', 'no');
+      // Tell FFmpeg's lavf demuxer to scan all PMTs in MPEG-TS containers.
+      // Required to surface CEA-608/708 CC and other tracks that live in
+      // secondary programs (common in US broadcast-style IPTV streams).
+      native.setProperty('demuxer-lavf-o', 'scan_all_pmts=1');
     }
   }
 
@@ -74,6 +69,14 @@ class PlaybackService {
   // ---------------------------------------------------------------------------
 
   Future<void> play(String streamUrl, {Duration? startPosition}) async {
+    // Set hwdec here — after VideoController.initState() has run and may have
+    // set hwdec=auto internally — so our value wins when the media opens.
+    final native = _player.platform;
+    if (native is NativePlayer) {
+      await native.setProperty(
+          'hwdec', Platform.isAndroid ? 'mediacodec-copy' : 'auto');
+      await native.setProperty('hwdec-codecs', 'all');
+    }
     final media = Media(streamUrl);
     debugPrint('[OTV-play] opening url, startPosition=${startPosition?.inSeconds}s');
     await _player.open(media);
