@@ -73,14 +73,17 @@ class PlaybackService {
     // set hwdec=auto internally — so our value wins when the media opens.
     final native = _player.platform;
     if (native is NativePlayer) {
-      await native.setProperty(
-          'hwdec', Platform.isAndroid ? 'mediacodec-copy' : 'auto');
+      final hwdecValue = Platform.isAndroid ? 'mediacodec-copy' : 'auto';
+      await native.setProperty('hwdec', hwdecValue);
       await native.setProperty('hwdec-codecs', 'all');
+      debugPrint('[OTV-hwdec] setProperty hwdec=$hwdecValue done');
+    } else {
+      debugPrint('[OTV-hwdec] NativePlayer not available — skipping hwdec setup');
     }
     final media = Media(streamUrl);
-    debugPrint('[OTV-play] opening url, startPosition=${startPosition?.inSeconds}s');
+    debugPrint('[OTV-play] opening url=${streamUrl.split('?').first}, startPosition=${startPosition?.inSeconds}s');
     await _player.open(media);
-    debugPrint('[OTV-play] open() returned, state.playing=${_player.state.playing}, state.duration=${_player.state.duration.inSeconds}s');
+    debugPrint('[OTV-play] open() returned, playing=${_player.state.playing}, duration=${_player.state.duration.inSeconds}s');
     if (startPosition != null && startPosition.inSeconds > 0) {
       // Wait for mpv to parse the container and populate duration before seeking.
       // 'playing=true' fires too early (before the index is ready), so a seek

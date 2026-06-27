@@ -89,12 +89,27 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     });
     _videoParamsSub = player.stream.videoParams.listen((vp) {
       if (mounted) setState(() => _videoParams = vp);
+      // Log hwdec status every time video params update.
+      debugPrint('[OTV-vp] w=${vp.w} h=${vp.h} '
+          'pixelformat=${vp.pixelformat} hwPixelformat=${vp.hwPixelformat}');
+      final native = player.platform;
+      if (native is NativePlayer) {
+        native.getProperty('hwdec-current').then<void>((v) =>
+            debugPrint('[OTV-hwdec-current] "$v"'));
+      }
     });
     _tracksSub = player.stream.tracks.listen((t) {
       if (mounted) setState(() => _tracks = t);
+      debugPrint('[OTV-tracks] audio=${t.audio.length} '
+          'video=${t.video.length} subtitle=${t.subtitle.length}');
+      for (final s in t.subtitle) {
+        debugPrint('[OTV-sub] id=${s.id} lang=${s.language} title=${s.title}');
+      }
     });
     _trackSub = player.stream.track.listen((t) {
       if (mounted) setState(() => _currentTrack = t);
+      debugPrint('[OTV-track-active] sub.id=${t.subtitle.id} '
+          'sub.lang=${t.subtitle.language}');
     });
   }
 
