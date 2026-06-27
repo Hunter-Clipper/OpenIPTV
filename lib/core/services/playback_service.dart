@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart'; // needed for VideoController GC anchor
@@ -25,9 +27,10 @@ class PlaybackService {
     // before any media is opened.
     final native = _player.platform;
     if (native is NativePlayer) {
-      // Prefer GPU decode for video; libmpv falls back to software automatically
-      // if hardware decode is unavailable or the codec isn't supported.
-      native.setProperty('hwdec', 'auto');
+      // Android requires mediacodec-copy to reliably activate GPU decode.
+      // Other platforms use auto which lets libmpv pick the best available decoder.
+      native.setProperty(
+          'hwdec', Platform.isAndroid ? 'mediacodec-copy' : 'auto');
       native.setProperty('hwdec-codecs', 'all');
       // Hide subtitles by default while still allowing mpv to discover and
       // demux all subtitle/CC tracks (sid=no would suppress discovery on

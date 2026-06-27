@@ -185,7 +185,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       onLongPress: profileId == null
                           ? null
                           : () async {
-                              // ListTile.enableFeedback already fires haptic on long-press.
+                              HapticFeedback.mediumImpact();
                               final hide = await showModalBottomSheet<bool>(
                                 context: context,
                                 builder: (_) =>
@@ -270,6 +270,7 @@ class _CategoryTile extends StatelessWidget {
         ],
       ),
       onTap: onTap,
+      enableFeedback: false,
       onLongPress: onLongPress,
     );
   }
@@ -320,10 +321,11 @@ class _ChannelRow extends ConsumerWidget {
         'contentType': 'live',
         'contentId': channel.id,
       }),
+      enableFeedback: false,
       onLongPress: profileId == null
           ? null
           : () {
-              // ListTile.enableFeedback already fires haptic on long-press.
+              HapticFeedback.mediumImpact();
               showModalBottomSheet<void>(
                 context: context,
                 builder: (_) => _ChannelOptionsSheet(

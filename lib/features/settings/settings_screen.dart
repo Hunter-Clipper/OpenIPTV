@@ -29,34 +29,48 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             // --------------- PROFILES ---------------
             _SectionHeader(title: 'Account'),
-            ListTile(
-              leading: profile != null
-                  ? Text(profile.avatarEmoji,
-                      style: const TextStyle(fontSize: 28))
-                  : const Icon(Icons.person_outline),
-              title: const Text('Profile'),
-              subtitle: profile != null
-                  ? Text(profile.name, style: theme.textTheme.bodySmall)
-                  : const Text('No profile selected'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/profiles'),
+            InfoTooltip(
+              id: 'settings_profile',
+              title: 'Profile',
+              body: 'OpenIPTV supports multiple profiles on one device. '
+                  'Each profile has its own watch history, favorites, hidden '
+                  'categories, and PIN lock. Tap to manage profiles.',
+              child: ListTile(
+                leading: profile != null
+                    ? Text(profile.avatarEmoji,
+                        style: const TextStyle(fontSize: 28))
+                    : const Icon(Icons.person_outline),
+                title: const Text('Profile'),
+                subtitle: profile != null
+                    ? Text(profile.name, style: theme.textTheme.bodySmall)
+                    : const Text('No profile selected'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/settings/profiles'),
+              ),
             ),
             Consumer(builder: (context, ref, _) {
               final all = ref.watch(allProfilesProvider);
               final count = all.valueOrNull?.length ?? 0;
               if (count <= 1) return const SizedBox.shrink();
-              return ListTile(
-                leading: const Icon(Icons.switch_account_outlined),
-                title: const Text('Switch Profile'),
-                subtitle: Text('$count profiles available',
-                    style: theme.textTheme.bodySmall),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  builder: (_) => ProfilePickerScreen(
-                    onPicked: () => Navigator.of(context).pop(),
+              return InfoTooltip(
+                id: 'settings_switch_profile',
+                title: 'Switch Profile',
+                body: 'Quickly change the active profile without going into '
+                    'profile management. Useful when sharing a device with '
+                    'family or roommates.',
+                child: ListTile(
+                  leading: const Icon(Icons.switch_account_outlined),
+                  title: const Text('Switch Profile'),
+                  subtitle: Text('$count profiles available',
+                      style: theme.textTheme.bodySmall),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    useSafeArea: true,
+                    builder: (_) => ProfilePickerScreen(
+                      onPicked: () => Navigator.of(context).pop(),
+                    ),
                   ),
                 ),
               );
@@ -66,35 +80,51 @@ class SettingsScreen extends ConsumerWidget {
             _SectionHeader(title: 'Sources'),
             Consumer(builder: (context, ref, _) {
               final sources = ref.watch(allSourcesProvider);
-              return ListTile(
-                leading: const Icon(Icons.playlist_play_outlined),
-                title: const Text('Sources'),
-                subtitle: sources.when(
-                  loading: () => null,
-                  error: (_, __) => null,
-                  data: (list) => Text(
-                    list.isEmpty
-                        ? 'No sources added'
-                        : '${list.length} source${list.length == 1 ? '' : 's'}',
-                    style: theme.textTheme.bodySmall,
+              return InfoTooltip(
+                id: 'settings_sources',
+                title: 'Sources',
+                body: 'An IPTV source is your provider connection — either '
+                    'an M3U playlist URL or Xtream Codes credentials. '
+                    'Sources supply your channels, movies, and series. '
+                    'You can add multiple sources and refresh them here.',
+                child: ListTile(
+                  leading: const Icon(Icons.playlist_play_outlined),
+                  title: const Text('Sources'),
+                  subtitle: sources.when(
+                    loading: () => null,
+                    error: (_, __) => null,
+                    data: (list) => Text(
+                      list.isEmpty
+                          ? 'No sources added'
+                          : '${list.length} source${list.length == 1 ? '' : 's'}',
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _openSourcesPage(context, ref),
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _openSourcesPage(context, ref),
               );
             }),
 
             // --------------- BACKUP ---------------
             _SectionHeader(title: 'Data'),
-            ListTile(
-              leading: const Icon(Icons.backup_outlined),
-              title: const Text('Backup & Restore'),
-              subtitle: Text(
-                'Export or import your profile and sources',
-                style: theme.textTheme.bodySmall,
+            InfoTooltip(
+              id: 'settings_backup',
+              title: 'Backup & Restore',
+              body: 'Export your profiles and sources to a single '
+                  '.iptvprofile file you can store anywhere. Restore it '
+                  'later to move to a new device or recover from a reset. '
+                  'Stream credentials are included — keep the file safe.',
+              child: ListTile(
+                leading: const Icon(Icons.backup_outlined),
+                title: const Text('Backup & Restore'),
+                subtitle: Text(
+                  'Export or import your profile and sources',
+                  style: theme.textTheme.bodySmall,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/settings/backup'),
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/backup'),
             ),
 
             // --------------- PLAYBACK ---------------
@@ -115,52 +145,73 @@ class SettingsScreen extends ConsumerWidget {
             ),
             Consumer(builder: (context, ref, _) {
               final sort = ref.watch(contentSortProvider);
-              return ListTile(
-                leading: const Icon(Icons.sort),
-                title: const Text('Content Sort Order'),
-                subtitle: Text(
-                  sort == 'az' ? 'A–Z' : 'Provider order',
-                  style: theme.textTheme.bodySmall,
+              return InfoTooltip(
+                id: 'settings_sort_order',
+                title: 'Content Sort Order',
+                body: 'Controls how channels, movies, and series are listed. '
+                    'Provider order shows them in the sequence your IPTV '
+                    'provider sends them. A–Z sorts them alphabetically.',
+                child: ListTile(
+                  leading: const Icon(Icons.sort),
+                  title: const Text('Content Sort Order'),
+                  subtitle: Text(
+                    sort == 'az' ? 'A–Z' : 'Provider order',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showSortOrderDialog(context, ref, sort),
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showSortOrderDialog(context, ref, sort),
               );
             }),
             // --------------- APPEARANCE ---------------
             _SectionHeader(title: 'Appearance'),
             Consumer(builder: (context, ref, _) {
               final mode = ref.watch(themeModeProvider);
-              return ListTile(
-                leading: const Icon(Icons.brightness_6_outlined),
-                title: const Text('Theme'),
-                subtitle: Text(
-                  switch (mode) {
-                    ThemeMode.light => 'Light',
-                    ThemeMode.system => 'System default',
-                    _ => 'Dark',
-                  },
-                  style: theme.textTheme.bodySmall,
+              return InfoTooltip(
+                id: 'settings_theme',
+                title: 'Theme',
+                body: 'Switch between Dark (easy on the eyes in a dark room), '
+                    'Light (better in bright environments), or System default '
+                    '(automatically follows your device display setting).',
+                child: ListTile(
+                  leading: const Icon(Icons.brightness_6_outlined),
+                  title: const Text('Theme'),
+                  subtitle: Text(
+                    switch (mode) {
+                      ThemeMode.light => 'Light',
+                      ThemeMode.system => 'System default',
+                      _ => 'Dark',
+                    },
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showThemeDialog(context, ref, mode),
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showThemeDialog(context, ref, mode),
               );
             }),
             Consumer(builder: (context, ref, _) {
               final accent = ref.watch(accentColorProvider);
-              return ListTile(
-                leading: CircleAvatar(
-                    backgroundColor: accent, radius: 12),
-                title: const Text('Accent Color'),
-                subtitle: Text(
-                  AppTheme.accentSwatches
-                      .firstWhere((s) => s.color == accent,
-                          orElse: () =>
-                              (label: 'Custom', color: accent))
-                      .label,
-                  style: theme.textTheme.bodySmall,
+              return InfoTooltip(
+                id: 'settings_accent_color',
+                title: 'Accent Color',
+                body: 'Changes the highlight color used throughout the app — '
+                    'active buttons, selected items, progress bars, and '
+                    'other indicators. Pick whichever color you like best.',
+                child: ListTile(
+                  leading: CircleAvatar(
+                      backgroundColor: accent, radius: 12),
+                  title: const Text('Accent Color'),
+                  subtitle: Text(
+                    AppTheme.accentSwatches
+                        .firstWhere((s) => s.color == accent,
+                            orElse: () =>
+                                (label: 'Custom', color: accent))
+                        .label,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showAccentColorPicker(context, ref, accent),
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showAccentColorPicker(context, ref, accent),
               );
             }),
             InfoTooltip(
@@ -180,19 +231,26 @@ class SettingsScreen extends ConsumerWidget {
 
             // --------------- ABOUT ---------------
             _SectionHeader(title: 'About'),
-            FutureBuilder<PackageInfo>(
-              future: PackageInfo.fromPlatform(),
-              builder: (context, snap) {
-                final version = snap.hasData
-                    ? 'Version ${snap.data!.version}'
-                    : 'OpenIPTV';
-                return ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('About OpenIPTV'),
-                  subtitle: Text(version),
-                  onTap: () => _showAboutDialog(context, snap.data),
-                );
-              },
+            InfoTooltip(
+              id: 'settings_about',
+              title: 'About OpenIPTV',
+              body: 'Shows the current app version and license information. '
+                  'OpenIPTV is open-source under the GPL-3.0 license — '
+                  'no ads, no telemetry, no accounts. Ever.',
+              child: FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snap) {
+                  final version = snap.hasData
+                      ? 'Version ${snap.data!.version}'
+                      : 'OpenIPTV';
+                  return ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('About OpenIPTV'),
+                    subtitle: Text(version),
+                    onTap: () => _showAboutDialog(context, snap.data),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 32),
           ],

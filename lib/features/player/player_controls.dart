@@ -120,6 +120,15 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     final realTracks = _tracks.subtitle
         .where((t) => t.id != 'auto' && t.id != 'no')
         .toList();
+    if (realTracks.isEmpty && widget.isLive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No subtitles detected for this channel'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -344,18 +353,20 @@ class _LiveControls extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // CC button
-                    if (hasCc)
-                      IconButton(
-                        icon: Icon(
-                          ccActive
-                              ? Icons.closed_caption
-                              : Icons.closed_caption_off_outlined,
-                          color: ccActive ? Colors.white : Colors.white54,
-                        ),
-                        tooltip: 'Subtitles / CC',
-                        onPressed: onCc,
+                    // CC button — always visible for live TV; dims when no
+                    // tracks detected (embedded CEA-608/708 may appear late)
+                    IconButton(
+                      icon: Icon(
+                        ccActive
+                            ? Icons.closed_caption
+                            : Icons.closed_caption_off_outlined,
+                        color: ccActive
+                            ? Colors.white
+                            : (hasCc ? Colors.white54 : Colors.white24),
                       ),
+                      tooltip: 'Subtitles / CC',
+                      onPressed: onCc,
+                    ),
                     // Favourite toggle
                     if (contentId != null && profile != null)
                       IconButton(
