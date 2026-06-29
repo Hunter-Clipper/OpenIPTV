@@ -45,6 +45,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   VideoParams _videoParams = const VideoParams();
   Tracks _tracks = const Tracks();
   Track _currentTrack = const Track();
+  String _hwdecCurrent = '';
   bool _isSeeking = false;
   double _seekValue = 0;
 
@@ -65,11 +66,12 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   }
 
   // Non-null only once video is playing; 'HW' if GPU decode is active.
+  // Uses hwdec-current from mpv — hwPixelformat is null for mediacodec-copy
+  // (frames are copied to CPU so mpv reports the software pixelformat instead).
   String? get _decodeLabel {
     final h = _videoParams.h ?? _videoParams.dh;
     if (h == null || h == 0) return null;
-    final hw = _videoParams.hwPixelformat;
-    return (hw != null && hw.isNotEmpty) ? 'HW' : 'SW';
+    return (_hwdecCurrent.isNotEmpty && _hwdecCurrent != 'no') ? 'HW' : 'SW';
   }
 
   @override
@@ -94,8 +96,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           'pixelformat=${vp.pixelformat} hwPixelformat=${vp.hwPixelformat}');
       final native = player.platform;
       if (native is NativePlayer) {
-        native.getProperty('hwdec-current').then<void>((v) =>
-            debugPrint('[OTV-hwdec-current] "$v"'));
+        native.getProperty('hwdec-current').then<void>((v) {
+          debugPrint('[OTV-hwdec-current] "$v"');
+          if (mounted) setState(() => _hwdecCurrent = v);
+        });
       }
     });
     _tracksSub = player.stream.tracks.listen((t) {
