@@ -127,8 +127,8 @@ class PlaybackService {
   // Progress persistence (VOD)
   // ---------------------------------------------------------------------------
 
-  Future<void> saveMovieProgress(String movieId, Duration total) async {
-    final position = _player.state.position;
+  Future<void> saveMovieProgress(
+      String movieId, Duration position, Duration total) async {
     debugPrint('[OTV-save] saveMovieProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
     if (position.inSeconds == 0) {
       debugPrint('[OTV-save] skipping — position is 0');
@@ -138,8 +138,8 @@ class PlaybackService {
     debugPrint('[OTV-save] updateMovieProgress done');
   }
 
-  Future<void> saveEpisodeProgress(String episodeId, Duration total) async {
-    final position = _player.state.position;
+  Future<void> saveEpisodeProgress(
+      String episodeId, Duration position, Duration total) async {
     debugPrint('[OTV-save] saveEpisodeProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
     if (position.inSeconds == 0) {
       debugPrint('[OTV-save] skipping — position is 0');

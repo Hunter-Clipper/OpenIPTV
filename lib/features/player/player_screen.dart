@@ -38,6 +38,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isBuffering = true;
   StreamSubscription<bool>? _bufferingSub;
   StreamSubscription<VideoParams>? _videoParamsSub;
+  StreamSubscription<Duration>? _positionSub;
+  // Tracks the last non-zero position independently of player state, so that
+  // reconnection (which temporarily resets state.position to zero) doesn't
+  // corrupt the progress save on dispose.
+  Duration _lastKnownPosition = Duration.zero;
 
   // Auto-recovery: stall detection + reconnect.
   static const _stallTimeout = Duration(seconds: 5);
@@ -89,6 +94,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (_isRecovering) setState(() => _isRecovering = false);
       }
     });
+    // Track the last real position so dispose() can save it reliably even if
+    // a reconnection has temporarily reset player.state.position to zero.
+    if (!_isLive) {
+      _positionSub = player.stream.position.listen((p) {
+        if (p > Duration.zero) _lastKnownPosition = p;
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
@@ -134,6 +146,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _stallTimer?.cancel();
     _bufferingSub?.cancel();
     _videoParamsSub?.cancel();
+    _positionSub?.cancel();
     _playbackService.detachVideoController();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -145,7 +158,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _startPlayback() async {
     // Stamp last-watched time for live channels so Recently Watched updates.
     if (_isLive && widget.contentId != null) {
-      _playbackService.db.updateChannelLastWatched(widget.contentId!);
+      await _playbackService.db.updateChannelLastWatched(widget.contentId!);
     }
     final service = _playbackService;
 
@@ -199,13 +212,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final id = widget.contentId;
     if (id == null) return;
     final service = _playbackService;
-    final pos = service.player.state.position;
+    // Use _lastKnownPosition (tracked via stream) rather than reading
+    // player.state.position directly — the latter can be zero if a reconnection
+    // attempt called player.open() and the seek hasn't completed yet.
+    final position = _lastKnownPosition;
     final total = service.player.state.duration;
-    debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${pos.inSeconds}s total=${total.inSeconds}s');
+    debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s');
     if (widget.contentType == 'movie') {
-      service.saveMovieProgress(id, total);
+      service.saveMovieProgress(id, position, total);
     } else if (widget.contentType == 'episode') {
-      service.saveEpisodeProgress(id, total);
+      service.saveEpisodeProgress(id, position, total);
     }
   }
 
