@@ -132,9 +132,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _retryCount++;
     setState(() => _isRecovering = true);
     debugPrint('[OTV-recovery] stall detected — attempt $_retryCount/$_maxRetries');
-    final position = _isLive
-        ? null
-        : _playbackService.player.state.position;
+    final position = _isLive ? null : _lastKnownPosition;
     await _playbackService.play(widget.streamUrl, startPosition: position);
     // Restart stall timer for the new attempt.
     _startStallTimer();
