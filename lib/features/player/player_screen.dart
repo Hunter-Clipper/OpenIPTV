@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
@@ -33,6 +34,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _controlsVisible = true;
   Timer? _hideTimer;
   bool _resumeDialogShown = false;
+  // Start true so the overlay covers corrupt decoder warmup frames.
+  bool _isBuffering = true;
+  StreamSubscription<bool>? _bufferingSub;
+  StreamSubscription<VideoParams>? _videoParamsSub;
 
   bool get _isLive =>
       widget.contentType == 'live' || widget.contentType == null;
@@ -54,6 +59,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _videoController = VideoController(_playbackService.player);
     _playbackService.attachVideoController(_videoController);
 
+    final player = _playbackService.player;
+
+    // Track buffering state. Overlay stays up until the first real frame
+    // arrives (videoParams.w > 0), hiding blocky decoder-warmup artifacts.
+    _bufferingSub = player.stream.buffering.listen((buffering) {
+      if (mounted) setState(() => _isBuffering = buffering);
+    });
+    _videoParamsSub = player.stream.videoParams.listen((vp) {
+      if ((vp.w ?? 0) > 0 && mounted) {
+        setState(() => _isBuffering = false);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
     });
@@ -64,6 +82,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _bufferingSub?.cancel();
+    _videoParamsSub?.cancel();
     _playbackService.detachVideoController();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -171,6 +191,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             Video(
               controller: _videoController,
               controls: NoVideoControls,
+            ),
+            // Buffering overlay — hides corrupt decoder-warmup frames and
+            // shows a spinner while the stream is loading/rebuffering.
+            AnimatedOpacity(
+              opacity: _isBuffering ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: IgnorePointer(
+                ignoring: !_isBuffering,
+                child: Container(
+                  color: Colors.black,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: Colors.white),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.title,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
             // Controls overlay
             AnimatedOpacity(
