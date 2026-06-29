@@ -325,23 +325,26 @@ class _ChannelGridCard extends ConsumerWidget {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Center(
-                      child: _ChannelLogo(url: channel.logoUrl, size: 56),
+                      child: _ChannelLogo(url: channel.logoUrl, size: 48),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     channel.name,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall!
+                        .copyWith(fontWeight: FontWeight.w600),
                   ),
+                  const SizedBox(height: 2),
+                  _EpgGridLine(channelId: channel.id),
                 ],
               ),
             ),
@@ -349,8 +352,8 @@ class _ChannelGridCard extends ConsumerWidget {
               Positioned(
                 top: 4,
                 right: 4,
-                child: Icon(Icons.star, size: 14,
-                    color: theme.colorScheme.primary),
+                child: Icon(Icons.star,
+                    size: 12, color: theme.colorScheme.primary),
               ),
           ],
         ),
@@ -549,6 +552,50 @@ class _EpgSubtitle extends ConsumerWidget {
           minHeight: 2,
           backgroundColor: theme.colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EPG grid line — compact single-line programme + progress for grid cards
+// ---------------------------------------------------------------------------
+
+class _EpgGridLine extends ConsumerWidget {
+  const _EpgGridLine({required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final prog = ref.watch(_nowProgrammeProvider(channelId)).valueOrNull;
+    if (prog == null) return const SizedBox.shrink();
+    final progress = prog.progressAt(DateTime.now()).clamp(0.0, 1.0);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          prog.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall!.copyWith(
+            fontSize: 10,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 3),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 2,
+            backgroundColor: theme.colorScheme.surface,
+            valueColor:
+                AlwaysStoppedAnimation(theme.colorScheme.primary),
+          ),
         ),
       ],
     );

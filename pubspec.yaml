@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.4.0+1
+version: 0.4.1+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -73,21 +73,25 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app_icon.png"
-  adaptive_icon_background: "#2196F3"
-  adaptive_icon_foreground: "assets/images/app_icon.png"
+  image_path: "assets/images/app_icon_dark.png"
+  adaptive_icon_background: "#0F0F0F"
+  adaptive_icon_foreground: "assets/images/app_icon_dark.png"
   remove_alpha_ios: true
   web:
     generate: false
 
 flutter_native_splash:
-  color: "#0F0F0F"
-  image: assets/images/app_icon.png
+  color: "#FFFFFF"
+  image: assets/images/splash_light.png
+  color_dark: "#0F0F0F"
+  image_dark: assets/images/splash_dark.png
   android: true
   ios: true
   android_12:
-    color: "#0F0F0F"
-    image: assets/images/app_icon.png
+    color: "#FFFFFF"
+    image: assets/images/splash_light.png
+    color_dark: "#0F0F0F"
+    image_dark: assets/images/splash_dark.png
 
 flutter:
   uses-material-design: true
