@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/services/source_manager.dart';
-import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
@@ -34,6 +32,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   late final GoRouter _router;
   final _tooltipController = InfoTooltipController();
   bool _dbReady = false;
+  bool _splashDone = false;
   // True once user has picked (or auto-selected) a profile this session.
   bool _profilePicked = false;
   // True when multiple profiles exist and user must actively choose.
@@ -193,22 +192,13 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     final themeMode = ref.watch(themeModeProvider);
     final accent = ref.watch(accentColorProvider);
 
-    if (!_dbReady) {
+    if (!_dbReady || !_splashDone) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: const Color(0xFF121212),
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset('assets/images/app_icon.png',
-                    width: 140, height: 140),
-                const SizedBox(height: 32),
-                const CircularProgressIndicator(),
-              ],
-            ),
-          ),
+        home: _SplashView(
+          onDone: () {
+            if (mounted) setState(() => _splashDone = true);
+          },
         ),
       );
     }
@@ -331,4 +321,214 @@ class _BottomNav extends ConsumerWidget {
 
 extension ProfileGear on BuildContext {
   void openSettings() => go('/settings');
+}
+
+// ---------------------------------------------------------------------------
+// Animated splash screen
+// ---------------------------------------------------------------------------
+
+class _SplashView extends StatefulWidget {
+  const _SplashView({required this.onDone});
+  final VoidCallback onDone;
+
+  @override
+  State<_SplashView> createState() => _SplashViewState();
+}
+
+class _SplashViewState extends State<_SplashView> with TickerProviderStateMixin {
+  late final AnimationController _logoCtrl;
+  late final AnimationController _textCtrl;
+  late final AnimationController _glowCtrl;
+
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _textOpacity;
+  late final Animation<Offset> _textSlide;
+  late final Animation<double> _taglineOpacity;
+  late final Animation<double> _glowPulse;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _glowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
+    _logoCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 950),
+    );
+
+    _textCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+
+    _logoScale = Tween(begin: 0.30, end: 1.0).animate(
+      CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut),
+    );
+    _logoOpacity = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _logoCtrl, curve: const Interval(0.0, 0.35, curve: Curves.easeIn)),
+    );
+    _textOpacity = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _textCtrl, curve: const Interval(0.0, 0.55, curve: Curves.easeOut)),
+    );
+    _textSlide = Tween(begin: const Offset(0, 0.55), end: Offset.zero).animate(
+      CurvedAnimation(parent: _textCtrl, curve: Curves.easeOutCubic),
+    );
+    _taglineOpacity = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _textCtrl, curve: const Interval(0.45, 1.0, curve: Curves.easeOut)),
+    );
+    _glowPulse = Tween(begin: 0.45, end: 1.0).animate(
+      CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut),
+    );
+
+    _logoCtrl.forward().then((_) {
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 120), () {
+          if (mounted) _textCtrl.forward();
+        });
+      }
+    });
+
+    Future.delayed(const Duration(milliseconds: 2400), () {
+      if (mounted) widget.onDone();
+    });
+  }
+
+  @override
+  void dispose() {
+    _logoCtrl.dispose();
+    _textCtrl.dispose();
+    _glowCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF07070F),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF07070F), Color(0xFF12122A)],
+          ),
+        ),
+        child: Column(
+          children: [
+            const Spacer(flex: 5),
+            // Logo with animated glow halo
+            AnimatedBuilder(
+              animation: Listenable.merge([_logoCtrl, _glowCtrl]),
+              builder: (_, child) => Opacity(
+                opacity: _logoOpacity.value,
+                child: Transform.scale(
+                  scale: _logoScale.value,
+                  child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Outer soft glow
+                        Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                Color.fromRGBO(91, 79, 255,
+                                    _glowPulse.value * 0.28),
+                                Color.fromRGBO(58, 46, 204,
+                                    _glowPulse.value * 0.12),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Inner tighter glow
+                        Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                Color.fromRGBO(123, 111, 255,
+                                    _glowPulse.value * 0.18),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                        child!,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              child: Image.asset(
+                'assets/images/app_icon_dark.png',
+                width: 110,
+                height: 110,
+              ),
+            ),
+            const SizedBox(height: 44),
+            // App name + tagline
+            AnimatedBuilder(
+              animation: _textCtrl,
+              builder: (_, __) => FractionalTranslation(
+                translation: _textSlide.value,
+                child: Column(
+                  children: [
+                    Opacity(
+                      opacity: _textOpacity.value,
+                      child: ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.white, Color(0xFFC0B8FF)],
+                        ).createShader(bounds),
+                        child: const Text(
+                          'OpenIPTV',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Opacity(
+                      opacity: _taglineOpacity.value,
+                      child: const Text(
+                        'Stream everything.',
+                        style: TextStyle(
+                          color: Color(0xFF6868A0),
+                          fontSize: 13,
+                          letterSpacing: 3,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(flex: 7),
+          ],
+        ),
+      ),
+    );
+  }
 }

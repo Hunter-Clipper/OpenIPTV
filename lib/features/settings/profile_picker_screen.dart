@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/preferences.dart';
 
 class ProfilePickerScreen extends ConsumerWidget {
   /// Called after a profile is successfully selected.
@@ -21,7 +20,13 @@ class ProfilePickerScreen extends ConsumerWidget {
         child: Column(
           children: [
             const SizedBox(height: 40),
-            Image.asset('assets/images/app_icon.png', width: 72, height: 72),
+            Image.asset(
+              theme.brightness == Brightness.dark
+                  ? 'assets/images/app_icon_dark.png'
+                  : 'assets/images/app_icon_light.png',
+              width: 72,
+              height: 72,
+            ),
             const SizedBox(height: 16),
             Text('Who\'s watching?', style: theme.textTheme.headlineMedium),
             const SizedBox(height: 8),

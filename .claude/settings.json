@@ -1,0 +1,30 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(flutter build apk *)",
+      "Bash(flutter pub get)",
+      "Bash(flutter pub get *)",
+      "Bash(flutter pub upgrade *)",
+      "Bash(flutter pub outdated *)",
+      "Bash(flutter --version)",
+      "Bash(flutter config *)",
+      "Bash(dart run build_runner *)",
+      "Bash(dart run build_runner build *)",
+      "Bash(dart pub get)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git push origin *)",
+      "Bash(sdkmanager *)",
+      "Bash(rm -f *)",
+      "Bash(rm /tmp/*)",
+      "Bash(export ANDROID_HOME=*)",
+      "Bash(export JAVA_HOME=*)",
+      "Bash(export PATH=*)"
+    ]
+  }
+}
