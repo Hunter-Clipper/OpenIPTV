@@ -396,7 +396,7 @@ class _SplashViewState extends State<_SplashView> with TickerProviderStateMixin 
       }
     });
 
-    Future.delayed(const Duration(milliseconds: 2400), () {
+    Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted) widget.onDone();
     });
   }
