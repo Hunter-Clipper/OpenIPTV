@@ -8,6 +8,9 @@ const _kThemeMode = 'theme_mode'; // 'dark' | 'light' | 'system'
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
 const _kChannelListDensity = 'channel_list_density'; // 'comfortable' | 'compact'
+const _kViewModeLive = 'view_mode_live';       // 'list' | 'grid'
+const _kViewModeMovies = 'view_mode_movies';   // 'list' | 'grid'
+const _kViewModeSeries = 'view_mode_series';   // 'list' | 'grid'
 
 @Riverpod(keepAlive: true)
 Future<AppPreferences> appPreferences(AppPreferencesRef ref) async {
@@ -40,4 +43,16 @@ class AppPreferences {
       _prefs.getString(_kChannelListDensity) ?? 'comfortable';
   Future<void> setChannelListDensity(String density) =>
       _prefs.setString(_kChannelListDensity, density);
+
+  String get viewModeLive => _prefs.getString(_kViewModeLive) ?? 'list';
+  Future<void> setViewModeLive(String mode) =>
+      _prefs.setString(_kViewModeLive, mode);
+
+  String get viewModeMovies => _prefs.getString(_kViewModeMovies) ?? 'grid';
+  Future<void> setViewModeMovies(String mode) =>
+      _prefs.setString(_kViewModeMovies, mode);
+
+  String get viewModeSeries => _prefs.getString(_kViewModeSeries) ?? 'grid';
+  Future<void> setViewModeSeries(String mode) =>
+      _prefs.setString(_kViewModeSeries, mode);
 }

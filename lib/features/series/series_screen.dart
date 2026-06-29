@@ -81,6 +81,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final columns = PlatformHelper.posterColumns(context);
 
     final sort = ref.watch(contentSortProvider);
+    final viewMode = ref.watch(viewModeSeriesProvider);
     return Scaffold(
       appBar: AppBar(
         leading: _selectedGenre != null
@@ -93,6 +94,19 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             ? (_selectedGenre == 'All' ? 'All Series' : _selectedGenre!)
             : 'Series'),
         actions: [
+          if (_selectedGenre != null)
+            IconButton(
+              icon: Icon(
+                  viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
+              tooltip: viewMode == 'grid'
+                  ? 'Switch to list view'
+                  : 'Switch to grid view',
+              onPressed: () async {
+                final prefs = await ref.read(appPreferencesProvider.future);
+                await setViewModeSeries(
+                    ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
+              },
+            ),
           IconButton(
             icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
             tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
@@ -202,7 +216,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             );
           }
 
-          // Filtered series grid
+          // Filtered series grid or list
           final filtered = _filteredSeries(all, _selectedGenre!);
           if (sort == 'az') {
             filtered.sort((a, b) => a.title.compareTo(b.title));
@@ -210,10 +224,21 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
-              key: ValueKey('${_selectedGenre}_$sort'),
+              key: ValueKey('${_selectedGenre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
                   const SliverFillRemaining(child: _EmptyView())
+                else if (viewMode == 'list')
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) => _SeriesListTile(
+                        key: ValueKey(filtered[i].id),
+                        series: filtered[i],
+                        profileId: profile?.id,
+                      ),
+                      childCount: filtered.length,
+                    ),
+                  )
                 else
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(
@@ -402,6 +427,83 @@ class _HorizontalPosterRow extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Series list tile (list view)
+// ---------------------------------------------------------------------------
+
+class _SeriesListTile extends ConsumerWidget {
+  const _SeriesListTile(
+      {super.key, required this.series, required this.profileId});
+
+  final Series series;
+  final String? profileId;
+
+  void _showOptions(BuildContext context, WidgetRef ref) {
+    HapticFeedback.mediumImpact();
+    final isFav = ref
+            .read(activeProfileProvider)
+            .valueOrNull
+            ?.favoriteSeriesIds
+            .contains(series.id) ??
+        false;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(isFav ? Icons.star_border : Icons.star),
+              title:
+                  Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+              onTap: () async {
+                Navigator.pop(context);
+                if (profileId != null) {
+                  await ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteSeries(profileId!, series.id);
+                  ref.invalidate(activeProfileProvider);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFav = ref.watch(activeProfileProvider.select(
+        (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
+    return ListTile(
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: _PosterImage(
+            posterUrl: series.posterUrl, width: 40, height: 56),
+      ),
+      title: Text(series.title,
+          maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: series.genre != null && series.genre!.isNotEmpty
+          ? Text(series.genre!.split(',').first.trim(),
+              maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
+      trailing: Icon(
+        isFav ? Icons.star : Icons.star_border,
+        color: isFav
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+        size: 20,
+      ),
+      onTap: () => context.push('/series/${series.id}'),
+      onLongPress:
+          profileId == null ? null : () => _showOptions(context, ref),
     );
   }
 }
@@ -644,31 +746,39 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _PosterImage extends StatelessWidget {
-  const _PosterImage({required this.posterUrl});
+  const _PosterImage({required this.posterUrl, this.width, this.height});
 
   final String? posterUrl;
+  final double? width;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
     if (posterUrl == null || posterUrl!.isEmpty) {
       return Container(
+        width: width,
+        height: height,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: const Center(
-            child: Icon(Icons.video_library_outlined, size: 40)),
+            child: Icon(Icons.video_library_outlined, size: 24)),
       );
     }
     return CachedNetworkImage(
       imageUrl: posterUrl!,
       fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
+      width: width ?? double.infinity,
+      height: height ?? double.infinity,
       placeholder: (_, __) => Container(
+        width: width,
+        height: height,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       errorWidget: (_, __, ___) => Container(
+        width: width,
+        height: height,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: const Center(
-            child: Icon(Icons.video_library_outlined, size: 40)),
+            child: Icon(Icons.video_library_outlined, size: 24)),
       ),
     );
   }

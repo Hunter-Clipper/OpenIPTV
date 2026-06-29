@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -44,6 +45,8 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   // null = showing category grid; non-null = showing channels in that category
   String? _selectedCategory;
+
+  static Future<void> _refreshChannelsStatic() async {}
 
   Future<void> _refreshChannels() async {
     try {
@@ -107,6 +110,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
 
     final sort = ref.watch(contentSortProvider);
+    final viewMode = ref.watch(viewModeLiveProvider);
     return Scaffold(
       appBar: AppBar(
         leading: _selectedCategory != null
@@ -117,10 +121,21 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             : const AppLogo(),
         title: Text(_selectedCategory ?? 'Live TV'),
         actions: [
+          if (_selectedCategory != null)
+            IconButton(
+              icon: Icon(
+                  viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
+              tooltip: viewMode == 'grid'
+                  ? 'Switch to list view'
+                  : 'Switch to grid view',
+              onPressed: () async {
+                final prefs = await ref.read(appPreferencesProvider.future);
+                await setViewModeLive(
+                    ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
+              },
+            ),
           IconButton(
-            icon: Icon(sort == 'az'
-                ? Icons.sort_by_alpha
-                : Icons.sort),
+            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
             tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
             onPressed: () async {
               final prefs = await ref.read(appPreferencesProvider.future);
@@ -205,27 +220,140 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             );
           }
 
-          // Channel list for selected category
+          // Channel list/grid for selected category
           final channels =
               _channelsForCategory(all, favIds, _selectedCategory!, sort);
+          if (channels.isEmpty) {
+            return const RefreshIndicator(
+              onRefresh: _refreshChannelsStatic,
+              child: _EmptyView(),
+            );
+          }
+          if (viewMode == 'grid') {
+            final cols = PlatformHelper.posterColumns(context);
+            return RefreshIndicator(
+              onRefresh: _refreshChannels,
+              child: GridView.builder(
+                key: ValueKey('${_selectedCategory}_grid'),
+                padding: const EdgeInsets.all(12),
+                itemCount: channels.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.0,
+                ),
+                itemBuilder: (context, i) {
+                  final ch = channels[i];
+                  return _ChannelGridCard(
+                    channel: ch,
+                    profileId: profileId,
+                    isFavorite: favIds.contains(ch.id),
+                  );
+                },
+              ),
+            );
+          }
           return RefreshIndicator(
             onRefresh: _refreshChannels,
-            child: channels.isEmpty
-                ? const _EmptyView()
-                : ListView.builder(
-                    key: ValueKey(_selectedCategory),
-                    itemCount: channels.length,
-                    itemBuilder: (context, i) {
-                      final ch = channels[i];
-                      return _ChannelRow(
-                        channel: ch,
-                        profileId: profileId,
-                        isFavorite: favIds.contains(ch.id),
-                      );
-                    },
-                  ),
+            child: ListView.builder(
+              key: ValueKey('${_selectedCategory}_list'),
+              itemCount: channels.length,
+              itemBuilder: (context, i) {
+                final ch = channels[i];
+                return _ChannelRow(
+                  channel: ch,
+                  profileId: profileId,
+                  isFavorite: favIds.contains(ch.id),
+                );
+              },
+            ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Channel grid card
+// ---------------------------------------------------------------------------
+
+class _ChannelGridCard extends ConsumerWidget {
+  const _ChannelGridCard({
+    required this.channel,
+    required this.profileId,
+    required this.isFavorite,
+  });
+
+  final Channel channel;
+  final String? profileId;
+  final bool isFavorite;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: () => context.push('/player', extra: {
+        'streamUrl': channel.streamUrl,
+        'title': channel.name,
+        'contentType': 'live',
+        'contentId': channel.id,
+      }),
+      onLongPress: profileId == null
+          ? null
+          : () {
+              HapticFeedback.mediumImpact();
+              showModalBottomSheet<void>(
+                context: context,
+                builder: (_) => _ChannelOptionsSheet(
+                  isFavorite: isFavorite,
+                  onToggle: () async {
+                    await ref
+                        .read(profileServiceProvider)
+                        .toggleFavoriteChannel(profileId!, channel.id);
+                    ref.invalidate(activeProfileProvider);
+                  },
+                ),
+              );
+            },
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: _ChannelLogo(url: channel.logoUrl, size: 56),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    channel.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            if (isFavorite)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Icon(Icons.star, size: 14,
+                    color: theme.colorScheme.primary),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -348,17 +476,18 @@ class _ChannelRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _ChannelLogo extends StatelessWidget {
-  const _ChannelLogo({required this.url});
+  const _ChannelLogo({required this.url, this.size = 48});
 
   final String? url;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (url == null || url!.isEmpty) {
       return Container(
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
@@ -370,17 +499,17 @@ class _ChannelLogo extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: CachedNetworkImage(
         imageUrl: url!,
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         fit: BoxFit.contain,
         placeholder: (_, __) => Container(
-          width: 48,
-          height: 48,
+          width: size,
+          height: size,
           color: theme.colorScheme.surfaceContainerHighest,
         ),
         errorWidget: (_, __, ___) => Container(
-          width: 48,
-          height: 48,
+          width: size,
+          height: size,
           color: theme.colorScheme.surfaceContainerHighest,
           child: Icon(Icons.tv, color: theme.colorScheme.onSurfaceVariant),
         ),

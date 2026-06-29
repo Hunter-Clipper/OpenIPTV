@@ -67,6 +67,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     ref.read(accentColorProvider.notifier).state =
         AppTheme.accentFromHex(prefs.accentColor);
     ref.read(contentSortProvider.notifier).state = prefs.contentSort;
+    ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
+    ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;
+    ref.read(viewModeSeriesProvider.notifier).state = prefs.viewModeSeries;
 
     // Profile setup.
     final profiles = await db.getAllProfiles();

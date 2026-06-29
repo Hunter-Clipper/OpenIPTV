@@ -13,6 +13,11 @@ final accentColorProvider =
 
 final contentSortProvider = StateProvider<String>((ref) => 'provider');
 
+// View mode per content type — defaults match Option C smart defaults.
+final viewModeLiveProvider = StateProvider<String>((ref) => 'list');
+final viewModeMoviesProvider = StateProvider<String>((ref) => 'grid');
+final viewModeSeriesProvider = StateProvider<String>((ref) => 'grid');
+
 // Helpers called from Settings to update prefs + provider in one shot.
 Future<void> setThemeMode(
     WidgetRef ref, ThemeMode mode, AppPreferences prefs) async {
@@ -30,6 +35,24 @@ Future<void> setContentSort(
     WidgetRef ref, String sort, AppPreferences prefs) async {
   ref.read(contentSortProvider.notifier).state = sort;
   await prefs.setContentSort(sort);
+}
+
+Future<void> setViewModeLive(
+    WidgetRef ref, String mode, AppPreferences prefs) async {
+  ref.read(viewModeLiveProvider.notifier).state = mode;
+  await prefs.setViewModeLive(mode);
+}
+
+Future<void> setViewModeMovies(
+    WidgetRef ref, String mode, AppPreferences prefs) async {
+  ref.read(viewModeMoviesProvider.notifier).state = mode;
+  await prefs.setViewModeMovies(mode);
+}
+
+Future<void> setViewModeSeries(
+    WidgetRef ref, String mode, AppPreferences prefs) async {
+  ref.read(viewModeSeriesProvider.notifier).state = mode;
+  await prefs.setViewModeSeries(mode);
 }
 
 String _modeToString(ThemeMode m) => switch (m) {
