@@ -257,13 +257,26 @@ class _ShellState extends State<_Shell> {
     // skipping onPopInvoked entirely.
     return BackButtonListener(
       onBackButtonPressed: () async {
-        // If there are pages to pop (sub-routes, detail screens, etc.),
-        // let go_router handle back navigation normally.
-        if (context.canPop()) return false;
+        if (!mounted) return false;
 
-        // On Search tab — go back to the tab that was active before Search.
+        // Determine the current route. GoRouterState.of() reads the current
+        // shell-level route (including sub-routes like /movies/:id).
         final location = GoRouterState.of(context).fullPath ?? '/live';
-        if (location.startsWith('/search')) {
+
+        // Root tab paths — the exact paths where no inner page can be popped.
+        // We do NOT use context.canPop() here: that checks the ROOT navigator
+        // only and returns false for shell sub-routes (which live on the
+        // shell's inner navigator), causing detail screens to hit the exit
+        // dialog instead of popping normally.
+        const rootTabs = {'/live', '/movies', '/series', '/search'};
+        if (!rootTabs.contains(location)) {
+          // On a sub-route (e.g. /movies/:id, /series/:id/episodes).
+          // Return false so go_router's default back handling pops the page.
+          return false;
+        }
+
+        // On the Search root tab — return to the previously active tab.
+        if (location == '/search') {
           switch (_previousTabIndex) {
             case 0:
               context.go('/live');
@@ -275,7 +288,7 @@ class _ShellState extends State<_Shell> {
           return true;
         }
 
-        // At any other root tab — confirm before exiting.
+        // On any other root tab — confirm before exiting.
         final shouldExit = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -293,7 +306,7 @@ class _ShellState extends State<_Shell> {
             ],
           ),
         );
-        if (shouldExit == true) await SystemNavigator.pop();
+        if (shouldExit == true && mounted) await SystemNavigator.pop();
         return true; // handled — whether user confirmed exit or cancelled
       },
       child: Scaffold(
