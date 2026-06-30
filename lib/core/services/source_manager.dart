@@ -107,7 +107,14 @@ class SourceManager {
     );
 
     await db.upsertSource(source);
-    await refreshSource(source, onProgress: onProgress);
+    try {
+      await refreshSource(source, onProgress: onProgress);
+    } catch (e) {
+      // Fetch/parse failed — remove the orphaned source entry so the user
+      // doesn't see a broken playlist in their list.
+      await deleteSource(source.id);
+      rethrow;
+    }
     return source;
   }
 

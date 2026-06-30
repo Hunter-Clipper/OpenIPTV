@@ -24,10 +24,14 @@ class PlaybackService {
     _player = Player();
     final native = _player.platform;
     if (native is NativePlayer) {
-      // Default CC/subtitles to off. sub-auto=no prevents mpv from auto-selecting
-      // any subtitle track; sub-visibility=no hides rendering for the rare case
-      // where a track is selected manually before this runs.
+      // Default CC/subtitles to off.
+      // sub-auto=no: don't load external subtitle files.
+      // sid=no: deselect any embedded subtitle track (e.g. CEA-608/708 in MPEG-TS).
+      // sub-visibility=no: belt-and-suspenders render suppression.
+      // These are re-applied after every open() call in play() because mpv
+      // resets sid during track auto-selection when a new stream is loaded.
       native.setProperty('sub-auto', 'no');
+      native.setProperty('sid', 'no');
       native.setProperty('sub-visibility', 'no');
       // Tell FFmpeg's lavf demuxer to scan all PMTs in MPEG-TS containers.
       // Required to surface CEA-608/708 CC and other tracks that live in
@@ -86,6 +90,13 @@ class PlaybackService {
     debugPrint('[OTV-play] opening url=${streamUrl.split('?').first}, startPosition=${startPosition?.inSeconds}s');
     await _player.open(media);
     debugPrint('[OTV-play] open() returned, playing=${_player.state.playing}, duration=${_player.state.duration.inSeconds}s');
+    // Re-apply CC-off after every open: mpv resets sid during track auto-selection
+    // when the stream's PMTs are parsed. Setting sid=no here wins over any default
+    // track flag in the container.
+    if (native is NativePlayer) {
+      await native.setProperty('sid', 'no');
+      await native.setProperty('sub-visibility', 'no');
+    }
     if (startPosition != null && startPosition.inSeconds > 0) {
       // Wait for mpv to parse the container and populate duration before seeking.
       // 'playing=true' fires too early (before the index is ready), so a seek

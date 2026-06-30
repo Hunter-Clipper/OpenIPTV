@@ -285,6 +285,13 @@ class _ShellState extends State<_Shell> {
           return true;
         }
 
+        // Only apply double-tap on the main content tabs.
+        // Any other path (settings, player, sub-pages) should get normal
+        // back navigation — return false lets go_router/navigator handle it.
+        if (path != '/live' && path != '/movies' && path != '/series') {
+          return false;
+        }
+
         // Root tab — require double-tap to exit (Reddit-style).
         final now = DateTime.now();
         final last = _lastBackPress;

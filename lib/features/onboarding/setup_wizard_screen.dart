@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/theme/app_theme.dart';
 
 // ---------------------------------------------------------------------------
 // Shared theme constants
@@ -38,6 +40,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   // Profile state
   final _nameCtrl = TextEditingController();
   String _avatarEmoji = '🧑';
+  Color _accentColor = const Color(0xFF0A84FF); // default blue
   String _pin = '';
   bool _wantsPin = false;
 
@@ -122,6 +125,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
         isAdmin: true,
       );
 
+      // Persist and apply the chosen accent colour immediately.
+      await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
+      ref.read(accentColorProvider.notifier).state = _accentColor;
+
       final manager = ref.read(sourceManagerProvider);
       final nickname = _nicknameCtrl.text.trim();
       final epgUrl = _epgUrlCtrl.text.trim().isEmpty
@@ -198,6 +205,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             nameCtrl: _nameCtrl,
             selectedAvatar: _avatarEmoji,
             onAvatarSelected: (e) => setState(() => _avatarEmoji = e),
+            selectedColor: _accentColor,
+            onColorSelected: (c) => setState(() => _accentColor = c),
             onContinue: () {
               if (_nameCtrl.text.trim().isEmpty) return;
               _goToPage(2);
@@ -441,12 +450,16 @@ class _NamePage extends StatelessWidget {
     required this.nameCtrl,
     required this.selectedAvatar,
     required this.onAvatarSelected,
+    required this.selectedColor,
+    required this.onColorSelected,
     required this.onContinue,
   });
 
   final TextEditingController nameCtrl;
   final String selectedAvatar;
   final ValueChanged<String> onAvatarSelected;
+  final Color selectedColor;
+  final ValueChanged<Color> onColorSelected;
   final VoidCallback onContinue;
 
   static const _avatars = [
@@ -552,6 +565,52 @@ class _NamePage extends StatelessWidget {
                   },
                 ),
               ),
+              const SizedBox(height: 28),
+              const Text(
+                'Favourite colour',
+                style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: AppTheme.accentSwatches.map((s) {
+                  final sel = s.color == selectedColor;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: GestureDetector(
+                      onTap: () => onColorSelected(s.color),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: s.color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: sel ? Colors.white : Colors.transparent,
+                            width: 3,
+                          ),
+                          boxShadow: sel
+                              ? [
+                                  BoxShadow(
+                                    color: s.color.withValues(alpha: 0.6),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: sel
+                            ? const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 18)
+                            : null,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
               const Spacer(),
               _GradientButton(
                 label: 'Continue',
@@ -582,6 +641,15 @@ class _PinPage extends StatefulWidget {
 
 class _PinPageState extends State<_PinPage> {
   String _digits = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Dismiss the soft keyboard — this page uses an on-screen keypad.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) { if (mounted) FocusScope.of(context).unfocus(); },
+    );
+  }
 
   void _onKey(String key) {
     if (key == '⌫') {
