@@ -44,6 +44,7 @@ class ProfileService {
     required String name,
     String avatarEmoji = '🧑',
     String? pin,
+    bool isAdmin = false,
   }) async {
     final existing = await db.getAllProfiles();
     if (existing.length >= _maxProfiles) {
@@ -56,6 +57,7 @@ class ProfileService {
       name: name,
       avatarEmoji: avatarEmoji,
       pinHash: pin != null ? _hashPin(pin) : null,
+      isAdmin: isAdmin,
       createdAt: now,
       updatedAt: now,
     );

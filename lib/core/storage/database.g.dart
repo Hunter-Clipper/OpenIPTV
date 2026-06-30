@@ -3179,6 +3179,16 @@ class $ProfilesTable extends Profiles
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("is_kids_profile" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isAdminMeta =
+      const VerificationMeta('isAdmin');
+  @override
+  late final GeneratedColumn<bool> isAdmin = GeneratedColumn<bool>(
+      'is_admin', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_admin" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -3209,6 +3219,7 @@ class $ProfilesTable extends Profiles
         epgOverrides,
         hiddenCategories,
         isKidsProfile,
+        isAdmin,
         createdAt,
         updatedAt
       ];
@@ -3315,6 +3326,10 @@ class $ProfilesTable extends Profiles
           isKidsProfile.isAcceptableOrUnknown(
               data['is_kids_profile']!, _isKidsProfileMeta));
     }
+    if (data.containsKey('is_admin')) {
+      context.handle(_isAdminMeta,
+          isAdmin.isAcceptableOrUnknown(data['is_admin']!, _isAdminMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -3369,6 +3384,8 @@ class $ProfilesTable extends Profiles
           DriftSqlType.string, data['${effectivePrefix}hidden_categories'])!,
       isKidsProfile: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_kids_profile'])!,
+      isAdmin: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_admin'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -3399,6 +3416,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
   final String epgOverrides;
   final String hiddenCategories;
   final bool isKidsProfile;
+  final bool isAdmin;
   final DateTime createdAt;
   final DateTime updatedAt;
   const ProfileRow(
@@ -3418,6 +3436,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       required this.epgOverrides,
       required this.hiddenCategories,
       required this.isKidsProfile,
+      required this.isAdmin,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -3441,6 +3460,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
     map['epg_overrides'] = Variable<String>(epgOverrides);
     map['hidden_categories'] = Variable<String>(hiddenCategories);
     map['is_kids_profile'] = Variable<bool>(isKidsProfile);
+    map['is_admin'] = Variable<bool>(isAdmin);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -3466,6 +3486,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       epgOverrides: Value(epgOverrides),
       hiddenCategories: Value(hiddenCategories),
       isKidsProfile: Value(isKidsProfile),
+      isAdmin: Value(isAdmin),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3494,6 +3515,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       epgOverrides: serializer.fromJson<String>(json['epgOverrides']),
       hiddenCategories: serializer.fromJson<String>(json['hiddenCategories']),
       isKidsProfile: serializer.fromJson<bool>(json['isKidsProfile']),
+      isAdmin: serializer.fromJson<bool>(json['isAdmin']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3518,6 +3540,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       'epgOverrides': serializer.toJson<String>(epgOverrides),
       'hiddenCategories': serializer.toJson<String>(hiddenCategories),
       'isKidsProfile': serializer.toJson<bool>(isKidsProfile),
+      'isAdmin': serializer.toJson<bool>(isAdmin),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3540,6 +3563,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           String? epgOverrides,
           String? hiddenCategories,
           bool? isKidsProfile,
+          bool? isAdmin,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       ProfileRow(
@@ -3559,6 +3583,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
         epgOverrides: epgOverrides ?? this.epgOverrides,
         hiddenCategories: hiddenCategories ?? this.hiddenCategories,
         isKidsProfile: isKidsProfile ?? this.isKidsProfile,
+        isAdmin: isAdmin ?? this.isAdmin,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -3603,6 +3628,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       isKidsProfile: data.isKidsProfile.present
           ? data.isKidsProfile.value
           : this.isKidsProfile,
+      isAdmin: data.isAdmin.present ? data.isAdmin.value : this.isAdmin,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3627,6 +3653,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           ..write('epgOverrides: $epgOverrides, ')
           ..write('hiddenCategories: $hiddenCategories, ')
           ..write('isKidsProfile: $isKidsProfile, ')
+          ..write('isAdmin: $isAdmin, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3651,6 +3678,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       epgOverrides,
       hiddenCategories,
       isKidsProfile,
+      isAdmin,
       createdAt,
       updatedAt);
   @override
@@ -3673,6 +3701,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           other.epgOverrides == this.epgOverrides &&
           other.hiddenCategories == this.hiddenCategories &&
           other.isKidsProfile == this.isKidsProfile &&
+          other.isAdmin == this.isAdmin &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -3694,6 +3723,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
   final Value<String> epgOverrides;
   final Value<String> hiddenCategories;
   final Value<bool> isKidsProfile;
+  final Value<bool> isAdmin;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -3714,6 +3744,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     this.epgOverrides = const Value.absent(),
     this.hiddenCategories = const Value.absent(),
     this.isKidsProfile = const Value.absent(),
+    this.isAdmin = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -3735,6 +3766,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     this.epgOverrides = const Value.absent(),
     this.hiddenCategories = const Value.absent(),
     this.isKidsProfile = const Value.absent(),
+    this.isAdmin = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -3760,6 +3792,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     Expression<String>? epgOverrides,
     Expression<String>? hiddenCategories,
     Expression<bool>? isKidsProfile,
+    Expression<bool>? isAdmin,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -3784,6 +3817,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       if (epgOverrides != null) 'epg_overrides': epgOverrides,
       if (hiddenCategories != null) 'hidden_categories': hiddenCategories,
       if (isKidsProfile != null) 'is_kids_profile': isKidsProfile,
+      if (isAdmin != null) 'is_admin': isAdmin,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -3807,6 +3841,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       Value<String>? epgOverrides,
       Value<String>? hiddenCategories,
       Value<bool>? isKidsProfile,
+      Value<bool>? isAdmin,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -3827,6 +3862,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       epgOverrides: epgOverrides ?? this.epgOverrides,
       hiddenCategories: hiddenCategories ?? this.hiddenCategories,
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
+      isAdmin: isAdmin ?? this.isAdmin,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -3885,6 +3921,9 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     if (isKidsProfile.present) {
       map['is_kids_profile'] = Variable<bool>(isKidsProfile.value);
     }
+    if (isAdmin.present) {
+      map['is_admin'] = Variable<bool>(isAdmin.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3916,6 +3955,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
           ..write('epgOverrides: $epgOverrides, ')
           ..write('hiddenCategories: $hiddenCategories, ')
           ..write('isKidsProfile: $isKidsProfile, ')
+          ..write('isAdmin: $isAdmin, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -5274,6 +5314,7 @@ typedef $$ProfilesTableCreateCompanionBuilder = ProfilesCompanion Function({
   Value<String> epgOverrides,
   Value<String> hiddenCategories,
   Value<bool> isKidsProfile,
+  Value<bool> isAdmin,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> rowid,
@@ -5295,6 +5336,7 @@ typedef $$ProfilesTableUpdateCompanionBuilder = ProfilesCompanion Function({
   Value<String> epgOverrides,
   Value<String> hiddenCategories,
   Value<bool> isKidsProfile,
+  Value<bool> isAdmin,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -5333,6 +5375,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             Value<String> epgOverrides = const Value.absent(),
             Value<String> hiddenCategories = const Value.absent(),
             Value<bool> isKidsProfile = const Value.absent(),
+            Value<bool> isAdmin = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -5354,6 +5397,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             epgOverrides: epgOverrides,
             hiddenCategories: hiddenCategories,
             isKidsProfile: isKidsProfile,
+            isAdmin: isAdmin,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -5375,6 +5419,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             Value<String> epgOverrides = const Value.absent(),
             Value<String> hiddenCategories = const Value.absent(),
             Value<bool> isKidsProfile = const Value.absent(),
+            Value<bool> isAdmin = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -5396,6 +5441,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             epgOverrides: epgOverrides,
             hiddenCategories: hiddenCategories,
             isKidsProfile: isKidsProfile,
+            isAdmin: isAdmin,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -5483,6 +5529,11 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<bool> get isKidsProfile => $state.composableBuilder(
       column: $state.table.isKidsProfile,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get isAdmin => $state.composableBuilder(
+      column: $state.table.isAdmin,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -5577,6 +5628,11 @@ class $$ProfilesTableOrderingComposer
 
   ColumnOrderings<bool> get isKidsProfile => $state.composableBuilder(
       column: $state.table.isKidsProfile,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get isAdmin => $state.composableBuilder(
+      column: $state.table.isAdmin,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 

@@ -9,6 +9,7 @@ import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
 import 'package:open_iptv/features/onboarding/add_source_screen.dart';
+import 'package:open_iptv/features/onboarding/setup_wizard_screen.dart';
 import 'package:open_iptv/features/player/player_screen.dart';
 import 'package:open_iptv/features/search/search_screen.dart';
 import 'package:open_iptv/features/series/episode_list_screen.dart';
@@ -73,16 +74,12 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 
     // Profile setup.
     final profiles = await db.getAllProfiles();
-    if (profiles.isEmpty) {
-      final svc = ProfileService(db: db, prefs: prefs);
-      await svc.createProfile(name: 'Default');
-    } else if (profiles.length == 1) {
+    if (profiles.length == 1) {
       // Auto-select single profile (no picker needed).
       await prefs.setActiveProfileId(profiles.first.id);
     }
 
-    final updatedProfiles = await db.getAllProfiles();
-    final needsPick = updatedProfiles.length > 1;
+    final needsPick = profiles.length > 1;
 
     if (mounted) {
       setState(() {
@@ -103,13 +100,22 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     return GoRouter(
       initialLocation: '/live',
       redirect: (context, state) async {
-        final sources = await ref.read(appDatabaseProvider).getAllSources();
-        if (sources.isEmpty && !state.fullPath!.startsWith('/onboarding')) {
-          return '/onboarding';
+        final path = state.fullPath ?? '';
+        if (path.startsWith('/setup') || path.startsWith('/onboarding')) {
+          return null;
         }
+        final db = ref.read(appDatabaseProvider);
+        final profiles = await db.getAllProfiles();
+        final sources = await db.getAllSources();
+        if (profiles.isEmpty && sources.isEmpty) return '/setup';
+        if (sources.isEmpty) return '/onboarding';
         return null;
       },
       routes: [
+        GoRoute(
+          path: '/setup',
+          builder: (_, __) => const SetupWizardScreen(),
+        ),
         GoRoute(
           path: '/onboarding',
           builder: (_, __) => const AddSourceScreen(),

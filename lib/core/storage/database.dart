@@ -135,6 +135,8 @@ class Profiles extends Table {
   TextColumn get hiddenCategories => text().withDefault(const Constant('[]'))();
   BoolColumn get isKidsProfile =>
       boolean().withDefault(const Constant(false))();
+  BoolColumn get isAdmin =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -160,7 +162,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -186,6 +188,15 @@ class AppDatabase extends _$AppDatabase {
                 .any((r) => r.data['name'] == 'is_kids_profile');
             if (!hasCol) {
               await m.addColumn(profiles, profiles.isKidsProfile);
+            }
+          }
+          if (from < 5) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(profiles)').get();
+            final hasCol = tableInfo
+                .any((r) => r.data['name'] == 'is_admin');
+            if (!hasCol) {
+              await m.addColumn(profiles, profiles.isAdmin);
             }
           }
         },
@@ -798,6 +809,7 @@ class AppDatabase extends _$AppDatabase {
         hiddenCategories:
             List<String>.from(jsonDecode(row.hiddenCategories) as List),
         isKidsProfile: row.isKidsProfile,
+        isAdmin: row.isAdmin,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       );
@@ -897,6 +909,7 @@ class AppDatabase extends _$AppDatabase {
         epgOverrides: Value(jsonEncode(p.epgOverrides)),
         hiddenCategories: Value(jsonEncode(p.hiddenCategories)),
         isKidsProfile: Value(p.isKidsProfile),
+        isAdmin: Value(p.isAdmin),
         createdAt: Value(p.createdAt),
         updatedAt: Value(p.updatedAt),
       );

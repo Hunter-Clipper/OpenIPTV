@@ -18,6 +18,7 @@ class Profile {
     this.epgOverrides = const {},
     this.hiddenCategories = const [],
     this.isKidsProfile = false,
+    this.isAdmin = false,
   });
 
   final String id;
@@ -36,6 +37,7 @@ class Profile {
   final Map<String, String> epgOverrides;
   final List<String> hiddenCategories;
   final bool isKidsProfile;
+  final bool isAdmin;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -64,6 +66,7 @@ class Profile {
     Map<String, String>? epgOverrides,
     List<String>? hiddenCategories,
     bool? isKidsProfile,
+    bool? isAdmin,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearPin = false,
@@ -85,6 +88,7 @@ class Profile {
       epgOverrides: epgOverrides ?? this.epgOverrides,
       hiddenCategories: hiddenCategories ?? this.hiddenCategories,
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
+      isAdmin: isAdmin ?? this.isAdmin,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
