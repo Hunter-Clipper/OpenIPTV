@@ -87,7 +87,15 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
 
     final sort = ref.watch(contentSortProvider);
     final viewMode = ref.watch(viewModeSeriesProvider);
-    return Scaffold(
+    return BackButtonListener(
+      onBackButtonPressed: () async {
+        if (_selectedGenre != null) {
+          setState(() => _selectedGenre = null);
+          return true;
+        }
+        return false;
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: _selectedGenre != null
             ? IconButton(
@@ -271,6 +279,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

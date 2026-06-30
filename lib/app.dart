@@ -268,11 +268,13 @@ class _ShellState extends State<_Shell> {
       onBackButtonPressed: () async {
         if (!mounted) return false;
 
-        // If the root navigator has anything stacked above the shell (player,
-        // settings, sub-pages), let the navigator pop it — don't interfere.
-        // This is reliable where path-reading was not: path reflects the shell's
-        // underlying tab even when settings/player are pushed on top.
-        if (Navigator.of(context, rootNavigator: true).canPop()) return false;
+        // If go_router has a route it can pop (sub-pages within the shell,
+        // or pushed routes like settings/player), let go_router handle it.
+        // context.canPop() is go_router-aware and returns false only when we're
+        // at a genuine root shell tab with nothing stacked above it — unlike
+        // Navigator.of(context, rootNavigator: true).canPop() which can return
+        // true even at root tabs due to go_router's internal page management.
+        if (context.canPop()) return false;
 
         // Read the real current URI (GoRouterState at shell level is unreliable).
         final path =

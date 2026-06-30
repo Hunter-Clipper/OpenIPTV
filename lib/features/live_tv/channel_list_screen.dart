@@ -116,7 +116,15 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 
     final sort = ref.watch(contentSortProvider);
     final viewMode = ref.watch(viewModeLiveProvider);
-    return Scaffold(
+    return BackButtonListener(
+      onBackButtonPressed: () async {
+        if (_selectedCategory != null) {
+          setState(() => _selectedCategory = null);
+          return true;
+        }
+        return false;
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: _selectedCategory != null
             ? IconButton(
@@ -275,6 +283,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }
