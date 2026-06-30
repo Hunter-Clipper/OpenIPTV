@@ -419,6 +419,14 @@ class AppDatabase extends _$AppDatabase {
     return select(movies).watch().map((rows) => rows.map(_movieFromRow).toList());
   }
 
+  Stream<List<model.Movie>> watchMoviesForSource(String sourceId) {
+    return (select(movies)
+          ..where((t) => t.sourceId.equals(sourceId))
+          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
+        .watch()
+        .map((rows) => rows.map(_movieFromRow).toList());
+  }
+
   Stream<model.Movie?> watchMovieById(String id) {
     return (select(movies)..where((t) => t.id.equals(id)))
         .watchSingleOrNull()
@@ -561,6 +569,14 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<model.Series>> watchAllSeries() {
     return select(seriesEntries)
+        .watch()
+        .map((rows) => rows.map(_seriesFromRow).toList());
+  }
+
+  Stream<List<model.Series>> watchSeriesForSource(String sourceId) {
+    return (select(seriesEntries)
+          ..where((t) => t.sourceId.equals(sourceId))
+          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
         .watch()
         .map((rows) => rows.map(_seriesFromRow).toList());
   }

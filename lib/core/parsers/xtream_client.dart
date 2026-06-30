@@ -39,6 +39,30 @@ class XtreamClient {
   static const _timeout = Duration(seconds: 90);
 
   // ---------------------------------------------------------------------------
+  // Server info
+  // ---------------------------------------------------------------------------
+
+  /// Fetches user_info + server_info from the root player_api.php endpoint
+  /// (no action param). Returns the raw map — caller picks the keys it needs.
+  Future<Map<String, dynamic>> getServerInfo() async {
+    final uri = Uri.parse(host.endsWith('/') ? host : '$host/').replace(
+      path: '/player_api.php',
+      queryParameters: {'username': username, 'password': password},
+    );
+    final response = await _http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw XtreamException('http_${response.statusCode}');
+    }
+    try {
+      final bodyStr = response.body;
+      final body = await Isolate.run<Object?>(() => jsonDecode(bodyStr));
+      return body as Map<String, dynamic>;
+    } catch (_) {
+      throw const XtreamException('invalid_response');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Validation
   // ---------------------------------------------------------------------------
 

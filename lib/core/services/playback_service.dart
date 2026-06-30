@@ -24,8 +24,10 @@ class PlaybackService {
     _player = Player();
     final native = _player.platform;
     if (native is NativePlayer) {
-      // Hide subtitles by default while still allowing mpv to discover CC tracks.
-      // sub-visibility=no hides rendering; sid=no would suppress demuxing entirely.
+      // Default CC/subtitles to off. sub-auto=no prevents mpv from auto-selecting
+      // any subtitle track; sub-visibility=no hides rendering for the rare case
+      // where a track is selected manually before this runs.
+      native.setProperty('sub-auto', 'no');
       native.setProperty('sub-visibility', 'no');
       // Tell FFmpeg's lavf demuxer to scan all PMTs in MPEG-TS containers.
       // Required to surface CEA-608/708 CC and other tracks that live in

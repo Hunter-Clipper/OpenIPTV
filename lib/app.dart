@@ -69,6 +69,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
     ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;
     ref.read(viewModeSeriesProvider.notifier).state = prefs.viewModeSeries;
+    ref.read(activeSourceIdProvider.notifier).state = prefs.activeSourceId;
 
     // Profile setup.
     final profiles = await db.getAllProfiles();
@@ -248,6 +249,7 @@ class _ShellState extends State<_Shell> {
   // Remembers which tab was active before the user navigated to Search,
   // so the back button can return there instead of showing the exit dialog.
   int _previousTabIndex = 0;
+  DateTime? _lastBackPress;
 
   @override
   Widget build(BuildContext context) {
@@ -277,8 +279,20 @@ class _ShellState extends State<_Shell> {
           return true;
         }
 
-        // All other cases: let the system handle back navigation.
-        // Exit confirmation is backlogged (#28).
+        // Root tab — require double-tap to exit (Reddit-style).
+        final now = DateTime.now();
+        final last = _lastBackPress;
+        if (last == null || now.difference(last) > const Duration(seconds: 2)) {
+          _lastBackPress = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return true;
+        }
         return false;
       },
       child: Scaffold(

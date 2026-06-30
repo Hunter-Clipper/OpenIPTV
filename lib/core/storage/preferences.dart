@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 part 'preferences.g.dart';
 
 const _kActiveProfileId = 'active_profile_id';
+const _kActiveSourceId = 'active_source_id';
 const _kThemeMode = 'theme_mode'; // 'dark' | 'light' | 'system'
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
@@ -26,6 +27,10 @@ class AppPreferences {
   String? get activeProfileId => _prefs.getString(_kActiveProfileId);
   Future<void> setActiveProfileId(String id) =>
       _prefs.setString(_kActiveProfileId, id);
+
+  String? get activeSourceId => _prefs.getString(_kActiveSourceId);
+  Future<void> setActiveSourceId(String? id) =>
+      id != null ? _prefs.setString(_kActiveSourceId, id) : _prefs.remove(_kActiveSourceId);
 
   String get themeMode => _prefs.getString(_kThemeMode) ?? 'dark';
   Future<void> setThemeMode(String mode) =>

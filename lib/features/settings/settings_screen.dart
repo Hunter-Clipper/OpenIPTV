@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/models/source.dart';
+import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -547,6 +549,33 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     }
   }
 
+  Future<void> _switchSource(BuildContext context, Source source) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Switch Source?'),
+        content: Text(
+          'Switch to "${source.nickname}"?\n\n'
+          'The channel list, movies, and series will update to show only this source.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Switch'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await setActiveSource(ref, source.id, prefs);
+    }
+  }
+
   Future<void> _confirmDelete(
     BuildContext context,
     String id,
@@ -575,13 +604,28 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     );
     if (confirmed == true) {
       await ref.read(sourceManagerProvider).deleteSource(id);
+      // Clear active source if it was the deleted one.
+      if (ref.read(activeSourceIdProvider) == id) {
+        final prefs = await ref.read(appPreferencesProvider.future);
+        await setActiveSource(ref, null, prefs);
+      }
       ref.invalidate(allSourcesProvider);
     }
+  }
+
+  void _showInfoPanel(BuildContext context, Source source) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _SourceInfoSheet(source: source),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final sourcesAsync = ref.watch(allSourcesProvider);
+    final activeSourceId = ref.watch(activeSourceIdProvider);
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.6,
@@ -606,6 +650,15 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
               ],
             ),
           ),
+          if (sourcesAsync.valueOrNull != null &&
+              sourcesAsync.valueOrNull!.length > 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Tap a source to make it active. Active source filters all content.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           const Divider(height: 1),
           Expanded(
             child: sourcesAsync.when(
@@ -617,24 +670,43 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                 if (sources.isEmpty) {
                   return const Center(child: Text('No sources yet.'));
                 }
+                final multiSource = sources.length > 1;
                 return ListView.builder(
                   controller: controller,
                   itemCount: sources.length,
                   itemBuilder: (context, i) {
                     final s = sources[i];
+                    final isActive = activeSourceId == s.id ||
+                        (!multiSource && activeSourceId == null);
                     final isPlaylistRefreshing = _refreshingPlaylist.contains(s.id);
                     final isEpgRefreshing = _refreshingEpg.contains(s.id);
                     final isBusy = isPlaylistRefreshing || isEpgRefreshing;
                     return ListTile(
-                      leading: const Icon(Icons.playlist_play),
+                      leading: isActive
+                          ? Icon(Icons.check_circle,
+                              color: Theme.of(context).colorScheme.primary)
+                          : const Icon(Icons.playlist_play),
                       title: Text(s.nickname),
                       subtitle: Text(
                         s.type.name.toUpperCase(),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
+                      onTap: multiSource && !isActive && !isBusy
+                          ? () => _switchSource(context, s)
+                          : null,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Source info
+                          SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: IconButton(
+                              icon: const Icon(Icons.info_outline, size: 20),
+                              tooltip: 'Source Info',
+                              onPressed: () => _showInfoPanel(context, s),
+                            ),
+                          ),
                           // Playlist refresh
                           SizedBox(
                             width: 36,
@@ -678,6 +750,156 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                   },
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Source info bottom sheet (#22)
+// ---------------------------------------------------------------------------
+
+class _SourceInfoSheet extends StatefulWidget {
+  const _SourceInfoSheet({required this.source});
+
+  final Source source;
+
+  @override
+  State<_SourceInfoSheet> createState() => _SourceInfoSheetState();
+}
+
+class _SourceInfoSheetState extends State<_SourceInfoSheet> {
+  bool _loading = false;
+  String? _error;
+  Map<String, dynamic>? _userInfo;
+  Map<String, dynamic>? _serverInfo;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.source.type == SourceType.xtream) _fetchInfo();
+  }
+
+  Future<void> _fetchInfo() async {
+    setState(() { _loading = true; _error = null; });
+    final client = XtreamClient(
+      host: widget.source.xtreamHost!,
+      username: widget.source.xtreamUsername!,
+      password: widget.source.xtreamPassword!,
+      sourceId: widget.source.id,
+    );
+    try {
+      final info = await client.getServerInfo();
+      if (mounted) {
+        setState(() {
+          _userInfo = info['user_info'] as Map<String, dynamic>?;
+          _serverInfo = info['server_info'] as Map<String, dynamic>?;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Could not fetch server info.'; _loading = false; });
+    } finally {
+      client.dispose();
+    }
+  }
+
+  String _formatEpoch(dynamic value) {
+    if (value == null) return '—';
+    final epoch = int.tryParse(value.toString());
+    if (epoch == null || epoch == 0) return '—';
+    final dt = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final source = widget.source;
+    final lastRefreshed = source.lastRefreshed;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(source.nickname, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              source.type == SourceType.xtream ? 'Xtream Codes' : 'M3U Playlist',
+              style: theme.textTheme.bodySmall,
+            ),
+            const Divider(height: 28),
+            if (source.type == SourceType.m3u) ...[
+              _InfoRow('URL', source.m3uUrl ?? '—'),
+              if (source.epgUrl != null)
+                _InfoRow('EPG URL', source.epgUrl!),
+              _InfoRow(
+                'Last refreshed',
+                lastRefreshed != null
+                    ? '${lastRefreshed.year}-${lastRefreshed.month.toString().padLeft(2, '0')}-${lastRefreshed.day.toString().padLeft(2, '0')}'
+                    : 'Never',
+              ),
+            ] else if (_loading) ...[
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ] else if (_error != null) ...[
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            ] else ...[
+              _InfoRow('Status', '${_userInfo?['status'] ?? '—'}'),
+              _InfoRow('Expires', _formatEpoch(_userInfo?['exp_date'])),
+              _InfoRow('Active connections', '${_userInfo?['active_cons'] ?? '—'}'),
+              _InfoRow('Max connections', '${_userInfo?['max_connections'] ?? '—'}'),
+              _InfoRow('Trial', _userInfo?['is_trial'] == '1' ? 'Yes' : 'No'),
+              const Divider(height: 24),
+              _InfoRow('Server', '${_serverInfo?['url'] ?? source.xtreamHost ?? '—'}'),
+              _InfoRow('Timezone', '${_serverInfo?['timezone'] ?? '—'}'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 150,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ),
         ],

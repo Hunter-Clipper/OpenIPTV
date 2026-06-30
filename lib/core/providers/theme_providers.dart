@@ -18,6 +18,10 @@ final viewModeLiveProvider = StateProvider<String>((ref) => 'list');
 final viewModeMoviesProvider = StateProvider<String>((ref) => 'grid');
 final viewModeSeriesProvider = StateProvider<String>((ref) => 'grid');
 
+// Active source — null means show all sources' content combined.
+// Initialized from prefs in app.dart after DB is ready.
+final activeSourceIdProvider = StateProvider<String?>((ref) => null);
+
 // Helpers called from Settings to update prefs + provider in one shot.
 Future<void> setThemeMode(
     WidgetRef ref, ThemeMode mode, AppPreferences prefs) async {
@@ -53,6 +57,12 @@ Future<void> setViewModeSeries(
     WidgetRef ref, String mode, AppPreferences prefs) async {
   ref.read(viewModeSeriesProvider.notifier).state = mode;
   await prefs.setViewModeSeries(mode);
+}
+
+Future<void> setActiveSource(
+    WidgetRef ref, String? id, AppPreferences prefs) async {
+  ref.read(activeSourceIdProvider.notifier).state = id;
+  await prefs.setActiveSourceId(id);
 }
 
 String _modeToString(ThemeMode m) => switch (m) {

@@ -18,7 +18,12 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // ---------------------------------------------------------------------------
 
 final _allChannelsProvider = FutureProvider<List<Channel>>((ref) {
-  return ref.watch(appDatabaseProvider).getAllChannels();
+  final activeSourceId = ref.watch(activeSourceIdProvider);
+  final db = ref.watch(appDatabaseProvider);
+  if (activeSourceId != null) {
+    return db.getChannelsForSource(activeSourceId);
+  }
+  return db.getAllChannels();
 });
 
 final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
