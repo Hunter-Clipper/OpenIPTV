@@ -232,6 +232,14 @@ class _SeriesBody extends ConsumerWidget {
             ),
           ),
         ),
+        // Continue / Next Episode card
+        if (_nextPlayEpisode(episodes) != null)
+          SliverToBoxAdapter(
+            child: _NextEpisodeCard(
+              episode: _nextPlayEpisode(episodes)!,
+              seriesId: series.id,
+            ),
+          ),
         // Description
         if (series.description != null &&
             series.description!.isNotEmpty)
@@ -295,6 +303,102 @@ class _SeriesBody extends ConsumerWidget {
           ),
         const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
       ],
+    );
+  }
+}
+
+// Returns the episode to highlight at the top of the detail screen:
+// first in-progress → first unwatched → null (all watched, nothing to highlight).
+Episode? _nextPlayEpisode(List<Episode> episodes) {
+  if (episodes.isEmpty) return null;
+  try {
+    return episodes.firstWhere((e) => e.isInProgress);
+  } catch (_) {}
+  try {
+    return episodes.firstWhere((e) => !e.isWatched);
+  } catch (_) {}
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Next Episode / Continue card
+// ---------------------------------------------------------------------------
+
+class _NextEpisodeCard extends StatelessWidget {
+  const _NextEpisodeCard({required this.episode, required this.seriesId});
+
+  final Episode episode;
+  final String seriesId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isResume = episode.isInProgress;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.push('/player', extra: {
+            'streamUrl': episode.streamUrl,
+            'title': '${episode.episodeLabel} – ${episode.title}',
+            'contentId': episode.id,
+            'contentType': 'episode',
+            'seriesId': seriesId,
+            'resumePosition':
+                episode.isInProgress ? episode.watchedDuration : null,
+          }),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  isResume ? Icons.play_circle : Icons.play_circle_outline,
+                  color: theme.colorScheme.primary,
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isResume ? 'Continue Watching' : 'Next Episode',
+                        style: theme.textTheme.labelSmall!.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${episode.episodeLabel} – ${episode.title}',
+                        style: theme.textTheme.bodyMedium!
+                            .copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (isResume) ...[
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: episode.watchProgress,
+                            minHeight: 3,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

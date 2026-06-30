@@ -130,8 +130,8 @@ class PlaybackService {
   Future<void> saveMovieProgress(
       String movieId, Duration position, Duration total) async {
     debugPrint('[OTV-save] saveMovieProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
-    if (position.inSeconds == 0) {
-      debugPrint('[OTV-save] skipping — position is 0');
+    if (position.inSeconds == 0 || total.inSeconds == 0) {
+      debugPrint('[OTV-save] skipping — position or total is 0');
       return;
     }
     await db.updateMovieProgress(movieId, position, total);
@@ -141,8 +141,8 @@ class PlaybackService {
   Future<void> saveEpisodeProgress(
       String episodeId, Duration position, Duration total) async {
     debugPrint('[OTV-save] saveEpisodeProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
-    if (position.inSeconds == 0) {
-      debugPrint('[OTV-save] skipping — position is 0');
+    if (position.inSeconds == 0 || total.inSeconds == 0) {
+      debugPrint('[OTV-save] skipping — position or total is 0');
       return;
     }
     await db.updateEpisodeProgress(episodeId, position, total);

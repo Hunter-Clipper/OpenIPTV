@@ -62,6 +62,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Up Next state (episodes only).
   Episode? _nextEpisode;
   bool _showUpNext = false;
+  // Set before pushReplacement so dispose() skips stop() and orientation-reset,
+  // avoiding races with the new screen's play() on the shared Player instance.
+  bool _navigatingToNext = false;
+  // Guards position/duration/completed listeners against stale stream events
+  // that fire before play() has actually started the new media. Without this,
+  // the new PlayerScreen picks up the previous episode's end-position and
+  // immediately triggers completion (skipping the new episode entirely).
+  bool _playbackStarted = false;
 
   // Auto-recovery: stall detection + reconnect.
   static const _stallTimeout = Duration(seconds: 5);
@@ -117,10 +125,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // a reconnection has temporarily reset player.state.position to zero.
     if (!_isLive) {
       _positionSub = player.stream.position.listen((p) {
+        // Ignore stale stream events until play() has started the new media.
+        // Without this guard the new PlayerScreen picks up the previous
+        // episode's end-position and immediately triggers completion.
+        if (!_playbackStarted) return;
         if (p > Duration.zero) _lastKnownPosition = p;
-        // Fallback: some IPTV VOD servers don't send a clean EOF, so
-        // player.stream.completed may never fire. Trigger completion when
-        // ≤3 s remain according to the known duration.
         if (!_completionHandled &&
             _lastKnownDuration > Duration.zero &&
             p > Duration.zero) {
@@ -132,9 +141,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         }
       });
       _durationSub = player.stream.duration.listen((d) {
+        if (!_playbackStarted) return;
         if (d > Duration.zero) _lastKnownDuration = d;
       });
       _completedSub = player.stream.completed.listen((completed) {
+        if (!_playbackStarted) return;
         if (completed && mounted && !_completionHandled) {
           _completionHandled = true;
           _onPlaybackCompleted();
@@ -188,10 +199,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _durationSub?.cancel();
     _completedSub?.cancel();
     _playbackService.detachVideoController();
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // When transitioning to the next episode (pushReplacement), skip the
+    // orientation/UI reset so the new screen's landscape lock isn't undone
+    // by this dispose() running after the new initState() has already set it.
+    if (!_navigatingToNext) {
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     _saveProgressIfNeeded();
-    _playbackService.stop();
+    if (!_navigatingToNext) _playbackService.stop();
     super.dispose();
   }
 
@@ -217,17 +233,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         context.pop();
         return;
       }
+      _lastKnownPosition = Duration.zero;
+      _lastKnownDuration = Duration.zero;
       await service.play(
         widget.streamUrl,
         startPosition: resume ? widget.resumePosition : null,
       );
+      _playbackStarted = true;
     } else {
+      _lastKnownPosition = Duration.zero;
+      _lastKnownDuration = Duration.zero;
       await service.play(
         widget.streamUrl,
         startPosition: widget.resumePosition == Duration.zero
             ? null
             : widget.resumePosition,
       );
+      _playbackStarted = true;
     }
   }
 
@@ -314,6 +336,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _playNextEpisode() {
     final ep = _nextEpisode;
     if (ep == null || !mounted) return;
+    _navigatingToNext = true;
     context.pushReplacement('/player', extra: {
       'streamUrl': ep.streamUrl,
       'title': '${ep.episodeLabel} – ${ep.title}',
