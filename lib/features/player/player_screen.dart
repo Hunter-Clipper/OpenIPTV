@@ -52,6 +52,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Duration _lastKnownPosition = Duration.zero;
   Duration _lastKnownDuration = Duration.zero;
 
+  // Set true once completion has been handled to prevent double-firing
+  // (both the completed stream and the position-based fallback can fire).
+  bool _completionHandled = false;
   // Set true once we've saved 100% progress on natural completion, so that
   // dispose()'s _saveProgressIfNeeded() doesn't overwrite with a stale value.
   bool _completionSaved = false;
@@ -115,12 +118,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!_isLive) {
       _positionSub = player.stream.position.listen((p) {
         if (p > Duration.zero) _lastKnownPosition = p;
+        // Fallback: some IPTV VOD servers don't send a clean EOF, so
+        // player.stream.completed may never fire. Trigger completion when
+        // ≤3 s remain according to the known duration.
+        if (!_completionHandled &&
+            _lastKnownDuration > Duration.zero &&
+            p > Duration.zero) {
+          final remaining = _lastKnownDuration - p;
+          if (remaining.inSeconds <= 3) {
+            _completionHandled = true;
+            _onPlaybackCompleted();
+          }
+        }
       });
       _durationSub = player.stream.duration.listen((d) {
         if (d > Duration.zero) _lastKnownDuration = d;
       });
       _completedSub = player.stream.completed.listen((completed) {
-        if (completed && mounted) _onPlaybackCompleted();
+        if (completed && mounted && !_completionHandled) {
+          _completionHandled = true;
+          _onPlaybackCompleted();
+        }
       });
     }
 
@@ -194,6 +212,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (!mounted) return;
       final resume = await _showResumeDialog(widget.resumePosition!);
       if (!mounted) return;
+      // null = tapped outside dialog → exit the player
+      if (resume == null) {
+        context.pop();
+        return;
+      }
       await service.play(
         widget.streamUrl,
         startPosition: resume ? widget.resumePosition : null,
@@ -208,8 +231,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  Future<bool> _showResumeDialog(Duration position) async {
-    final result = await showDialog<bool>(
+  // Returns true=resume, false=start over, null=dismissed (tap outside → exit).
+  Future<bool?> _showResumeDialog(Duration position) {
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Resume Watching?'),
@@ -226,7 +250,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ],
       ),
     );
-    return result ?? true;
   }
 
   void _saveProgressIfNeeded() {

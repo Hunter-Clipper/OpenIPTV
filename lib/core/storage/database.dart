@@ -559,6 +559,12 @@ class AppDatabase extends _$AppDatabase {
     return rows.map(_seriesFromRow).toList();
   }
 
+  Stream<List<model.Series>> watchAllSeries() {
+    return select(seriesEntries)
+        .watch()
+        .map((rows) => rows.map(_seriesFromRow).toList());
+  }
+
   Future<void> upsertSeries(List<model.Series> seriesList) async {
     final companions = seriesList.map(_seriesToCompanion).toList();
     for (var i = 0; i < companions.length; i += 500) {

@@ -17,8 +17,8 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // Providers
 // ---------------------------------------------------------------------------
 
-final _allSeriesProvider = FutureProvider<List<Series>>((ref) {
-  return ref.watch(appDatabaseProvider).getAllSeries();
+final _allSeriesProvider = StreamProvider<List<Series>>((ref) {
+  return ref.watch(appDatabaseProvider).watchAllSeries();
 });
 
 final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {

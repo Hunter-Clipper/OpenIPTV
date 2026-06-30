@@ -25,8 +25,8 @@ final _seriesDetailProvider =
 });
 
 final _seriesEpisodesProvider =
-    FutureProvider.family<List<Episode>, String>((ref, seriesId) {
-  return ref.watch(appDatabaseProvider).getEpisodesForSeries(seriesId);
+    StreamProvider.family<List<Episode>, String>((ref, seriesId) {
+  return ref.watch(appDatabaseProvider).watchEpisodesForSeries(seriesId);
 });
 
 // ---------------------------------------------------------------------------
