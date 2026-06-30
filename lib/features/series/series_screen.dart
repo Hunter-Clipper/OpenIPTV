@@ -42,9 +42,6 @@ class SeriesScreen extends ConsumerStatefulWidget {
 }
 
 class _SeriesScreenState extends ConsumerState<SeriesScreen> {
-  // null = genre grid; non-null = filtered series grid
-  String? _selectedGenre;
-
   Future<void> _refresh() async {
     try {
       final sources = await ref.read(allSourcesProvider.future);
@@ -70,56 +67,20 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     return genres;
   }
 
-  List<Series> _filteredSeries(List<Series> all, String genre) {
-    if (genre == 'All') return all;
-    return all.where((s) {
-      final g = s.genre ?? '';
-      return g.toLowerCase().contains(genre.toLowerCase());
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final allAsync = ref.watch(_allSeriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
-    final columns = PlatformHelper.posterColumns(context);
 
     final sort = ref.watch(contentSortProvider);
-    final viewMode = ref.watch(viewModeSeriesProvider);
-    return BackButtonListener(
-      onBackButtonPressed: () async {
-        if (_selectedGenre != null) {
-          setState(() => _selectedGenre = null);
-          return true;
-        }
-        return false;
-      },
-      child: Scaffold(
+    final inProgress =
+        ref.watch(_episodesInProgressProvider).valueOrNull ?? [];
+    return Scaffold(
       appBar: AppBar(
-        leading: _selectedGenre != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _selectedGenre = null),
-              )
-            : const AppLogo(),
-        title: Text(_selectedGenre != null
-            ? (_selectedGenre == 'All' ? 'All Series' : _selectedGenre!)
-            : 'Series'),
+        leading: const AppLogo(),
+        title: const Text('Series'),
         actions: [
-          if (_selectedGenre != null)
-            IconButton(
-              icon: Icon(
-                  viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-              tooltip: viewMode == 'grid'
-                  ? 'Switch to list view'
-                  : 'Switch to grid view',
-              onPressed: () async {
-                final prefs = await ref.read(appPreferencesProvider.future);
-                await setViewModeSeries(
-                    ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
-              },
-            ),
           IconButton(
             icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
             tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
@@ -142,102 +103,170 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
           final favorites =
               all.where((s) => favIdSet.contains(s.id)).toList();
-
-          if (_selectedGenre == null) {
-            // Genre selection screen with Favorites row on top
-            final hidden = profile?.hiddenCategories.toSet() ?? {};
-            final genres = _buildGenres(all, hidden, sort);
-            final inProgress =
-                ref.watch(_episodesInProgressProvider).valueOrNull ?? [];
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: CustomScrollView(
-                slivers: [
-                  // Favorites
-                  if (favorites.isNotEmpty) ...[
-                    _SectionHeader(title: 'Favorites'),
-                    SliverToBoxAdapter(
-                      child: _HorizontalPosterRow(
-                        items: favorites,
-                        profileId: profile?.id,
-                      ),
-                    ),
-                  ],
-
-                  // Continue Watching (episodes in progress)
-                  if (inProgress.isNotEmpty) ...[
-                    _SectionHeader(title: 'Continue Watching'),
-                    SliverToBoxAdapter(
-                      child: _EpisodeContinueWatchingRow(episodes: inProgress),
-                    ),
-                  ],
-
-                  // Genre tiles
-                  _SectionHeader(title: 'Browse by Genre'),
+          final hidden = profile?.hiddenCategories.toSet() ?? {};
+          final genres = _buildGenres(all, hidden, sort);
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: CustomScrollView(
+              slivers: [
+                if (favorites.isNotEmpty) ...[
+                  _SectionHeader(title: 'Favorites'),
                   SliverToBoxAdapter(
-                    child: _GenreTileList(
-                      genres: genres.isEmpty ? ['All'] : genres,
-                      seriesCounts: {
-                        if (genres.isEmpty) 'All': all.length,
-                        for (final g in genres)
-                          g: all
-                              .where((s) => (s.genre ?? '').contains(g))
-                              .length,
-                      },
-                      onTap: (g) => setState(() => _selectedGenre = g),
+                    child: _HorizontalPosterRow(
+                      items: favorites,
                       profileId: profile?.id,
-                      onHideGenre: profile?.id == null
-                          ? null
-                          : (g) async {
-                              HapticFeedback.mediumImpact();
-                              final hide =
-                                  await showModalBottomSheet<bool>(
-                                context: context,
-                                builder: (_) => SafeArea(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ListTile(
-                                        leading: const Icon(
-                                            Icons.visibility_off_outlined),
-                                        title:
-                                            const Text('Hide Genre'),
-                                        subtitle: Text(g,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall),
-                                        onTap: () =>
-                                            Navigator.of(context)
-                                                .pop(true),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                              if (hide == true) {
-                                await ref
-                                    .read(profileServiceProvider)
-                                    .hideCategory(profile!.id, g);
-                                ref.invalidate(activeProfileProvider);
-                              }
-                            },
                     ),
                   ),
-                  const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
                 ],
-              ),
-            );
-          }
+                if (inProgress.isNotEmpty) ...[
+                  _SectionHeader(title: 'Continue Watching'),
+                  SliverToBoxAdapter(
+                    child: _EpisodeContinueWatchingRow(episodes: inProgress),
+                  ),
+                ],
+                _SectionHeader(title: 'Browse by Genre'),
+                SliverToBoxAdapter(
+                  child: _GenreTileList(
+                    genres: genres.isEmpty ? ['All'] : genres,
+                    seriesCounts: {
+                      if (genres.isEmpty) 'All': all.length,
+                      for (final g in genres)
+                        g: all
+                            .where((s) => (s.genre ?? '').contains(g))
+                            .length,
+                    },
+                    onTap: (g) => context
+                        .push('/series/genre/${Uri.encodeComponent(g)}'),
+                    profileId: profile?.id,
+                    onHideGenre: profile?.id == null
+                        ? null
+                        : (g) async {
+                            HapticFeedback.mediumImpact();
+                            final hide = await showModalBottomSheet<bool>(
+                              context: context,
+                              builder: (_) => SafeArea(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(
+                                          Icons.visibility_off_outlined),
+                                      title: const Text('Hide Genre'),
+                                      subtitle: Text(g,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall),
+                                      onTap: () =>
+                                          Navigator.of(context).pop(true),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                            if (hide == true) {
+                              await ref
+                                  .read(profileServiceProvider)
+                                  .hideCategory(profile!.id, g);
+                              ref.invalidate(activeProfileProvider);
+                            }
+                          },
+                  ),
+                ),
+                const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-          // Filtered series grid or list
-          final filtered = _filteredSeries(all, _selectedGenre!);
+// ---------------------------------------------------------------------------
+// Series genre screen (pushed as a route — back pops naturally)
+// ---------------------------------------------------------------------------
+
+class SeriesGenreScreen extends ConsumerStatefulWidget {
+  const SeriesGenreScreen({super.key, required this.genre});
+  final String genre;
+
+  @override
+  ConsumerState<SeriesGenreScreen> createState() => _SeriesGenreScreenState();
+}
+
+class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
+  Future<void> _refresh() async {
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      for (final s in sources) {
+        await ref.read(sourceManagerProvider).refreshSeries(s);
+      }
+    } finally {
+      ref.invalidate(_allSeriesProvider);
+      await ref.read(_allSeriesProvider.future);
+    }
+  }
+
+  List<Series> _filtered(List<Series> all) {
+    if (widget.genre == 'All') return all;
+    return all.where((s) {
+      final g = s.genre ?? '';
+      return g.toLowerCase().contains(widget.genre.toLowerCase());
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allAsync = ref.watch(_allSeriesProvider);
+    final profileAsync = ref.watch(activeProfileProvider);
+    final profile = profileAsync.valueOrNull;
+    final columns = PlatformHelper.posterColumns(context);
+    final sort = ref.watch(contentSortProvider);
+    final viewMode = ref.watch(viewModeSeriesProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.genre == 'All' ? 'All Series' : widget.genre),
+        actions: [
+          IconButton(
+            icon:
+                Icon(viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
+            tooltip: viewMode == 'grid'
+                ? 'Switch to list view'
+                : 'Switch to grid view',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setViewModeSeries(
+                  ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
+            },
+          ),
+          IconButton(
+            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
+            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setContentSort(
+                  ref, sort == 'az' ? 'provider' : 'az', prefs);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
+      body: allAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => _ErrorView(onRetry: _refresh),
+        data: (all) {
+          final filtered = _filtered(all);
           if (sort == 'az') {
             filtered.sort((a, b) => a.title.compareTo(b.title));
           }
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
-              key: ValueKey('${_selectedGenre}_${sort}_$viewMode'),
+              key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
                   const SliverFillRemaining(child: _EmptyView())
@@ -279,7 +308,6 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             ),
           );
         },
-      ),
       ),
     );
   }

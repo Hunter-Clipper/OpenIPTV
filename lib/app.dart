@@ -126,15 +126,24 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             GoRoute(
               path: '/live',
               builder: (_, __) => const ChannelListScreen(),
+              routes: [
+                GoRoute(
+                  path: 'category/:cat',
+                  builder: (_, state) => LiveCategoryScreen(
+                    category: state.pathParameters['cat']!,
+                  ),
+                ),
+              ],
             ),
             GoRoute(
               path: '/movies',
               builder: (_, __) => const MoviesScreen(),
               routes: [
                 GoRoute(
-                  path: ':id',
-                  builder: (_, state) =>
-                      MovieDetailScreen(movieId: state.pathParameters['id']!),
+                  path: 'genre/:genre',
+                  builder: (_, state) => MovieGenreScreen(
+                    genre: state.pathParameters['genre']!,
+                  ),
                 ),
               ],
             ),
@@ -143,23 +152,36 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               builder: (_, __) => const SeriesScreen(),
               routes: [
                 GoRoute(
-                  path: ':id',
-                  builder: (_, state) =>
-                      SeriesDetailScreen(seriesId: state.pathParameters['id']!),
-                  routes: [
-                    GoRoute(
-                      path: 'episodes',
-                      builder: (_, state) => EpisodeListScreen(
-                        seriesId: state.pathParameters['id']!,
-                      ),
-                    ),
-                  ],
+                  path: 'genre/:genre',
+                  builder: (_, state) => SeriesGenreScreen(
+                    genre: state.pathParameters['genre']!,
+                  ),
                 ),
               ],
             ),
             GoRoute(
               path: '/search',
               builder: (_, __) => const SearchScreen(),
+            ),
+          ],
+        ),
+        // Detail pages on the root navigator so _RootNavObserver tracks depth
+        // and Shell's back handler returns false (same as Settings/Player).
+        GoRoute(
+          path: '/movies/:id',
+          builder: (_, state) =>
+              MovieDetailScreen(movieId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/series/:id',
+          builder: (_, state) =>
+              SeriesDetailScreen(seriesId: state.pathParameters['id']!),
+          routes: [
+            GoRoute(
+              path: 'episodes',
+              builder: (_, state) => EpisodeListScreen(
+                seriesId: state.pathParameters['id']!,
+              ),
             ),
           ],
         ),
@@ -252,72 +274,50 @@ class _Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<_Shell> {
-  // Remembers which tab was active before the user navigated to Search,
-  // so the back button can return there instead of showing the exit dialog.
+  // Remembers which tab was active before the user navigated to Search.
   int _previousTabIndex = 0;
-  DateTime? _lastBackPress;
+
+  static String _baseTab(String path) {
+    final seg = path.split('/')..removeWhere((s) => s.isEmpty);
+    return seg.isEmpty ? path : '/${seg[0]}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    // BackButtonListener fires BEFORE go_router's popRoute(), so we can
-    // intercept the back button when at a root tab and show the exit dialog.
-    // PopScope alone doesn't work here: canPop=false causes go_router to see
-    // Navigator.canPop()=false and call SystemNavigator.pop() directly,
-    // skipping onPopInvoked entirely.
-    return BackButtonListener(
-      onBackButtonPressed: () async {
-        if (!mounted) return false;
+    // NavigatorPopHandler wraps the inner Navigator from ShellRoute.
+    // onPop fires only when the inner nav has nothing left to pop — i.e.
+    // we're at a root tab (genre/category pages pop naturally before this).
+    // Detail pages on the root navigator (movies/:id, settings, player)
+    // pop via the root navigator and never reach onPop.
+    return Scaffold(
+      body: NavigatorPopHandler(
+        onPop: () {
+          if (!mounted) return;
+          final path =
+              GoRouter.of(context).routeInformationProvider.value.uri.path;
 
-        // If go_router has a route it can pop (sub-pages within the shell,
-        // or pushed routes like settings/player), let go_router handle it.
-        // context.canPop() is go_router-aware and returns false only when we're
-        // at a genuine root shell tab with nothing stacked above it — unlike
-        // Navigator.of(context, rootNavigator: true).canPop() which can return
-        // true even at root tabs due to go_router's internal page management.
-        if (context.canPop()) return false;
-
-        // Read the real current URI (GoRouterState at shell level is unreliable).
-        final path =
-            GoRouter.of(context).routeInformationProvider.value.uri.path;
-
-        // Search tab: return to whichever tab was active before Search.
-        if (path == '/search') {
-          switch (_previousTabIndex) {
-            case 0:
-              context.go('/live');
-            case 1:
-              context.go('/movies');
-            case 2:
-              context.go('/series');
-          }
-          return true;
-        }
-
-        // Root tab — require double-tap to exit (Reddit-style).
-        final now = DateTime.now();
-        final last = _lastBackPress;
-        if (last == null || now.difference(last) > const Duration(seconds: 2)) {
-          _lastBackPress = now;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Press back again to exit'),
-              duration: Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          return true;
-        }
-        return false;
-      },
-      child: Scaffold(
-        body: widget.child,
-        bottomNavigationBar: _BottomNav(
-          onBeforeNavigate: (currentIndex, newIndex) {
-            if (newIndex == 3 && currentIndex != 3) {
-              setState(() => _previousTabIndex = currentIndex);
+          // Search tab: go back to whichever tab was active before.
+          if (path == '/search') {
+            switch (_previousTabIndex) {
+              case 0:
+                context.go('/live');
+              case 1:
+                context.go('/movies');
+              case 2:
+                context.go('/series');
             }
-          },
-        ),
+            return;
+          }
+          // Root tab (live/movies/series) — back is disabled.
+        },
+        child: widget.child,
+      ),
+      bottomNavigationBar: _BottomNav(
+        onBeforeNavigate: (currentIndex, newIndex) {
+          if (newIndex == 3 && currentIndex != 3) {
+            setState(() => _previousTabIndex = currentIndex);
+          }
+        },
       ),
     );
   }
@@ -365,6 +365,13 @@ class _BottomNav extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Root navigator observer — tracks how many routes are stacked above the shell
+// ---------------------------------------------------------------------------
+
+// Module-level singleton: one router, one root observer.
+// ---------------------------------------------------------------------------
 
 extension ProfileGear on BuildContext {
   void openSettings() => push('/settings');

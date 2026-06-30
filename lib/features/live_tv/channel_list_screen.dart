@@ -48,9 +48,6 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
-  // null = showing category grid; non-null = showing channels in that category
-  String? _selectedCategory;
-
   static Future<void> _refreshChannelsStatic() async {}
 
   Future<void> _refreshChannels() async {
@@ -115,38 +112,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
 
     final sort = ref.watch(contentSortProvider);
-    final viewMode = ref.watch(viewModeLiveProvider);
-    return BackButtonListener(
-      onBackButtonPressed: () async {
-        if (_selectedCategory != null) {
-          setState(() => _selectedCategory = null);
-          return true;
-        }
-        return false;
-      },
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
-        leading: _selectedCategory != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _selectedCategory = null),
-              )
-            : const AppLogo(),
-        title: Text(_selectedCategory ?? 'Live TV'),
+        leading: const AppLogo(),
+        title: const Text('Live TV'),
         actions: [
-          if (_selectedCategory != null)
-            IconButton(
-              icon: Icon(
-                  viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-              tooltip: viewMode == 'grid'
-                  ? 'Switch to list view'
-                  : 'Switch to grid view',
-              onPressed: () async {
-                final prefs = await ref.read(appPreferencesProvider.future);
-                await setViewModeLive(
-                    ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
-              },
-            ),
           IconButton(
             icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
             tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
@@ -166,88 +136,190 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
       body: channelsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorView(
-            onRetry: () {
-              ref.invalidate(_allChannelsProvider);
-            }),
+            onRetry: () => ref.invalidate(_allChannelsProvider)),
         data: (all) {
-          if (_selectedCategory == null) {
-            // Category grid
-            final cats = _buildCategories(all, hiddenCats, sort);
-            final favCount = favIds.length;
-            final recent = ref.watch(_recentChannelsProvider).valueOrNull ?? [];
-            return RefreshIndicator(
-              onRefresh: _refreshChannels,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
-                  if (recent.isNotEmpty) ...[
-                    _SectionHeader(title: 'Recently Watched'),
-                    _RecentChannelsRow(channels: recent),
-                  ],
-                  if (favCount > 0)
-                    _CategoryTile(
-                      label: 'Favorites',
-                      count: favCount,
-                      icon: Icons.star_outlined,
-                      onTap: () =>
-                          setState(() => _selectedCategory = 'Favorites'),
-                    ),
-                  // Show "All" only when no categories exist
-                  if (cats.isEmpty)
-                    _CategoryTile(
-                      label: 'All',
-                      count: all.length,
-                      icon: Icons.live_tv_outlined,
-                      onTap: () => setState(() => _selectedCategory = 'All'),
-                    ),
-                  ...cats.map((cat) {
-                    final count = all
-                        .where((c) =>
-                            (c.groupTitle ?? 'Uncategorized') == cat)
-                        .length;
-                    return _CategoryTile(
-                      label: cat,
-                      count: count,
-                      icon: Icons.folder_outlined,
-                      onTap: () => setState(() => _selectedCategory = cat),
-                      onLongPress: profileId == null
-                          ? null
-                          : () async {
-                              HapticFeedback.mediumImpact();
-                              final hide = await showModalBottomSheet<bool>(
-                                context: context,
-                                builder: (_) =>
-                                    _CategoryOptionsSheet(label: cat),
-                              );
-                              if (hide == true && mounted) {
-                                await ref
-                                    .read(profileServiceProvider)
-                                    .hideCategory(profileId, cat);
-                                ref.invalidate(activeProfileProvider);
-                              }
-                            },
-                    );
-                  }),
+          final cats = _buildCategories(all, hiddenCats, sort);
+          final favCount = favIds.length;
+          final recent =
+              ref.watch(_recentChannelsProvider).valueOrNull ?? [];
+          return RefreshIndicator(
+            onRefresh: _refreshChannels,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                if (recent.isNotEmpty) ...[
+                  _SectionHeader(title: 'Recently Watched'),
+                  _RecentChannelsRow(channels: recent),
                 ],
-              ),
-            );
-          }
+                if (favCount > 0)
+                  _CategoryTile(
+                    label: 'Favorites',
+                    count: favCount,
+                    icon: Icons.star_outlined,
+                    onTap: () => context.push(
+                        '/live/category/${Uri.encodeComponent('Favorites')}'),
+                  ),
+                if (cats.isEmpty)
+                  _CategoryTile(
+                    label: 'All',
+                    count: all.length,
+                    icon: Icons.live_tv_outlined,
+                    onTap: () => context.push(
+                        '/live/category/${Uri.encodeComponent('All')}'),
+                  ),
+                ...cats.map((cat) {
+                  final count = all
+                      .where(
+                          (c) => (c.groupTitle ?? 'Uncategorized') == cat)
+                      .length;
+                  return _CategoryTile(
+                    label: cat,
+                    count: count,
+                    icon: Icons.folder_outlined,
+                    onTap: () => context.push(
+                        '/live/category/${Uri.encodeComponent(cat)}'),
+                    onLongPress: profileId == null
+                        ? null
+                        : () async {
+                            HapticFeedback.mediumImpact();
+                            final hide = await showModalBottomSheet<bool>(
+                              context: context,
+                              builder: (_) =>
+                                  _CategoryOptionsSheet(label: cat),
+                            );
+                            if (hide == true && mounted) {
+                              await ref
+                                  .read(profileServiceProvider)
+                                  .hideCategory(profileId, cat);
+                              ref.invalidate(activeProfileProvider);
+                            }
+                          },
+                  );
+                }),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-          // Channel list/grid for selected category
-          final channels =
-              _channelsForCategory(all, favIds, _selectedCategory!, sort);
+// ---------------------------------------------------------------------------
+// Live category screen (pushed as a route — back pops naturally)
+// ---------------------------------------------------------------------------
+
+class LiveCategoryScreen extends ConsumerStatefulWidget {
+  const LiveCategoryScreen({super.key, required this.category});
+  final String category;
+
+  @override
+  ConsumerState<LiveCategoryScreen> createState() =>
+      _LiveCategoryScreenState();
+}
+
+class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
+  Future<void> _refresh() async {
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      for (final s in sources) {
+        await ref.read(sourceManagerProvider).refreshChannels(s);
+      }
+    } finally {
+      ref.invalidate(_allChannelsProvider);
+      await ref.read(_allChannelsProvider.future);
+    }
+  }
+
+  static Future<void> _refreshStatic() async {}
+
+  List<Channel> _channelsForCategory(
+      List<Channel> all, Set<String> favIds, String sort) {
+    List<Channel> result;
+    if (widget.category == 'All') {
+      result = List.of(all);
+    } else if (widget.category == 'Favorites') {
+      result = all.where((c) => favIds.contains(c.id)).toList();
+    } else {
+      result = all
+          .where(
+              (c) => (c.groupTitle ?? 'Uncategorized') == widget.category)
+          .toList();
+    }
+    if (sort == 'az') {
+      result.sort((a, b) => a.name.compareTo(b.name));
+    } else {
+      result.sort((a, b) {
+        final aFav = favIds.contains(a.id);
+        final bFav = favIds.contains(b.id);
+        if (aFav && !bFav) return -1;
+        if (!aFav && bFav) return 1;
+        return a.sortOrder.compareTo(b.sortOrder);
+      });
+    }
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final channelsAsync = ref.watch(_allChannelsProvider);
+    final profileAsync = ref.watch(activeProfileProvider);
+    final profile = profileAsync.valueOrNull;
+    final profileId = profile?.id;
+    final favIds = (profile?.favoriteChannelIds ?? []).toSet();
+    final sort = ref.watch(contentSortProvider);
+    final viewMode = ref.watch(viewModeLiveProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.category),
+        actions: [
+          IconButton(
+            icon:
+                Icon(viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
+            tooltip: viewMode == 'grid'
+                ? 'Switch to list view'
+                : 'Switch to grid view',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setViewModeLive(
+                  ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
+            },
+          ),
+          IconButton(
+            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
+            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setContentSort(
+                  ref, sort == 'az' ? 'provider' : 'az', prefs);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
+      body: channelsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) =>
+            _ErrorView(onRetry: () => ref.invalidate(_allChannelsProvider)),
+        data: (all) {
+          final channels = _channelsForCategory(all, favIds, sort);
           if (channels.isEmpty) {
-            return const RefreshIndicator(
-              onRefresh: _refreshChannelsStatic,
-              child: _EmptyView(),
+            return RefreshIndicator(
+              onRefresh: _refreshStatic,
+              child: const _EmptyView(),
             );
           }
           if (viewMode == 'grid') {
             final cols = PlatformHelper.posterColumns(context);
             return RefreshIndicator(
-              onRefresh: _refreshChannels,
+              onRefresh: _refresh,
               child: GridView.builder(
-                key: ValueKey('${_selectedCategory}_grid'),
+                key: ValueKey('${widget.category}_grid'),
                 padding: const EdgeInsets.all(12),
                 itemCount: channels.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -268,9 +340,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             );
           }
           return RefreshIndicator(
-            onRefresh: _refreshChannels,
+            onRefresh: _refresh,
             child: ListView.builder(
-              key: ValueKey('${_selectedCategory}_list'),
+              key: ValueKey('${widget.category}_list'),
               itemCount: channels.length,
               itemBuilder: (context, i) {
                 final ch = channels[i];
@@ -283,7 +355,6 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             ),
           );
         },
-      ),
       ),
     );
   }

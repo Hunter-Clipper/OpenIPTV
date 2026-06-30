@@ -41,9 +41,6 @@ class MoviesScreen extends ConsumerStatefulWidget {
 }
 
 class _MoviesScreenState extends ConsumerState<MoviesScreen> {
-  // null = genre grid; non-null = filtered movie grid
-  String? _selectedGenre;
-
   Future<void> _refresh() async {
     try {
       final sources = await ref.read(allSourcesProvider.future);
@@ -69,57 +66,19 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     return genres;
   }
 
-  List<Movie> _filteredMovies(List<Movie> all, String genre) {
-    if (genre == 'All') return all;
-    return all.where((m) {
-      final g = m.genre ?? '';
-      return g.toLowerCase().contains(genre.toLowerCase());
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final moviesAsync = ref.watch(_allMoviesProvider);
     final inProgressAsync = ref.watch(_moviesInProgressProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
-    final columns = PlatformHelper.posterColumns(context);
 
     final sort = ref.watch(contentSortProvider);
-    final viewMode = ref.watch(viewModeMoviesProvider);
-    return BackButtonListener(
-      onBackButtonPressed: () async {
-        if (_selectedGenre != null) {
-          setState(() => _selectedGenre = null);
-          return true;
-        }
-        return false;
-      },
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
-        leading: _selectedGenre != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _selectedGenre = null),
-              )
-            : const AppLogo(),
-        title: Text(_selectedGenre != null
-            ? (_selectedGenre == 'All' ? 'All Movies' : _selectedGenre!)
-            : 'Movies'),
+        leading: const AppLogo(),
+        title: const Text('Movies'),
         actions: [
-          if (_selectedGenre != null)
-            IconButton(
-              icon: Icon(
-                  viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-              tooltip: viewMode == 'grid'
-                  ? 'Switch to list view'
-                  : 'Switch to grid view',
-              onPressed: () async {
-                final prefs = await ref.read(appPreferencesProvider.future);
-                await setViewModeMovies(
-                    ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
-              },
-            ),
           IconButton(
             icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
             tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
@@ -142,107 +101,177 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           final inProgress = inProgressAsync.valueOrNull ?? [];
           final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
           final favorites = all.where((m) => favIdSet.contains(m.id)).toList();
-
-          if (_selectedGenre == null) {
-            // Genre selection screen with Favorites + Continue Watching on top
-            final hidden = profile?.hiddenCategories.toSet() ?? {};
-            final genres = _buildGenres(all, hidden, sort);
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: CustomScrollView(
-                slivers: [
-                  // Continue Watching
-                  if (inProgress.isNotEmpty) ...[
-                    _SectionHeader(title: 'Continue Watching'),
-                    SliverToBoxAdapter(
-                      child: _HorizontalPosterRow(
-                        movies: inProgress,
-                        profileId: profile?.id,
-                        showProgress: true,
-                        isContinueWatchingRow: true,
-                      ),
-                    ),
-                  ],
-
-                  // Favorites
-                  if (favorites.isNotEmpty) ...[
-                    _SectionHeader(title: 'Favorites'),
-                    SliverToBoxAdapter(
-                      child: _HorizontalPosterRow(
-                        movies: favorites,
-                        profileId: profile?.id,
-                        showProgress: false,
-                        isFavoritesRow: true,
-                      ),
-                    ),
-                  ],
-
-                  // Genre tiles
-                  _SectionHeader(title: 'Browse by Genre'),
+          final hidden = profile?.hiddenCategories.toSet() ?? {};
+          final genres = _buildGenres(all, hidden, sort);
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: CustomScrollView(
+              slivers: [
+                if (inProgress.isNotEmpty) ...[
+                  _SectionHeader(title: 'Continue Watching'),
                   SliverToBoxAdapter(
-                    child: _GenreTileList(
-                      genres: genres.isEmpty ? ['All'] : genres,
-                      movieCounts: {
-                        if (genres.isEmpty) 'All': all.length,
-                        for (final g in genres)
-                          g: all
-                              .where((m) => (m.genre ?? '').contains(g))
-                              .length,
-                      },
-                      onTap: (g) => setState(() => _selectedGenre = g),
+                    child: _HorizontalPosterRow(
+                      movies: inProgress,
                       profileId: profile?.id,
-                      onHideGenre: profile?.id == null
-                          ? null
-                          : (g) async {
-                              HapticFeedback.mediumImpact();
-                              final hide =
-                                  await showModalBottomSheet<bool>(
-                                context: context,
-                                builder: (_) => SafeArea(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ListTile(
-                                        leading: const Icon(
-                                            Icons.visibility_off_outlined),
-                                        title:
-                                            const Text('Hide Genre'),
-                                        subtitle: Text(g,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall),
-                                        onTap: () =>
-                                            Navigator.of(context)
-                                                .pop(true),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                              if (hide == true) {
-                                await ref
-                                    .read(profileServiceProvider)
-                                    .hideCategory(profile!.id, g);
-                                ref.invalidate(activeProfileProvider);
-                              }
-                            },
+                      showProgress: true,
+                      isContinueWatchingRow: true,
                     ),
                   ),
-                  const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
                 ],
-              ),
-            );
-          }
+                if (favorites.isNotEmpty) ...[
+                  _SectionHeader(title: 'Favorites'),
+                  SliverToBoxAdapter(
+                    child: _HorizontalPosterRow(
+                      movies: favorites,
+                      profileId: profile?.id,
+                      showProgress: false,
+                      isFavoritesRow: true,
+                    ),
+                  ),
+                ],
+                _SectionHeader(title: 'Browse by Genre'),
+                SliverToBoxAdapter(
+                  child: _GenreTileList(
+                    genres: genres.isEmpty ? ['All'] : genres,
+                    movieCounts: {
+                      if (genres.isEmpty) 'All': all.length,
+                      for (final g in genres)
+                        g: all
+                            .where((m) => (m.genre ?? '').contains(g))
+                            .length,
+                    },
+                    onTap: (g) => context
+                        .push('/movies/genre/${Uri.encodeComponent(g)}'),
+                    profileId: profile?.id,
+                    onHideGenre: profile?.id == null
+                        ? null
+                        : (g) async {
+                            HapticFeedback.mediumImpact();
+                            final hide = await showModalBottomSheet<bool>(
+                              context: context,
+                              builder: (_) => SafeArea(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(
+                                          Icons.visibility_off_outlined),
+                                      title: const Text('Hide Genre'),
+                                      subtitle: Text(g,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall),
+                                      onTap: () =>
+                                          Navigator.of(context).pop(true),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                            if (hide == true) {
+                              await ref
+                                  .read(profileServiceProvider)
+                                  .hideCategory(profile!.id, g);
+                              ref.invalidate(activeProfileProvider);
+                            }
+                          },
+                  ),
+                ),
+                const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-          // Filtered movie grid or list
-          final filtered = _filteredMovies(all, _selectedGenre!);
+// ---------------------------------------------------------------------------
+// Movie genre screen (pushed as a route — back pops naturally)
+// ---------------------------------------------------------------------------
+
+class MovieGenreScreen extends ConsumerStatefulWidget {
+  const MovieGenreScreen({super.key, required this.genre});
+  final String genre;
+
+  @override
+  ConsumerState<MovieGenreScreen> createState() => _MovieGenreScreenState();
+}
+
+class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
+  Future<void> _refresh() async {
+    try {
+      final sources = await ref.read(allSourcesProvider.future);
+      for (final s in sources) {
+        await ref.read(sourceManagerProvider).refreshMovies(s);
+      }
+    } finally {
+      ref.invalidate(_allMoviesProvider);
+      await ref.read(_allMoviesProvider.future);
+    }
+  }
+
+  List<Movie> _filtered(List<Movie> all) {
+    if (widget.genre == 'All') return all;
+    return all.where((m) {
+      final g = m.genre ?? '';
+      return g.toLowerCase().contains(widget.genre.toLowerCase());
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final moviesAsync = ref.watch(_allMoviesProvider);
+    final profileAsync = ref.watch(activeProfileProvider);
+    final profile = profileAsync.valueOrNull;
+    final columns = PlatformHelper.posterColumns(context);
+    final sort = ref.watch(contentSortProvider);
+    final viewMode = ref.watch(viewModeMoviesProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.genre == 'All' ? 'All Movies' : widget.genre),
+        actions: [
+          IconButton(
+            icon:
+                Icon(viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
+            tooltip: viewMode == 'grid'
+                ? 'Switch to list view'
+                : 'Switch to grid view',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setViewModeMovies(
+                  ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
+            },
+          ),
+          IconButton(
+            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
+            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
+            onPressed: () async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setContentSort(
+                  ref, sort == 'az' ? 'provider' : 'az', prefs);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
+      body: moviesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => _ErrorView(onRetry: _refresh),
+        data: (all) {
+          final filtered = _filtered(all);
           if (sort == 'az') {
             filtered.sort((a, b) => a.title.compareTo(b.title));
           }
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
-              key: ValueKey('${_selectedGenre}_${sort}_$viewMode'),
+              key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
                   const SliverFillRemaining(child: _EmptyView())
@@ -284,7 +313,6 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
             ),
           );
         },
-      ),
       ),
     );
   }
