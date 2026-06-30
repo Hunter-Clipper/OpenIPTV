@@ -259,24 +259,23 @@ class _ShellState extends State<_Shell> {
       onBackButtonPressed: () async {
         if (!mounted) return false;
 
-        // Determine the current route. GoRouterState.of() reads the current
-        // shell-level route (including sub-routes like /movies/:id).
-        final location = GoRouterState.of(context).fullPath ?? '/live';
+        // GoRouterState.of(context) at the _Shell level only reflects the
+        // ShellRoute's own entry, not the current child tab. Read the actual
+        // URI from the router's information provider instead — it is always
+        // authoritative regardless of where in the tree we call it.
+        final path =
+            GoRouter.of(context).routeInformationProvider.value.uri.path;
 
-        // Root tab paths — the exact paths where no inner page can be popped.
-        // We do NOT use context.canPop() here: that checks the ROOT navigator
-        // only and returns false for shell sub-routes (which live on the
-        // shell's inner navigator), causing detail screens to hit the exit
-        // dialog instead of popping normally.
+        // Root tab paths — the exact paths where there is no inner page to pop.
         const rootTabs = {'/live', '/movies', '/series', '/search'};
-        if (!rootTabs.contains(location)) {
+        if (!rootTabs.contains(path)) {
           // On a sub-route (e.g. /movies/:id, /series/:id/episodes).
           // Return false so go_router's default back handling pops the page.
           return false;
         }
 
         // On the Search root tab — return to the previously active tab.
-        if (location == '/search') {
+        if (path == '/search') {
           switch (_previousTabIndex) {
             case 0:
               context.go('/live');
