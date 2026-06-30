@@ -129,6 +129,7 @@ class _EpisodeRow extends StatelessWidget {
         'title': '${episode.episodeLabel} – ${episode.title}',
         'contentId': episode.id,
         'contentType': 'episode',
+        'seriesId': episode.seriesId,
         'resumePosition':
             episode.isInProgress ? episode.watchedDuration : null,
       }),

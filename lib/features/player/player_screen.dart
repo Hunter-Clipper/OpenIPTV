@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
 
@@ -16,6 +18,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
     this.contentId,
     this.contentType,
     this.resumePosition,
+    this.seriesId,
   });
 
   final String streamUrl;
@@ -23,6 +26,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final String? contentId;
   final String? contentType;
   final Duration? resumePosition;
+  // Only set for episodes — used to load the next episode on completion.
+  final String? seriesId;
 
   @override
   ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
@@ -39,10 +44,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   StreamSubscription<bool>? _bufferingSub;
   StreamSubscription<VideoParams>? _videoParamsSub;
   StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<bool>? _completedSub;
   // Tracks the last non-zero position independently of player state, so that
   // reconnection (which temporarily resets state.position to zero) doesn't
   // corrupt the progress save on dispose.
   Duration _lastKnownPosition = Duration.zero;
+  Duration _lastKnownDuration = Duration.zero;
+
+  // Set true once we've saved 100% progress on natural completion, so that
+  // dispose()'s _saveProgressIfNeeded() doesn't overwrite with a stale value.
+  bool _completionSaved = false;
+
+  // Up Next state (episodes only).
+  Episode? _nextEpisode;
+  bool _showUpNext = false;
 
   // Auto-recovery: stall detection + reconnect.
   static const _stallTimeout = Duration(seconds: 5);
@@ -100,6 +116,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _positionSub = player.stream.position.listen((p) {
         if (p > Duration.zero) _lastKnownPosition = p;
       });
+      _durationSub = player.stream.duration.listen((d) {
+        if (d > Duration.zero) _lastKnownDuration = d;
+      });
+      _completedSub = player.stream.completed.listen((completed) {
+        if (completed && mounted) _onPlaybackCompleted();
+      });
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,6 +167,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _bufferingSub?.cancel();
     _videoParamsSub?.cancel();
     _positionSub?.cancel();
+    _durationSub?.cancel();
+    _completedSub?.cancel();
     _playbackService.detachVideoController();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -207,6 +231,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _saveProgressIfNeeded() {
     if (_isLive) return;
+    // Completion already saved 100% — don't overwrite with stale position.
+    if (_completionSaved) return;
     final id = widget.contentId;
     if (id == null) return;
     final service = _playbackService;
@@ -214,13 +240,65 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // player.state.position directly — the latter can be zero if a reconnection
     // attempt called player.open() and the seek hasn't completed yet.
     final position = _lastKnownPosition;
-    final total = service.player.state.duration;
+    // Prefer the stream-tracked duration; fall back to player state.
+    final total = _lastKnownDuration > Duration.zero
+        ? _lastKnownDuration
+        : service.player.state.duration;
     debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s');
     if (widget.contentType == 'movie') {
       service.saveMovieProgress(id, position, total);
     } else if (widget.contentType == 'episode') {
       service.saveEpisodeProgress(id, position, total);
     }
+  }
+
+  Future<void> _onPlaybackCompleted() async {
+    if (!mounted) return;
+    final id = widget.contentId;
+    final total = _lastKnownDuration;
+
+    // Save as fully watched.
+    if (id != null && total > Duration.zero) {
+      _completionSaved = true;
+      if (widget.contentType == 'movie') {
+        await _playbackService.saveMovieProgress(id, total, total);
+      } else if (widget.contentType == 'episode') {
+        await _playbackService.saveEpisodeProgress(id, total, total);
+      }
+    }
+    if (!mounted) return;
+
+    // For episodes: look for the next episode in the series.
+    if (widget.contentType == 'episode' && widget.seriesId != null) {
+      final episodes =
+          await _playbackService.db.getEpisodesForSeries(widget.seriesId!);
+      final idx = episodes.indexWhere((e) => e.id == id);
+      if (idx >= 0 && idx + 1 < episodes.length) {
+        if (mounted) {
+          setState(() {
+            _nextEpisode = episodes[idx + 1];
+            _showUpNext = true;
+          });
+        }
+        return;
+      }
+    }
+
+    // Movies, or last episode of a series: just exit the player.
+    if (mounted) context.pop();
+  }
+
+  void _playNextEpisode() {
+    final ep = _nextEpisode;
+    if (ep == null || !mounted) return;
+    context.pushReplacement('/player', extra: {
+      'streamUrl': ep.streamUrl,
+      'title': '${ep.episodeLabel} – ${ep.title}',
+      'contentId': ep.id,
+      'contentType': 'episode',
+      'seriesId': ep.seriesId,
+      'resumePosition': ep.isInProgress ? ep.watchedDuration : null,
+    });
   }
 
   void _resetHideTimer() {
@@ -314,12 +392,148 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ),
               ),
             ),
+            // Up Next banner — shown when an episode finishes and a next one exists.
+            if (_showUpNext && _nextEpisode != null)
+              _UpNextBanner(
+                episode: _nextEpisode!,
+                onPlay: _playNextEpisode,
+                onDismiss: () =>
+                    setState(() => _showUpNext = false),
+              ),
           ],
         ),
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Up Next banner (episodes only)
+// ---------------------------------------------------------------------------
+
+class _UpNextBanner extends StatefulWidget {
+  const _UpNextBanner({
+    required this.episode,
+    required this.onPlay,
+    required this.onDismiss,
+  });
+
+  final Episode episode;
+  final VoidCallback onPlay;
+  final VoidCallback onDismiss;
+
+  @override
+  State<_UpNextBanner> createState() => _UpNextBannerState();
+}
+
+class _UpNextBannerState extends State<_UpNextBanner> {
+  static const _totalSeconds = 7;
+  int _remaining = _totalSeconds;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_remaining <= 1) {
+        t.cancel();
+        widget.onPlay();
+      } else {
+        setState(() => _remaining--);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 60,
+      right: 20,
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'UP NEXT',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 10,
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${widget.episode.episodeLabel} – ${widget.episode.title}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: 1.0 - (_remaining / _totalSeconds),
+              backgroundColor: Colors.white24,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              minHeight: 2,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: widget.onPlay,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text('Play Now ($_remaining)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: widget.onDismiss,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 class _ErrorOverlay extends StatelessWidget {
   const _ErrorOverlay({required this.title, required this.onRetry});

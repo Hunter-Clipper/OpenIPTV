@@ -430,9 +430,28 @@ class _HorizontalPosterRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                      child: _PosterImage(posterUrl: movie.posterUrl),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.cardRadius),
+                          child: _PosterImage(posterUrl: movie.posterUrl),
+                        ),
+                        if (movie.isWatched)
+                          Positioned(
+                            top: 5,
+                            right: 5,
+                            child: Container(
+                              padding: const EdgeInsets.all(1),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check_circle,
+                                  color: Colors.white, size: 14),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   if (showProgress && movie.isInProgress)
@@ -603,6 +622,20 @@ class _PosterCard extends ConsumerWidget {
                   value: movie.watchProgress,
                   minHeight: 3,
                 ),
+              ),
+            ),
+          if (movie.isWatched)
+            Positioned(
+              top: 5,
+              left: 5,
+              child: Container(
+                padding: const EdgeInsets.all(1),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle,
+                    color: Colors.white, size: 14),
               ),
             ),
           Positioned(

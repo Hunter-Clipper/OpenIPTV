@@ -166,6 +166,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               contentId: extra['contentId'] as String?,
               contentType: extra['contentType'] as String?,
               resumePosition: extra['resumePosition'] as Duration?,
+              seriesId: extra['seriesId'] as String?,
             );
           },
         ),
