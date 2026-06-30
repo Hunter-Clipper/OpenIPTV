@@ -268,6 +268,12 @@ class _ShellState extends State<_Shell> {
       onBackButtonPressed: () async {
         if (!mounted) return false;
 
+        // If the root navigator has anything stacked above the shell (player,
+        // settings, sub-pages), let the navigator pop it — don't interfere.
+        // This is reliable where path-reading was not: path reflects the shell's
+        // underlying tab even when settings/player are pushed on top.
+        if (Navigator.of(context, rootNavigator: true).canPop()) return false;
+
         // Read the real current URI (GoRouterState at shell level is unreliable).
         final path =
             GoRouter.of(context).routeInformationProvider.value.uri.path;
@@ -283,13 +289,6 @@ class _ShellState extends State<_Shell> {
               context.go('/series');
           }
           return true;
-        }
-
-        // Only apply double-tap on the main content tabs.
-        // Any other path (settings, player, sub-pages) should get normal
-        // back navigation — return false lets go_router/navigator handle it.
-        if (path != '/live' && path != '/movies' && path != '/series') {
-          return false;
         }
 
         // Root tab — require double-tap to exit (Reddit-style).
@@ -366,7 +365,7 @@ class _BottomNav extends ConsumerWidget {
 }
 
 extension ProfileGear on BuildContext {
-  void openSettings() => go('/settings');
+  void openSettings() => push('/settings');
 }
 
 // ---------------------------------------------------------------------------
