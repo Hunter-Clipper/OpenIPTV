@@ -10,8 +10,8 @@ import 'package:open_iptv/core/storage/database.dart';
 // ---------------------------------------------------------------------------
 
 final _episodeListProvider =
-    FutureProvider.family<List<Episode>, String>((ref, seriesId) {
-  return ref.watch(appDatabaseProvider).getEpisodesForSeries(seriesId);
+    StreamProvider.family<List<Episode>, String>((ref, seriesId) {
+  return ref.watch(appDatabaseProvider).watchEpisodesForSeries(seriesId);
 });
 
 // ---------------------------------------------------------------------------

@@ -16,8 +16,8 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // Providers
 // ---------------------------------------------------------------------------
 
-final _allMoviesProvider = FutureProvider<List<Movie>>((ref) {
-  return ref.watch(appDatabaseProvider).getAllMovies();
+final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
+  return ref.watch(appDatabaseProvider).watchAllMovies();
 });
 
 final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
