@@ -129,6 +129,19 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
+            // --------------- PARENTAL ---------------
+            _SectionHeader(title: 'Family'),
+            ListTile(
+              leading: const Icon(Icons.family_restroom_outlined),
+              title: const Text('Parental Controls'),
+              subtitle: Text(
+                'PIN-protect adult and locked categories',
+                style: theme.textTheme.bodySmall,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/settings/parental'),
+            ),
+
             // --------------- PLAYBACK ---------------
             _SectionHeader(title: 'Playback'),
             InfoTooltip(

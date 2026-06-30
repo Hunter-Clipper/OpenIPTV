@@ -9,8 +9,10 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -102,6 +104,26 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     return cats;
   }
 
+  Future<void> _tapCategory(String cat) async {
+    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
+    if (prefs != null && isCategoryLocked(cat, prefs, sessionUnlocked)) {
+      final pin =
+          await showParentalPinEntry(context, 'Enter PIN to unlock "$cat"');
+      if (!mounted || pin == null) return;
+      if (hashParentalPin(pin) != prefs.parentalPinHash) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Incorrect PIN')));
+        return;
+      }
+      ref.read(parentalSessionUnlockedProvider.notifier).state = {
+        ...ref.read(parentalSessionUnlockedProvider),
+        cat,
+      };
+    }
+    if (mounted) context.push('/live/category/${Uri.encodeComponent(cat)}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(_allChannelsProvider);
@@ -112,6 +134,8 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
 
     final sort = ref.watch(contentSortProvider);
+    final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
     return Scaffold(
       appBar: AppBar(
         leading: const AppLogo(),
@@ -172,12 +196,14 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       .where(
                           (c) => (c.groupTitle ?? 'Uncategorized') == cat)
                       .length;
+                  final locked = parentalPrefs != null &&
+                      isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
                   return _CategoryTile(
                     label: cat,
                     count: count,
                     icon: Icons.folder_outlined,
-                    onTap: () => context.push(
-                        '/live/category/${Uri.encodeComponent(cat)}'),
+                    isLocked: locked,
+                    onTap: () => _tapCategory(cat),
                     onLongPress: profileId == null
                         ? null
                         : () async {
@@ -457,6 +483,7 @@ class _CategoryTile extends StatelessWidget {
     required this.count,
     required this.icon,
     required this.onTap,
+    this.isLocked = false,
     this.onLongPress,
   });
 
@@ -464,6 +491,7 @@ class _CategoryTile extends StatelessWidget {
   final int count;
   final IconData icon;
   final VoidCallback onTap;
+  final bool isLocked;
   final VoidCallback? onLongPress;
 
   @override
@@ -475,6 +503,12 @@ class _CategoryTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (isLocked)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Icon(Icons.lock_outline,
+                  size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ),
           Text(
             count.toString(),
             style: theme.textTheme.bodySmall!.copyWith(

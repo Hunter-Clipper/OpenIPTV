@@ -8,9 +8,11 @@ import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +56,26 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     }
   }
 
+  Future<void> _tapGenre(String g) async {
+    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
+    if (prefs != null && isCategoryLocked(g, prefs, sessionUnlocked)) {
+      final pin =
+          await showParentalPinEntry(context, 'Enter PIN to unlock "$g"');
+      if (!mounted || pin == null) return;
+      if (hashParentalPin(pin) != prefs.parentalPinHash) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Incorrect PIN')));
+        return;
+      }
+      ref.read(parentalSessionUnlockedProvider.notifier).state = {
+        ...ref.read(parentalSessionUnlockedProvider),
+        g,
+      };
+    }
+    if (mounted) context.push('/series/genre/${Uri.encodeComponent(g)}');
+  }
+
   List<String> _buildGenres(
       List<Series> all, Set<String> hidden, String sort) {
     final seen = <String>{};
@@ -74,6 +96,8 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final profile = profileAsync.valueOrNull;
 
     final sort = ref.watch(contentSortProvider);
+    final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
     final inProgress =
         ref.watch(_episodesInProgressProvider).valueOrNull ?? [];
     return Scaffold(
@@ -105,6 +129,12 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
               all.where((s) => favIdSet.contains(s.id)).toList();
           final hidden = profile?.hiddenCategories.toSet() ?? {};
           final genres = _buildGenres(all, hidden, sort);
+          final lockedGenres = parentalPrefs == null
+              ? const <String>{}
+              : genres
+                  .where((g) =>
+                      isCategoryLocked(g, parentalPrefs, sessionUnlocked))
+                  .toSet();
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
@@ -135,8 +165,8 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                             .where((s) => (s.genre ?? '').contains(g))
                             .length,
                     },
-                    onTap: (g) => context
-                        .push('/series/genre/${Uri.encodeComponent(g)}'),
+                    onTap: _tapGenre,
+                    lockedGenres: lockedGenres,
                     profileId: profile?.id,
                     onHideGenre: profile?.id == null
                         ? null
@@ -324,6 +354,7 @@ class _GenreTileList extends StatelessWidget {
     required this.onTap,
     this.profileId,
     this.onHideGenre,
+    this.lockedGenres = const {},
   });
 
   final List<String> genres;
@@ -331,12 +362,14 @@ class _GenreTileList extends StatelessWidget {
   final void Function(String) onTap;
   final String? profileId;
   final void Function(String)? onHideGenre;
+  final Set<String> lockedGenres;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
       children: genres.map((g) {
+        final locked = lockedGenres.contains(g);
         return ListTile(
           leading: Icon(
             g == 'All'
@@ -348,6 +381,12 @@ class _GenreTileList extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (locked)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(Icons.lock_outline,
+                      size: 16, color: theme.colorScheme.onSurfaceVariant),
+                ),
               Text(
                 (seriesCounts[g] ?? 0).toString(),
                 style: theme.textTheme.bodySmall!.copyWith(

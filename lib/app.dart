@@ -16,6 +16,7 @@ import 'package:open_iptv/features/series/episode_list_screen.dart';
 import 'package:open_iptv/features/series/series_detail_screen.dart';
 import 'package:open_iptv/features/series/series_screen.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
+import 'package:open_iptv/features/settings/parental_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
@@ -210,6 +211,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             GoRoute(
               path: 'backup',
               builder: (_, __) => const BackupScreen(),
+            ),
+            GoRoute(
+              path: 'parental',
+              builder: (_, __) => const ParentalScreen(),
             ),
           ],
         ),
