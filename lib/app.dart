@@ -259,22 +259,11 @@ class _ShellState extends State<_Shell> {
       onBackButtonPressed: () async {
         if (!mounted) return false;
 
-        // GoRouterState.of(context) at the _Shell level only reflects the
-        // ShellRoute's own entry, not the current child tab. Read the actual
-        // URI from the router's information provider instead — it is always
-        // authoritative regardless of where in the tree we call it.
+        // Read the real current URI (GoRouterState at shell level is unreliable).
         final path =
             GoRouter.of(context).routeInformationProvider.value.uri.path;
 
-        // Root tab paths — the exact paths where there is no inner page to pop.
-        const rootTabs = {'/live', '/movies', '/series', '/search'};
-        if (!rootTabs.contains(path)) {
-          // On a sub-route (e.g. /movies/:id, /series/:id/episodes).
-          // Return false so go_router's default back handling pops the page.
-          return false;
-        }
-
-        // On the Search root tab — return to the previously active tab.
+        // Search tab: return to whichever tab was active before Search.
         if (path == '/search') {
           switch (_previousTabIndex) {
             case 0:
@@ -287,26 +276,9 @@ class _ShellState extends State<_Shell> {
           return true;
         }
 
-        // On any other root tab — confirm before exiting.
-        final shouldExit = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Exit OpenIPTV?'),
-            content: const Text('Are you sure you want to close the app?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Exit'),
-              ),
-            ],
-          ),
-        );
-        if (shouldExit == true && mounted) await SystemNavigator.pop();
-        return true; // handled — whether user confirmed exit or cancelled
+        // All other cases: let the system handle back navigation.
+        // Exit confirmation is backlogged (#28).
+        return false;
       },
       child: Scaffold(
         body: widget.child,
