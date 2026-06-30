@@ -234,10 +234,19 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   }
 }
 
-class _Shell extends StatelessWidget {
+class _Shell extends StatefulWidget {
   const _Shell({required this.child});
 
   final Widget child;
+
+  @override
+  State<_Shell> createState() => _ShellState();
+}
+
+class _ShellState extends State<_Shell> {
+  // Remembers which tab was active before the user navigated to Search,
+  // so the back button can return there instead of showing the exit dialog.
+  int _previousTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +261,21 @@ class _Shell extends StatelessWidget {
         // let go_router handle back navigation normally.
         if (context.canPop()) return false;
 
-        // At a root tab — confirm before exiting.
+        // On Search tab — go back to the tab that was active before Search.
+        final location = GoRouterState.of(context).fullPath ?? '/live';
+        if (location.startsWith('/search')) {
+          switch (_previousTabIndex) {
+            case 0:
+              context.go('/live');
+            case 1:
+              context.go('/movies');
+            case 2:
+              context.go('/series');
+          }
+          return true;
+        }
+
+        // At any other root tab — confirm before exiting.
         final shouldExit = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -274,14 +297,24 @@ class _Shell extends StatelessWidget {
         return true; // handled — whether user confirmed exit or cancelled
       },
       child: Scaffold(
-        body: child,
-        bottomNavigationBar: _BottomNav(),
+        body: widget.child,
+        bottomNavigationBar: _BottomNav(
+          onBeforeNavigate: (currentIndex, newIndex) {
+            if (newIndex == 3 && currentIndex != 3) {
+              setState(() => _previousTabIndex = currentIndex);
+            }
+          },
+        ),
       ),
     );
   }
 }
 
 class _BottomNav extends ConsumerWidget {
+  const _BottomNav({required this.onBeforeNavigate});
+
+  final void Function(int currentIndex, int newIndex) onBeforeNavigate;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).fullPath ?? '/live';
@@ -295,6 +328,7 @@ class _BottomNav extends ConsumerWidget {
     return BottomNavigationBar(
       currentIndex: index,
       onTap: (i) {
+        onBeforeNavigate(index, i);
         switch (i) {
           case 0:
             context.go('/live');
@@ -512,7 +546,7 @@ class _SplashViewState extends State<_SplashView> with TickerProviderStateMixin 
                     Opacity(
                       opacity: _taglineOpacity.value,
                       child: const Text(
-                        'Stream everything.',
+                        'Open Source. Ad Free. Cross Platform.',
                         style: TextStyle(
                           color: Color(0xFF6868A0),
                           fontSize: 13,

@@ -505,6 +505,8 @@ class _ChannelLogo extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.contain,
+        memCacheWidth: size.toInt(),
+        memCacheHeight: size.toInt(),
         placeholder: (_, __) => Container(
           width: size,
           height: size,

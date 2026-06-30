@@ -655,6 +655,8 @@ class _PosterImage extends StatelessWidget {
       fit: BoxFit.cover,
       width: width ?? double.infinity,
       height: height ?? double.infinity,
+      memCacheWidth: width?.toInt() ?? 220,
+      memCacheHeight: height?.toInt() ?? 320,
       placeholder: (_, __) => Container(
         width: width,
         height: height,
