@@ -126,7 +126,10 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
           final favorites = all.where((m) => favIdSet.contains(m.id)).toList();
           final hidden = profile?.hiddenCategories.toSet() ?? {};
-          final genres = _buildGenres(all, hidden, sort);
+          final isKid = profile?.isKidsProfile ?? false;
+          final genres = _buildGenres(all, hidden, sort)
+              .where((g) => !isKid || !isAdultCategory(g))
+              .toList();
           final lockedGenres = parentalPrefs == null
               ? const <String>{}
               : genres

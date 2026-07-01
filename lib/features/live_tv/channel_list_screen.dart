@@ -132,6 +132,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final profileId = profile?.id;
     final favIds = (profile?.favoriteChannelIds ?? []).toSet();
     final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
+    final isKid = profile?.isKidsProfile ?? false;
 
     final sort = ref.watch(contentSortProvider);
     final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
@@ -162,7 +163,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         error: (e, _) => _ErrorView(
             onRetry: () => ref.invalidate(_allChannelsProvider)),
         data: (all) {
-          final cats = _buildCategories(all, hiddenCats, sort);
+          final cats = _buildCategories(all, hiddenCats, sort)
+              .where((c) => !isKid || !isAdultCategory(c))
+              .toList();
           final favCount = favIds.length;
           final recent =
               ref.watch(_recentChannelsProvider).valueOrNull ?? [];

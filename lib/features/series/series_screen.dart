@@ -128,7 +128,10 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           final favorites =
               all.where((s) => favIdSet.contains(s.id)).toList();
           final hidden = profile?.hiddenCategories.toSet() ?? {};
-          final genres = _buildGenres(all, hidden, sort);
+          final isKid = profile?.isKidsProfile ?? false;
+          final genres = _buildGenres(all, hidden, sort)
+              .where((g) => !isKid || !isAdultCategory(g))
+              .toList();
           final lockedGenres = parentalPrefs == null
               ? const <String>{}
               : genres

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 
 /// Profile overview screen — shows the active profile and lets the user
@@ -43,9 +44,10 @@ class ProfileScreen extends ConsumerWidget {
                   id: 'kids_profile',
                   title: 'Kids Profile',
                   body:
-                      'When turned on, this profile is marked as a '
-                      'Kids profile. Use this together with Parental '
-                      'Controls (coming soon) to restrict adult content.',
+                      'When turned on, this profile is marked as a Kids '
+                      'profile and adult content is automatically hidden '
+                      'from Live, Movies, and Series. Requires Parental '
+                      'Protection to be enabled.',
                   child: SwitchListTile(
                     secondary: const Icon(Icons.child_care_outlined),
                     title: const Text('Kids Profile'),
@@ -57,6 +59,37 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     value: profile.isKidsProfile,
                     onChanged: (val) async {
+                      if (val) {
+                        final prefs =
+                            await ref.read(appPreferencesProvider.future);
+                        if (!prefs.parentalProtectionEnabled) {
+                          final enable = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title:
+                                  const Text('Parental Protection Required'),
+                              content: const Text(
+                                  'Kid profiles require Parental Protection '
+                                  'to be turned on, so adult content can be '
+                                  'hidden automatically. Enable it now?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, true),
+                                  child: const Text('Enable Protection'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (enable != true) return;
+                          await prefs.setParentalProtectionEnabled(true);
+                        }
+                      }
                       await ref.read(profileServiceProvider).updateProfile(
                             profile.copyWith(
                                 isKidsProfile: val,
