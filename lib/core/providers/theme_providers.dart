@@ -6,8 +6,6 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 // Session-level providers — initialized in app.dart after prefs load.
 // Use notifier.state = x to update; app reads reactively via ref.watch.
 
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
-
 final accentColorProvider =
     StateProvider<Color>((ref) => AppTheme.accentFromHex('0A84FF'));
 
@@ -23,12 +21,6 @@ final viewModeSeriesProvider = StateProvider<String>((ref) => 'grid');
 final activeSourceIdProvider = StateProvider<String?>((ref) => null);
 
 // Helpers called from Settings to update prefs + provider in one shot.
-Future<void> setThemeMode(
-    WidgetRef ref, ThemeMode mode, AppPreferences prefs) async {
-  ref.read(themeModeProvider.notifier).state = mode;
-  await prefs.setThemeMode(_modeToString(mode));
-}
-
 Future<void> setAccentColor(
     WidgetRef ref, Color color, AppPreferences prefs) async {
   ref.read(accentColorProvider.notifier).state = color;
@@ -64,15 +56,3 @@ Future<void> setActiveSource(
   ref.read(activeSourceIdProvider.notifier).state = id;
   await prefs.setActiveSourceId(id);
 }
-
-String _modeToString(ThemeMode m) => switch (m) {
-      ThemeMode.light => 'light',
-      ThemeMode.system => 'system',
-      _ => 'dark',
-    };
-
-ThemeMode modeFromString(String s) => switch (s) {
-      'light' => ThemeMode.light,
-      'system' => ThemeMode.system,
-      _ => ThemeMode.dark,
-    };

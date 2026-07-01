@@ -5,7 +5,6 @@ part 'preferences.g.dart';
 
 const _kActiveProfileId = 'active_profile_id';
 const _kActiveSourceId = 'active_source_id';
-const _kThemeMode = 'theme_mode'; // 'dark' | 'light' | 'system'
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
 const _kChannelListDensity = 'channel_list_density'; // 'comfortable' | 'compact'
@@ -34,10 +33,6 @@ class AppPreferences {
   String? get activeSourceId => _prefs.getString(_kActiveSourceId);
   Future<void> setActiveSourceId(String? id) =>
       id != null ? _prefs.setString(_kActiveSourceId, id) : _prefs.remove(_kActiveSourceId);
-
-  String get themeMode => _prefs.getString(_kThemeMode) ?? 'dark';
-  Future<void> setThemeMode(String mode) =>
-      _prefs.setString(_kThemeMode, mode);
 
   String get accentColor => _prefs.getString(_kAccentColor) ?? '0A84FF';
   Future<void> setAccentColor(String hex) =>

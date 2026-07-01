@@ -5,6 +5,7 @@ import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 
 /// Profile overview screen — shows the active profile and lets the user
 /// manage settings, PIN, kids mode, and other profiles.
@@ -52,51 +53,74 @@ class ProfileScreen extends ConsumerWidget {
                     secondary: const Icon(Icons.child_care_outlined),
                     title: const Text('Kids Profile'),
                     subtitle: Text(
-                      profile.isKidsProfile
-                          ? 'Adult content will be hidden'
-                          : 'All content is visible',
+                      profile.isAdmin
+                          ? "Admin accounts can't be marked as kid accounts"
+                          : profile.isKidsProfile
+                              ? 'Adult content will be hidden'
+                              : 'All content is visible',
                       style: theme.textTheme.bodySmall,
                     ),
                     value: profile.isKidsProfile,
-                    onChanged: (val) async {
-                      if (val) {
-                        final prefs =
-                            await ref.read(appPreferencesProvider.future);
-                        if (!prefs.parentalProtectionEnabled) {
-                          final enable = await showDialog<bool>(
-                            context: context,
-                            builder: (_) => AlertDialog(
-                              title:
-                                  const Text('Parental Protection Required'),
-                              content: const Text(
-                                  'Kid profiles require Parental Protection '
-                                  'to be turned on, so adult content can be '
-                                  'hidden automatically. Enable it now?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, true),
-                                  child: const Text('Enable Protection'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (enable != true) return;
-                          await prefs.setParentalProtectionEnabled(true);
-                        }
-                      }
-                      await ref.read(profileServiceProvider).updateProfile(
-                            profile.copyWith(
-                                isKidsProfile: val,
-                                updatedAt: DateTime.now()),
-                          );
-                      ref.invalidate(activeProfileProvider);
-                    },
+                    onChanged: profile.isAdmin
+                        ? null
+                        : (val) async {
+                            if (val) {
+                              final prefs = await ref
+                                  .read(appPreferencesProvider.future);
+                              if (!prefs.parentalProtectionEnabled) {
+                                final enable = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text(
+                                        'Parental Protection Required'),
+                                    content: const Text(
+                                        'Kid profiles require Parental '
+                                        'Protection to be turned on, so '
+                                        'adult content can be hidden '
+                                        'automatically. Enable it now?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child:
+                                            const Text('Enable Protection'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (enable != true) return;
+                                await prefs
+                                    .setParentalProtectionEnabled(true);
+                              }
+                            } else {
+                              final pin = await showParentalPinEntry(context,
+                                  'Enter admin PIN to disable Kids Profile');
+                              if (pin == null) return;
+                              if (!await ref
+                                  .read(profileServiceProvider)
+                                  .verifyAnyAdminPin(pin)) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Incorrect PIN')));
+                                }
+                                return;
+                              }
+                            }
+                            await ref
+                                .read(profileServiceProvider)
+                                .updateProfile(
+                                  profile.copyWith(
+                                      isKidsProfile: val,
+                                      updatedAt: DateTime.now()),
+                                );
+                            ref.invalidate(activeProfileProvider);
+                          },
                   ),
                 ),
               ),
@@ -541,12 +565,43 @@ class _CreateProfileDialog extends StatefulWidget {
 class _CreateProfileDialogState extends State<_CreateProfileDialog> {
   final _name = TextEditingController();
   String _emoji = Profile.avatarOptions.first;
+  bool _isKidAccount = false;
   String? _error;
 
   @override
   void dispose() {
     _name.dispose();
     super.dispose();
+  }
+
+  Future<void> _onKidToggle(bool val) async {
+    if (val) {
+      final prefs = await widget.ref.read(appPreferencesProvider.future);
+      if (!prefs.parentalProtectionEnabled) {
+        final enable = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Parental Protection Required'),
+            content: const Text(
+                'Kid profiles require Parental Protection to be turned on, '
+                'so adult content can be hidden automatically. Enable it now?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Enable Protection'),
+              ),
+            ],
+          ),
+        );
+        if (enable != true) return;
+        await prefs.setParentalProtectionEnabled(true);
+      }
+    }
+    if (mounted) setState(() => _isKidAccount = val);
   }
 
   Future<void> _create() async {
@@ -556,9 +611,11 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
       return;
     }
     try {
-      await widget.ref
-          .read(profileServiceProvider)
-          .createProfile(name: name, avatarEmoji: _emoji);
+      await widget.ref.read(profileServiceProvider).createProfile(
+            name: name,
+            avatarEmoji: _emoji,
+            isKidsProfile: _isKidAccount,
+          );
       if (mounted) Navigator.of(context).pop();
     } on StateError catch (e) {
       setState(() => _error = e.message);
@@ -592,6 +649,20 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
             _EmojiPicker(
               selected: _emoji,
               onSelected: (e) => setState(() => _emoji = e),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.child_care_outlined),
+              title: const Text('Is Kid Account'),
+              subtitle: Text(
+                _isKidAccount
+                    ? 'Adult content will be hidden'
+                    : 'All content is visible',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              value: _isKidAccount,
+              onChanged: _onKidToggle,
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),

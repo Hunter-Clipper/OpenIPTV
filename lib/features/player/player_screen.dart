@@ -203,7 +203,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // orientation/UI reset so the new screen's landscape lock isn't undone
     // by this dispose() running after the new initState() has already set it.
     if (!_navigatingToNext) {
-      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _saveProgressIfNeeded();

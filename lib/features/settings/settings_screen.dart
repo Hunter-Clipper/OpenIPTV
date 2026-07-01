@@ -184,30 +184,6 @@ class SettingsScreen extends ConsumerWidget {
             // --------------- APPEARANCE ---------------
             _SectionHeader(title: 'Appearance'),
             Consumer(builder: (context, ref, _) {
-              final mode = ref.watch(themeModeProvider);
-              return InfoTooltip(
-                id: 'settings_theme',
-                title: 'Theme',
-                body: 'Switch between Dark (easy on the eyes in a dark room), '
-                    'Light (better in bright environments), or System default '
-                    '(automatically follows your device display setting).',
-                child: ListTile(
-                  leading: const Icon(Icons.brightness_6_outlined),
-                  title: const Text('Theme'),
-                  subtitle: Text(
-                    switch (mode) {
-                      ThemeMode.light => 'Light',
-                      ThemeMode.system => 'System default',
-                      _ => 'Dark',
-                    },
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showThemeDialog(context, ref, mode),
-                ),
-              );
-            }),
-            Consumer(builder: (context, ref, _) {
               final accent = ref.watch(accentColorProvider);
               return InfoTooltip(
                 id: 'settings_accent_color',
@@ -327,40 +303,6 @@ class SettingsScreen extends ConsumerWidget {
               const Text('A–Z'),
             ]),
           ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showThemeDialog(
-      BuildContext context, WidgetRef ref, ThemeMode current) async {
-    final prefs = await ref.read(appPreferencesProvider.future);
-    if (!context.mounted) return;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Theme'),
-        children: [
-          for (final (mode, label) in [
-            (ThemeMode.dark, 'Dark'),
-            (ThemeMode.light, 'Light'),
-            (ThemeMode.system, 'System default'),
-          ])
-            SimpleDialogOption(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                await setThemeMode(ref, mode, prefs);
-              },
-              child: Row(children: [
-                Icon(Icons.check,
-                    size: 18,
-                    color: current == mode
-                        ? Theme.of(ctx).colorScheme.primary
-                        : Colors.transparent),
-                const SizedBox(width: 8),
-                Text(label),
-              ]),
-            ),
         ],
       ),
     );
