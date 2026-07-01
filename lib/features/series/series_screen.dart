@@ -60,10 +60,10 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final prefs = ref.read(appPreferencesProvider).valueOrNull;
     final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
     if (prefs != null && isCategoryLocked(g, prefs, sessionUnlocked)) {
-      final pin =
-          await showParentalPinEntry(context, 'Enter PIN to unlock "$g"');
+      final pin = await showParentalPinEntry(
+          context, 'Enter admin PIN to unlock "$g"');
       if (!mounted || pin == null) return;
-      if (hashParentalPin(pin) != prefs.parentalPinHash) {
+      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Incorrect PIN')));
         return;

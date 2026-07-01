@@ -108,10 +108,10 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final prefs = ref.read(appPreferencesProvider).valueOrNull;
     final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
     if (prefs != null && isCategoryLocked(cat, prefs, sessionUnlocked)) {
-      final pin =
-          await showParentalPinEntry(context, 'Enter PIN to unlock "$cat"');
+      final pin = await showParentalPinEntry(
+          context, 'Enter admin PIN to unlock "$cat"');
       if (!mounted || pin == null) return;
-      if (hashParentalPin(pin) != prefs.parentalPinHash) {
+      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Incorrect PIN')));
         return;

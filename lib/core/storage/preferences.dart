@@ -12,7 +12,7 @@ const _kChannelListDensity = 'channel_list_density'; // 'comfortable' | 'compact
 const _kViewModeLive = 'view_mode_live';       // 'list' | 'grid'
 const _kViewModeMovies = 'view_mode_movies';   // 'list' | 'grid'
 const _kViewModeSeries = 'view_mode_series';   // 'list' | 'grid'
-const _kParentalPinHash = 'parental_pin_hash';
+const _kParentalProtectionEnabled = 'parental_protection_enabled';
 const _kParentalLockedCats = 'parental_locked_cats';
 const _kParentalScanDone = 'parental_scan_done';
 
@@ -65,11 +65,10 @@ class AppPreferences {
       _prefs.setString(_kViewModeSeries, mode);
 
   // Parental controls
-  String? get parentalPinHash => _prefs.getString(_kParentalPinHash);
-  bool get parentalEnabled => parentalPinHash != null;
-  Future<void> setParentalPinHash(String? hash) => hash != null
-      ? _prefs.setString(_kParentalPinHash, hash)
-      : _prefs.remove(_kParentalPinHash);
+  bool get parentalProtectionEnabled =>
+      _prefs.getBool(_kParentalProtectionEnabled) ?? false;
+  Future<void> setParentalProtectionEnabled(bool v) =>
+      _prefs.setBool(_kParentalProtectionEnabled, v);
 
   List<String> get parentalLockedCategories =>
       _prefs.getStringList(_kParentalLockedCats) ?? [];

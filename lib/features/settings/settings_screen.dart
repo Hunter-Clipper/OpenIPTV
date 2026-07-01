@@ -22,6 +22,7 @@ class SettingsScreen extends ConsumerWidget {
 
     // Derive active profile for the subtitle.
     final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final isAdmin = profile?.isAdmin ?? false;
 
     return InfoTooltipScope(
       controller: tooltipController,
@@ -78,69 +79,71 @@ class SettingsScreen extends ConsumerWidget {
               );
             }),
 
-            // --------------- SOURCES ---------------
-            _SectionHeader(title: 'Sources'),
-            Consumer(builder: (context, ref, _) {
-              final sources = ref.watch(allSourcesProvider);
-              return InfoTooltip(
-                id: 'settings_sources',
-                title: 'Sources',
-                body: 'An IPTV source is your provider connection — either '
-                    'an M3U playlist URL or Xtream Codes credentials. '
-                    'Sources supply your channels, movies, and series. '
-                    'You can add multiple sources and refresh them here.',
-                child: ListTile(
-                  leading: const Icon(Icons.playlist_play_outlined),
-                  title: const Text('Sources'),
-                  subtitle: sources.when(
-                    loading: () => null,
-                    error: (_, __) => null,
-                    data: (list) => Text(
-                      list.isEmpty
-                          ? 'No sources added'
-                          : '${list.length} source${list.length == 1 ? '' : 's'}',
-                      style: theme.textTheme.bodySmall,
+            // --------------- SOURCES (admin only) ---------------
+            if (isAdmin) ...[
+              _SectionHeader(title: 'Sources'),
+              Consumer(builder: (context, ref, _) {
+                final sources = ref.watch(allSourcesProvider);
+                return InfoTooltip(
+                  id: 'settings_sources',
+                  title: 'Sources',
+                  body: 'An IPTV source is your provider connection — either '
+                      'an M3U playlist URL or Xtream Codes credentials. '
+                      'Sources supply your channels, movies, and series. '
+                      'You can add multiple sources and refresh them here.',
+                  child: ListTile(
+                    leading: const Icon(Icons.playlist_play_outlined),
+                    title: const Text('Sources'),
+                    subtitle: sources.when(
+                      loading: () => null,
+                      error: (_, __) => null,
+                      data: (list) => Text(
+                        list.isEmpty
+                            ? 'No sources added'
+                            : '${list.length} source${list.length == 1 ? '' : 's'}',
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _openSourcesPage(context, ref),
+                  ),
+                );
+              }),
+
+              // --------------- BACKUP (admin only) ---------------
+              _SectionHeader(title: 'Data'),
+              InfoTooltip(
+                id: 'settings_backup',
+                title: 'Backup & Restore',
+                body: 'Export your profiles and sources to a single '
+                    '.iptvprofile file you can store anywhere. Restore it '
+                    'later to move to a new device or recover from a reset. '
+                    'Stream credentials are included — keep the file safe.',
+                child: ListTile(
+                  leading: const Icon(Icons.backup_outlined),
+                  title: const Text('Backup & Restore'),
+                  subtitle: Text(
+                    'Export or import your profile and sources',
+                    style: theme.textTheme.bodySmall,
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _openSourcesPage(context, ref),
+                  onTap: () => context.push('/settings/backup'),
                 ),
-              );
-            }),
+              ),
 
-            // --------------- BACKUP ---------------
-            _SectionHeader(title: 'Data'),
-            InfoTooltip(
-              id: 'settings_backup',
-              title: 'Backup & Restore',
-              body: 'Export your profiles and sources to a single '
-                  '.iptvprofile file you can store anywhere. Restore it '
-                  'later to move to a new device or recover from a reset. '
-                  'Stream credentials are included — keep the file safe.',
-              child: ListTile(
-                leading: const Icon(Icons.backup_outlined),
-                title: const Text('Backup & Restore'),
+              // --------------- PARENTAL (admin only) ---------------
+              _SectionHeader(title: 'Family'),
+              ListTile(
+                leading: const Icon(Icons.family_restroom_outlined),
+                title: const Text('Parental Controls'),
                 subtitle: Text(
-                  'Export or import your profile and sources',
+                  'PIN-protect adult and locked categories',
                   style: theme.textTheme.bodySmall,
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/settings/backup'),
+                onTap: () => context.push('/settings/parental'),
               ),
-            ),
-
-            // --------------- PARENTAL ---------------
-            _SectionHeader(title: 'Family'),
-            ListTile(
-              leading: const Icon(Icons.family_restroom_outlined),
-              title: const Text('Parental Controls'),
-              subtitle: Text(
-                'PIN-protect adult and locked categories',
-                style: theme.textTheme.bodySmall,
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/parental'),
-            ),
+            ],
 
             // --------------- PLAYBACK ---------------
             _SectionHeader(title: 'Playback'),
@@ -229,20 +232,21 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               );
             }),
-            InfoTooltip(
-              id: 'settings_hidden_cats',
-              title: 'Hidden Categories',
-              body:
-                  "Categories you've hidden won't appear in your channel "
-                  "list. Your channels are still there — they're just out "
-                  "of the way. You can unhide them here at any time.",
-              child: ListTile(
-                leading: const Icon(Icons.visibility_off_outlined),
-                title: const Text('Hidden Categories'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showHiddenCategoriesPage(context),
+            if (isAdmin)
+              InfoTooltip(
+                id: 'settings_hidden_cats',
+                title: 'Hidden Categories',
+                body:
+                    "Categories you've hidden won't appear in your channel "
+                    "list. Your channels are still there — they're just out "
+                    "of the way. You can unhide them here at any time.",
+                child: ListTile(
+                  leading: const Icon(Icons.visibility_off_outlined),
+                  title: const Text('Hidden Categories'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showHiddenCategoriesPage(context),
+                ),
               ),
-            ),
 
             // --------------- ABOUT ---------------
             _SectionHeader(title: 'About'),

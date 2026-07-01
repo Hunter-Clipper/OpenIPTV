@@ -85,32 +85,40 @@ class ProfileScreen extends ConsumerWidget {
                     ? Icon(Icons.check_circle,
                         color: theme.colorScheme.primary, size: 20)
                     : null,
-                onTap: () => _showPinDialog(context, ref, profile),
-              ),
-
-              // ── All Profiles ──────────────────────────────────────
-              _SectionHeader(title: 'All Profiles'),
-              allAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (all) => Column(
-                  children: [
-                    ...all.map((p) => _ProfileTile(
-                          profile: p,
-                          isActive: p.id == profile.id,
-                          onEdit: () => _showEditDialog(context, ref, p),
-                          onDelete: all.length > 1
-                              ? () => _confirmDelete(context, ref, p)
-                              : null,
-                        )),
-                    ListTile(
-                      leading: const Icon(Icons.add),
-                      title: const Text('Add Profile'),
-                      onTap: () => _showCreateDialog(context, ref),
-                    ),
-                  ],
+                onTap: () => _showPinDialog(
+                  context,
+                  ref,
+                  profile,
+                  blockPinRemoval: profile.isAdmin &&
+                      (allAsync.valueOrNull?.length ?? 1) > 1,
                 ),
               ),
+
+              // ── All Profiles (admin only) ─────────────────────────
+              if (profile.isAdmin) ...[
+                _SectionHeader(title: 'All Profiles'),
+                allAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (all) => Column(
+                    children: [
+                      ...all.map((p) => _ProfileTile(
+                            profile: p,
+                            isActive: p.id == profile.id,
+                            onEdit: () => _showEditDialog(context, ref, p),
+                            onDelete: all.length > 1
+                                ? () => _confirmDelete(context, ref, p)
+                                : null,
+                          )),
+                      ListTile(
+                        leading: const Icon(Icons.add),
+                        title: const Text('Add Profile'),
+                        onTap: () => _showCreateDialog(context, ref),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
             ],
           );
@@ -139,10 +147,18 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Future<void> _showPinDialog(
-      BuildContext context, WidgetRef ref, Profile profile) async {
+    BuildContext context,
+    WidgetRef ref,
+    Profile profile, {
+    bool blockPinRemoval = false,
+  }) async {
     await showDialog<void>(
       context: context,
-      builder: (ctx) => _PinManagementDialog(profile: profile, ref: ref),
+      builder: (ctx) => _PinManagementDialog(
+        profile: profile,
+        ref: ref,
+        blockPinRemoval: blockPinRemoval,
+      ),
     );
     ref.invalidate(activeProfileProvider);
     ref.invalidate(allProfilesProvider);
@@ -173,9 +189,16 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(profileServiceProvider).deleteProfile(profile.id);
-    ref.invalidate(allProfilesProvider);
-    ref.invalidate(activeProfileProvider);
+    try {
+      await ref.read(profileServiceProvider).deleteProfile(profile.id);
+      ref.invalidate(allProfilesProvider);
+      ref.invalidate(activeProfileProvider);
+    } on StateError catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
   }
 }
 
@@ -504,10 +527,10 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
           .read(profileServiceProvider)
           .createProfile(name: name, avatarEmoji: _emoji);
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      setState(() => _error = e.toString().contains('Maximum')
-          ? 'Maximum of 10 profiles reached.'
-          : "Couldn't create profile.");
+    } on StateError catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = "Couldn't create profile.");
     }
   }
 
@@ -563,9 +586,14 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
 // ---------------------------------------------------------------------------
 
 class _PinManagementDialog extends StatefulWidget {
-  const _PinManagementDialog({required this.profile, required this.ref});
+  const _PinManagementDialog({
+    required this.profile,
+    required this.ref,
+    this.blockPinRemoval = false,
+  });
   final Profile profile;
   final WidgetRef ref;
+  final bool blockPinRemoval;
 
   @override
   State<_PinManagementDialog> createState() => _PinManagementDialogState();
@@ -711,7 +739,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        if (widget.profile.hasPin)
+        if (widget.profile.hasPin && !widget.blockPinRemoval)
           TextButton(
             style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error),

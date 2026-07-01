@@ -50,6 +50,12 @@ class ProfileService {
     if (existing.length >= _maxProfiles) {
       throw StateError('Maximum of $_maxProfiles profiles reached.');
     }
+    if (!isAdmin &&
+        existing.any((p) => p.isAdmin) &&
+        !existing.any((p) => p.isAdmin && p.hasPin)) {
+      throw StateError(
+          'Set a PIN on your admin profile before adding a restricted profile.');
+    }
 
     final now = DateTime.now();
     final profile = Profile(
@@ -77,6 +83,14 @@ class ProfileService {
   }
 
   Future<void> deleteProfile(String id) async {
+    final all = await db.getAllProfiles();
+    final target = all.firstWhere((p) => p.id == id);
+    final others = all.where((p) => p.id != id);
+    if (target.isAdmin &&
+        others.isNotEmpty &&
+        !others.any((p) => p.isAdmin)) {
+      throw StateError('Cannot delete the last admin account.');
+    }
     await db.deleteProfile(id);
     if (prefs?.activeProfileId == id) {
       final remaining = await db.getAllProfiles();
@@ -110,6 +124,13 @@ class ProfileService {
     if (_hashPin(currentPin) != profile.pinHash) {
       throw ArgumentError('Incorrect PIN.');
     }
+    if (profile.isAdmin) {
+      final others = (await db.getAllProfiles()).where((p) => p.id != profileId);
+      if (others.isNotEmpty) {
+        throw StateError(
+            'Cannot remove the admin PIN while other profiles exist.');
+      }
+    }
     await db.upsertProfile(
       profile.copyWith(clearPin: true, updatedAt: DateTime.now()),
     );
@@ -117,6 +138,12 @@ class ProfileService {
 
   bool verifyPin(Profile profile, String pin) =>
       profile.pinHash != null && _hashPin(pin) == profile.pinHash;
+
+  Future<bool> verifyAnyAdminPin(String pin) async {
+    final all = await db.getAllProfiles();
+    final hash = _hashPin(pin);
+    return all.any((p) => p.isAdmin && p.pinHash == hash);
+  }
 
   Future<void> toggleFavoriteChannel(String profileId, String channelId) async {
     final profile = await db.getProfileById(profileId);

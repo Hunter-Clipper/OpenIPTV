@@ -110,6 +110,14 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         final sources = await db.getAllSources();
         if (profiles.isEmpty && sources.isEmpty) return '/setup';
         if (sources.isEmpty) return '/onboarding';
+
+        if (path.startsWith('/settings/parental') ||
+            path.startsWith('/settings/backup')) {
+          final activeProfile = await ref.read(activeProfileProvider.future);
+          if (activeProfile == null || !activeProfile.isAdmin) {
+            return '/settings';
+          }
+        }
         return null;
       },
       routes: [
