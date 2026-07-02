@@ -38,11 +38,13 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 ### Roadmap — what's next
 
 - Backup & restore rewrite — simple ZIP export/import (profiles, playlists, settings), no custom file extension
-- Background auto-refresh of playlists and EPG on a configurable interval
+- Background auto-refresh of playlists and EPG on a configurable interval, with notification alerts on success/failure
 - Picture-in-Picture support during playback
 - Media notification / "now playing" entry in the Android notification shade
 - Custom libmpv build to properly extract embedded CEA-608/708 closed captions from MPEG-TS streams (the current bundled libmpv can't surface these tracks at all)
 - UI to promote an existing profile to admin (currently the only admin account is the one created during first-run setup)
+- Deep link support for advanced users (launch directly into a channel/movie/series or search from an external URL)
+- Full-screen live TV guide for the Android TV / Apple TV phase — cable-box or TiviMate-style grid with a mini live-preview player, distinct from the phone/tablet category-browsing UI
 
 ---
 
