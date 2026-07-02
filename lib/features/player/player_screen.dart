@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
@@ -80,6 +81,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   bool get _isLive =>
       widget.contentType == 'live' || widget.contentType == null;
+
+  String? get _profileId => ref.read(activeProfileProvider).valueOrNull?.id;
 
   @override
   void initState() {
@@ -213,8 +216,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _startPlayback() async {
     // Stamp last-watched time for live channels so Recently Watched updates.
-    if (_isLive && widget.contentId != null) {
-      await _playbackService.db.updateChannelLastWatched(widget.contentId!);
+    final profileId = _profileId;
+    if (_isLive && widget.contentId != null && profileId != null) {
+      await _playbackService.db
+          .updateChannelLastWatched(profileId, widget.contentId!);
     }
     final service = _playbackService;
 
@@ -290,10 +295,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ? _lastKnownDuration
         : service.player.state.duration;
     debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s');
+    final profileId = _profileId;
+    if (profileId == null) return;
     if (widget.contentType == 'movie') {
-      service.saveMovieProgress(id, position, total);
+      service.saveMovieProgress(profileId, id, position, total);
     } else if (widget.contentType == 'episode') {
-      service.saveEpisodeProgress(id, position, total);
+      service.saveEpisodeProgress(profileId, id, position, total);
     }
   }
 
@@ -303,20 +310,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final total = _lastKnownDuration;
 
     // Save as fully watched.
-    if (id != null && total > Duration.zero) {
+    final profileId = _profileId;
+    if (id != null && total > Duration.zero && profileId != null) {
       _completionSaved = true;
       if (widget.contentType == 'movie') {
-        await _playbackService.saveMovieProgress(id, total, total);
+        await _playbackService.saveMovieProgress(profileId, id, total, total);
       } else if (widget.contentType == 'episode') {
-        await _playbackService.saveEpisodeProgress(id, total, total);
+        await _playbackService.saveEpisodeProgress(profileId, id, total, total);
       }
     }
     if (!mounted) return;
 
     // For episodes: look for the next episode in the series.
     if (widget.contentType == 'episode' && widget.seriesId != null) {
-      final episodes =
-          await _playbackService.db.getEpisodesForSeries(widget.seriesId!);
+      final episodes = await _playbackService.db
+          .getEpisodesForSeries(widget.seriesId!, profileId: profileId);
       final idx = episodes.indexWhere((e) => e.id == id);
       if (idx >= 0 && idx + 1 < episodes.length) {
         if (mounted) {

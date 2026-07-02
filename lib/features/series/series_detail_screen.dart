@@ -7,7 +7,6 @@ import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
-import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 
 // ---------------------------------------------------------------------------
@@ -26,7 +25,10 @@ final _seriesDetailProvider =
 
 final _seriesEpisodesProvider =
     StreamProvider.family<List<Episode>, String>((ref, seriesId) {
-  return ref.watch(appDatabaseProvider).watchEpisodesForSeries(seriesId);
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  return ref
+      .watch(appDatabaseProvider)
+      .watchEpisodesForSeries(seriesId, profileId: profileId);
 });
 
 // ---------------------------------------------------------------------------
@@ -470,9 +472,12 @@ class _EpisodeRow extends ConsumerWidget {
                 title: const Text('Clear Progress'),
                 onTap: () async {
                   Navigator.pop(context);
+                  final profileId =
+                      ref.read(activeProfileProvider).valueOrNull?.id;
+                  if (profileId == null) return;
                   await ref
                       .read(appDatabaseProvider)
-                      .clearEpisodeProgress(episode.id);
+                      .clearEpisodeProgress(profileId, episode.id);
                   ref.invalidate(_seriesEpisodesProvider(seriesId));
                 },
               ),

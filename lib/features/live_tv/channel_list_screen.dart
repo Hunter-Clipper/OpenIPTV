@@ -22,14 +22,18 @@ import 'package:open_iptv/ui/platform_helper.dart';
 final _allChannelsProvider = FutureProvider<List<Channel>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
   if (activeSourceId != null) {
-    return db.getChannelsForSource(activeSourceId);
+    return db.getChannelsForSource(activeSourceId, profileId: profileId);
   }
-  return db.getAllChannels();
+  return db.getAllChannels(profileId: profileId);
 });
 
 final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
-  return ref.watch(appDatabaseProvider).watchRecentChannels();
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final db = ref.watch(appDatabaseProvider);
+  if (profileId == null) return const Stream.empty();
+  return db.watchRecentChannels(profileId);
 });
 
 // Caches EPG programme per channel so scrolling doesn't re-fire DB queries.
@@ -858,9 +862,12 @@ class _RecentChannelsRow extends ConsumerWidget {
               title: const Text('Remove from Recently Watched'),
               onTap: () async {
                 Navigator.pop(context);
+                final profileId =
+                    ref.read(activeProfileProvider).valueOrNull?.id;
+                if (profileId == null) return;
                 await ref
                     .read(appDatabaseProvider)
-                    .clearChannelLastWatched(ch.id);
+                    .clearChannelLastWatched(profileId, ch.id);
               },
             ),
           ],

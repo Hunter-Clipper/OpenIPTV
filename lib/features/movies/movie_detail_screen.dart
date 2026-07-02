@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 
 // ---------------------------------------------------------------------------
@@ -13,7 +12,8 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 
 final _movieDetailProvider =
     StreamProvider.family<Movie?, String>((ref, id) {
-  return ref.watch(appDatabaseProvider).watchMovieById(id);
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  return ref.watch(appDatabaseProvider).watchMovieById(id, profileId: profileId);
 });
 
 // ---------------------------------------------------------------------------
@@ -281,7 +281,12 @@ class _ActionButtons extends ConsumerWidget {
               foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             onPressed: () async {
-              await ref.read(appDatabaseProvider).clearMovieProgress(movie.id);
+              final profileId =
+                  ref.read(activeProfileProvider).valueOrNull?.id;
+              if (profileId == null) return;
+              await ref
+                  .read(appDatabaseProvider)
+                  .clearMovieProgress(profileId, movie.id);
             },
           ),
         ],

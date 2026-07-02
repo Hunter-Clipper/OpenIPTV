@@ -14,6 +14,9 @@ import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+bool _movieGenreIsAdult(String? genre) =>
+    (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
+
 // ---------------------------------------------------------------------------
 // Providers
 // ---------------------------------------------------------------------------
@@ -21,14 +24,18 @@ import 'package:open_iptv/ui/platform_helper.dart';
 final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
   if (activeSourceId != null) {
-    return db.watchMoviesForSource(activeSourceId);
+    return db.watchMoviesForSource(activeSourceId, profileId: profileId);
   }
-  return db.watchAllMovies();
+  return db.watchAllMovies(profileId: profileId);
 });
 
 final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
-  return ref.watch(appDatabaseProvider).watchMoviesInProgress();
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final db = ref.watch(appDatabaseProvider);
+  if (profileId == null) return const Stream.empty();
+  return db.watchMoviesInProgress(profileId);
 });
 
 // ---------------------------------------------------------------------------
@@ -122,11 +129,16 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _ErrorView(onRetry: _refresh),
         data: (all) {
-          final inProgress = inProgressAsync.valueOrNull ?? [];
-          final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
-          final favorites = all.where((m) => favIdSet.contains(m.id)).toList();
-          final hidden = profile?.hiddenCategories.toSet() ?? {};
           final isKid = profile?.isKidsProfile ?? false;
+          final inProgress = (inProgressAsync.valueOrNull ?? [])
+              .where((m) => !isKid || !_movieGenreIsAdult(m.genre))
+              .toList();
+          final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
+          final favorites = all
+              .where((m) => favIdSet.contains(m.id))
+              .where((m) => !isKid || !_movieGenreIsAdult(m.genre))
+              .toList();
+          final hidden = profile?.hiddenCategories.toSet() ?? {};
           final genres = _buildGenres(all, hidden, sort)
               .where((g) => !isKid || !isAdultCategory(g))
               .toList();
@@ -480,9 +492,12 @@ class _HorizontalPosterRow extends ConsumerWidget {
                 title: const Text('Remove from Continue Watching'),
                 onTap: () async {
                   Navigator.pop(context);
+                  final profileId =
+                      ref.read(activeProfileProvider).valueOrNull?.id;
+                  if (profileId == null) return;
                   await ref
                       .read(appDatabaseProvider)
-                      .clearMovieProgress(movie.id);
+                      .clearMovieProgress(profileId, movie.id);
                 },
               ),
           ],

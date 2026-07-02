@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -11,7 +10,10 @@ import 'package:open_iptv/core/storage/database.dart';
 
 final _episodeListProvider =
     StreamProvider.family<List<Episode>, String>((ref, seriesId) {
-  return ref.watch(appDatabaseProvider).watchEpisodesForSeries(seriesId);
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  return ref
+      .watch(appDatabaseProvider)
+      .watchEpisodesForSeries(seriesId, profileId: profileId);
 });
 
 // ---------------------------------------------------------------------------

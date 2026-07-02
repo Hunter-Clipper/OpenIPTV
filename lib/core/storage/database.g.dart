@@ -3964,6 +3964,391 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
   }
 }
 
+class $WatchProgressTable extends WatchProgress
+    with TableInfo<$WatchProgressTable, WatchProgressRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchProgressTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentIdMeta =
+      const VerificationMeta('contentId');
+  @override
+  late final GeneratedColumn<String> contentId = GeneratedColumn<String>(
+      'content_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentTypeMeta =
+      const VerificationMeta('contentType');
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+      'content_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _watchedDurationSecondsMeta =
+      const VerificationMeta('watchedDurationSeconds');
+  @override
+  late final GeneratedColumn<int> watchedDurationSeconds = GeneratedColumn<int>(
+      'watched_duration_seconds', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _totalDurationSecondsMeta =
+      const VerificationMeta('totalDurationSeconds');
+  @override
+  late final GeneratedColumn<int> totalDurationSeconds = GeneratedColumn<int>(
+      'total_duration_seconds', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastWatchedAtMeta =
+      const VerificationMeta('lastWatchedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastWatchedAt =
+      GeneratedColumn<DateTime>('last_watched_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        profileId,
+        contentId,
+        contentType,
+        watchedDurationSeconds,
+        totalDurationSeconds,
+        lastWatchedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_progress';
+  @override
+  VerificationContext validateIntegrity(Insertable<WatchProgressRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('content_id')) {
+      context.handle(_contentIdMeta,
+          contentId.isAcceptableOrUnknown(data['content_id']!, _contentIdMeta));
+    } else if (isInserting) {
+      context.missing(_contentIdMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+          _contentTypeMeta,
+          contentType.isAcceptableOrUnknown(
+              data['content_type']!, _contentTypeMeta));
+    } else if (isInserting) {
+      context.missing(_contentTypeMeta);
+    }
+    if (data.containsKey('watched_duration_seconds')) {
+      context.handle(
+          _watchedDurationSecondsMeta,
+          watchedDurationSeconds.isAcceptableOrUnknown(
+              data['watched_duration_seconds']!, _watchedDurationSecondsMeta));
+    }
+    if (data.containsKey('total_duration_seconds')) {
+      context.handle(
+          _totalDurationSecondsMeta,
+          totalDurationSeconds.isAcceptableOrUnknown(
+              data['total_duration_seconds']!, _totalDurationSecondsMeta));
+    }
+    if (data.containsKey('last_watched_at')) {
+      context.handle(
+          _lastWatchedAtMeta,
+          lastWatchedAt.isAcceptableOrUnknown(
+              data['last_watched_at']!, _lastWatchedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {profileId, contentId, contentType};
+  @override
+  WatchProgressRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchProgressRow(
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}profile_id'])!,
+      contentId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_id'])!,
+      contentType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_type'])!,
+      watchedDurationSeconds: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}watched_duration_seconds']),
+      totalDurationSeconds: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}total_duration_seconds']),
+      lastWatchedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_watched_at']),
+    );
+  }
+
+  @override
+  $WatchProgressTable createAlias(String alias) {
+    return $WatchProgressTable(attachedDatabase, alias);
+  }
+}
+
+class WatchProgressRow extends DataClass
+    implements Insertable<WatchProgressRow> {
+  final String profileId;
+  final String contentId;
+  final String contentType;
+  final int? watchedDurationSeconds;
+  final int? totalDurationSeconds;
+  final DateTime? lastWatchedAt;
+  const WatchProgressRow(
+      {required this.profileId,
+      required this.contentId,
+      required this.contentType,
+      this.watchedDurationSeconds,
+      this.totalDurationSeconds,
+      this.lastWatchedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['profile_id'] = Variable<String>(profileId);
+    map['content_id'] = Variable<String>(contentId);
+    map['content_type'] = Variable<String>(contentType);
+    if (!nullToAbsent || watchedDurationSeconds != null) {
+      map['watched_duration_seconds'] = Variable<int>(watchedDurationSeconds);
+    }
+    if (!nullToAbsent || totalDurationSeconds != null) {
+      map['total_duration_seconds'] = Variable<int>(totalDurationSeconds);
+    }
+    if (!nullToAbsent || lastWatchedAt != null) {
+      map['last_watched_at'] = Variable<DateTime>(lastWatchedAt);
+    }
+    return map;
+  }
+
+  WatchProgressCompanion toCompanion(bool nullToAbsent) {
+    return WatchProgressCompanion(
+      profileId: Value(profileId),
+      contentId: Value(contentId),
+      contentType: Value(contentType),
+      watchedDurationSeconds: watchedDurationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(watchedDurationSeconds),
+      totalDurationSeconds: totalDurationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalDurationSeconds),
+      lastWatchedAt: lastWatchedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastWatchedAt),
+    );
+  }
+
+  factory WatchProgressRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchProgressRow(
+      profileId: serializer.fromJson<String>(json['profileId']),
+      contentId: serializer.fromJson<String>(json['contentId']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      watchedDurationSeconds:
+          serializer.fromJson<int?>(json['watchedDurationSeconds']),
+      totalDurationSeconds:
+          serializer.fromJson<int?>(json['totalDurationSeconds']),
+      lastWatchedAt: serializer.fromJson<DateTime?>(json['lastWatchedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'profileId': serializer.toJson<String>(profileId),
+      'contentId': serializer.toJson<String>(contentId),
+      'contentType': serializer.toJson<String>(contentType),
+      'watchedDurationSeconds': serializer.toJson<int?>(watchedDurationSeconds),
+      'totalDurationSeconds': serializer.toJson<int?>(totalDurationSeconds),
+      'lastWatchedAt': serializer.toJson<DateTime?>(lastWatchedAt),
+    };
+  }
+
+  WatchProgressRow copyWith(
+          {String? profileId,
+          String? contentId,
+          String? contentType,
+          Value<int?> watchedDurationSeconds = const Value.absent(),
+          Value<int?> totalDurationSeconds = const Value.absent(),
+          Value<DateTime?> lastWatchedAt = const Value.absent()}) =>
+      WatchProgressRow(
+        profileId: profileId ?? this.profileId,
+        contentId: contentId ?? this.contentId,
+        contentType: contentType ?? this.contentType,
+        watchedDurationSeconds: watchedDurationSeconds.present
+            ? watchedDurationSeconds.value
+            : this.watchedDurationSeconds,
+        totalDurationSeconds: totalDurationSeconds.present
+            ? totalDurationSeconds.value
+            : this.totalDurationSeconds,
+        lastWatchedAt:
+            lastWatchedAt.present ? lastWatchedAt.value : this.lastWatchedAt,
+      );
+  WatchProgressRow copyWithCompanion(WatchProgressCompanion data) {
+    return WatchProgressRow(
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      contentId: data.contentId.present ? data.contentId.value : this.contentId,
+      contentType:
+          data.contentType.present ? data.contentType.value : this.contentType,
+      watchedDurationSeconds: data.watchedDurationSeconds.present
+          ? data.watchedDurationSeconds.value
+          : this.watchedDurationSeconds,
+      totalDurationSeconds: data.totalDurationSeconds.present
+          ? data.totalDurationSeconds.value
+          : this.totalDurationSeconds,
+      lastWatchedAt: data.lastWatchedAt.present
+          ? data.lastWatchedAt.value
+          : this.lastWatchedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchProgressRow(')
+          ..write('profileId: $profileId, ')
+          ..write('contentId: $contentId, ')
+          ..write('contentType: $contentType, ')
+          ..write('watchedDurationSeconds: $watchedDurationSeconds, ')
+          ..write('totalDurationSeconds: $totalDurationSeconds, ')
+          ..write('lastWatchedAt: $lastWatchedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(profileId, contentId, contentType,
+      watchedDurationSeconds, totalDurationSeconds, lastWatchedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchProgressRow &&
+          other.profileId == this.profileId &&
+          other.contentId == this.contentId &&
+          other.contentType == this.contentType &&
+          other.watchedDurationSeconds == this.watchedDurationSeconds &&
+          other.totalDurationSeconds == this.totalDurationSeconds &&
+          other.lastWatchedAt == this.lastWatchedAt);
+}
+
+class WatchProgressCompanion extends UpdateCompanion<WatchProgressRow> {
+  final Value<String> profileId;
+  final Value<String> contentId;
+  final Value<String> contentType;
+  final Value<int?> watchedDurationSeconds;
+  final Value<int?> totalDurationSeconds;
+  final Value<DateTime?> lastWatchedAt;
+  final Value<int> rowid;
+  const WatchProgressCompanion({
+    this.profileId = const Value.absent(),
+    this.contentId = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.watchedDurationSeconds = const Value.absent(),
+    this.totalDurationSeconds = const Value.absent(),
+    this.lastWatchedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchProgressCompanion.insert({
+    required String profileId,
+    required String contentId,
+    required String contentType,
+    this.watchedDurationSeconds = const Value.absent(),
+    this.totalDurationSeconds = const Value.absent(),
+    this.lastWatchedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : profileId = Value(profileId),
+        contentId = Value(contentId),
+        contentType = Value(contentType);
+  static Insertable<WatchProgressRow> custom({
+    Expression<String>? profileId,
+    Expression<String>? contentId,
+    Expression<String>? contentType,
+    Expression<int>? watchedDurationSeconds,
+    Expression<int>? totalDurationSeconds,
+    Expression<DateTime>? lastWatchedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (profileId != null) 'profile_id': profileId,
+      if (contentId != null) 'content_id': contentId,
+      if (contentType != null) 'content_type': contentType,
+      if (watchedDurationSeconds != null)
+        'watched_duration_seconds': watchedDurationSeconds,
+      if (totalDurationSeconds != null)
+        'total_duration_seconds': totalDurationSeconds,
+      if (lastWatchedAt != null) 'last_watched_at': lastWatchedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchProgressCompanion copyWith(
+      {Value<String>? profileId,
+      Value<String>? contentId,
+      Value<String>? contentType,
+      Value<int?>? watchedDurationSeconds,
+      Value<int?>? totalDurationSeconds,
+      Value<DateTime?>? lastWatchedAt,
+      Value<int>? rowid}) {
+    return WatchProgressCompanion(
+      profileId: profileId ?? this.profileId,
+      contentId: contentId ?? this.contentId,
+      contentType: contentType ?? this.contentType,
+      watchedDurationSeconds:
+          watchedDurationSeconds ?? this.watchedDurationSeconds,
+      totalDurationSeconds: totalDurationSeconds ?? this.totalDurationSeconds,
+      lastWatchedAt: lastWatchedAt ?? this.lastWatchedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (contentId.present) {
+      map['content_id'] = Variable<String>(contentId.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (watchedDurationSeconds.present) {
+      map['watched_duration_seconds'] =
+          Variable<int>(watchedDurationSeconds.value);
+    }
+    if (totalDurationSeconds.present) {
+      map['total_duration_seconds'] = Variable<int>(totalDurationSeconds.value);
+    }
+    if (lastWatchedAt.present) {
+      map['last_watched_at'] = Variable<DateTime>(lastWatchedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchProgressCompanion(')
+          ..write('profileId: $profileId, ')
+          ..write('contentId: $contentId, ')
+          ..write('contentType: $contentType, ')
+          ..write('watchedDurationSeconds: $watchedDurationSeconds, ')
+          ..write('totalDurationSeconds: $totalDurationSeconds, ')
+          ..write('lastWatchedAt: $lastWatchedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3974,6 +4359,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SeriesEntriesTable seriesEntries = $SeriesEntriesTable(this);
   late final $EpisodesTable episodes = $EpisodesTable(this);
   late final $ProfilesTable profiles = $ProfilesTable(this);
+  late final $WatchProgressTable watchProgress = $WatchProgressTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3985,7 +4371,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         movies,
         seriesEntries,
         episodes,
-        profiles
+        profiles,
+        watchProgress
       ];
 }
 
@@ -5647,6 +6034,150 @@ class $$ProfilesTableOrderingComposer
           ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
+typedef $$WatchProgressTableCreateCompanionBuilder = WatchProgressCompanion
+    Function({
+  required String profileId,
+  required String contentId,
+  required String contentType,
+  Value<int?> watchedDurationSeconds,
+  Value<int?> totalDurationSeconds,
+  Value<DateTime?> lastWatchedAt,
+  Value<int> rowid,
+});
+typedef $$WatchProgressTableUpdateCompanionBuilder = WatchProgressCompanion
+    Function({
+  Value<String> profileId,
+  Value<String> contentId,
+  Value<String> contentType,
+  Value<int?> watchedDurationSeconds,
+  Value<int?> totalDurationSeconds,
+  Value<DateTime?> lastWatchedAt,
+  Value<int> rowid,
+});
+
+class $$WatchProgressTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WatchProgressTable,
+    WatchProgressRow,
+    $$WatchProgressTableFilterComposer,
+    $$WatchProgressTableOrderingComposer,
+    $$WatchProgressTableCreateCompanionBuilder,
+    $$WatchProgressTableUpdateCompanionBuilder> {
+  $$WatchProgressTableTableManager(_$AppDatabase db, $WatchProgressTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$WatchProgressTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$WatchProgressTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> profileId = const Value.absent(),
+            Value<String> contentId = const Value.absent(),
+            Value<String> contentType = const Value.absent(),
+            Value<int?> watchedDurationSeconds = const Value.absent(),
+            Value<int?> totalDurationSeconds = const Value.absent(),
+            Value<DateTime?> lastWatchedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WatchProgressCompanion(
+            profileId: profileId,
+            contentId: contentId,
+            contentType: contentType,
+            watchedDurationSeconds: watchedDurationSeconds,
+            totalDurationSeconds: totalDurationSeconds,
+            lastWatchedAt: lastWatchedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String profileId,
+            required String contentId,
+            required String contentType,
+            Value<int?> watchedDurationSeconds = const Value.absent(),
+            Value<int?> totalDurationSeconds = const Value.absent(),
+            Value<DateTime?> lastWatchedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WatchProgressCompanion.insert(
+            profileId: profileId,
+            contentId: contentId,
+            contentType: contentType,
+            watchedDurationSeconds: watchedDurationSeconds,
+            totalDurationSeconds: totalDurationSeconds,
+            lastWatchedAt: lastWatchedAt,
+            rowid: rowid,
+          ),
+        ));
+}
+
+class $$WatchProgressTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $WatchProgressTable> {
+  $$WatchProgressTableFilterComposer(super.$state);
+  ColumnFilters<String> get profileId => $state.composableBuilder(
+      column: $state.table.profileId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get contentId => $state.composableBuilder(
+      column: $state.table.contentId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get contentType => $state.composableBuilder(
+      column: $state.table.contentType,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get watchedDurationSeconds => $state.composableBuilder(
+      column: $state.table.watchedDurationSeconds,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get totalDurationSeconds => $state.composableBuilder(
+      column: $state.table.totalDurationSeconds,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastWatchedAt => $state.composableBuilder(
+      column: $state.table.lastWatchedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$WatchProgressTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $WatchProgressTable> {
+  $$WatchProgressTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get profileId => $state.composableBuilder(
+      column: $state.table.profileId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get contentId => $state.composableBuilder(
+      column: $state.table.contentId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get contentType => $state.composableBuilder(
+      column: $state.table.contentType,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get watchedDurationSeconds => $state.composableBuilder(
+      column: $state.table.watchedDurationSeconds,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get totalDurationSeconds => $state.composableBuilder(
+      column: $state.table.totalDurationSeconds,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastWatchedAt => $state.composableBuilder(
+      column: $state.table.lastWatchedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -5664,4 +6195,6 @@ class $AppDatabaseManager {
       $$EpisodesTableTableManager(_db, _db.episodes);
   $$ProfilesTableTableManager get profiles =>
       $$ProfilesTableTableManager(_db, _db.profiles);
+  $$WatchProgressTableTableManager get watchProgress =>
+      $$WatchProgressTableTableManager(_db, _db.watchProgress);
 }

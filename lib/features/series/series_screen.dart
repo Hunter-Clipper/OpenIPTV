@@ -15,6 +15,9 @@ import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+bool _seriesGenreIsAdult(String? genre) =>
+    (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
+
 // ---------------------------------------------------------------------------
 // Providers
 // ---------------------------------------------------------------------------
@@ -29,7 +32,10 @@ final _allSeriesProvider = StreamProvider<List<Series>>((ref) {
 });
 
 final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
-  return ref.watch(appDatabaseProvider).watchEpisodesInProgress();
+  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final db = ref.watch(appDatabaseProvider);
+  if (profileId == null) return const Stream.empty();
+  return db.watchEpisodesInProgress(profileId);
 });
 
 // ---------------------------------------------------------------------------
@@ -124,11 +130,19 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _ErrorView(onRetry: _refresh),
         data: (all) {
-          final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
-          final favorites =
-              all.where((s) => favIdSet.contains(s.id)).toList();
-          final hidden = profile?.hiddenCategories.toSet() ?? {};
           final isKid = profile?.isKidsProfile ?? false;
+          final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
+          final favorites = all
+              .where((s) => favIdSet.contains(s.id))
+              .where((s) => !isKid || !_seriesGenreIsAdult(s.genre))
+              .toList();
+          final seriesById = {for (final s in all) s.id: s};
+          final visibleInProgress = inProgress.where((e) {
+            if (!isKid) return true;
+            final series = seriesById[e.seriesId];
+            return series == null || !_seriesGenreIsAdult(series.genre);
+          }).toList();
+          final hidden = profile?.hiddenCategories.toSet() ?? {};
           final genres = _buildGenres(all, hidden, sort)
               .where((g) => !isKid || !isAdultCategory(g))
               .toList();
@@ -151,10 +165,11 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                     ),
                   ),
                 ],
-                if (inProgress.isNotEmpty) ...[
+                if (visibleInProgress.isNotEmpty) ...[
                   _SectionHeader(title: 'Continue Watching'),
                   SliverToBoxAdapter(
-                    child: _EpisodeContinueWatchingRow(episodes: inProgress),
+                    child: _EpisodeContinueWatchingRow(
+                        episodes: visibleInProgress),
                   ),
                 ],
                 _SectionHeader(title: 'Browse by Genre'),
@@ -707,9 +722,12 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
               title: const Text('Remove from Continue Watching'),
               onTap: () async {
                 Navigator.pop(context);
+                final profileId =
+                    ref.read(activeProfileProvider).valueOrNull?.id;
+                if (profileId == null) return;
                 await ref
                     .read(appDatabaseProvider)
-                    .clearEpisodeProgress(ep.id);
+                    .clearEpisodeProgress(profileId, ep.id);
               },
             ),
           ],

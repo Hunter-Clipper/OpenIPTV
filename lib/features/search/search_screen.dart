@@ -7,9 +7,21 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+
+bool _genreIsAdult(String? genre) =>
+    (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
+
+bool _genreIsLocked(
+        String? genre, AppPreferences prefs, Set<String> sessionUnlocked) =>
+    (genre ?? 'Other')
+        .split(',')
+        .map((g) => g.trim())
+        .any((g) => isCategoryLocked(g, prefs, sessionUnlocked));
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -32,12 +44,25 @@ final _searchResultsProvider =
   final series = await db.getAllSeries();
   final currentProgrammes = await epg.searchCurrentProgrammes(query);
 
-  return const SearchService().search(
+  final results = const SearchService().search(
     query: query,
     channels: channels,
     currentProgrammes: currentProgrammes,
     movies: movies,
     series: series,
+  );
+
+  // Kid profiles never see adult content in search results at all —
+  // mirrors the auto-hide behavior on the Live/Movies/Series browse screens.
+  final profile = await ref.watch(activeProfileProvider.future);
+  if (profile?.isKidsProfile != true) return results;
+
+  return SearchResults(
+    channels: results.channels
+        .where((c) => !isAdultCategory(c.groupTitle ?? 'Uncategorized'))
+        .toList(),
+    movies: results.movies.where((m) => !_genreIsAdult(m.genre)).toList(),
+    series: results.series.where((s) => !_genreIsAdult(s.genre)).toList(),
   );
 });
 
@@ -124,13 +149,41 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 // Results list
 // ---------------------------------------------------------------------------
 
-class _ResultsList extends StatelessWidget {
+class _ResultsList extends ConsumerWidget {
   const _ResultsList({required this.results});
 
   final SearchResults results;
 
+  Future<void> _gate(
+    BuildContext context,
+    WidgetRef ref,
+    String label,
+    VoidCallback proceed,
+  ) async {
+    final pin = await showParentalPinEntry(
+        context, 'Enter admin PIN to unlock "$label"');
+    if (pin == null) return;
+    if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Incorrect PIN')));
+      }
+      return;
+    }
+    proceed();
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
+
+    bool channelLocked(Channel c) => prefs != null &&
+        isCategoryLocked(
+            c.groupTitle ?? 'Uncategorized', prefs, sessionUnlocked);
+    bool genreLocked(String? genre) =>
+        prefs != null && _genreIsLocked(genre, prefs, sessionUnlocked);
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
@@ -141,12 +194,20 @@ class _ResultsList extends StatelessWidget {
             icon: Icons.live_tv,
             labelOf: (c) => c.name,
             subtitleOf: (_) => null,
-            onTap: (c) => context.push('/player', extra: {
-              'streamUrl': c.streamUrl,
-              'title': c.name,
-              'contentType': 'live',
-              'contentId': c.id,
-            }),
+            isLockedOf: channelLocked,
+            onTap: (c) {
+              void proceed() => context.push('/player', extra: {
+                    'streamUrl': c.streamUrl,
+                    'title': c.name,
+                    'contentType': 'live',
+                    'contentId': c.id,
+                  });
+              if (channelLocked(c)) {
+                _gate(context, ref, c.name, proceed);
+              } else {
+                proceed();
+              }
+            },
           ),
         if (results.movies.isNotEmpty)
           _ResultGroup<Movie>(
@@ -155,7 +216,15 @@ class _ResultsList extends StatelessWidget {
             icon: Icons.movie_outlined,
             labelOf: (m) => m.title,
             subtitleOf: (m) => m.year,
-            onTap: (m) => context.push('/movies/${m.id}'),
+            isLockedOf: (m) => genreLocked(m.genre),
+            onTap: (m) {
+              void proceed() => context.push('/movies/${m.id}');
+              if (genreLocked(m.genre)) {
+                _gate(context, ref, m.title, proceed);
+              } else {
+                proceed();
+              }
+            },
           ),
         if (results.series.isNotEmpty)
           _ResultGroup<Series>(
@@ -164,7 +233,15 @@ class _ResultsList extends StatelessWidget {
             icon: Icons.video_library_outlined,
             labelOf: (s) => s.title,
             subtitleOf: (s) => s.year,
-            onTap: (s) => context.push('/series/${s.id}'),
+            isLockedOf: (s) => genreLocked(s.genre),
+            onTap: (s) {
+              void proceed() => context.push('/series/${s.id}');
+              if (genreLocked(s.genre)) {
+                _gate(context, ref, s.title, proceed);
+              } else {
+                proceed();
+              }
+            },
           ),
       ],
     );
@@ -183,6 +260,7 @@ class _ResultGroup<T> extends StatelessWidget {
     required this.labelOf,
     required this.subtitleOf,
     required this.onTap,
+    this.isLockedOf,
   });
 
   final String title;
@@ -191,6 +269,7 @@ class _ResultGroup<T> extends StatelessWidget {
   final String Function(T) labelOf;
   final String? Function(T) subtitleOf;
   final void Function(T) onTap;
+  final bool Function(T)? isLockedOf;
 
   @override
   Widget build(BuildContext context) {
@@ -226,6 +305,10 @@ class _ResultGroup<T> extends StatelessWidget {
                     subtitleOf(item)!,
                     style: theme.textTheme.bodySmall,
                   )
+                : null,
+            trailing: (isLockedOf?.call(item) ?? false)
+                ? Icon(Icons.lock_outline,
+                    size: 16, color: theme.colorScheme.onSurfaceVariant)
                 : null,
             onTap: () => onTap(item),
           ),

@@ -126,30 +126,32 @@ class ProfileScreen extends ConsumerWidget {
               ),
 
               // ── Security ──────────────────────────────────────────
-              _SectionHeader(title: 'Security'),
-              ListTile(
-                leading: Icon(profile.hasPin
-                    ? Icons.lock_outlined
-                    : Icons.lock_open_outlined),
-                title: const Text('PIN Lock'),
-                subtitle: Text(
-                  profile.hasPin
-                      ? 'PIN is set — tap to change or remove'
-                      : 'No PIN — tap to set one',
-                  style: theme.textTheme.bodySmall,
+              if (!profile.isKidsProfile) ...[
+                _SectionHeader(title: 'Security'),
+                ListTile(
+                  leading: Icon(profile.hasPin
+                      ? Icons.lock_outlined
+                      : Icons.lock_open_outlined),
+                  title: const Text('PIN Lock'),
+                  subtitle: Text(
+                    profile.hasPin
+                        ? 'PIN is set — tap to change or remove'
+                        : 'No PIN — tap to set one',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  trailing: profile.hasPin
+                      ? Icon(Icons.check_circle,
+                          color: theme.colorScheme.primary, size: 20)
+                      : null,
+                  onTap: () => _showPinDialog(
+                    context,
+                    ref,
+                    profile,
+                    blockPinRemoval: profile.isAdmin &&
+                        (allAsync.valueOrNull?.length ?? 1) > 1,
+                  ),
                 ),
-                trailing: profile.hasPin
-                    ? Icon(Icons.check_circle,
-                        color: theme.colorScheme.primary, size: 20)
-                    : null,
-                onTap: () => _showPinDialog(
-                  context,
-                  ref,
-                  profile,
-                  blockPinRemoval: profile.isAdmin &&
-                      (allAsync.valueOrNull?.length ?? 1) > 1,
-                ),
-              ),
+              ],
 
               // ── All Profiles (admin only) ─────────────────────────
               if (profile.isAdmin) ...[

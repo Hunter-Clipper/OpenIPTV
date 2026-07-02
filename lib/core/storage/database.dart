@@ -144,6 +144,22 @@ class Profiles extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Per-profile watch progress, decoupled from the shared content catalog
+/// (Movies/Episodes/Channels) so each profile tracks its own resume position,
+/// completion state, and recently-watched history independently.
+@DataClassName('WatchProgressRow')
+class WatchProgress extends Table {
+  TextColumn get profileId => text()();
+  TextColumn get contentId => text()();
+  TextColumn get contentType => text()(); // 'movie' | 'episode' | 'channel'
+  IntColumn get watchedDurationSeconds => integer().nullable()();
+  IntColumn get totalDurationSeconds => integer().nullable()();
+  DateTimeColumn get lastWatchedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {profileId, contentId, contentType};
+}
+
 // ---------------------------------------------------------------------------
 // Database
 // ---------------------------------------------------------------------------
@@ -156,13 +172,14 @@ class Profiles extends Table {
   SeriesEntries,
   Episodes,
   Profiles,
+  WatchProgress,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -199,6 +216,21 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(profiles, profiles.isAdmin);
             }
           }
+          if (from < 6) {
+            final tables = await customSelect(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='watch_progress'")
+                .get();
+            if (tables.isEmpty) {
+              await m.createTable(watchProgress);
+              await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_watch_progress_profile '
+                'ON watch_progress (profile_id, content_type)',
+              );
+            }
+            // Pre-existing watch/resume data predates per-profile tracking and
+            // has no profile to attribute it to — it's dropped, not migrated.
+            // Content catalog rows (title, poster, etc.) are unaffected.
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -226,6 +258,89 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_episodes_series_id ON episodes (series_id)',
     );
+    // watch_progress.(profile_id, content_type): used by every profile-scoped
+    // progress lookup and the continue-watching/recently-watched queries.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_watch_progress_profile '
+      'ON watch_progress (profile_id, content_type)',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Watch progress helpers — merge per-profile progress onto catalog models.
+  // ---------------------------------------------------------------------------
+
+  // Filters by (profileId, contentType) only, not by id list — a catalog can
+  // have thousands of rows, which would blow past SQLite's bound-parameter
+  // limit if we did `contentId.isIn(ids)`. A single profile's watch history
+  // is always small, so fetching it unfiltered and matching in Dart is both
+  // safe and cheap.
+  Future<Map<String, WatchProgressRow>> _progressMap(
+      String? profileId, String contentType, Iterable<String> ids) async {
+    if (profileId == null) return {};
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return {};
+    final rows = await (select(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) & w.contentType.equals(contentType)))
+        .get();
+    return {
+      for (final r in rows)
+        if (idSet.contains(r.contentId)) r.contentId: r,
+    };
+  }
+
+  model.Movie _applyMovieProgress(model.Movie movie, WatchProgressRow? p) {
+    if (p == null) return movie;
+    return movie.copyWith(
+      watchedDuration: p.watchedDurationSeconds != null
+          ? Duration(seconds: p.watchedDurationSeconds!)
+          : null,
+      totalDuration: p.totalDurationSeconds != null
+          ? Duration(seconds: p.totalDurationSeconds!)
+          : null,
+    );
+  }
+
+  model.Episode _applyEpisodeProgress(model.Episode episode, WatchProgressRow? p) {
+    if (p == null) return episode;
+    return episode.copyWith(
+      watchedDuration: p.watchedDurationSeconds != null
+          ? Duration(seconds: p.watchedDurationSeconds!)
+          : null,
+      totalDuration: p.totalDurationSeconds != null
+          ? Duration(seconds: p.totalDurationSeconds!)
+          : null,
+    );
+  }
+
+  model.Channel _applyChannelProgress(model.Channel channel, WatchProgressRow? p) {
+    if (p == null) return channel;
+    return channel.copyWith(lastWatchedAt: p.lastWatchedAt);
+  }
+
+  Future<List<model.Movie>> _withMovieProgress(
+      List<model.Movie> items, String? profileId) async {
+    final progress =
+        await _progressMap(profileId, 'movie', items.map((m) => m.id));
+    if (progress.isEmpty) return items;
+    return items.map((m) => _applyMovieProgress(m, progress[m.id])).toList();
+  }
+
+  Future<List<model.Episode>> _withEpisodeProgress(
+      List<model.Episode> items, String? profileId) async {
+    final progress =
+        await _progressMap(profileId, 'episode', items.map((e) => e.id));
+    if (progress.isEmpty) return items;
+    return items.map((e) => _applyEpisodeProgress(e, progress[e.id])).toList();
+  }
+
+  Future<List<model.Channel>> _withChannelProgress(
+      List<model.Channel> items, String? profileId) async {
+    final progress =
+        await _progressMap(profileId, 'channel', items.map((c) => c.id));
+    if (progress.isEmpty) return items;
+    return items.map((c) => _applyChannelProgress(c, progress[c.id])).toList();
   }
 
   // ---------------------------------------------------------------------------
@@ -267,20 +382,23 @@ class AppDatabase extends _$AppDatabase {
   // Channel DAOs
   // ---------------------------------------------------------------------------
 
-  Future<List<model.Channel>> getChannelsForSource(String sourceId) async {
+  Future<List<model.Channel>> getChannelsForSource(String sourceId,
+      {String? profileId}) async {
     final rows = await (select(channels)
           ..where((t) => t.sourceId.equals(sourceId))
           ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
         .get();
-    return rows.map(_channelFromRow).toList();
+    return _withChannelProgress(rows.map(_channelFromRow).toList(), profileId);
   }
 
-  Stream<List<model.Channel>> watchChannelsForSource(String sourceId) {
+  Stream<List<model.Channel>> watchChannelsForSource(String sourceId,
+      {String? profileId}) {
     return (select(channels)
           ..where((t) => t.sourceId.equals(sourceId))
           ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
         .watch()
-        .map((rows) => rows.map(_channelFromRow).toList());
+        .asyncMap((rows) =>
+            _withChannelProgress(rows.map(_channelFromRow).toList(), profileId));
   }
 
   Future<void> upsertChannels(List<model.Channel> channelList) async {
@@ -301,9 +419,9 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<List<model.Channel>> getAllChannels() async {
+  Future<List<model.Channel>> getAllChannels({String? profileId}) async {
     final rows = await select(channels).get();
-    return rows.map(_channelFromRow).toList();
+    return _withChannelProgress(rows.map(_channelFromRow).toList(), profileId);
   }
 
   // ---------------------------------------------------------------------------
@@ -413,126 +531,165 @@ class AppDatabase extends _$AppDatabase {
   // Movie DAOs
   // ---------------------------------------------------------------------------
 
-  Future<List<model.Movie>> getMoviesForSource(String sourceId) async {
+  Future<List<model.Movie>> getMoviesForSource(String sourceId,
+      {String? profileId}) async {
     final rows = await (select(movies)
           ..where((t) => t.sourceId.equals(sourceId))
           ..orderBy([(t) => OrderingTerm.asc(t.title)]))
         .get();
-    return rows.map(_movieFromRow).toList();
+    return _withMovieProgress(rows.map(_movieFromRow).toList(), profileId);
   }
 
-  Future<List<model.Movie>> getAllMovies() async {
+  Future<List<model.Movie>> getAllMovies({String? profileId}) async {
     final rows = await select(movies).get();
-    return rows.map(_movieFromRow).toList();
+    return _withMovieProgress(rows.map(_movieFromRow).toList(), profileId);
   }
 
-  Stream<List<model.Movie>> watchAllMovies() {
-    return select(movies).watch().map((rows) => rows.map(_movieFromRow).toList());
+  Stream<List<model.Movie>> watchAllMovies({String? profileId}) {
+    return select(movies).watch().asyncMap(
+        (rows) => _withMovieProgress(rows.map(_movieFromRow).toList(), profileId));
   }
 
-  Stream<List<model.Movie>> watchMoviesForSource(String sourceId) {
+  Stream<List<model.Movie>> watchMoviesForSource(String sourceId,
+      {String? profileId}) {
     return (select(movies)
           ..where((t) => t.sourceId.equals(sourceId))
           ..orderBy([(t) => OrderingTerm.asc(t.title)]))
         .watch()
-        .map((rows) => rows.map(_movieFromRow).toList());
+        .asyncMap((rows) =>
+            _withMovieProgress(rows.map(_movieFromRow).toList(), profileId));
   }
 
-  Stream<model.Movie?> watchMovieById(String id) {
+  Stream<model.Movie?> watchMovieById(String id, {String? profileId}) {
     return (select(movies)..where((t) => t.id.equals(id)))
         .watchSingleOrNull()
-        .map((row) => row == null ? null : _movieFromRow(row));
+        .asyncMap((row) async {
+      if (row == null) return null;
+      final merged =
+          await _withMovieProgress([_movieFromRow(row)], profileId);
+      return merged.first;
+    });
   }
 
-  Future<List<model.Movie>> getMoviesInProgress() async {
-    final rows = await (select(movies)
-          ..where((t) =>
-              t.watchedDurationSeconds.isNotNull() &
-              t.watchedDurationSeconds.isBiggerThanValue(0) &
-              t.totalDurationSeconds.isNotNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)]))
-        .get();
-    return rows
-        .map(_movieFromRow)
-        .where((m) => m.isInProgress)
-        .toList();
-  }
-
-  Stream<List<model.Movie>> watchMoviesInProgress() {
-    return (select(movies)
-          ..where((t) =>
-              t.watchedDurationSeconds.isNotNull() &
-              t.watchedDurationSeconds.isBiggerThanValue(0) &
-              t.totalDurationSeconds.isNotNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)]))
+  /// Movies with in-progress playback for [profileId], most recently watched first.
+  Stream<List<model.Movie>> watchMoviesInProgress(String profileId) {
+    return (select(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals('movie') &
+              w.watchedDurationSeconds.isBiggerThanValue(0))
+          ..orderBy([(w) => OrderingTerm.desc(w.lastWatchedAt)]))
         .watch()
-        .map((rows) => rows
-            .map(_movieFromRow)
-            .where((m) => m.isInProgress)
-            .toList());
+        .asyncMap((progressRows) async {
+      final ids = progressRows.map((p) => p.contentId).toList();
+      if (ids.isEmpty) return <model.Movie>[];
+      final movieRows =
+          await (select(movies)..where((t) => t.id.isIn(ids))).get();
+      final byId = {for (final r in movieRows) r.id: r};
+      final progressById = {for (final p in progressRows) p.contentId: p};
+      return ids
+          .map((id) => byId[id])
+          .whereType<MovieRow>()
+          .map((row) =>
+              _applyMovieProgress(_movieFromRow(row), progressById[row.id]))
+          .where((m) => m.isInProgress)
+          .toList();
+    });
   }
 
-  Future<void> clearMovieProgress(String id) async {
-    await (update(movies)..where((t) => t.id.equals(id))).write(
-      const MoviesCompanion(
-        watchedDurationSeconds: Value(0),
-        totalDurationSeconds: Value(0),
-        lastWatchedAt: Value.absent(),
-      ),
-    );
+  Future<void> clearMovieProgress(String profileId, String id) async {
+    await (delete(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals('movie') &
+              w.contentId.equals(id)))
+        .go();
   }
 
   // ---------------------------------------------------------------------------
   // Channel recently-watched
   // ---------------------------------------------------------------------------
 
-  Future<void> updateChannelLastWatched(String id) async {
-    await (update(channels)..where((t) => t.id.equals(id))).write(
-      ChannelsCompanion(lastWatchedAt: Value(DateTime.now())),
+  Future<void> updateChannelLastWatched(String profileId, String id) async {
+    await into(watchProgress).insertOnConflictUpdate(
+      WatchProgressCompanion.insert(
+        profileId: profileId,
+        contentId: id,
+        contentType: 'channel',
+        lastWatchedAt: Value(DateTime.now()),
+      ),
     );
   }
 
-  Future<void> clearChannelLastWatched(String id) async {
-    await (update(channels)..where((t) => t.id.equals(id))).write(
-      const ChannelsCompanion(lastWatchedAt: Value(null)),
-    );
+  Future<void> clearChannelLastWatched(String profileId, String id) async {
+    await (delete(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals('channel') &
+              w.contentId.equals(id)))
+        .go();
   }
 
-  Stream<List<model.Channel>> watchRecentChannels({int limit = 20}) {
-    return (select(channels)
-          ..where((t) => t.lastWatchedAt.isNotNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)])
+  Stream<List<model.Channel>> watchRecentChannels(String profileId,
+      {int limit = 20}) {
+    return (select(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals('channel') &
+              w.lastWatchedAt.isNotNull())
+          ..orderBy([(w) => OrderingTerm.desc(w.lastWatchedAt)])
           ..limit(limit))
         .watch()
-        .map((rows) => rows.map(_channelFromRow).toList());
+        .asyncMap((progressRows) async {
+      final ids = progressRows.map((p) => p.contentId).toList();
+      if (ids.isEmpty) return <model.Channel>[];
+      final channelRows =
+          await (select(channels)..where((t) => t.id.isIn(ids))).get();
+      final byId = {for (final r in channelRows) r.id: r};
+      return ids
+          .map((id) => byId[id])
+          .whereType<ChannelRow>()
+          .map(_channelFromRow)
+          .toList();
+    });
   }
 
   // ---------------------------------------------------------------------------
   // Episode continue-watching stream
   // ---------------------------------------------------------------------------
 
-  Stream<List<model.Episode>> watchEpisodesInProgress() {
-    return (select(episodes)
-          ..where((t) =>
-              t.watchedDurationSeconds.isNotNull() &
-              t.watchedDurationSeconds.isBiggerThanValue(0) &
-              t.totalDurationSeconds.isNotNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)]))
+  Stream<List<model.Episode>> watchEpisodesInProgress(String profileId) {
+    return (select(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals('episode') &
+              w.watchedDurationSeconds.isBiggerThanValue(0))
+          ..orderBy([(w) => OrderingTerm.desc(w.lastWatchedAt)]))
         .watch()
-        .map((rows) => rows
-            .map(_episodeFromRow)
-            .where((e) => e.isInProgress)
-            .toList());
+        .asyncMap((progressRows) async {
+      final ids = progressRows.map((p) => p.contentId).toList();
+      if (ids.isEmpty) return <model.Episode>[];
+      final episodeRows =
+          await (select(episodes)..where((t) => t.id.isIn(ids))).get();
+      final byId = {for (final r in episodeRows) r.id: r};
+      final progressById = {for (final p in progressRows) p.contentId: p};
+      return ids
+          .map((id) => byId[id])
+          .whereType<EpisodeRow>()
+          .map((row) => _applyEpisodeProgress(
+              _episodeFromRow(row), progressById[row.id]))
+          .where((e) => e.isInProgress)
+          .toList();
+    });
   }
 
-  Future<void> clearEpisodeProgress(String id) async {
-    await (update(episodes)..where((t) => t.id.equals(id))).write(
-      const EpisodesCompanion(
-        watchedDurationSeconds: Value(0),
-        totalDurationSeconds: Value(0),
-        lastWatchedAt: Value.absent(),
-      ),
-    );
+  Future<void> clearEpisodeProgress(String profileId, String id) async {
+    await (delete(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals('episode') &
+              w.contentId.equals(id)))
+        .go();
   }
 
   Future<void> upsertMovies(List<model.Movie> movieList) async {
@@ -544,12 +701,16 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> updateMovieProgress(
+    String profileId,
     String id,
     Duration watched,
     Duration total,
   ) async {
-    await (update(movies)..where((t) => t.id.equals(id))).write(
-      MoviesCompanion(
+    await into(watchProgress).insertOnConflictUpdate(
+      WatchProgressCompanion.insert(
+        profileId: profileId,
+        contentId: id,
+        contentType: 'movie',
         watchedDurationSeconds: Value(watched.inSeconds),
         totalDurationSeconds: Value(total.inSeconds),
         lastWatchedAt: Value(DateTime.now()),
@@ -610,7 +771,8 @@ class AppDatabase extends _$AppDatabase {
   // Episode DAOs
   // ---------------------------------------------------------------------------
 
-  Future<List<model.Episode>> getEpisodesForSeries(String seriesId) async {
+  Future<List<model.Episode>> getEpisodesForSeries(String seriesId,
+      {String? profileId}) async {
     final rows = await (select(episodes)
           ..where((t) => t.seriesId.equals(seriesId))
           ..orderBy([
@@ -618,10 +780,11 @@ class AppDatabase extends _$AppDatabase {
             (t) => OrderingTerm.asc(t.episode),
           ]))
         .get();
-    return rows.map(_episodeFromRow).toList();
+    return _withEpisodeProgress(rows.map(_episodeFromRow).toList(), profileId);
   }
 
-  Stream<List<model.Episode>> watchEpisodesForSeries(String seriesId) {
+  Stream<List<model.Episode>> watchEpisodesForSeries(String seriesId,
+      {String? profileId}) {
     return (select(episodes)
           ..where((t) => t.seriesId.equals(seriesId))
           ..orderBy([
@@ -629,21 +792,8 @@ class AppDatabase extends _$AppDatabase {
             (t) => OrderingTerm.asc(t.episode),
           ]))
         .watch()
-        .map((rows) => rows.map(_episodeFromRow).toList());
-  }
-
-  Future<List<model.Episode>> getEpisodesInProgress() async {
-    final rows = await (select(episodes)
-          ..where((t) =>
-              t.watchedDurationSeconds.isNotNull() &
-              t.watchedDurationSeconds.isBiggerThanValue(0) &
-              t.totalDurationSeconds.isNotNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.lastWatchedAt)]))
-        .get();
-    return rows
-        .map(_episodeFromRow)
-        .where((e) => e.isInProgress)
-        .toList();
+        .asyncMap((rows) =>
+            _withEpisodeProgress(rows.map(_episodeFromRow).toList(), profileId));
   }
 
   Future<void> upsertEpisodes(List<model.Episode> episodeList) async {
@@ -655,12 +805,16 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> updateEpisodeProgress(
+    String profileId,
     String id,
     Duration watched,
     Duration total,
   ) async {
-    await (update(episodes)..where((t) => t.id.equals(id))).write(
-      EpisodesCompanion(
+    await into(watchProgress).insertOnConflictUpdate(
+      WatchProgressCompanion.insert(
+        profileId: profileId,
+        contentId: id,
+        contentType: 'episode',
         watchedDurationSeconds: Value(watched.inSeconds),
         totalDurationSeconds: Value(total.inSeconds),
         lastWatchedAt: Value(DateTime.now()),
