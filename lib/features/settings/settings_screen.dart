@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -130,6 +131,45 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => context.push('/settings/backup'),
                 ),
               ),
+
+              // --------------- AUTO-REFRESH (admin only) ---------------
+              Consumer(builder: (context, ref, _) {
+                final hours = ref.watch(refreshIntervalHoursProvider);
+                return InfoTooltip(
+                  id: 'settings_auto_refresh',
+                  title: 'Auto-Refresh',
+                  body:
+                      'Automatically refreshes your playlists and TV guide '
+                      'in the background so channels and schedules stay '
+                      'current without manual refreshing.',
+                  child: ListTile(
+                    leading: const Icon(Icons.autorenew),
+                    title: const Text('Auto-Refresh'),
+                    subtitle: Text(
+                      _refreshIntervalLabel(hours),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _showAutoRefreshDialog(context, ref, hours),
+                  ),
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final hours = ref.watch(refreshIntervalHoursProvider);
+                if (hours <= 0) return const SizedBox.shrink();
+                final notifyEnabled =
+                    ref.watch(refreshNotificationsEnabledProvider);
+                return _ToggleTile(
+                  icon: Icons.notifications_outlined,
+                  title: 'Refresh Notifications',
+                  value: notifyEnabled,
+                  onChanged: (v) async {
+                    final prefs =
+                        await ref.read(appPreferencesProvider.future);
+                    await setRefreshNotificationsEnabled(ref, v, prefs);
+                  },
+                );
+              }),
 
               // --------------- PARENTAL (admin only) ---------------
               _SectionHeader(title: 'Family'),
@@ -306,6 +346,111 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _refreshIntervalLabel(int hours) {
+    switch (hours) {
+      case 2:
+        return 'Every 2 hours';
+      case 6:
+        return 'Every 6 hours';
+      case 12:
+        return 'Every 12 hours';
+      case 24:
+        return 'Every 24 hours';
+      default:
+        return 'Off';
+    }
+  }
+
+  Future<void> _showAutoRefreshDialog(
+      BuildContext context, WidgetRef ref, int current) async {
+    final prefs = await ref.read(appPreferencesProvider.future);
+    if (!context.mounted) return;
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Auto-Refresh'),
+        children: [0, 2, 6, 12, 24].map((hours) {
+          return SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(hours),
+            child: Row(children: [
+              Icon(Icons.check,
+                  size: 18,
+                  color: current == hours
+                      ? Theme.of(ctx).colorScheme.primary
+                      : Colors.transparent),
+              const SizedBox(width: 8),
+              Text(_refreshIntervalLabel(hours)),
+            ]),
+          );
+        }).toList(),
+      ),
+    );
+    if (selected == null || selected == current) return;
+    if (!context.mounted) return;
+
+    final turningOn = current <= 0 && selected > 0;
+    await setRefreshIntervalHours(ref, selected, prefs);
+
+    if (turningOn && context.mounted) {
+      await _runAutoRefreshPermissionFlow(context);
+    }
+  }
+
+  /// One-time rationale + permission chain, shown only when auto-refresh is
+  /// turned on from Off. Declining either permission doesn't block enabling
+  /// the feature — WorkManager still runs, just less reliably without the
+  /// battery exemption, and silently without a visible notification if that
+  /// permission is denied.
+  Future<void> _runAutoRefreshPermissionFlow(BuildContext context) async {
+    final wantsNotifications = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Stay Informed'),
+        content: const Text(
+            'Allow notifications so OpenIPTV can let you know when a '
+            'background refresh finishes or runs into a problem?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    if (wantsNotifications == true) {
+      await requestNotificationPermission();
+    }
+    if (!context.mounted) return;
+
+    final wantsBatteryExemption = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reliable Background Refresh'),
+        content: const Text(
+            'Some phones aggressively limit background apps to save '
+            'battery, which can delay auto-refresh. Exempting OpenIPTV '
+            'from battery optimization makes refreshes more reliable.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (wantsBatteryExemption == true) {
+      await requestBatteryOptimizationExemption();
+    }
   }
 
   void _showAccentColorPicker(

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
@@ -60,6 +63,12 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     final db = ref.read(appDatabaseProvider);
     final prefs = await ref.read(appPreferencesProvider.future);
 
+    // Re-sync the background auto-refresh registration against the
+    // persisted interval — WorkManager can drop periodic registrations
+    // across OS updates or force-stops, so this must run on every launch,
+    // not just when the user changes the setting.
+    unawaited(syncAutoRefreshRegistration(prefs));
+
     // Initialise accent + sort state from persisted preferences.
     ref.read(accentColorProvider.notifier).state =
         AppTheme.accentFromHex(prefs.accentColor);
@@ -68,6 +77,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;
     ref.read(viewModeSeriesProvider.notifier).state = prefs.viewModeSeries;
     ref.read(activeSourceIdProvider.notifier).state = prefs.activeSourceId;
+    ref.read(refreshIntervalHoursProvider.notifier).state =
+        prefs.refreshIntervalHours;
+    ref.read(refreshNotificationsEnabledProvider.notifier).state =
+        prefs.refreshNotificationsEnabled;
 
     // Profile setup.
     final profiles = await db.getAllProfiles();

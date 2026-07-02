@@ -14,6 +14,9 @@ const _kViewModeSeries = 'view_mode_series';   // 'list' | 'grid'
 const _kParentalProtectionEnabled = 'parental_protection_enabled';
 const _kParentalLockedCats = 'parental_locked_cats';
 const _kParentalScanDone = 'parental_scan_done';
+const _kRefreshIntervalHours = 'refresh_interval_hours'; // 0 = off
+const _kLastRegisteredRefreshIntervalHours = 'last_registered_refresh_interval_hours';
+const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
 
 @Riverpod(keepAlive: true)
 Future<AppPreferences> appPreferences(AppPreferencesRef ref) async {
@@ -73,4 +76,23 @@ class AppPreferences {
   bool get parentalScanDone => _prefs.getBool(_kParentalScanDone) ?? false;
   Future<void> setParentalScanDone(bool v) =>
       _prefs.setBool(_kParentalScanDone, v);
+
+  // Background auto-refresh
+  int get refreshIntervalHours =>
+      _prefs.getInt(_kRefreshIntervalHours) ?? 0;
+  Future<void> setRefreshIntervalHours(int hours) =>
+      _prefs.setInt(_kRefreshIntervalHours, hours);
+
+  /// Bookkeeping only — the interval WorkManager was last registered with.
+  /// Used to decide whether the periodic task needs re-registering, since
+  /// WorkManager has no API to read back a task's currently-set interval.
+  int get lastRegisteredRefreshIntervalHours =>
+      _prefs.getInt(_kLastRegisteredRefreshIntervalHours) ?? 0;
+  Future<void> setLastRegisteredRefreshIntervalHours(int hours) =>
+      _prefs.setInt(_kLastRegisteredRefreshIntervalHours, hours);
+
+  bool get refreshNotificationsEnabled =>
+      _prefs.getBool(_kRefreshNotificationsEnabled) ?? true;
+  Future<void> setRefreshNotificationsEnabled(bool v) =>
+      _prefs.setBool(_kRefreshNotificationsEnabled, v);
 }

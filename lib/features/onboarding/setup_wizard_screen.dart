@@ -115,20 +115,6 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     _goToPage(5);
 
     try {
-      final prefs = await ref.read(appPreferencesProvider.future);
-      final db = ref.read(appDatabaseProvider);
-      final profileSvc = ProfileService(db: db, prefs: prefs);
-      await profileSvc.createProfile(
-        name: _nameCtrl.text.trim(),
-        avatarEmoji: _avatarEmoji,
-        pin: _wantsPin && _pin.length == 4 ? _pin : null,
-        isAdmin: true,
-      );
-
-      // Persist and apply the chosen accent colour immediately.
-      await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
-      ref.read(accentColorProvider.notifier).state = _accentColor;
-
       final manager = ref.read(sourceManagerProvider);
       final nickname = _nicknameCtrl.text.trim();
       final epgUrl = _epgUrlCtrl.text.trim().isEmpty
@@ -139,6 +125,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
         if (mounted) setState(() => _progressMessage = msg);
       }
 
+      // Add the playlist first — it's the step most likely to fail (bad
+      // credentials, bad URL, network issues). Only create the profile once
+      // it succeeds, so a failed attempt leaves nothing behind to retry into.
       if (_playlistType == SourceType.m3u) {
         await manager.addSource(
           nickname: nickname,
@@ -158,6 +147,22 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           onProgress: onProgress,
         );
       }
+
+      if (!mounted) return;
+
+      final prefs = await ref.read(appPreferencesProvider.future);
+      final db = ref.read(appDatabaseProvider);
+      final profileSvc = ProfileService(db: db, prefs: prefs);
+      await profileSvc.createProfile(
+        name: _nameCtrl.text.trim(),
+        avatarEmoji: _avatarEmoji,
+        pin: _wantsPin && _pin.length == 4 ? _pin : null,
+        isAdmin: true,
+      );
+
+      // Persist and apply the chosen accent colour immediately.
+      await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
+      ref.read(accentColorProvider.notifier).state = _accentColor;
 
       if (!mounted) return;
       ref.invalidate(allSourcesProvider);

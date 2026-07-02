@@ -17,6 +17,24 @@ const _uuid = Uuid();
 
 enum SourceDetectionResult { m3u, xtream, failed }
 
+/// Outcome of a single source's background refresh — reported per-phase so a
+/// failure notification can be accurate instead of implying total failure.
+class SourceRefreshResult {
+  const SourceRefreshResult({
+    required this.sourceId,
+    required this.nickname,
+    this.playlistError,
+    this.epgError,
+  });
+
+  final String sourceId;
+  final String nickname;
+  final Object? playlistError;
+  final Object? epgError;
+
+  bool get succeeded => playlistError == null && epgError == null;
+}
+
 @Riverpod(keepAlive: true)
 SourceManager sourceManager(SourceManagerRef ref) {
   return SourceManager(
@@ -129,6 +147,68 @@ class SourceManager {
     await db.updateSourceRefreshTime(source.id, DateTime.now());
     // Pass the updated source so the auto-set EPG URL is included.
     unawaited(epgService.refreshEpg(updated));
+  }
+
+  /// Refreshes playlist and EPG concurrently instead of sequentially, for use
+  /// by the background auto-refresh task only — manual refresh call sites
+  /// (pull-to-refresh, Settings buttons) are unaffected and keep using
+  /// [refreshSource]/[refreshPlaylist] above.
+  ///
+  /// The EPG fetch starts immediately using the source's already-persisted
+  /// `epgUrl` (set during the source's original `addSource()` call), running
+  /// alongside the playlist fetch rather than waiting for it. This only
+  /// applies once a source already has a known EPG URL — true for every
+  /// source the background task ever sees, since a brand-new source without
+  /// one yet is always added via the sequential `addSource()`/`refreshSource()`
+  /// path first. If the playlist refresh discovers a *different* EPG URL
+  /// (e.g. an M3U provider changed its embedded `url-tvg`), that's picked up
+  /// on the next cycle rather than this one — low-stakes, since the old URL
+  /// still gets a valid EPG fetch in the meantime.
+  Future<SourceRefreshResult> refreshSourceConcurrent(Source source) async {
+    final playlistFuture = source.type == SourceType.m3u
+        ? _refreshM3u(source)
+        : _refreshXtream(source);
+    final hasKnownEpgUrl = source.epgUrl != null && source.epgUrl!.isNotEmpty;
+    final epgFuture =
+        hasKnownEpgUrl ? epgService.refreshEpg(source) : null;
+
+    Object? playlistError;
+    Source? updated;
+    try {
+      updated = await playlistFuture;
+    } catch (e) {
+      playlistError = e;
+    }
+
+    Object? epgError;
+    if (epgFuture != null) {
+      try {
+        await epgFuture;
+      } catch (e) {
+        epgError = e;
+      }
+    } else if (updated != null &&
+        updated.epgUrl != null &&
+        updated.epgUrl!.isNotEmpty) {
+      // Playlist refresh just discovered an EPG URL for the first time
+      // (only possible for M3U sources) — fetch it now, sequentially.
+      try {
+        await epgService.refreshEpg(updated);
+      } catch (e) {
+        epgError = e;
+      }
+    }
+
+    if (updated != null) {
+      await db.updateSourceRefreshTime(source.id, DateTime.now());
+    }
+
+    return SourceRefreshResult(
+      sourceId: source.id,
+      nickname: source.nickname,
+      playlistError: playlistError,
+      epgError: epgError,
+    );
   }
 
   /// Refreshes only the playlist (channels/movies/series) — no EPG.

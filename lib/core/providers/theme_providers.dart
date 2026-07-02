@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 
@@ -19,6 +20,10 @@ final viewModeSeriesProvider = StateProvider<String>((ref) => 'grid');
 // Active source — null means show all sources' content combined.
 // Initialized from prefs in app.dart after DB is ready.
 final activeSourceIdProvider = StateProvider<String?>((ref) => null);
+
+// Background auto-refresh — 0 means off.
+final refreshIntervalHoursProvider = StateProvider<int>((ref) => 0);
+final refreshNotificationsEnabledProvider = StateProvider<bool>((ref) => true);
 
 // Helpers called from Settings to update prefs + provider in one shot.
 Future<void> setAccentColor(
@@ -55,4 +60,17 @@ Future<void> setActiveSource(
     WidgetRef ref, String? id, AppPreferences prefs) async {
   ref.read(activeSourceIdProvider.notifier).state = id;
   await prefs.setActiveSourceId(id);
+}
+
+Future<void> setRefreshIntervalHours(
+    WidgetRef ref, int hours, AppPreferences prefs) async {
+  ref.read(refreshIntervalHoursProvider.notifier).state = hours;
+  await prefs.setRefreshIntervalHours(hours);
+  await syncAutoRefreshRegistration(prefs);
+}
+
+Future<void> setRefreshNotificationsEnabled(
+    WidgetRef ref, bool enabled, AppPreferences prefs) async {
+  ref.read(refreshNotificationsEnabledProvider.notifier).state = enabled;
+  await prefs.setRefreshNotificationsEnabled(enabled);
 }
