@@ -21,9 +21,7 @@ class ProfilePickerScreen extends ConsumerWidget {
           children: [
             const SizedBox(height: 40),
             Image.asset(
-              theme.brightness == Brightness.dark
-                  ? 'assets/images/app_icon_dark.png'
-                  : 'assets/images/app_icon_light.png',
+              'assets/images/app_icon_dark.png',
               width: 72,
               height: 72,
             ),
