@@ -14,9 +14,11 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 - Add an IPTV source via M3U URL or Xtream Codes credentials — no account required
 - Live TV with EPG (what's on now / next), channel categories, and favorites
-- Movies and Series with VOD playback, continue-watching, and per-genre browsing
-- Multiple profiles per device — emoji avatars, PIN lock, Kids mode
-- Dark / Light / System theme with 6 accent color choices
+- Movies and Series with VOD playback, per-profile continue-watching, and per-genre browsing
+- Multiple profiles per device — emoji avatars, PIN lock, admin vs restricted roles
+- **Parental controls**: auto-detects adult/XXX categories and PIN-protects them across Live TV, Movies, Series, and Search. Kid profiles hide adult content entirely instead of just locking it
+- **Role-based permissions**: only admin profiles can manage sources, backup/restore, parental settings, and other profiles
+- Dark theme with 6 accent color choices
 - Content sort toggle — provider order or A-Z, applied to both category lists and content within
 - Backup and restore your full setup via a single `.iptvprofile` file
 - No ads, no telemetry, no accounts
@@ -32,6 +34,15 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
+
+### Roadmap — what's next
+
+- Backup & restore rewrite — simple ZIP export/import (profiles, playlists, settings), no custom file extension
+- Background auto-refresh of playlists and EPG on a configurable interval
+- Picture-in-Picture support during playback
+- Media notification / "now playing" entry in the Android notification shade
+- Custom libmpv build to properly extract embedded CEA-608/708 closed captions from MPEG-TS streams (the current bundled libmpv can't surface these tracks at all)
+- UI to promote an existing profile to admin (currently the only admin account is the one created during first-run setup)
 
 ---
 
@@ -83,8 +94,9 @@ flutter analyze
 lib/
 ├── core/
 │   ├── models/         # Channel, Movie, Series, Episode, Profile, Source
-│   ├── providers/      # theme_providers (ThemeMode, accent color, sort order)
-│   ├── services/       # SourceManager, ProfileService, EpgService
+│   ├── providers/      # theme_providers (accent color, sort order, view modes)
+│   ├── services/       # SourceManager, ProfileService, EpgService, PlaybackService,
+│   │                   # ParentalService, SearchService
 │   └── storage/        # database.dart (Drift/SQLite), preferences.dart (SharedPreferences)
 │
 ├── features/
@@ -92,21 +104,22 @@ lib/
 │   ├── movies/         # Movie genre grid, movie detail
 │   ├── series/         # Series genre grid, series detail, episode list
 │   ├── player/         # Full-screen player (media_kit)
-│   ├── search/         # Global search
-│   └── settings/       # Settings screen, profile overview, profile picker
+│   ├── search/         # Global search (parental-filtered)
+│   ├── onboarding/     # First-run setup wizard, add-source flow
+│   └── settings/       # Settings, profile overview, profile picker, parental controls, backup
 │
 ├── shared/
-│   ├── theme/          # AppTheme (dark/light/TV variants, accent swatches)
-│   └── widgets/        # AppLogo, shared widgets
+│   ├── theme/          # AppTheme (dark theme, accent swatches)
+│   └── widgets/        # AppLogo, InfoTooltip, parental PIN dialog
 │
-└── app.dart            # App entry, profile picker bootstrap, reactive theme
+└── app.dart            # App entry, routing, profile picker bootstrap
 ```
 
 ---
 
 ## Architecture
 
-**State management:** Riverpod 2 (`flutter_riverpod`). Providers are code-generated via `riverpod_annotation` + `riverpod_generator`. Theme mode, accent color, and sort order are `StateProvider`s initialized from persisted preferences at startup.
+**State management:** Riverpod 2 (`flutter_riverpod`). Providers are code-generated via `riverpod_annotation` + `riverpod_generator`. Accent color, sort order, and view mode are `StateProvider`s initialized from persisted preferences at startup. Theme is dark-only and not user-configurable.
 
 **Database:** Drift (SQLite via `sqlite3_flutter_libs`). Schema is versioned with `schemaVersion` and guarded migrations (`PRAGMA table_info` checks before `addColumn`). All reads/writes are async.
 
