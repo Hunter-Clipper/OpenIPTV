@@ -7,6 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:open_iptv/core/models/episode.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
@@ -210,7 +213,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _saveProgressIfNeeded();
-    if (!_navigatingToNext) _playbackService.stop();
+    if (!_navigatingToNext) {
+      _playbackService.stop();
+      nowPlayingHandler.stop();
+    }
     super.dispose();
   }
 
@@ -256,6 +262,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
       _playbackStarted = true;
     }
+    unawaited(_updateNowPlayingMetadata());
+  }
+
+  // Best-effort — a lookup failure must never block or crash playback, so
+  // errors here just fall back to the bare title with no artwork/subtitle.
+  Future<void> _updateNowPlayingMetadata() async {
+    String? artist;
+    Uri? artUri;
+    try {
+      final id = widget.contentId;
+      if (id != null) {
+        if (_isLive) {
+          final channel = await _playbackService.db.getChannelById(id);
+          if (channel?.logoUrl != null) artUri = Uri.tryParse(channel!.logoUrl!);
+          final programme =
+              await ref.read(epgServiceProvider).getCurrentProgramme(id);
+          artist = programme?.title;
+        } else if (widget.contentType == 'movie') {
+          final movie = await _playbackService.db.watchMovieById(id).first;
+          if (movie?.posterUrl != null) artUri = Uri.tryParse(movie!.posterUrl!);
+        } else if (widget.contentType == 'episode') {
+          final episode = await _playbackService.db.getEpisodeById(id);
+          if (episode?.stillUrl != null) artUri = Uri.tryParse(episode!.stillUrl!);
+        }
+      }
+    } catch (_) {
+      // Ignore — fall back to bare title below.
+    }
+    if (!mounted) return;
+    nowPlayingHandler.setNowPlaying(widget.title, artist: artist, artUri: artUri);
   }
 
   // Returns true=resume, false=start over, null=dismissed (tap outside → exit).
@@ -376,6 +412,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final inPip = ref.watch(pipActiveProvider);
+    if (inPip) {
+      // Bare video surface only — no controls/overlays fit the tiny PiP window.
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Video(controller: _videoController, controls: NoVideoControls),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(

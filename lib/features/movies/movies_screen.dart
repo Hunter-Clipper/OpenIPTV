@@ -148,6 +148,14 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   .where((g) =>
                       isCategoryLocked(g, parentalPrefs, sessionUnlocked))
                   .toSet();
+          final genreCounts = <String, int>{};
+          for (final m in all) {
+            for (final g
+                in (m.genre ?? 'Other').split(',').map((s) => s.trim())) {
+              if (g.isEmpty) continue;
+              genreCounts[g] = (genreCounts[g] ?? 0) + 1;
+            }
+          }
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
@@ -180,10 +188,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                     genres: genres.isEmpty ? ['All'] : genres,
                     movieCounts: {
                       if (genres.isEmpty) 'All': all.length,
-                      for (final g in genres)
-                        g: all
-                            .where((m) => (m.genre ?? '').contains(g))
-                            .length,
+                      for (final g in genres) g: genreCounts[g] ?? 0,
                     },
                     onTap: _tapGenre,
                     lockedGenres: lockedGenres,

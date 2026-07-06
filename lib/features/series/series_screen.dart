@@ -152,6 +152,14 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                   .where((g) =>
                       isCategoryLocked(g, parentalPrefs, sessionUnlocked))
                   .toSet();
+          final genreCounts = <String, int>{};
+          for (final s in all) {
+            for (final g
+                in (s.genre ?? 'Other').split(',').map((x) => x.trim())) {
+              if (g.isEmpty) continue;
+              genreCounts[g] = (genreCounts[g] ?? 0) + 1;
+            }
+          }
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
@@ -178,10 +186,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                     genres: genres.isEmpty ? ['All'] : genres,
                     seriesCounts: {
                       if (genres.isEmpty) 'All': all.length,
-                      for (final g in genres)
-                        g: all
-                            .where((s) => (s.genre ?? '').contains(g))
-                            .length,
+                      for (final g in genres) g: genreCounts[g] ?? 0,
                     },
                     onTap: _tapGenre,
                     lockedGenres: lockedGenres,

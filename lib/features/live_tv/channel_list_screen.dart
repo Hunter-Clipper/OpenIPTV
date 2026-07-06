@@ -19,14 +19,14 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // Providers
 // ---------------------------------------------------------------------------
 
-final _allChannelsProvider = FutureProvider<List<Channel>>((ref) {
+final _allChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
   final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
   if (activeSourceId != null) {
-    return db.getChannelsForSource(activeSourceId, profileId: profileId);
+    return db.watchChannelsForSource(activeSourceId, profileId: profileId);
   }
-  return db.getAllChannels(profileId: profileId);
+  return db.watchAllChannels(profileId: profileId);
 });
 
 final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
@@ -173,6 +173,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           final favCount = favIds.length;
           final recent =
               ref.watch(_recentChannelsProvider).valueOrNull ?? [];
+          final catCounts = <String, int>{};
+          for (final c in all) {
+            final cat = c.groupTitle ?? 'Uncategorized';
+            catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+          }
           return RefreshIndicator(
             onRefresh: _refreshChannels,
             child: ListView(
@@ -199,10 +204,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                         '/live/category/${Uri.encodeComponent('All')}'),
                   ),
                 ...cats.map((cat) {
-                  final count = all
-                      .where(
-                          (c) => (c.groupTitle ?? 'Uncategorized') == cat)
-                      .length;
+                  final count = catCounts[cat] ?? 0;
                   final locked = parentalPrefs != null &&
                       isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
                   return _CategoryTile(
@@ -910,10 +912,12 @@ class _RecentChannelsRow extends ConsumerWidget {
                     child: ch.logoUrl != null && ch.logoUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              ch.logoUrl!,
+                            child: CachedNetworkImage(
+                              imageUrl: ch.logoUrl!,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
+                              memCacheWidth: 120,
+                              memCacheHeight: 120,
+                              errorWidget: (_, __, ___) =>
                                   const Icon(Icons.tv),
                             ),
                           )

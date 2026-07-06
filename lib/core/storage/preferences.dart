@@ -17,6 +17,8 @@ const _kParentalScanDone = 'parental_scan_done';
 const _kRefreshIntervalHours = 'refresh_interval_hours'; // 0 = off
 const _kLastRegisteredRefreshIntervalHours = 'last_registered_refresh_interval_hours';
 const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
+const _kPipEnabled = 'pip_enabled';
+const _kMediaNotificationEnabled = 'media_notification_enabled';
 
 @Riverpod(keepAlive: true)
 Future<AppPreferences> appPreferences(AppPreferencesRef ref) async {
@@ -95,4 +97,14 @@ class AppPreferences {
       _prefs.getBool(_kRefreshNotificationsEnabled) ?? true;
   Future<void> setRefreshNotificationsEnabled(bool v) =>
       _prefs.setBool(_kRefreshNotificationsEnabled, v);
+
+  // Picture-in-Picture
+  bool get pipEnabled => _prefs.getBool(_kPipEnabled) ?? true;
+  Future<void> setPipEnabled(bool v) => _prefs.setBool(_kPipEnabled, v);
+
+  // Now Playing / media notification
+  bool get mediaNotificationEnabled =>
+      _prefs.getBool(_kMediaNotificationEnabled) ?? true;
+  Future<void> setMediaNotificationEnabled(bool v) =>
+      _prefs.setBool(_kMediaNotificationEnabled, v);
 }

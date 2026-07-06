@@ -202,6 +202,46 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             Consumer(builder: (context, ref, _) {
+              final pipEnabled = ref.watch(pipEnabledProvider);
+              return InfoTooltip(
+                id: 'settings_pip',
+                title: 'Picture-in-Picture',
+                body:
+                    'When enabled, pressing Home while a video is playing '
+                    'shrinks it into a small floating window so you can '
+                    'keep watching while using other apps.',
+                child: _ToggleTile(
+                  icon: Icons.picture_in_picture_alt_outlined,
+                  title: 'Picture-in-Picture',
+                  value: pipEnabled,
+                  onChanged: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setPipEnabled(ref, v, prefs);
+                  },
+                ),
+              );
+            }),
+            Consumer(builder: (context, ref, _) {
+              final notifyEnabled = ref.watch(mediaNotificationEnabledProvider);
+              return InfoTooltip(
+                id: 'settings_media_notification',
+                title: 'Media Notification',
+                body:
+                    'Shows a "Now Playing" notification with play/pause '
+                    'controls while content is playing, so you can control '
+                    'playback from the notification shade or lock screen.',
+                child: _ToggleTile(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Media Notification',
+                  value: notifyEnabled,
+                  onChanged: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setMediaNotificationEnabled(ref, v, prefs);
+                  },
+                ),
+              );
+            }),
+            Consumer(builder: (context, ref, _) {
               final sort = ref.watch(contentSortProvider);
               return InfoTooltip(
                 id: 'settings_sort_order',

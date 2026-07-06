@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/now_playing_service.dart';
+import 'package:open_iptv/core/services/pip_service.dart';
+import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
@@ -81,6 +84,22 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         prefs.refreshIntervalHours;
     ref.read(refreshNotificationsEnabledProvider.notifier).state =
         prefs.refreshNotificationsEnabled;
+    ref.read(pipEnabledProvider.notifier).state = prefs.pipEnabled;
+    ref.read(mediaNotificationEnabledProvider.notifier).state =
+        prefs.mediaNotificationEnabled;
+    nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
+
+    initPipChannel(
+      onPipModeChanged: (isInPip) =>
+          ref.read(pipActiveProvider.notifier).state = isInPip,
+    );
+    void pushPipAvailability() {
+      final playing = ref.read(playbackServiceProvider).player.state.playing;
+      updatePipAvailability(ref.read(pipEnabledProvider) && playing);
+    }
+    pushPipAvailability();
+    ref.read(playbackServiceProvider).player.stream.playing.listen(
+        (_) => pushPipAvailability());
 
     // Profile setup.
     final profiles = await db.getAllProfiles();

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/now_playing_service.dart';
+import 'package:open_iptv/core/services/pip_service.dart';
+import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 
@@ -24,6 +27,14 @@ final activeSourceIdProvider = StateProvider<String?>((ref) => null);
 // Background auto-refresh — 0 means off.
 final refreshIntervalHoursProvider = StateProvider<int>((ref) => 0);
 final refreshNotificationsEnabledProvider = StateProvider<bool>((ref) => true);
+
+// Picture-in-Picture — pipActiveProvider is runtime-only (not persisted),
+// updated live by MainActivity via the platform channel in pip_service.dart.
+final pipEnabledProvider = StateProvider<bool>((ref) => true);
+final pipActiveProvider = StateProvider<bool>((ref) => false);
+
+// Now Playing / media notification.
+final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 
 // Helpers called from Settings to update prefs + provider in one shot.
 Future<void> setAccentColor(
@@ -73,4 +84,19 @@ Future<void> setRefreshNotificationsEnabled(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(refreshNotificationsEnabledProvider.notifier).state = enabled;
   await prefs.setRefreshNotificationsEnabled(enabled);
+}
+
+Future<void> setPipEnabled(
+    WidgetRef ref, bool enabled, AppPreferences prefs) async {
+  ref.read(pipEnabledProvider.notifier).state = enabled;
+  await prefs.setPipEnabled(enabled);
+  final playing = ref.read(playbackServiceProvider).player.state.playing;
+  await updatePipAvailability(enabled && playing);
+}
+
+Future<void> setMediaNotificationEnabled(
+    WidgetRef ref, bool enabled, AppPreferences prefs) async {
+  ref.read(mediaNotificationEnabledProvider.notifier).state = enabled;
+  await prefs.setMediaNotificationEnabled(enabled);
+  nowPlayingHandler.setEnabled(enabled);
 }

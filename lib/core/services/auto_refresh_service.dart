@@ -30,7 +30,8 @@ Future<void> initAutoRefresh() async {
 }
 
 Future<void> _initNotifications() async {
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidSettings =
+      AndroidInitializationSettings('@drawable/ic_stat_open_iptv');
   const settings = InitializationSettings(android: androidSettings);
   await _notifications.initialize(settings);
 

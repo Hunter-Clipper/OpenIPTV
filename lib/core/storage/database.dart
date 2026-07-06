@@ -424,6 +424,17 @@ class AppDatabase extends _$AppDatabase {
     return _withChannelProgress(rows.map(_channelFromRow).toList(), profileId);
   }
 
+  Stream<List<model.Channel>> watchAllChannels({String? profileId}) {
+    return select(channels).watch().asyncMap(
+        (rows) => _withChannelProgress(rows.map(_channelFromRow).toList(), profileId));
+  }
+
+  Future<model.Channel?> getChannelById(String id) async {
+    final row =
+        await (select(channels)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _channelFromRow(row);
+  }
+
   // ---------------------------------------------------------------------------
   // Programme DAOs
   // ---------------------------------------------------------------------------
@@ -781,6 +792,12 @@ class AppDatabase extends _$AppDatabase {
           ]))
         .get();
     return _withEpisodeProgress(rows.map(_episodeFromRow).toList(), profileId);
+  }
+
+  Future<model.Episode?> getEpisodeById(String id) async {
+    final row =
+        await (select(episodes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _episodeFromRow(row);
   }
 
   Stream<List<model.Episode>> watchEpisodesForSeries(String seriesId,
