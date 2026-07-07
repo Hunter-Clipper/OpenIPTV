@@ -11,7 +11,7 @@ Future<void> initNowPlayingService(PlaybackService playbackService) async {
   nowPlayingHandler = await AudioService.init(
     builder: () => NowPlayingHandler(playbackService),
     config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.openiptv.open_iptv.now_playing',
+      androidNotificationChannelId: 'com.openiptv.app.now_playing',
       androidNotificationChannelName: 'Now Playing',
       androidNotificationIcon: 'drawable/ic_stat_open_iptv',
       androidNotificationOngoing: true,

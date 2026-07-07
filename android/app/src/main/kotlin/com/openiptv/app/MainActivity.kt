@@ -1,4 +1,4 @@
-package com.openiptv.open_iptv
+package com.openiptv.app
 
 import android.app.PictureInPictureParams
 import android.content.res.Configuration
