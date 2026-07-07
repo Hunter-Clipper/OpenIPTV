@@ -156,12 +156,6 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
     }
   }
 
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -289,10 +283,10 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.error.withOpacity(0.1),
+                            color: theme.colorScheme.error.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: theme.colorScheme.error.withOpacity(0.4)),
+                                color: theme.colorScheme.error.withValues(alpha: 0.4)),
                           ),
                           child: Row(
                             children: [

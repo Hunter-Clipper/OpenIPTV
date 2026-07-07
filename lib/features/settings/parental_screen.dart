@@ -56,7 +56,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
       appBar: AppBar(title: const Text('Parental Controls')),
       body: ListView(
         children: [
-          _SectionHeader(title: 'Protection'),
+          const _SectionHeader(title: 'Protection'),
           SwitchListTile(
             secondary: Icon(
               enabled ? Icons.lock_outline : Icons.lock_open_outlined,
@@ -76,7 +76,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
           // Locked category list
           if (enabled) ...[
-            _SectionHeader(title: 'Locked Categories'),
+            const _SectionHeader(title: 'Locked Categories'),
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

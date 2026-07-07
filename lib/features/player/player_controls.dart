@@ -783,10 +783,10 @@ class _DecodeBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isHw ? Colors.green.withOpacity(0.3) : Colors.white12,
+        color: isHw ? Colors.green.withValues(alpha: 0.3) : Colors.white12,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-            color: isHw ? Colors.greenAccent.withOpacity(0.6) : Colors.white24),
+            color: isHw ? Colors.greenAccent.withValues(alpha: 0.6) : Colors.white24),
       ),
       child: Text(
         label,

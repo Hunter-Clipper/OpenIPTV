@@ -13,7 +13,6 @@ class XmltvParser {
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
     final cutoffStart = DateTime.now().subtract(const Duration(hours: 1));
 
-    String? currentChannelId;
     DateTime? progStart;
     DateTime? progEnd;
     String? progChannel;
@@ -30,11 +29,6 @@ class XmltvParser {
         in chunks.toXmlEvents().normalizeEvents().flatten()) {
       if (event is XmlStartElementEvent) {
         switch (event.name) {
-          case 'channel':
-            currentChannelId = event.attributes
-                .firstWhere((a) => a.name == 'id',
-                    orElse: () => _emptyAttr)
-                .value;
           case 'programme':
             progChannel = event.attributes
                 .firstWhere((a) => a.name == 'channel',
@@ -148,7 +142,7 @@ class XmltvParser {
     }
   }
 
-  static final _emptyAttr = _FakeAttr('');
+  static const _emptyAttr = _FakeAttr('');
 }
 
 // Avoids allocating a real XmlEventAttribute for missing attributes.

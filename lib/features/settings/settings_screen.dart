@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,7 +34,7 @@ class SettingsScreen extends ConsumerWidget {
         body: ListView(
           children: [
             // --------------- PROFILES ---------------
-            _SectionHeader(title: 'Account'),
+            const _SectionHeader(title: 'Account'),
             InfoTooltip(
               id: 'settings_profile',
               title: 'Profile',
@@ -82,7 +84,7 @@ class SettingsScreen extends ConsumerWidget {
 
             // --------------- SOURCES (admin only) ---------------
             if (isAdmin) ...[
-              _SectionHeader(title: 'Sources'),
+              const _SectionHeader(title: 'Sources'),
               Consumer(builder: (context, ref, _) {
                 final sources = ref.watch(allSourcesProvider);
                 return InfoTooltip(
@@ -112,7 +114,7 @@ class SettingsScreen extends ConsumerWidget {
               }),
 
               // --------------- BACKUP (admin only) ---------------
-              _SectionHeader(title: 'Data'),
+              const _SectionHeader(title: 'Data'),
               InfoTooltip(
                 id: 'settings_backup',
                 title: 'Backup & Restore',
@@ -172,7 +174,7 @@ class SettingsScreen extends ConsumerWidget {
               }),
 
               // --------------- PARENTAL (admin only) ---------------
-              _SectionHeader(title: 'Family'),
+              const _SectionHeader(title: 'Family'),
               ListTile(
                 leading: const Icon(Icons.family_restroom_outlined),
                 title: const Text('Parental Controls'),
@@ -186,7 +188,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
 
             // --------------- PLAYBACK ---------------
-            _SectionHeader(title: 'Playback'),
+            const _SectionHeader(title: 'Playback'),
             InfoTooltip(
               id: 'settings_continue_watching',
               title: 'Continue Watching',
@@ -262,7 +264,7 @@ class SettingsScreen extends ConsumerWidget {
               );
             }),
             // --------------- APPEARANCE ---------------
-            _SectionHeader(title: 'Appearance'),
+            const _SectionHeader(title: 'Appearance'),
             Consumer(builder: (context, ref, _) {
               final accent = ref.watch(accentColorProvider);
               return InfoTooltip(
@@ -305,7 +307,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
 
             // --------------- ABOUT ---------------
-            _SectionHeader(title: 'About'),
+            const _SectionHeader(title: 'About'),
             InfoTooltip(
               id: 'settings_about',
               title: 'About OpenIPTV',
@@ -348,7 +350,7 @@ class SettingsScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String current) async {
     final prefs = await ref.read(appPreferencesProvider.future);
     if (!context.mounted) return;
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => SimpleDialog(
         title: const Text('Content Sort Order'),
@@ -385,7 +387,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 
   String _refreshIntervalLabel(int hours) {

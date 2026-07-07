@@ -39,7 +39,7 @@ class AppTheme {
   }
 
   static String hexFromAccent(Color c) =>
-      c.value.toRadixString(16).toUpperCase().substring(2);
+      c.toARGB32().toRadixString(16).toUpperCase().substring(2);
 
   // ---------------------------------------------------------------------------
   // Dark theme
@@ -59,8 +59,6 @@ class AppTheme {
         surfaceContainerHighest: _surfaceVariant,
         onSurfaceVariant: _onSurfaceVariant,
         error: _error,
-        background: _background,
-        onBackground: _onBackground,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: _background,
@@ -83,7 +81,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: _surfaceVariant,
-        selectedColor: primary.withOpacity(0.2),
+        selectedColor: primary.withValues(alpha: 0.2),
         labelStyle: const TextStyle(color: _onSurface, fontSize: 13),
         side: const BorderSide(color: Colors.transparent),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -154,7 +152,7 @@ class AppTheme {
     final base = dark(accent);
     return base.copyWith(
       scaffoldBackgroundColor: _tvBackground,
-      colorScheme: base.colorScheme.copyWith(background: _tvBackground),
+      colorScheme: base.colorScheme.copyWith(surface: _tvBackground),
       textTheme: base.textTheme.copyWith(
         headlineLarge: base.textTheme.headlineLarge!.copyWith(fontSize: 36),
         headlineMedium: base.textTheme.headlineMedium!.copyWith(fontSize: 28),

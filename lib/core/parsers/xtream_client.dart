@@ -176,7 +176,7 @@ class XtreamClient {
 
   String buildStreamUrl(String streamId, String type, {String ext = 'ts'}) {
     final base = host.endsWith('/') ? host : '$host/';
-    return '${base}$type/$username/$password/$streamId.$ext';
+    return '$base$type/$username/$password/$streamId.$ext';
   }
 
   // ---------------------------------------------------------------------------

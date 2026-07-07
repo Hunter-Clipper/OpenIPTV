@@ -38,7 +38,7 @@ class ProfileScreen extends ConsumerWidget {
               const Divider(height: 1),
 
               // ── Account ───────────────────────────────────────────
-              _SectionHeader(title: 'Account'),
+              const _SectionHeader(title: 'Account'),
               InfoTooltipScope(
                 controller: InfoTooltipController(),
                 child: InfoTooltip(
@@ -67,6 +67,7 @@ class ProfileScreen extends ConsumerWidget {
                             if (val) {
                               final prefs = await ref
                                   .read(appPreferencesProvider.future);
+                              if (!context.mounted) return;
                               if (!prefs.parentalProtectionEnabled) {
                                 final enable = await showDialog<bool>(
                                   context: context,
@@ -127,7 +128,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // ── Security ──────────────────────────────────────────
               if (!profile.isKidsProfile) ...[
-                _SectionHeader(title: 'Security'),
+                const _SectionHeader(title: 'Security'),
                 ListTile(
                   leading: Icon(profile.hasPin
                       ? Icons.lock_outlined
@@ -155,7 +156,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // ── All Profiles (admin only) ─────────────────────────
               if (profile.isAdmin) ...[
-                _SectionHeader(title: 'All Profiles'),
+                const _SectionHeader(title: 'All Profiles'),
                 allAsync.when(
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
@@ -319,7 +320,7 @@ class _ProfileHero extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.15),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text('Active',
@@ -332,7 +333,7 @@ class _ProfileHero extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.15),
+                    color: Colors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text('Kids',
@@ -579,6 +580,7 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
   Future<void> _onKidToggle(bool val) async {
     if (val) {
       final prefs = await widget.ref.read(appPreferencesProvider.future);
+      if (!mounted) return;
       if (!prefs.parentalProtectionEnabled) {
         final enable = await showDialog<bool>(
           context: context,
@@ -883,7 +885,7 @@ class _EmojiPicker extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: isSelected
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(

@@ -38,7 +38,7 @@ void main() {
 
   tearDown(() => client.dispose());
 
-  void _stubGet(Object responseBody) {
+  void stubGet(Object responseBody) {
     when(() => mockHttp.get(any(), headers: any(named: 'headers')))
         .thenAnswer((_) async => http.Response(
               jsonEncode(responseBody),
@@ -47,19 +47,38 @@ void main() {
             ));
   }
 
-  void _stubGetRaw(String body, {int status = 200}) {
+  void stubGetRaw(String body, {int status = 200}) {
     when(() => mockHttp.get(any(), headers: any(named: 'headers')))
         .thenAnswer((_) async => http.Response(body, status));
   }
 
+  // getLiveStreams/getVodStreams/getAllSeries each fire two concurrent
+  // requests (a categories call and the data call) to resolve category
+  // names — stubGet's single canned response can't tell those apart, so
+  // whichever assertion depends on the resolved name silently gets the
+  // wrong payload. This picks the response by the request's `action` query
+  // parameter instead.
+  void stubGetByAction(Map<String, Object> responsesByAction) {
+    when(() => mockHttp.get(any(), headers: any(named: 'headers')))
+        .thenAnswer((invocation) async {
+      final uri = invocation.positionalArguments.first as Uri;
+      final body = responsesByAction[uri.queryParameters['action']];
+      return http.Response(
+        jsonEncode(body),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+  }
+
   group('XtreamClient.validate', () {
     test('returns true on valid 200 response', () async {
-      _stubGet(fixture['live_categories']);
+      stubGet(fixture['live_categories']);
       expect(await client.validate(), isTrue);
     });
 
     test('returns false on 401', () async {
-      _stubGetRaw('Unauthorized', status: 401);
+      stubGetRaw('Unauthorized', status: 401);
       expect(await client.validate(), isFalse);
     });
 
@@ -72,7 +91,7 @@ void main() {
 
   group('XtreamClient.getLiveCategories', () {
     test('returns parsed categories', () async {
-      _stubGet(fixture['live_categories']);
+      stubGet(fixture['live_categories']);
       final cats = await client.getLiveCategories();
       expect(cats.length, 3);
       expect(cats.first.name, 'News');
@@ -82,7 +101,10 @@ void main() {
 
   group('XtreamClient.getLiveStreams', () {
     test('returns channels with correct fields', () async {
-      _stubGet(fixture['live_streams']);
+      stubGetByAction({
+        'get_live_categories': fixture['live_categories'],
+        'get_live_streams': fixture['live_streams'],
+      });
       final channels = await client.getLiveStreams();
       expect(channels.length, 3);
       final bbc = channels.first;
@@ -93,7 +115,10 @@ void main() {
     });
 
     test('assigns sequential sortOrder', () async {
-      _stubGet(fixture['live_streams']);
+      stubGetByAction({
+        'get_live_categories': fixture['live_categories'],
+        'get_live_streams': fixture['live_streams'],
+      });
       final channels = await client.getLiveStreams();
       for (var i = 0; i < channels.length; i++) {
         expect(channels[i].sortOrder, i);
@@ -103,7 +128,10 @@ void main() {
 
   group('XtreamClient.getVodStreams', () {
     test('returns movies with correct fields', () async {
-      _stubGet(fixture['vod_streams']);
+      stubGetByAction({
+        'get_vod_categories': fixture['vod_categories'],
+        'get_vod_streams': fixture['vod_streams'],
+      });
       final movies = await client.getVodStreams();
       expect(movies.length, 2);
       final interstellar = movies.first;
@@ -114,7 +142,10 @@ void main() {
     });
 
     test('uses container_extension in stream URL', () async {
-      _stubGet(fixture['vod_streams']);
+      stubGetByAction({
+        'get_vod_categories': fixture['vod_categories'],
+        'get_vod_streams': fixture['vod_streams'],
+      });
       final movies = await client.getVodStreams();
       // Second movie uses .mkv
       expect(movies[1].streamUrl, endsWith('.mkv'));
@@ -123,7 +154,10 @@ void main() {
 
   group('XtreamClient.getAllSeries', () {
     test('returns series with correct fields', () async {
-      _stubGet(fixture['all_series']);
+      stubGetByAction({
+        'get_series_categories': fixture['series_categories'],
+        'get_series': fixture['all_series'],
+      });
       final seriesList = await client.getAllSeries();
       expect(seriesList.length, 1);
       final bb = seriesList.first;
@@ -135,7 +169,7 @@ void main() {
 
   group('XtreamClient.getSeriesEpisodes', () {
     test('parses episodes with season and episode numbers', () async {
-      _stubGet(fixture['series_info']);
+      stubGet(fixture['series_info']);
       final episodes = await client.getSeriesEpisodes('301');
       expect(episodes.length, 3);
 
@@ -146,14 +180,14 @@ void main() {
     });
 
     test('assigns correct still URL when available', () async {
-      _stubGet(fixture['series_info']);
+      stubGet(fixture['series_info']);
       final episodes = await client.getSeriesEpisodes('301');
       final pilot = episodes.firstWhere((e) => e.title == 'Pilot');
       expect(pilot.stillUrl, contains('bb_s01e01.jpg'));
     });
 
     test('handles missing still URL gracefully', () async {
-      _stubGet(fixture['series_info']);
+      stubGet(fixture['series_info']);
       final episodes = await client.getSeriesEpisodes('301');
       final ep2 = episodes.firstWhere((e) => e.episode == 2);
       expect(ep2.stillUrl, anyOf(isNull, isEmpty));
@@ -187,12 +221,12 @@ void main() {
 
   group('XtreamClient error handling', () {
     test('throws XtreamException on 403', () async {
-      _stubGetRaw('Forbidden', status: 403);
+      stubGetRaw('Forbidden', status: 403);
       expect(() => client.getLiveStreams(), throwsA(isA<XtreamException>()));
     });
 
     test('throws XtreamException on invalid JSON', () async {
-      _stubGetRaw('NOT JSON', status: 200);
+      stubGetRaw('NOT JSON', status: 200);
       expect(() => client.getLiveStreams(), throwsA(isA<XtreamException>()));
     });
   });

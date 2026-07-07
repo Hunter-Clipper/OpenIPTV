@@ -86,7 +86,7 @@ class InfoTooltip extends StatelessWidget {
                           : Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.4),
+                              .withValues(alpha: 0.4),
                     ),
                   ),
                 ),
@@ -127,7 +127,7 @@ class _TooltipCard extends StatelessWidget {
         color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: scheme.primary.withOpacity(0.3),
+          color: scheme.primary.withValues(alpha: 0.3),
           width: 1,
         ),
       ),

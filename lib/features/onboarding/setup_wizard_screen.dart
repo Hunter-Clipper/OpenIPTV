@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -168,7 +169,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       ref.invalidate(allSourcesProvider);
 
       _goToPage(6);
-      _checkCtrl.forward();
+      unawaited(_checkCtrl.forward());
       await Future.delayed(const Duration(seconds: 3));
       if (mounted) context.go('/live');
     } catch (e) {

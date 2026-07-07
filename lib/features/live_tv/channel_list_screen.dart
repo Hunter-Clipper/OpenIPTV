@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -54,8 +56,6 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
-  static Future<void> _refreshChannelsStatic() async {}
-
   Future<void> _refreshChannels() async {
     try {
       final sources = await ref.read(allSourcesProvider.future);
@@ -66,32 +66,6 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
       ref.invalidate(_allChannelsProvider);
       await ref.read(_allChannelsProvider.future);
     }
-  }
-
-  List<Channel> _channelsForCategory(
-      List<Channel> all, Set<String> favIds, String category, String sort) {
-    List<Channel> result;
-    if (category == 'All') {
-      result = List.of(all);
-    } else if (category == 'Favorites') {
-      result = all.where((c) => favIds.contains(c.id)).toList();
-    } else {
-      result = all
-          .where((c) => (c.groupTitle ?? 'Uncategorized') == category)
-          .toList();
-    }
-    if (sort == 'az') {
-      result.sort((a, b) => a.name.compareTo(b.name));
-    } else {
-      result.sort((a, b) {
-        final aFav = favIds.contains(a.id);
-        final bFav = favIds.contains(b.id);
-        if (aFav && !bFav) return -1;
-        if (!aFav && bFav) return 1;
-        return a.sortOrder.compareTo(b.sortOrder);
-      });
-    }
-    return result;
   }
 
   List<String> _buildCategories(
@@ -116,6 +90,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           context, 'Enter admin PIN to unlock "$cat"');
       if (!mounted || pin == null) return;
       if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Incorrect PIN')));
         return;
@@ -125,7 +100,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         cat,
       };
     }
-    if (mounted) context.push('/live/category/${Uri.encodeComponent(cat)}');
+    if (mounted) {
+      unawaited(context.push('/live/category/${Uri.encodeComponent(cat)}'));
+    }
   }
 
   @override
@@ -184,7 +161,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 if (recent.isNotEmpty) ...[
-                  _SectionHeader(title: 'Recently Watched'),
+                  const _SectionHeader(title: 'Recently Watched'),
                   _RecentChannelsRow(channels: recent),
                 ],
                 if (favCount > 0)
@@ -216,7 +193,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                     onLongPress: profileId == null
                         ? null
                         : () async {
-                            HapticFeedback.mediumImpact();
+                            unawaited(HapticFeedback.mediumImpact());
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
                               builder: (_) =>
@@ -344,9 +321,9 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
         data: (all) {
           final channels = _channelsForCategory(all, favIds, sort);
           if (channels.isEmpty) {
-            return RefreshIndicator(
+            return const RefreshIndicator(
               onRefresh: _refreshStatic,
-              child: const _EmptyView(),
+              child: _EmptyView(),
             );
           }
           if (viewMode == 'grid') {

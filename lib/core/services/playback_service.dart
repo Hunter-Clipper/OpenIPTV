@@ -45,7 +45,10 @@ class PlaybackService {
 
   // GC anchor: keeps the active VideoController alive while mpv's native
   // opener thread may still fire Dart callbacks (Callback invoked after deleted).
-  // Set by PlayerScreen.initState, cleared by PlayerScreen.dispose.
+  // Set by PlayerScreen.initState, cleared by PlayerScreen.dispose. Never read
+  // — holding the reference is the entire point, so the analyzer's
+  // "unused field" warning here is a false positive.
+  // ignore: unused_field
   VideoController? _activeController;
   void attachVideoController(VideoController c) => _activeController = c;
   void detachVideoController() => _activeController = null;

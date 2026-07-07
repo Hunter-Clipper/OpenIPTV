@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -70,6 +72,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           context, 'Enter admin PIN to unlock "$g"');
       if (!mounted || pin == null) return;
       if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Incorrect PIN')));
         return;
@@ -79,7 +82,9 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         g,
       };
     }
-    if (mounted) context.push('/movies/genre/${Uri.encodeComponent(g)}');
+    if (mounted) {
+      unawaited(context.push('/movies/genre/${Uri.encodeComponent(g)}'));
+    }
   }
 
   List<String> _buildGenres(
@@ -161,7 +166,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
             child: CustomScrollView(
               slivers: [
                 if (inProgress.isNotEmpty) ...[
-                  _SectionHeader(title: 'Continue Watching'),
+                  const _SectionHeader(title: 'Continue Watching'),
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
                       movies: inProgress,
@@ -172,7 +177,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   ),
                 ],
                 if (favorites.isNotEmpty) ...[
-                  _SectionHeader(title: 'Favorites'),
+                  const _SectionHeader(title: 'Favorites'),
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
                       movies: favorites,
@@ -182,7 +187,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                     ),
                   ),
                 ],
-                _SectionHeader(title: 'Browse by Genre'),
+                const _SectionHeader(title: 'Browse by Genre'),
                 SliverToBoxAdapter(
                   child: _GenreTileList(
                     genres: genres.isEmpty ? ['All'] : genres,
@@ -196,7 +201,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                     onHideGenre: profile?.id == null
                         ? null
                         : (g) async {
-                            HapticFeedback.mediumImpact();
+                            unawaited(HapticFeedback.mediumImpact());
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
                               builder: (_) => SafeArea(

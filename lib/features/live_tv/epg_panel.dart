@@ -71,7 +71,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withOpacity(0.2),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -191,7 +191,7 @@ class _ProgrammeCard extends StatelessWidget {
     final progress = programme.progressAt(now);
 
     final cardColor = isLive
-        ? theme.colorScheme.primary.withOpacity(0.15)
+        ? theme.colorScheme.primary.withValues(alpha: 0.15)
         : theme.colorScheme.surfaceContainerHighest;
 
     final borderColor = isLive
@@ -268,7 +268,7 @@ class _ProgrammeCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor:
-                    theme.colorScheme.onSurface.withOpacity(0.12),
+                    theme.colorScheme.onSurface.withValues(alpha: 0.12),
                 minHeight: 3,
               ),
             ),

@@ -88,7 +88,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
             ),
             data: (episodes) {
               // If no episodes in DB yet, fetch them lazily from the API.
-              if (episodes.isEmpty && series != null) {
+              if (episodes.isEmpty) {
                 WidgetsBinding.instance.addPostFrameCallback((_) async {
                   if (!mounted) return;
                   await ref

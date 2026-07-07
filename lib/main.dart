@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +12,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
   await initAutoRefresh();
 
   // Built here (rather than implicitly by ProviderScope) so the same
