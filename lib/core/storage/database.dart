@@ -179,7 +179,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -231,6 +231,22 @@ class AppDatabase extends _$AppDatabase {
             // has no profile to attribute it to — it's dropped, not migrated.
             // Content catalog rows (title, poster, etc.) are unaffected.
           }
+          if (from < 7) {
+            // upsertProgrammes() never had a working conflict target, so every
+            // EPG refresh re-inserted every programme as a new row instead of
+            // overwriting it — dedupe what's already accumulated before the
+            // new unique index (which requires the data to already be clean).
+            await customStatement('''
+              DELETE FROM programmes
+              WHERE id NOT IN (
+                SELECT MIN(id) FROM programmes GROUP BY channel_id, start
+              )
+            ''');
+            await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_programmes_unique '
+              'ON programmes (channel_id, start)',
+            );
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -253,6 +269,13 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_programmes_channel_time '
       'ON programmes (channel_id, start, end)',
+    );
+    // programmes.(channel_id, start): unique — this is the conflict target
+    // upsertProgrammes() writes against, so a repeat EPG refresh overwrites
+    // an existing programme instead of inserting a duplicate row.
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_programmes_unique '
+      'ON programmes (channel_id, start)',
     );
     // episodes.series_id: used in getEpisodesForSeries
     await customStatement(
@@ -443,7 +466,22 @@ class AppDatabase extends _$AppDatabase {
     final companions = programmes.map(_programmeToCompanion).toList();
     for (var i = 0; i < companions.length; i += 500) {
       final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
-      await batch((b) => b.insertAllOnConflictUpdate(this.programmes, chunk));
+      await batch((b) {
+        // Conflict target must be the (channel_id, start) unique index, not
+        // the meaningless autoincrement id (which is never set here) — that
+        // default target is why every refresh re-inserted every programme as
+        // a brand-new row instead of overwriting the existing one.
+        for (final c in chunk) {
+          b.insert(
+            this.programmes,
+            c,
+            onConflict: DoUpdate(
+              (_) => c,
+              target: [this.programmes.channelId, this.programmes.start],
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -451,8 +489,13 @@ class AppDatabase extends _$AppDatabase {
   /// app's internal channel IDs (e.g. '{sourceId}_ch_30581') by joining on
   /// channels.tvg_id. Must be called after EPG import.
   Future<void> remapProgrammeChannelIds() async {
+    // OR REPLACE: if two different tvg_ids both resolve to the same internal
+    // channel and happen to share a programme start time, this update would
+    // otherwise violate idx_programmes_unique and abort the whole statement.
+    // REPLACE keeps the row being written and drops the pre-existing one it
+    // collided with — consistent with "last write wins" everywhere else here.
     await customStatement(
-      'UPDATE programmes '
+      'UPDATE OR REPLACE programmes '
       'SET channel_id = ('
       '  SELECT id FROM channels WHERE tvg_id = programmes.channel_id LIMIT 1'
       ') '
