@@ -1,13 +1,16 @@
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:open_iptv/core/models/profile.dart';
-import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/backup_manager.dart';
-import 'package:open_iptv/core/storage/database.dart';
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/backup_manager.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,89 +21,70 @@ class BackupScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tooltipController = InfoTooltipController();
-    final profileAsync = ref.watch(activeProfileProvider);
 
     return InfoTooltipScope(
       controller: tooltipController,
       child: Scaffold(
         appBar: AppBar(title: const Text('Backup & Restore')),
-        body: profileAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
-          error: (_, __) => const Center(
-              child: Text("Couldn't load profile information.")),
-          data: (profile) => ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
-              // --------------- EXPORT ---------------
-              InfoTooltip(
-                id: 'backup_export_section',
-                title: 'Export Profile',
-                body:
-                    'Exporting saves your profile settings, favourites, '
-                    'and source list into a single .iptvprofile file. '
-                    'If your profile has a PIN, the file will be encrypted '
-                    'with that PIN automatically.',
-                tip: "Save this file somewhere safe — you'll need it to "
-                    'restore your settings on a new device.',
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text(
-                    'Export',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+        body: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            // --------------- EXPORT ---------------
+            InfoTooltip(
+              id: 'backup_export_section',
+              title: 'Export Backup',
+              body: 'Exporting saves every profile, every source, and your '
+                  'app settings into a single .zip file. You can optionally '
+                  'protect it with a password.',
+              tip: "Save this file somewhere safe — you'll need it to "
+                  'restore everything on a new device.',
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  'Export',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.upload_file_outlined),
-                title: const Text('Export Profile'),
-                subtitle: profile != null
-                    ? Text(
-                        'Save "${profile.name}" as a .iptvprofile file',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      )
-                    : const Text('No active profile'),
-                enabled: profile != null,
-                trailing: const Icon(Icons.chevron_right),
-                onTap: profile == null
-                    ? null
-                    : () => _exportProfile(context, ref, profile),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.upload_file_outlined),
+              title: const Text('Export Backup'),
+              subtitle: const Text(
+                'Save all profiles, sources, and settings as a .zip file',
               ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _exportBackup(context, ref),
+            ),
 
-              // --------------- IMPORT ---------------
-              const SizedBox(height: 16),
-              InfoTooltip(
-                id: 'backup_import_section',
-                title: 'Restore Profile',
-                body:
-                    'Importing reads a .iptvprofile file and adds the profile '
-                    'and its sources to this device. '
-                    "If the backup was encrypted, you'll be asked for the PIN "
-                    'that was set on the original profile.',
-                tip: 'Importing does not delete anything — your existing '
-                    'profiles are kept.',
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text(
-                    'Restore',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+            // --------------- IMPORT ---------------
+            const SizedBox(height: 16),
+            InfoTooltip(
+              id: 'backup_import_section',
+              title: 'Restore Backup',
+              body: 'Importing reads a .zip backup file and adds its '
+                  'profiles and sources to this device. '
+                  "If the backup was password-protected, you'll be asked "
+                  'for the password used when it was exported.',
+              tip: 'Importing does not delete anything — your existing '
+                  'profiles are kept.',
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  'Restore',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.download_outlined),
-                title: const Text('Import Profile'),
-                subtitle: Text(
-                  'Open a .iptvprofile backup file',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _importProfile(context, ref),
-              ),
-            ],
-          ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.download_outlined),
+              title: const Text('Import Backup'),
+              subtitle: const Text('Open a .zip backup file'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _importBackup(context, ref),
+            ),
+          ],
         ),
       ),
     );
@@ -110,29 +94,33 @@ class BackupScreen extends ConsumerWidget {
   // Export
   // ---------------------------------------------------------------------------
 
-  Future<void> _exportProfile(
-    BuildContext context,
-    WidgetRef ref,
-    Profile profile,
-  ) async {
+  Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    final password = await _promptSetPassword(context);
+    if (password == null) return; // dialog dismissed — cancel entirely.
+    if (!context.mounted) return;
+
     try {
       _showLoadingSnack(context, 'Preparing backup…');
       final db = ref.read(appDatabaseProvider);
-      final manager = BackupManager(db: db);
-      final bytes = await manager.exportProfile(profile);
+      final prefs = await ref.read(appPreferencesProvider.future);
+      final manager = BackupManager(db: db, prefs: prefs);
+      final bytes =
+          await manager.exportAll(password: password.isEmpty ? null : password);
 
-      // Save to a temp file then share.
       final tempDir = await getTemporaryDirectory();
-      final fileName =
-          '${profile.name.replaceAll(RegExp(r'\s+'), '_')}.iptvprofile';
-      final file = File('${tempDir.path}/$fileName');
+      final now = DateTime.now();
+      final stamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}';
+      final file = File('${tempDir.path}/OpenIPTV_Backup_$stamp.zip');
       await file.writeAsBytes(bytes);
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'application/zip')],
-        subject: 'OpenIPTV profile backup',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/zip')],
+          subject: 'OpenIPTV backup',
+        ),
       );
     } catch (e) {
       if (!context.mounted) return;
@@ -146,7 +134,7 @@ class BackupScreen extends ConsumerWidget {
   // Import
   // ---------------------------------------------------------------------------
 
-  Future<void> _importProfile(BuildContext context, WidgetRef ref) async {
+  Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
@@ -167,61 +155,108 @@ class BackupScreen extends ConsumerWidget {
       return;
     }
 
-    final bytes = result.files.first.bytes!;
-    final fileName = result.files.first.name;
-
-    if (!fileName.endsWith('.iptvprofile')) {
-      if (!context.mounted) return;
-      _showError(context,
-          "Couldn't open this backup file. "
-          "Make sure it's a valid .iptvprofile file.");
-      return;
-    }
-
-    await _doImport(context, ref, bytes);
+    if (!context.mounted) return;
+    await _doImport(context, ref, result.files.first.bytes!);
   }
 
   Future<void> _doImport(
     BuildContext context,
     WidgetRef ref,
-    Uint8List bytes,
-  ) async {
+    Uint8List bytes, {
+    String? password,
+  }) async {
     final db = ref.read(appDatabaseProvider);
-    final manager = BackupManager(db: db);
+    final prefs = await ref.read(appPreferencesProvider.future);
+    final manager = BackupManager(db: db, prefs: prefs);
 
     try {
-      // First attempt without a PIN.
-      final profile = await manager.importProfile(bytes);
-      ref.invalidate(allProfilesProvider);
+      final summary = await manager.importAll(bytes, password: password);
+      await _afterImport(ref);
       if (!context.mounted) return;
-      _showSuccess(context, 'Profile "${profile.name}" restored.');
+      _showSuccess(
+        context,
+        'Restored ${summary.profileCount} '
+        'profile${summary.profileCount == 1 ? '' : 's'} and '
+        '${summary.sourceCount} '
+        'source${summary.sourceCount == 1 ? '' : 's'}.',
+      );
     } on BackupException catch (e) {
-      if (e.message == 'pin_required') {
-        // Prompt for PIN.
+      if (e.message == 'password_required') {
         if (!context.mounted) return;
-        final pin = await _promptPin(context);
-        if (pin == null || !context.mounted) return;
-        try {
-          final profile = await manager.importProfile(bytes, pin: pin);
-          ref.invalidate(allProfilesProvider);
-          if (!context.mounted) return;
-          _showSuccess(context, 'Profile "${profile.name}" restored.');
-        } on BackupException catch (e2) {
-          if (!context.mounted) return;
-          _showError(context, e2.message);
-        }
+        final pw = await _promptEnterPassword(context);
+        if (pw == null || !context.mounted) return;
+        await _doImport(context, ref, bytes, password: pw);
       } else {
+        if (!context.mounted) return;
         _showError(context, e.message);
       }
     } catch (_) {
       if (!context.mounted) return;
       _showError(context,
           "Couldn't open this backup file. "
-          "Make sure it's a valid .iptvprofile file.");
+          "Make sure it's a valid OpenIPTV backup.");
     }
   }
 
-  Future<String?> _promptPin(BuildContext context) {
+  /// Backup-affected state doesn't live behind reactive providers everywhere
+  /// — sources and app-level settings are one-shot reads seeded once, so an
+  /// import has to explicitly push the fresh data through or the UI keeps
+  /// showing what was there before the restore until the app is relaunched.
+  Future<void> _afterImport(WidgetRef ref) async {
+    ref.invalidate(allSourcesProvider);
+    ref.invalidate(appPreferencesProvider);
+    final prefs = await ref.read(appPreferencesProvider.future);
+    syncSettingsProviders(ref, prefs);
+    unawaited(syncAutoRefreshRegistration(prefs));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dialogs
+  // ---------------------------------------------------------------------------
+
+  /// Returns '' for "no password", the entered password, or null if the
+  /// user dismissed the dialog (export should be cancelled entirely).
+  Future<String?> _promptSetPassword(BuildContext context) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Protect This Backup?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Source credentials are stored in plain text inside the '
+              'backup file. Optionally set a password to encrypt it — '
+              "you'll need the same password to restore it.",
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              autofocus: true,
+              decoration:
+                  const InputDecoration(hintText: 'Password (optional)'),
+              onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(''),
+            child: const Text('Skip'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _promptEnterPassword(BuildContext context) {
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
@@ -232,19 +267,16 @@ class BackupScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'This backup was created with a PIN. '
-              'Enter the PIN that was set on the original profile.',
+              'This backup was protected with a password. '
+              'Enter the password that was set when it was exported.',
             ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
-              keyboardType: TextInputType.number,
               obscureText: true,
-              maxLength: 8,
               autofocus: true,
-              decoration: const InputDecoration(hintText: 'Enter PIN'),
-              onSubmitted: (_) =>
-                  Navigator.of(ctx).pop(controller.text.trim()),
+              decoration: const InputDecoration(hintText: 'Enter password'),
+              onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
             ),
           ],
         ),
@@ -254,14 +286,17 @@ class BackupScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(controller.text.trim()),
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
             child: const Text('Restore'),
           ),
         ],
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Feedback
+  // ---------------------------------------------------------------------------
 
   void _showLoadingSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(

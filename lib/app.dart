@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
-import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/pip_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -73,21 +72,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     unawaited(syncAutoRefreshRegistration(prefs));
 
     // Initialise accent + sort state from persisted preferences.
-    ref.read(accentColorProvider.notifier).state =
-        AppTheme.accentFromHex(prefs.accentColor);
-    ref.read(contentSortProvider.notifier).state = prefs.contentSort;
-    ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
-    ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;
-    ref.read(viewModeSeriesProvider.notifier).state = prefs.viewModeSeries;
+    syncSettingsProviders(ref, prefs);
     ref.read(activeSourceIdProvider.notifier).state = prefs.activeSourceId;
-    ref.read(refreshIntervalHoursProvider.notifier).state =
-        prefs.refreshIntervalHours;
-    ref.read(refreshNotificationsEnabledProvider.notifier).state =
-        prefs.refreshNotificationsEnabled;
-    ref.read(pipEnabledProvider.notifier).state = prefs.pipEnabled;
-    ref.read(mediaNotificationEnabledProvider.notifier).state =
-        prefs.mediaNotificationEnabled;
-    nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
 
     initPipChannel(
       onPipModeChanged: (isInPip) =>
@@ -313,11 +299,6 @@ class _ShellState extends State<_Shell> {
   // Remembers which tab was active before the user navigated to Search.
   int _previousTabIndex = 0;
 
-  static String _baseTab(String path) {
-    final seg = path.split('/')..removeWhere((s) => s.isEmpty);
-    return seg.isEmpty ? path : '/${seg[0]}';
-  }
-
   @override
   Widget build(BuildContext context) {
     // NavigatorPopHandler wraps the inner Navigator from ShellRoute.
@@ -327,7 +308,7 @@ class _ShellState extends State<_Shell> {
     // pop via the root navigator and never reach onPop.
     return Scaffold(
       body: NavigatorPopHandler(
-        onPop: () {
+        onPopWithResult: (Object? result) {
           if (!mounted) return;
           final path =
               GoRouter.of(context).routeInformationProvider.value.uri.path;

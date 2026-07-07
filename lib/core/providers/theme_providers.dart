@@ -100,3 +100,25 @@ Future<void> setMediaNotificationEnabled(
   await prefs.setMediaNotificationEnabled(enabled);
   nowPlayingHandler.setEnabled(enabled);
 }
+
+/// Pushes every persisted setting into its runtime StateProvider. These
+/// providers are plain state (not derived from [AppPreferences] reactively),
+/// so anything that writes prefs out-of-band — app startup, or restoring a
+/// backup — must call this afterward or the UI keeps showing stale values
+/// until the app restarts.
+void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
+  ref.read(accentColorProvider.notifier).state =
+      AppTheme.accentFromHex(prefs.accentColor);
+  ref.read(contentSortProvider.notifier).state = prefs.contentSort;
+  ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
+  ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;
+  ref.read(viewModeSeriesProvider.notifier).state = prefs.viewModeSeries;
+  ref.read(refreshIntervalHoursProvider.notifier).state =
+      prefs.refreshIntervalHours;
+  ref.read(refreshNotificationsEnabledProvider.notifier).state =
+      prefs.refreshNotificationsEnabled;
+  ref.read(pipEnabledProvider.notifier).state = prefs.pipEnabled;
+  ref.read(mediaNotificationEnabledProvider.notifier).state =
+      prefs.mediaNotificationEnabled;
+  nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
+}
