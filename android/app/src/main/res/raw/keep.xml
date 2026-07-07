@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Both drawables are only ever referenced dynamically — the notification icon
+  via a runtime platform-channel string (audio_service/flutter_local_notifications),
+  and the adaptive-icon monochrome layer via a resource-shrinker blind spot —
+  so Android's release-build resource shrinker can't statically prove they're
+  used and strips them, leaving `invalid_icon` crashes / broken themed icons.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_open_iptv,@drawable/ic_launcher_monochrome" />
