@@ -566,6 +566,30 @@ class $ChannelsTable extends Channels
   late final GeneratedColumn<DateTime> lastWatchedAt =
       GeneratedColumn<DateTime>('last_watched_at', aliasedName, true,
           type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _hasCatchupMeta =
+      const VerificationMeta('hasCatchup');
+  @override
+  late final GeneratedColumn<bool> hasCatchup = GeneratedColumn<bool>(
+      'has_catchup', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("has_catchup" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _catchupDaysMeta =
+      const VerificationMeta('catchupDays');
+  @override
+  late final GeneratedColumn<int> catchupDays = GeneratedColumn<int>(
+      'catchup_days', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _streamIdMeta =
+      const VerificationMeta('streamId');
+  @override
+  late final GeneratedColumn<String> streamId = GeneratedColumn<String>(
+      'stream_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -578,7 +602,10 @@ class $ChannelsTable extends Channels
         tvgName,
         isFavorite,
         sortOrder,
-        lastWatchedAt
+        lastWatchedAt,
+        hasCatchup,
+        catchupDays,
+        streamId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -647,6 +674,22 @@ class $ChannelsTable extends Channels
           lastWatchedAt.isAcceptableOrUnknown(
               data['last_watched_at']!, _lastWatchedAtMeta));
     }
+    if (data.containsKey('has_catchup')) {
+      context.handle(
+          _hasCatchupMeta,
+          hasCatchup.isAcceptableOrUnknown(
+              data['has_catchup']!, _hasCatchupMeta));
+    }
+    if (data.containsKey('catchup_days')) {
+      context.handle(
+          _catchupDaysMeta,
+          catchupDays.isAcceptableOrUnknown(
+              data['catchup_days']!, _catchupDaysMeta));
+    }
+    if (data.containsKey('stream_id')) {
+      context.handle(_streamIdMeta,
+          streamId.isAcceptableOrUnknown(data['stream_id']!, _streamIdMeta));
+    }
     return context;
   }
 
@@ -678,6 +721,12 @@ class $ChannelsTable extends Channels
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       lastWatchedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}last_watched_at']),
+      hasCatchup: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}has_catchup'])!,
+      catchupDays: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}catchup_days'])!,
+      streamId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}stream_id']),
     );
   }
 
@@ -699,6 +748,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
   final bool isFavorite;
   final int sortOrder;
   final DateTime? lastWatchedAt;
+  final bool hasCatchup;
+  final int catchupDays;
+  final String? streamId;
   const ChannelRow(
       {required this.id,
       required this.sourceId,
@@ -710,7 +762,10 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       this.tvgName,
       required this.isFavorite,
       required this.sortOrder,
-      this.lastWatchedAt});
+      this.lastWatchedAt,
+      required this.hasCatchup,
+      required this.catchupDays,
+      this.streamId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -734,6 +789,11 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
     map['sort_order'] = Variable<int>(sortOrder);
     if (!nullToAbsent || lastWatchedAt != null) {
       map['last_watched_at'] = Variable<DateTime>(lastWatchedAt);
+    }
+    map['has_catchup'] = Variable<bool>(hasCatchup);
+    map['catchup_days'] = Variable<int>(catchupDays);
+    if (!nullToAbsent || streamId != null) {
+      map['stream_id'] = Variable<String>(streamId);
     }
     return map;
   }
@@ -760,6 +820,11 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       lastWatchedAt: lastWatchedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastWatchedAt),
+      hasCatchup: Value(hasCatchup),
+      catchupDays: Value(catchupDays),
+      streamId: streamId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(streamId),
     );
   }
 
@@ -778,6 +843,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       lastWatchedAt: serializer.fromJson<DateTime?>(json['lastWatchedAt']),
+      hasCatchup: serializer.fromJson<bool>(json['hasCatchup']),
+      catchupDays: serializer.fromJson<int>(json['catchupDays']),
+      streamId: serializer.fromJson<String?>(json['streamId']),
     );
   }
   @override
@@ -795,6 +863,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       'isFavorite': serializer.toJson<bool>(isFavorite),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'lastWatchedAt': serializer.toJson<DateTime?>(lastWatchedAt),
+      'hasCatchup': serializer.toJson<bool>(hasCatchup),
+      'catchupDays': serializer.toJson<int>(catchupDays),
+      'streamId': serializer.toJson<String?>(streamId),
     };
   }
 
@@ -809,7 +880,10 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           Value<String?> tvgName = const Value.absent(),
           bool? isFavorite,
           int? sortOrder,
-          Value<DateTime?> lastWatchedAt = const Value.absent()}) =>
+          Value<DateTime?> lastWatchedAt = const Value.absent(),
+          bool? hasCatchup,
+          int? catchupDays,
+          Value<String?> streamId = const Value.absent()}) =>
       ChannelRow(
         id: id ?? this.id,
         sourceId: sourceId ?? this.sourceId,
@@ -823,6 +897,9 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
         sortOrder: sortOrder ?? this.sortOrder,
         lastWatchedAt:
             lastWatchedAt.present ? lastWatchedAt.value : this.lastWatchedAt,
+        hasCatchup: hasCatchup ?? this.hasCatchup,
+        catchupDays: catchupDays ?? this.catchupDays,
+        streamId: streamId.present ? streamId.value : this.streamId,
       );
   ChannelRow copyWithCompanion(ChannelsCompanion data) {
     return ChannelRow(
@@ -841,6 +918,11 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
       lastWatchedAt: data.lastWatchedAt.present
           ? data.lastWatchedAt.value
           : this.lastWatchedAt,
+      hasCatchup:
+          data.hasCatchup.present ? data.hasCatchup.value : this.hasCatchup,
+      catchupDays:
+          data.catchupDays.present ? data.catchupDays.value : this.catchupDays,
+      streamId: data.streamId.present ? data.streamId.value : this.streamId,
     );
   }
 
@@ -857,14 +939,30 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           ..write('tvgName: $tvgName, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('lastWatchedAt: $lastWatchedAt')
+          ..write('lastWatchedAt: $lastWatchedAt, ')
+          ..write('hasCatchup: $hasCatchup, ')
+          ..write('catchupDays: $catchupDays, ')
+          ..write('streamId: $streamId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, sourceId, name, logoUrl, streamUrl,
-      groupTitle, tvgId, tvgName, isFavorite, sortOrder, lastWatchedAt);
+  int get hashCode => Object.hash(
+      id,
+      sourceId,
+      name,
+      logoUrl,
+      streamUrl,
+      groupTitle,
+      tvgId,
+      tvgName,
+      isFavorite,
+      sortOrder,
+      lastWatchedAt,
+      hasCatchup,
+      catchupDays,
+      streamId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -879,7 +977,10 @@ class ChannelRow extends DataClass implements Insertable<ChannelRow> {
           other.tvgName == this.tvgName &&
           other.isFavorite == this.isFavorite &&
           other.sortOrder == this.sortOrder &&
-          other.lastWatchedAt == this.lastWatchedAt);
+          other.lastWatchedAt == this.lastWatchedAt &&
+          other.hasCatchup == this.hasCatchup &&
+          other.catchupDays == this.catchupDays &&
+          other.streamId == this.streamId);
 }
 
 class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
@@ -894,6 +995,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
   final Value<bool> isFavorite;
   final Value<int> sortOrder;
   final Value<DateTime?> lastWatchedAt;
+  final Value<bool> hasCatchup;
+  final Value<int> catchupDays;
+  final Value<String?> streamId;
   final Value<int> rowid;
   const ChannelsCompanion({
     this.id = const Value.absent(),
@@ -907,6 +1011,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     this.isFavorite = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.lastWatchedAt = const Value.absent(),
+    this.hasCatchup = const Value.absent(),
+    this.catchupDays = const Value.absent(),
+    this.streamId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChannelsCompanion.insert({
@@ -921,6 +1028,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     this.isFavorite = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.lastWatchedAt = const Value.absent(),
+    this.hasCatchup = const Value.absent(),
+    this.catchupDays = const Value.absent(),
+    this.streamId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         sourceId = Value(sourceId),
@@ -938,6 +1048,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     Expression<bool>? isFavorite,
     Expression<int>? sortOrder,
     Expression<DateTime>? lastWatchedAt,
+    Expression<bool>? hasCatchup,
+    Expression<int>? catchupDays,
+    Expression<String>? streamId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -952,6 +1065,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
       if (isFavorite != null) 'is_favorite': isFavorite,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (lastWatchedAt != null) 'last_watched_at': lastWatchedAt,
+      if (hasCatchup != null) 'has_catchup': hasCatchup,
+      if (catchupDays != null) 'catchup_days': catchupDays,
+      if (streamId != null) 'stream_id': streamId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -968,6 +1084,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
       Value<bool>? isFavorite,
       Value<int>? sortOrder,
       Value<DateTime?>? lastWatchedAt,
+      Value<bool>? hasCatchup,
+      Value<int>? catchupDays,
+      Value<String?>? streamId,
       Value<int>? rowid}) {
     return ChannelsCompanion(
       id: id ?? this.id,
@@ -981,6 +1100,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
       isFavorite: isFavorite ?? this.isFavorite,
       sortOrder: sortOrder ?? this.sortOrder,
       lastWatchedAt: lastWatchedAt ?? this.lastWatchedAt,
+      hasCatchup: hasCatchup ?? this.hasCatchup,
+      catchupDays: catchupDays ?? this.catchupDays,
+      streamId: streamId ?? this.streamId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1021,6 +1143,15 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
     if (lastWatchedAt.present) {
       map['last_watched_at'] = Variable<DateTime>(lastWatchedAt.value);
     }
+    if (hasCatchup.present) {
+      map['has_catchup'] = Variable<bool>(hasCatchup.value);
+    }
+    if (catchupDays.present) {
+      map['catchup_days'] = Variable<int>(catchupDays.value);
+    }
+    if (streamId.present) {
+      map['stream_id'] = Variable<String>(streamId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1041,6 +1172,9 @@ class ChannelsCompanion extends UpdateCompanion<ChannelRow> {
           ..write('isFavorite: $isFavorite, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('lastWatchedAt: $lastWatchedAt, ')
+          ..write('hasCatchup: $hasCatchup, ')
+          ..write('catchupDays: $catchupDays, ')
+          ..write('streamId: $streamId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4630,6 +4764,9 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   Value<bool> isFavorite,
   Value<int> sortOrder,
   Value<DateTime?> lastWatchedAt,
+  Value<bool> hasCatchup,
+  Value<int> catchupDays,
+  Value<String?> streamId,
   Value<int> rowid,
 });
 typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
@@ -4644,6 +4781,9 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<bool> isFavorite,
   Value<int> sortOrder,
   Value<DateTime?> lastWatchedAt,
+  Value<bool> hasCatchup,
+  Value<int> catchupDays,
+  Value<String?> streamId,
   Value<int> rowid,
 });
 
@@ -4675,6 +4815,9 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<bool> isFavorite = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<DateTime?> lastWatchedAt = const Value.absent(),
+            Value<bool> hasCatchup = const Value.absent(),
+            Value<int> catchupDays = const Value.absent(),
+            Value<String?> streamId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelsCompanion(
@@ -4689,6 +4832,9 @@ class $$ChannelsTableTableManager extends RootTableManager<
             isFavorite: isFavorite,
             sortOrder: sortOrder,
             lastWatchedAt: lastWatchedAt,
+            hasCatchup: hasCatchup,
+            catchupDays: catchupDays,
+            streamId: streamId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4703,6 +4849,9 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<bool> isFavorite = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<DateTime?> lastWatchedAt = const Value.absent(),
+            Value<bool> hasCatchup = const Value.absent(),
+            Value<int> catchupDays = const Value.absent(),
+            Value<String?> streamId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelsCompanion.insert(
@@ -4717,6 +4866,9 @@ class $$ChannelsTableTableManager extends RootTableManager<
             isFavorite: isFavorite,
             sortOrder: sortOrder,
             lastWatchedAt: lastWatchedAt,
+            hasCatchup: hasCatchup,
+            catchupDays: catchupDays,
+            streamId: streamId,
             rowid: rowid,
           ),
         ));
@@ -4772,6 +4924,21 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<DateTime> get lastWatchedAt => $state.composableBuilder(
       column: $state.table.lastWatchedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get hasCatchup => $state.composableBuilder(
+      column: $state.table.hasCatchup,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get catchupDays => $state.composableBuilder(
+      column: $state.table.catchupDays,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get streamId => $state.composableBuilder(
+      column: $state.table.streamId,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -4838,6 +5005,21 @@ class $$ChannelsTableOrderingComposer
 
   ColumnOrderings<DateTime> get lastWatchedAt => $state.composableBuilder(
       column: $state.table.lastWatchedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get hasCatchup => $state.composableBuilder(
+      column: $state.table.hasCatchup,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get catchupDays => $state.composableBuilder(
+      column: $state.table.catchupDays,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get streamId => $state.composableBuilder(
+      column: $state.table.streamId,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 

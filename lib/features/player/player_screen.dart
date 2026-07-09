@@ -6,7 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
+import 'package:open_iptv/core/models/source.dart';
+import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -82,10 +85,38 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isRecovering = false;
   Timer? _stallTimer;
 
+  // Live pause/rewind. _currentUrl tracks whatever URL is actually open right
+  // now (the plain live stream, or a dynamically-built catch-up window) —
+  // widget.streamUrl only ever reflects the original live URL, so recovery/
+  // reconnect logic must use _currentUrl instead once either tier kicks in.
+  late String _currentUrl;
+  Channel? _liveChannel;
+  Source? _liveSource;
+  // True once a catch-up-enabled channel has been switched into full DVR
+  // scrubbing (real seek bar via _VodControls) by pausing/rewinding.
+  bool _liveDvrActive = false;
+  static const _dvrWindowDefault = Duration(hours: 1);
+  // Non-catch-up channels: local mpv-cache-only pause/rewind, hard-capped —
+  // there is no server-side archive to fall back on beyond this.
+  static const _maxLocalBuffer = Duration(seconds: 30);
+  Duration _liveOffset = Duration.zero;
+  DateTime? _livePausedAt;
+  bool _isBehindLive = false;
+
   bool get _isLive =>
       widget.contentType == 'live' || widget.contentType == null;
 
-  String? get _profileId => ref.read(activeProfileProvider).valueOrNull?.id;
+  // ref can throw "Bad state: Cannot use ref after the widget was disposed"
+  // when read from dispose() — observed after popping straight back out of
+  // catch-up playback. Best-effort like _updateNowPlayingMetadata(): a failed
+  // profile lookup must never block the teardown that follows it.
+  String? get _profileId {
+    try {
+      return ref.read(activeProfileProvider).valueOrNull?.id;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -103,6 +134,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // thread can never fire Dart callbacks on a collected object.
     _videoController = VideoController(_playbackService.player);
     _playbackService.attachVideoController(_videoController);
+    _currentUrl = widget.streamUrl;
+    if (_isLive && widget.contentId != null) {
+      unawaited(_loadLiveChannelInfo());
+    }
 
     final player = _playbackService.player;
 
@@ -129,35 +164,39 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
     // Track the last real position so dispose() can save it reliably even if
     // a reconnection has temporarily reset player.state.position to zero.
-    if (!_isLive) {
-      _positionSub = player.stream.position.listen((p) {
-        // Ignore stale stream events until play() has started the new media.
-        // Without this guard the new PlayerScreen picks up the previous
-        // episode's end-position and immediately triggers completion.
-        if (!_playbackStarted) return;
-        if (p > Duration.zero) _lastKnownPosition = p;
-        if (!_completionHandled &&
-            _lastKnownDuration > Duration.zero &&
-            p > Duration.zero) {
-          final remaining = _lastKnownDuration - p;
-          if (remaining.inSeconds <= 3) {
-            _completionHandled = true;
-            _onPlaybackCompleted();
-          }
-        }
-      });
-      _durationSub = player.stream.duration.listen((d) {
-        if (!_playbackStarted) return;
-        if (d > Duration.zero) _lastKnownDuration = d;
-      });
-      _completedSub = player.stream.completed.listen((completed) {
-        if (!_playbackStarted) return;
-        if (completed && mounted && !_completionHandled) {
+    // Always subscribed (not just for VOD) so a live channel switched into
+    // DVR scrubbing (_liveDvrActive) picks up position/duration/completion
+    // tracking too — the plain-live case just no-ops via the guard below.
+    _positionSub = player.stream.position.listen((p) {
+      if (_isLive && !_liveDvrActive) return;
+      // Ignore stale stream events until play() has started the new media.
+      // Without this guard the new PlayerScreen picks up the previous
+      // episode's end-position and immediately triggers completion.
+      if (!_playbackStarted) return;
+      if (p > Duration.zero) _lastKnownPosition = p;
+      if (!_completionHandled &&
+          _lastKnownDuration > Duration.zero &&
+          p > Duration.zero) {
+        final remaining = _lastKnownDuration - p;
+        if (remaining.inSeconds <= 3) {
           _completionHandled = true;
           _onPlaybackCompleted();
         }
-      });
-    }
+      }
+    });
+    _durationSub = player.stream.duration.listen((d) {
+      if (_isLive && !_liveDvrActive) return;
+      if (!_playbackStarted) return;
+      if (d > Duration.zero) _lastKnownDuration = d;
+    });
+    _completedSub = player.stream.completed.listen((completed) {
+      if (_isLive && !_liveDvrActive) return;
+      if (!_playbackStarted) return;
+      if (completed && mounted && !_completionHandled) {
+        _completionHandled = true;
+        _onPlaybackCompleted();
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
@@ -189,10 +228,155 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _retryCount++;
     setState(() => _isRecovering = true);
     debugPrint('[OTV-recovery] stall detected — attempt $_retryCount/$_maxRetries');
-    final position = _isLive ? null : _lastKnownPosition;
-    await _playbackService.play(widget.streamUrl, startPosition: position);
+    final position = (_isLive && !_liveDvrActive) ? null : _lastKnownPosition;
+    await _playbackService.play(_currentUrl, startPosition: position);
+    if (_isLive && !_liveDvrActive && _liveOffset > Duration.zero) {
+      // Reconnecting a plain live stream always lands back at the live edge —
+      // any local-buffer rewind offset no longer applies.
+      _liveOffset = Duration.zero;
+      _livePausedAt = null;
+      if (mounted) setState(() => _isBehindLive = false);
+    }
     // Restart stall timer for the new attempt.
     _startStallTimer();
+  }
+
+  // Best-effort — only needed to know whether this channel supports catch-up
+  // and to have credentials on hand if the user pauses/rewinds. A failure
+  // just leaves the channel treated as non-catch-up (local buffer only).
+  Future<void> _loadLiveChannelInfo() async {
+    final id = widget.contentId;
+    if (id == null) return;
+    try {
+      final channel = await _playbackService.db.getChannelById(id);
+      if (!mounted || channel == null) return;
+      Source? source;
+      if (channel.hasCatchup) {
+        source = await _playbackService.db.getSourceById(channel.sourceId);
+      }
+      if (!mounted) return;
+      setState(() {
+        _liveChannel = channel;
+        _liveSource = source;
+      });
+    } catch (_) {
+      // Ignore — falls back to non-catch-up behavior.
+    }
+  }
+
+  bool get _liveHasCatchup => _liveChannel?.hasCatchup ?? false;
+
+  Future<void> _onLivePlayPause() async {
+    if (_liveDvrActive) return; // _VodControls owns play/pause once active.
+    if (_liveHasCatchup) {
+      await _enterLiveDvr(startPaused: true);
+      return;
+    }
+    final playing = _playbackService.player.state.playing;
+    if (playing) {
+      _livePausedAt = DateTime.now();
+      await _playbackService.pause();
+    } else {
+      if (_livePausedAt != null) {
+        _liveOffset += DateTime.now().difference(_livePausedAt!);
+        _livePausedAt = null;
+      }
+      if (_liveOffset > _maxLocalBuffer) {
+        await _goLiveLocal();
+        return;
+      }
+      await _playbackService.resume();
+    }
+    if (mounted) setState(() => _isBehindLive = _liveOffset > Duration.zero);
+  }
+
+  Future<void> _onLiveRewind() async {
+    if (_liveDvrActive) return;
+    if (_liveHasCatchup) {
+      await _enterLiveDvr(initialRewind: const Duration(seconds: 10));
+      return;
+    }
+    if (_liveOffset >= _maxLocalBuffer) return;
+    const step = Duration(seconds: 10);
+    await _playbackService.seekRelative(-step);
+    _liveOffset =
+        (_liveOffset + step) > _maxLocalBuffer ? _maxLocalBuffer : _liveOffset + step;
+    if (mounted) setState(() => _isBehindLive = true);
+  }
+
+  Future<void> _onLiveForward() async {
+    if (_liveDvrActive) return;
+    if (_liveOffset <= Duration.zero) return;
+    const step = Duration(seconds: 10);
+    if (_liveOffset <= step) {
+      await _goLiveLocal();
+      return;
+    }
+    await _playbackService.seekRelative(step);
+    _liveOffset -= step;
+    if (mounted) setState(() {});
+  }
+
+  // Non-catch-up "jump to live" — just reopens the plain live URL fresh,
+  // since there's no server-side archive to resume a stale position from.
+  Future<void> _goLiveLocal() async {
+    _liveOffset = Duration.zero;
+    _livePausedAt = null;
+    _currentUrl = widget.streamUrl;
+    await _playbackService.play(widget.streamUrl);
+    if (mounted) setState(() => _isBehindLive = false);
+  }
+
+  // Switches a catch-up-enabled live channel into full DVR scrubbing: opens
+  // a timeshift window ending at "now" and seeks to the tail of it (minus
+  // [initialRewind]), so _VodControls' existing seek bar/skip/pause controls
+  // take over from here — no separate scrubbing UI needed.
+  Future<void> _enterLiveDvr({
+    bool startPaused = false,
+    Duration initialRewind = Duration.zero,
+  }) async {
+    final channel = _liveChannel;
+    final source = _liveSource;
+    if (channel?.streamId == null ||
+        source?.xtreamHost == null ||
+        source?.xtreamUsername == null ||
+        source?.xtreamPassword == null) {
+      return;
+    }
+    final maxWindow = Duration(days: channel!.catchupDays);
+    final window =
+        _dvrWindowDefault < maxWindow ? _dvrWindowDefault : maxWindow;
+    if (window <= Duration.zero) return;
+    final windowStart = DateTime.now().subtract(window);
+    final client = XtreamClient(
+      host: source!.xtreamHost!,
+      username: source.xtreamUsername!,
+      password: source.xtreamPassword!,
+      sourceId: source.id,
+    );
+    final url = client.buildCatchupUrl(channel.streamId!, windowStart, window);
+    client.dispose();
+
+    _completionHandled = false;
+    _playbackStarted = false;
+    _currentUrl = url;
+    setState(() => _liveDvrActive = true);
+    await _playbackService.play(url);
+    _playbackStarted = true;
+    final tail = window - initialRewind;
+    await _playbackService.seek(tail.isNegative ? Duration.zero : tail);
+    if (startPaused) await _playbackService.pause();
+  }
+
+  // Exits DVR mode back to true live — used both by the manual "Go Live"
+  // button and by auto-snap when playback reaches the tail of the DVR window.
+  Future<void> _goLive() async {
+    _completionHandled = false;
+    _playbackStarted = false;
+    _currentUrl = widget.streamUrl;
+    setState(() => _liveDvrActive = false);
+    await _playbackService.play(widget.streamUrl);
+    _playbackStarted = true;
   }
 
   @override
@@ -205,15 +389,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _durationSub?.cancel();
     _completedSub?.cancel();
     _playbackService.detachVideoController();
-    // When transitioning to the next episode (pushReplacement), skip the
-    // orientation/UI reset so the new screen's landscape lock isn't undone
-    // by this dispose() running after the new initState() has already set it.
-    if (!_navigatingToNext) {
+    // When transitioning to the next episode (pushReplacement from within
+    // this same screen) or to a different content type entirely (e.g. an
+    // external pushReplacement from the EPG panel into catch-up), skip the
+    // orientation/UI reset and stop() so the new screen's landscape lock and
+    // just-started playback aren't undone by this dispose() running after
+    // the new screen's initState() already took over the shared Player.
+    final skipTeardown =
+        _navigatingToNext || _playbackService.consumeTransitioning();
+    if (!skipTeardown) {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
-    _saveProgressIfNeeded();
-    if (!_navigatingToNext) {
+    // A failed progress save must never block the stop() below — that
+    // regressed catch-up playback into running forever in the background
+    // (see _profileId's ref-after-dispose note above).
+    try {
+      _saveProgressIfNeeded();
+    } catch (e) {
+      debugPrint('[OTV-save] _saveProgressIfNeeded failed: $e');
+    }
+    if (!skipTeardown) {
       _playbackService.stop();
       nowPlayingHandler.stop();
     }
@@ -342,6 +538,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _onPlaybackCompleted() async {
     if (!mounted) return;
+    // Reached the tail of a catch-up DVR window — snap back to true live
+    // instead of falling through to the movie/episode/pop logic below.
+    if (_liveDvrActive) {
+      await _goLive();
+      return;
+    }
     final id = widget.contentId;
     final total = _lastKnownDuration;
 
@@ -483,10 +685,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ignoring: !_controlsVisible,
                 child: PlayerControls(
                   title: widget.title,
-                  contentType: widget.contentType,
+                  contentType: _liveDvrActive ? 'catchup' : widget.contentType,
                   contentId: widget.contentId,
-                  isLive: _isLive,
+                  isLive: _isLive && !_liveDvrActive,
+                  isLiveDvr: _liveDvrActive,
                   onTap: _onTap,
+                  onLivePlayPause: _onLivePlayPause,
+                  onLiveRewind: _onLiveRewind,
+                  onLiveForward: _onLiveForward,
+                  onGoLive: _liveDvrActive
+                      ? _goLive
+                      : (_isBehindLive ? _goLiveLocal : null),
+                  isBehindLive: _isBehindLive,
                 ),
               ),
             ),

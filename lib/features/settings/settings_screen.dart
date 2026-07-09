@@ -12,7 +12,9 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -34,7 +36,7 @@ class SettingsScreen extends ConsumerWidget {
         body: ListView(
           children: [
             // --------------- PROFILES ---------------
-            const _SectionHeader(title: 'Account'),
+            const SectionHeader('Account'),
             InfoTooltip(
               id: 'settings_profile',
               title: 'Profile',
@@ -84,26 +86,26 @@ class SettingsScreen extends ConsumerWidget {
 
             // --------------- SOURCES (admin only) ---------------
             if (isAdmin) ...[
-              const _SectionHeader(title: 'Sources'),
+              const SectionHeader('Playlists'),
               Consumer(builder: (context, ref, _) {
                 final sources = ref.watch(allSourcesProvider);
                 return InfoTooltip(
                   id: 'settings_sources',
-                  title: 'Sources',
-                  body: 'An IPTV source is your provider connection — either '
+                  title: 'Playlists',
+                  body: 'A playlist is your provider connection — either '
                       'an M3U playlist URL or Xtream Codes credentials. '
-                      'Sources supply your channels, movies, and series. '
-                      'You can add multiple sources and refresh them here.',
+                      'Playlists supply your channels, movies, and series. '
+                      'You can add multiple playlists and refresh them here.',
                   child: ListTile(
                     leading: const Icon(Icons.playlist_play_outlined),
-                    title: const Text('Sources'),
+                    title: const Text('Playlists'),
                     subtitle: sources.when(
                       loading: () => null,
                       error: (_, __) => null,
                       data: (list) => Text(
                         list.isEmpty
-                            ? 'No sources added'
-                            : '${list.length} source${list.length == 1 ? '' : 's'}',
+                            ? 'No playlists added'
+                            : '${list.length} playlist${list.length == 1 ? '' : 's'}',
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
@@ -114,19 +116,19 @@ class SettingsScreen extends ConsumerWidget {
               }),
 
               // --------------- BACKUP (admin only) ---------------
-              const _SectionHeader(title: 'Data'),
+              const SectionHeader('Data'),
               InfoTooltip(
                 id: 'settings_backup',
                 title: 'Backup & Restore',
-                body: 'Export your profiles and sources to a single '
-                    '.iptvprofile file you can store anywhere. Restore it '
+                body: 'Export your profiles and playlists to a single '
+                    '.zip file you can store anywhere. Restore it '
                     'later to move to a new device or recover from a reset. '
                     'Stream credentials are included — keep the file safe.',
                 child: ListTile(
                   leading: const Icon(Icons.backup_outlined),
                   title: const Text('Backup & Restore'),
                   subtitle: Text(
-                    'Export or import your profile and sources',
+                    'Export or import your profile and playlists',
                     style: theme.textTheme.bodySmall,
                   ),
                   trailing: const Icon(Icons.chevron_right),
@@ -174,7 +176,7 @@ class SettingsScreen extends ConsumerWidget {
               }),
 
               // --------------- PARENTAL (admin only) ---------------
-              const _SectionHeader(title: 'Family'),
+              const SectionHeader('Family'),
               ListTile(
                 leading: const Icon(Icons.family_restroom_outlined),
                 title: const Text('Parental Controls'),
@@ -188,7 +190,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
 
             // --------------- PLAYBACK ---------------
-            const _SectionHeader(title: 'Playback'),
+            const SectionHeader('Playback'),
             InfoTooltip(
               id: 'settings_continue_watching',
               title: 'Continue Watching',
@@ -264,7 +266,7 @@ class SettingsScreen extends ConsumerWidget {
               );
             }),
             // --------------- APPEARANCE ---------------
-            const _SectionHeader(title: 'Appearance'),
+            const SectionHeader('Appearance'),
             Consumer(builder: (context, ref, _) {
               final accent = ref.watch(accentColorProvider);
               return InfoTooltip(
@@ -307,7 +309,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
 
             // --------------- ABOUT ---------------
-            const _SectionHeader(title: 'About'),
+            const SectionHeader('About'),
             InfoTooltip(
               id: 'settings_about',
               title: 'About OpenIPTV',
@@ -352,38 +354,47 @@ class SettingsScreen extends ConsumerWidget {
     if (!context.mounted) return;
     unawaited(showDialog<void>(
       context: context,
-      builder: (ctx) => SimpleDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Content Sort Order'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              await setContentSort(ref, 'provider', prefs);
-            },
-            child: Row(children: [
-              Icon(Icons.check,
-                  size: 18,
-                  color: current == 'provider'
-                      ? Theme.of(ctx).colorScheme.primary
-                      : Colors.transparent),
-              const SizedBox(width: 8),
-              const Text('Provider order'),
-            ]),
-          ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              await setContentSort(ref, 'az', prefs);
-            },
-            child: Row(children: [
-              Icon(Icons.check,
-                  size: 18,
-                  color: current == 'az'
-                      ? Theme.of(ctx).colorScheme.primary
-                      : Colors.transparent),
-              const SizedBox(width: 8),
-              const Text('A–Z'),
-            ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await setContentSort(ref, 'provider', prefs);
+              },
+              child: Row(children: [
+                Icon(Icons.check,
+                    size: 18,
+                    color: current == 'provider'
+                        ? Theme.of(ctx).colorScheme.primary
+                        : Colors.transparent),
+                const SizedBox(width: 8),
+                const Text('Provider order'),
+              ]),
+            ),
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await setContentSort(ref, 'az', prefs);
+              },
+              child: Row(children: [
+                Icon(Icons.check,
+                    size: 18,
+                    color: current == 'az'
+                        ? Theme.of(ctx).colorScheme.primary
+                        : Colors.transparent),
+                const SizedBox(width: 8),
+                const Text('A–Z'),
+              ]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
           ),
         ],
       ),
@@ -411,22 +422,31 @@ class SettingsScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final selected = await showDialog<int>(
       context: context,
-      builder: (ctx) => SimpleDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Auto-Refresh'),
-        children: [0, 2, 6, 12, 24].map((hours) {
-          return SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(hours),
-            child: Row(children: [
-              Icon(Icons.check,
-                  size: 18,
-                  color: current == hours
-                      ? Theme.of(ctx).colorScheme.primary
-                      : Colors.transparent),
-              const SizedBox(width: 8),
-              Text(_refreshIntervalLabel(hours)),
-            ]),
-          );
-        }).toList(),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [0, 2, 6, 12, 24].map((hours) {
+            return SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(hours),
+              child: Row(children: [
+                Icon(Icons.check,
+                    size: 18,
+                    color: current == hours
+                        ? Theme.of(ctx).colorScheme.primary
+                        : Colors.transparent),
+                const SizedBox(width: 8),
+                Text(_refreshIntervalLabel(hours)),
+              ]),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     );
     if (selected == null || selected == current) return;
@@ -589,26 +609,6 @@ class SettingsScreen extends ConsumerWidget {
 // Helper widgets
 // ---------------------------------------------------------------------------
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.bodySmall!.copyWith(
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
 class _ToggleTile extends StatelessWidget {
   const _ToggleTile({
     required this.icon,
@@ -664,7 +664,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Playlist refresh failed: $e')),
+          SnackBar(
+              content: Text(
+                  'Playlist refresh failed: ${friendlySourceErrorMessage(e)}')),
         );
       }
     } finally {
@@ -687,7 +689,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('TV guide refresh failed: $e')),
+          SnackBar(
+              content: Text(
+                  'TV guide refresh failed: ${friendlySourceErrorMessage(e)}')),
         );
       }
     } finally {
@@ -699,10 +703,10 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Switch Source?'),
+        title: const Text('Switch Playlist?'),
         content: Text(
           'Switch to "${source.nickname}"?\n\n'
-          'The channel list, movies, and series will update to show only this source.',
+          'The channel list, movies, and series will update to show only this playlist.',
         ),
         actions: [
           TextButton(
@@ -730,7 +734,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Source?'),
+        title: const Text('Remove Playlist?'),
         content: Text(
             'This will remove "$nickname" and all its channels, '
             'movies, and series. This cannot be undone.'),
@@ -741,8 +745,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error),
+            style: AppTheme.destructiveButtonStyle(ctx),
             child: const Text('Remove'),
           ),
         ],
@@ -783,11 +786,11 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Sources',
+                Text('Playlists',
                     style: Theme.of(context).textTheme.titleLarge),
                 FilledButton.icon(
                   icon: const Icon(Icons.add),
-                  label: const Text('Add'),
+                  label: const Text('Add Playlist'),
                   onPressed: () {
                     Navigator.of(context).pop();
                     context.push('/onboarding');
@@ -801,7 +804,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'Tap a source to make it active. Active source filters all content.',
+                'Tap a playlist to make it active. Active playlist filters all content.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -811,10 +814,10 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
               error: (_, __) =>
-                  const Center(child: Text("Couldn't load sources.")),
+                  const Center(child: Text("Couldn't load playlists.")),
               data: (sources) {
                 if (sources.isEmpty) {
-                  return const Center(child: Text('No sources yet.'));
+                  return const Center(child: Text('No playlists yet.'));
                 }
                 final multiSource = sources.length > 1;
                 return ListView.builder(
@@ -849,7 +852,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                             height: 36,
                             child: IconButton(
                               icon: const Icon(Icons.info_outline, size: 20),
-                              tooltip: 'Source Info',
+                              tooltip: 'Playlist Info',
                               onPressed: () => _showInfoPanel(context, s),
                             ),
                           ),

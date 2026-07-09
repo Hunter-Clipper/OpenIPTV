@@ -10,15 +10,13 @@ class AppTheme {
   static const _background = Color(0xFF0F0F0F);
   static const _surface = Color(0xFF1C1C1E);
   static const _surfaceVariant = Color(0xFF2C2C2E);
+  static const _outline = Color(0xFF3A3A3C);
   static const _defaultAccent = Color(0xFF0A84FF);
   static const _onPrimary = Colors.white;
   static const _onBackground = Color(0xFFF2F2F7);
   static const _onSurface = Color(0xFFEBEBF5);
   static const _onSurfaceVariant = Color(0xFF8E8E93);
   static const _error = Color(0xFFFF453A);
-
-  // TV-safe: keeps brightness between 15% and 85% to avoid blooming
-  static const _tvBackground = Color(0xFF111111);
 
   // Available accent color swatches
   static const List<({String label, Color color})> accentSwatches = [
@@ -29,6 +27,15 @@ class AppTheme {
     (label: 'Green', color: Color(0xFF30D158)),
     (label: 'Teal', color: Color(0xFF5AC8FA)),
   ];
+
+  // Public accessors so one-off screens (e.g. the setup wizard, which draws
+  // its own gradient background before the app's theme is fully "committed")
+  // can match the real palette instead of re-declaring their own hex values.
+  static const backgroundColor = _background;
+  static const surfaceColor = _surface;
+  static const surfaceVariantColor = _surfaceVariant;
+  static const outlineColor = _outline;
+  static const mutedTextColor = _onSurfaceVariant;
 
   static Color accentFromHex(String hex) {
     try {
@@ -42,7 +49,7 @@ class AppTheme {
       c.toARGB32().toRadixString(16).toUpperCase().substring(2);
 
   // ---------------------------------------------------------------------------
-  // Dark theme
+  // Dark theme (the app's only theme — see AppTheme.dark() usage in app.dart)
   // ---------------------------------------------------------------------------
 
   static ThemeData dark([Color? accent]) {
@@ -54,11 +61,19 @@ class AppTheme {
       colorScheme: ColorScheme.dark(
         primary: primary,
         onPrimary: _onPrimary,
+        secondary: primary,
+        onSecondary: _onPrimary,
         surface: _surface,
         onSurface: _onSurface,
         surfaceContainerHighest: _surfaceVariant,
         onSurfaceVariant: _onSurfaceVariant,
+        outline: _outline,
+        outlineVariant: _surfaceVariant,
+        inverseSurface: _onBackground,
+        onInverseSurface: _background,
+        surfaceTint: Colors.transparent,
         error: _error,
+        onError: _onPrimary,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: _background,
@@ -128,38 +143,53 @@ class AppTheme {
       ),
       iconTheme: const IconThemeData(color: _onSurfaceVariant),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Light theme
-  // ---------------------------------------------------------------------------
-
-  static ThemeData light([Color? accent]) => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: accent ?? _defaultAccent,
-          brightness: Brightness.light,
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: _onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
         ),
-      );
-
-  // ---------------------------------------------------------------------------
-  // TV theme (dark base, larger text, focus rings always visible)
-  // ---------------------------------------------------------------------------
-
-  static ThemeData tv([Color? accent]) {
-    final base = dark(accent);
-    return base.copyWith(
-      scaffoldBackgroundColor: _tvBackground,
-      colorScheme: base.colorScheme.copyWith(surface: _tvBackground),
-      textTheme: base.textTheme.copyWith(
-        headlineLarge: base.textTheme.headlineLarge!.copyWith(fontSize: 36),
-        headlineMedium: base.textTheme.headlineMedium!.copyWith(fontSize: 28),
-        titleLarge: base.textTheme.titleLarge!.copyWith(fontSize: 24),
-        titleMedium: base.textTheme.titleMedium!.copyWith(fontSize: 20),
-        bodyLarge: base.textTheme.bodyLarge!.copyWith(fontSize: 20),
-        bodyMedium: base.textTheme.bodyMedium!.copyWith(fontSize: 18),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: _onSurface,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _onSurface,
+          side: const BorderSide(color: _outline),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: _surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(cardRadius),
+        ),
+        titleTextStyle: const TextStyle(
+            color: _onBackground, fontSize: 18, fontWeight: FontWeight.w600),
+        contentTextStyle: const TextStyle(color: _onSurface, fontSize: 14),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: _surfaceVariant,
+        contentTextStyle: const TextStyle(color: _onSurface),
+        actionTextColor: primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
   }
@@ -170,11 +200,18 @@ class AppTheme {
 
   static const posterAspectRatio = 2 / 3;
   static const cardRadius = 12.0;
-  static const shimmerBase = Color(0xFF1C1C1E);
-  static const shimmerHighlight = Color(0xFF2C2C2E);
 
   static BoxDecoration focusDecoration(Color accent) => BoxDecoration(
         border: Border.all(color: accent, width: 3),
         borderRadius: BorderRadius.circular(cardRadius),
+      );
+
+  /// Style for a destructive/irreversible confirm action in a dialog
+  /// (Delete, Remove) — a solid error-colored FilledButton, applied
+  /// consistently everywhere a destructive confirm button appears.
+  static ButtonStyle destructiveButtonStyle(BuildContext context) =>
+      FilledButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.error,
+        foregroundColor: Theme.of(context).colorScheme.onError,
       );
 }

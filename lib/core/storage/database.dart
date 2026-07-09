@@ -48,6 +48,9 @@ class Channels extends Table {
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get lastWatchedAt => dateTime().nullable()();
+  BoolColumn get hasCatchup => boolean().withDefault(const Constant(false))();
+  IntColumn get catchupDays => integer().withDefault(const Constant(0))();
+  TextColumn get streamId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -179,7 +182,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -246,6 +249,21 @@ class AppDatabase extends _$AppDatabase {
               'CREATE UNIQUE INDEX IF NOT EXISTS idx_programmes_unique '
               'ON programmes (channel_id, start)',
             );
+          }
+          if (from < 8) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(channels)').get();
+            final columnNames =
+                tableInfo.map((r) => r.data['name'] as String).toSet();
+            if (!columnNames.contains('has_catchup')) {
+              await m.addColumn(channels, channels.hasCatchup);
+            }
+            if (!columnNames.contains('catchup_days')) {
+              await m.addColumn(channels, channels.catchupDays);
+            }
+            if (!columnNames.contains('stream_id')) {
+              await m.addColumn(channels, channels.streamId);
+            }
           }
         },
         beforeOpen: (details) async {
@@ -505,10 +523,50 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Channels without catch-up keep only a short grace window (so "now" EPG
+  /// lookups have a little slack); catch-up-enabled channels keep their own
+  /// provider-advertised [Channel.catchupDays] of history instead, so the
+  /// guide can be browsed back far enough to actually use it.
   Future<void> deleteOldProgrammes() async {
-    final cutoff = DateTime.now().subtract(const Duration(hours: 1));
-    await (delete(programmes)..where((t) => t.end.isSmallerThanValue(cutoff)))
+    final defaultCutoff = DateTime.now().subtract(const Duration(hours: 1));
+
+    final catchupChannels = await (select(channels)
+          ..where((t) => t.catchupDays.isBiggerThanValue(0)))
+        .get();
+
+    if (catchupChannels.isEmpty) {
+      await (delete(programmes)
+            ..where((t) => t.end.isSmallerThanValue(defaultCutoff)))
+          .go();
+      return;
+    }
+
+    final catchupIds = catchupChannels.map((c) => c.id).toList();
+    await (delete(programmes)
+          ..where((t) =>
+              t.end.isSmallerThanValue(defaultCutoff) &
+              t.channelId.isNotIn(catchupIds)))
         .go();
+
+    for (final c in catchupChannels) {
+      final cutoff = DateTime.now().subtract(Duration(days: c.catchupDays));
+      await (delete(programmes)
+            ..where((t) =>
+                t.channelId.equals(c.id) & t.end.isSmallerThanValue(cutoff)))
+          .go();
+    }
+  }
+
+  /// The largest [Channel.catchupDays] among a source's channels — used to
+  /// size how far back the EPG parser should keep history for that source's
+  /// next refresh, so catch-up-enabled channels' guide data survives long
+  /// enough for [deleteOldProgrammes] to actually have something to keep.
+  Future<int> getMaxCatchupDaysForSource(String sourceId) async {
+    final query = selectOnly(channels)
+      ..addColumns([channels.catchupDays.max()])
+      ..where(channels.sourceId.equals(sourceId));
+    final row = await query.getSingleOrNull();
+    return row?.read(channels.catchupDays.max()) ?? 0;
   }
 
   Future<void> deleteProgrammesForChannel(String channelId) async {
@@ -943,6 +1001,9 @@ class AppDatabase extends _$AppDatabase {
         isFavorite: row.isFavorite,
         sortOrder: row.sortOrder,
         lastWatchedAt: row.lastWatchedAt,
+        hasCatchup: row.hasCatchup,
+        catchupDays: row.catchupDays,
+        streamId: row.streamId,
       );
 
   model.Programme _programmeFromRow(ProgrammeRow row) => model.Programme(
@@ -1055,6 +1116,9 @@ class AppDatabase extends _$AppDatabase {
         tvgName: Value(c.tvgName),
         isFavorite: Value(c.isFavorite),
         sortOrder: Value(c.sortOrder),
+        hasCatchup: Value(c.hasCatchup),
+        catchupDays: Value(c.catchupDays),
+        streamId: Value(c.streamId),
       );
 
   ProgrammesCompanion _programmeToCompanion(model.Programme p) =>

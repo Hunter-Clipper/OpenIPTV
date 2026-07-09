@@ -15,7 +15,10 @@ part 'epg_service.g.dart';
 // Top-level so Isolate.run can reference it.
 // Fetches + stream-parses the XMLTV feed entirely off the main thread,
 // returning all programmes at once for batch DB writes on the caller.
-Future<List<Programme>> _fetchAndParseAll(String epgUrl) async {
+Future<List<Programme>> _fetchAndParseAll(
+  String epgUrl,
+  Duration pastWindow,
+) async {
   final client = http.Client();
   final programmes = <Programme>[];
   try {
@@ -24,7 +27,8 @@ Future<List<Programme>> _fetchAndParseAll(String epgUrl) async {
         await client.send(request).timeout(const Duration(seconds: 90));
     if (streamed.statusCode != 200) return programmes;
     final bodyStream = streamed.stream.transform(utf8.decoder);
-    await for (final prog in XmltvParser.parse(bodyStream)) {
+    await for (final prog
+        in XmltvParser.parse(bodyStream, pastWindow: pastWindow)) {
       programmes.add(prog);
     }
   } finally {
@@ -85,9 +89,14 @@ class EpgService {
     try {
       await db.deleteOldProgrammes();
 
+      final maxCatchupDays = await db.getMaxCatchupDaysForSource(source.id);
+      final pastWindow = maxCatchupDays > 0
+          ? Duration(days: maxCatchupDays)
+          : const Duration(hours: 1);
+
       onProgress?.call('Downloading TV guide…');
       final programmes = await Isolate.run(
-        () => _fetchAndParseAll(epgUrl),
+        () => _fetchAndParseAll(epgUrl, pastWindow),
         debugName: 'epg-parse',
       );
 

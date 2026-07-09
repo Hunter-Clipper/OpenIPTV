@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 
 class AddSourceScreen extends ConsumerStatefulWidget {
@@ -134,21 +135,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
       context.go('/live');
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString();
-      String userMessage;
-      if (msg.contains('http_401') || msg.contains('http_403')) {
-        userMessage =
-            'Your username or password doesn’t seem right. Check with your provider.';
-      } else if (msg.contains('timeout') || msg.contains('SocketException')) {
-        userMessage =
-            'Couldn’t reach this server. Check your internet connection and try again.';
-      } else if (msg.contains('http_')) {
-        userMessage =
-            'This link doesn’t look like a valid channel list. Check the URL with your provider.';
-      } else {
-        userMessage =
-            'Something went wrong adding this source. Check your details and try again.';
-      }
+      final userMessage = friendlySourceErrorMessage(e);
       setState(() {
         _errorMessage = userMessage;
         _isLoading = false;
@@ -192,7 +179,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                                   style: theme.textTheme.headlineMedium),
                               const SizedBox(height: 8),
                               Text(
-                                'A source is where your channels come from. '
+                                'A playlist is where your channels come from. '
                                 'Your provider will give you either an M3U link or Xtream credentials.',
                                 style: theme.textTheme.bodyMedium,
                               ),

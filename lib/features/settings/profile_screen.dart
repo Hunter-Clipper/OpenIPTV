@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
 
 /// Profile overview screen — shows the active profile and lets the user
 /// manage settings, PIN, kids mode, and other profiles.
@@ -38,7 +40,7 @@ class ProfileScreen extends ConsumerWidget {
               const Divider(height: 1),
 
               // ── Account ───────────────────────────────────────────
-              const _SectionHeader(title: 'Account'),
+              const SectionHeader('Account'),
               InfoTooltipScope(
                 controller: InfoTooltipController(),
                 child: InfoTooltip(
@@ -69,32 +71,10 @@ class ProfileScreen extends ConsumerWidget {
                                   .read(appPreferencesProvider.future);
                               if (!context.mounted) return;
                               if (!prefs.parentalProtectionEnabled) {
-                                final enable = await showDialog<bool>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    title: const Text(
-                                        'Parental Protection Required'),
-                                    content: const Text(
-                                        'Kid profiles require Parental '
-                                        'Protection to be turned on, so '
-                                        'adult content can be hidden '
-                                        'automatically. Enable it now?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child:
-                                            const Text('Enable Protection'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (enable != true) return;
+                                final enable =
+                                    await _showParentalProtectionRequiredDialog(
+                                        context);
+                                if (!enable) return;
                                 await prefs
                                     .setParentalProtectionEnabled(true);
                               }
@@ -128,10 +108,10 @@ class ProfileScreen extends ConsumerWidget {
 
               // ── Security ──────────────────────────────────────────
               if (!profile.isKidsProfile) ...[
-                const _SectionHeader(title: 'Security'),
+                const SectionHeader('Security'),
                 ListTile(
                   leading: Icon(profile.hasPin
-                      ? Icons.lock_outlined
+                      ? Icons.lock_outline
                       : Icons.lock_open_outlined),
                   title: const Text('PIN Lock'),
                   subtitle: Text(
@@ -156,7 +136,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // ── All Profiles (admin only) ─────────────────────────
               if (profile.isAdmin) ...[
-                const _SectionHeader(title: 'All Profiles'),
+                const SectionHeader('All Profiles'),
                 allAsync.when(
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
@@ -240,8 +220,7 @@ class ProfileScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error),
+            style: AppTheme.destructiveButtonStyle(ctx),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Delete'),
           ),
@@ -260,6 +239,32 @@ class ProfileScreen extends ConsumerWidget {
       }
     }
   }
+}
+
+/// Shows the "Parental Protection Required" prompt used whenever the user
+/// tries to mark a profile as a Kids profile while Parental Protection is
+/// still disabled. Returns whether the user chose to enable it.
+Future<bool> _showParentalProtectionRequiredDialog(BuildContext context) async {
+  final enable = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Parental Protection Required'),
+      content: const Text(
+          'Kid profiles require Parental Protection to be turned on, so '
+          'adult content can be hidden automatically. Enable it now?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Enable Protection'),
+        ),
+      ],
+    ),
+  );
+  return enable == true;
 }
 
 // ---------------------------------------------------------------------------
@@ -439,29 +444,6 @@ class _ProfileTile extends StatelessWidget {
 enum _Action { edit, delete }
 
 // ---------------------------------------------------------------------------
-// Section header
-// ---------------------------------------------------------------------------
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.bodySmall!.copyWith(
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Edit profile dialog
 // ---------------------------------------------------------------------------
 
@@ -582,26 +564,9 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
       final prefs = await widget.ref.read(appPreferencesProvider.future);
       if (!mounted) return;
       if (!prefs.parentalProtectionEnabled) {
-        final enable = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Parental Protection Required'),
-            content: const Text(
-                'Kid profiles require Parental Protection to be turned on, '
-                'so adult content can be hidden automatically. Enable it now?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Enable Protection'),
-              ),
-            ],
-          ),
-        );
-        if (enable != true) return;
+        final enable =
+            await _showParentalProtectionRequiredDialog(context);
+        if (!enable) return;
         await prefs.setParentalProtectionEnabled(true);
       }
     }
@@ -785,6 +750,8 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                     icon: Icon(_obscureCurrent
                         ? Icons.visibility
                         : Icons.visibility_off),
+                    tooltip:
+                        _obscureCurrent ? 'Show password' : 'Hide password',
                     onPressed: () =>
                         setState(() => _obscureCurrent = !_obscureCurrent),
                   ),
@@ -806,6 +773,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                 suffixIcon: IconButton(
                   icon: Icon(
                       _obscureNew ? Icons.visibility : Icons.visibility_off),
+                  tooltip: _obscureNew ? 'Show password' : 'Hide password',
                   onPressed: () =>
                       setState(() => _obscureNew = !_obscureNew),
                 ),
@@ -826,6 +794,8 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                   icon: Icon(_obscureConfirm
                       ? Icons.visibility
                       : Icons.visibility_off),
+                  tooltip:
+                      _obscureConfirm ? 'Show password' : 'Hide password',
                   onPressed: () =>
                       setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
@@ -848,9 +818,8 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
           child: const Text('Cancel'),
         ),
         if (widget.profile.hasPin && !widget.blockPinRemoval)
-          TextButton(
-            style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error),
+          FilledButton(
+            style: AppTheme.destructiveButtonStyle(context),
             onPressed: _remove,
             child: const Text('Remove PIN'),
           ),

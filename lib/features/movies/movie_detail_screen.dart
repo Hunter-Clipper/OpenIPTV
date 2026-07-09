@@ -1,10 +1,11 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/poster_image.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -51,20 +52,10 @@ class MovieDetailScreen extends ConsumerWidget {
   Widget _buildError(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48),
-            const SizedBox(height: 16),
-            const Text("Couldn't load this movie."),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => context.pop(),
-              child: const Text('Go Back'),
-            ),
-          ],
-        ),
+      body: ErrorStateView(
+        message: "Couldn't load this movie. Try again.",
+        onRetry: () => context.pop(),
+        retryLabel: 'Go Back',
       ),
     );
   }
@@ -105,7 +96,7 @@ class _MovieDetailBody extends ConsumerWidget {
                     ? theme.colorScheme.primary
                     : null,
               ),
-              tooltip: isFavourite ? 'Remove from favourites' : 'Add to favourites',
+              tooltip: isFavourite ? 'Remove from Favorites' : 'Add to Favorites',
               onPressed: profileId == null
                   ? null
                   : () => ref
@@ -126,7 +117,8 @@ class _MovieDetailBody extends ConsumerWidget {
                   child: SizedBox(
                     width: posterWidth,
                     height: posterWidth / AppTheme.posterAspectRatio,
-                    child: _PosterImage(posterUrl: movie.posterUrl),
+                    child: PosterImage(
+                        posterUrl: movie.posterUrl, iconSize: 40),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -275,7 +267,8 @@ class _ActionButtons extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           TextButton.icon(
-            icon: const Icon(Icons.delete_outline, size: 16),
+            icon: Icon(Icons.delete_outline,
+                size: 16, color: Theme.of(context).colorScheme.error),
             label: const Text('Clear Progress'),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -317,35 +310,6 @@ class _ActionButtons extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-
-class _PosterImage extends StatelessWidget {
-  const _PosterImage({required this.posterUrl});
-
-  final String? posterUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    if (posterUrl == null || posterUrl!.isEmpty) {
-      return Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(child: Icon(Icons.movie_outlined, size: 40)),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: posterUrl!,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      placeholder: (_, __) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      errorWidget: (_, __, ___) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(child: Icon(Icons.movie_outlined, size: 40)),
-      ),
-    );
-  }
-}
 
 class _MetaChip extends StatelessWidget {
   const _MetaChip({required this.label});

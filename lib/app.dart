@@ -260,7 +260,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     if (_needsProfilePick && !_profilePicked) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(accent),
+        theme: AppTheme.dark(accent),
         darkTheme: AppTheme.dark(accent),
         themeMode: ThemeMode.dark,
         home: ProfilePickerScreen(
@@ -276,7 +276,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       controller: _tooltipController,
       child: MaterialApp.router(
         title: 'OpenIPTV',
-        theme: AppTheme.light(accent),
+        theme: AppTheme.dark(accent),
         darkTheme: AppTheme.dark(accent),
         themeMode: ThemeMode.dark,
         routerConfig: _router,

@@ -14,7 +14,14 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/category_tile.dart';
+import 'package:open_iptv/shared/widgets/empty_state_view.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/poster_image.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 bool _seriesGenreIsAdult(String? genre) =>
@@ -127,13 +134,17 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
         ],
       ),
       body: allAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _ErrorView(onRetry: _refresh),
+        loading: () => const LoadingView(),
+        error: (_, __) => ErrorStateView(
+          message: "Couldn't load series. Try again.",
+          onRetry: _refresh,
+        ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
           final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
@@ -170,7 +181,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             child: CustomScrollView(
               slivers: [
                 if (favorites.isNotEmpty) ...[
-                  const _SectionHeader(title: 'Favorites'),
+                  const SectionHeaderSliver('Favorites'),
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
                       items: favorites,
@@ -179,13 +190,13 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                   ),
                 ],
                 if (visibleInProgress.isNotEmpty) ...[
-                  const _SectionHeader(title: 'Continue Watching'),
+                  const SectionHeaderSliver('Continue Watching'),
                   SliverToBoxAdapter(
                     child: _EpisodeContinueWatchingRow(
                         episodes: visibleInProgress),
                   ),
                 ],
-                const _SectionHeader(title: 'Browse by Genre'),
+                const SectionHeaderSliver('Browse by Genre'),
                 SliverToBoxAdapter(
                   child: _GenreTileList(
                     genres: genres.isEmpty ? ['All'] : genres,
@@ -309,13 +320,17 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
         ],
       ),
       body: allAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _ErrorView(onRetry: _refresh),
+        loading: () => const LoadingView(),
+        error: (_, __) => ErrorStateView(
+          message: "Couldn't load series. Try again.",
+          onRetry: _refresh,
+        ),
         data: (all) {
           final filtered = _filtered(all);
           if (sort == 'az') {
@@ -327,7 +342,12 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
-                  const SliverFillRemaining(child: _EmptyView())
+                  const SliverFillRemaining(
+                    child: EmptyStateView(
+                      icon: Icons.video_library_outlined,
+                      message: 'No series found.',
+                    ),
+                  )
                 else if (viewMode == 'list')
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
@@ -394,63 +414,21 @@ class _GenreTileList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       children: genres.map((g) {
-        final locked = lockedGenres.contains(g);
-        return ListTile(
-          leading: Icon(
-            g == 'All'
-                ? Icons.video_library_outlined
-                : Icons.category_outlined,
-            color: theme.colorScheme.primary,
-          ),
-          title: Text(g),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (locked)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(Icons.lock_outline,
-                      size: 16, color: theme.colorScheme.onSurfaceVariant),
-                ),
-              Text(
-                (seriesCounts[g] ?? 0).toString(),
-                style: theme.textTheme.bodySmall!.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
+        return CategoryTile(
+          label: g,
+          count: seriesCounts[g] ?? 0,
+          icon: g == 'All'
+              ? Icons.video_library_outlined
+              : Icons.category_outlined,
+          isLocked: lockedGenres.contains(g),
           onTap: () => onTap(g),
           onLongPress: g == 'All' || onHideGenre == null
               ? null
               : () => onHideGenre!(g),
         );
       }).toList(),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Section header
-// ---------------------------------------------------------------------------
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-      ),
     );
   }
 }
@@ -520,7 +498,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                     child: ClipRRect(
                       borderRadius:
                           BorderRadius.circular(AppTheme.cardRadius),
-                      child: _PosterImage(posterUrl: s.posterUrl),
+                      child: PosterImage(posterUrl: s.posterUrl),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -594,7 +572,7 @@ class _SeriesListTile extends ConsumerWidget {
           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: _PosterImage(
+        child: PosterImage(
             posterUrl: series.posterUrl, width: 40, height: 56),
       ),
       title: Text(series.title,
@@ -662,7 +640,6 @@ class _PosterCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final isFav = ref.watch(activeProfileProvider.select(
         (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
 
@@ -674,12 +651,13 @@ class _PosterCard extends ConsumerWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-            child: _PosterImage(posterUrl: series.posterUrl),
+            child: PosterImage(posterUrl: series.posterUrl),
           ),
           Positioned(
             top: 4,
             right: 4,
-            child: GestureDetector(
+            child: StarButton(
+              isFavorite: isFav,
               onTap: profileId == null
                   ? null
                   : () async {
@@ -688,21 +666,6 @@ class _PosterCard extends ConsumerWidget {
                           .toggleFavoriteSeries(profileId!, series.id);
                       ref.invalidate(activeProfileProvider);
                     },
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  isFav ? Icons.star : Icons.star_border,
-                  size: 16,
-                  color: isFav
-                      ? theme.colorScheme.primary
-                      : Colors.white70,
-                ),
-              ),
             ),
           ),
         ],
@@ -728,7 +691,8 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.remove_circle_outline),
+              leading: Icon(Icons.remove_circle_outline,
+                  color: Theme.of(context).colorScheme.error),
               title: const Text('Remove from Continue Watching'),
               onTap: () async {
                 Navigator.pop(context);
@@ -853,83 +817,3 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shared
-// ---------------------------------------------------------------------------
-
-class _PosterImage extends StatelessWidget {
-  const _PosterImage({required this.posterUrl, this.width, this.height});
-
-  final String? posterUrl;
-  final double? width;
-  final double? height;
-
-  @override
-  Widget build(BuildContext context) {
-    if (posterUrl == null || posterUrl!.isEmpty) {
-      return Container(
-        width: width,
-        height: height,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-            child: Icon(Icons.video_library_outlined, size: 24)),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: posterUrl!,
-      fit: BoxFit.cover,
-      width: width ?? double.infinity,
-      height: height ?? double.infinity,
-      memCacheWidth: width?.toInt() ?? 220,
-      memCacheHeight: height?.toInt() ?? 320,
-      placeholder: (_, __) => Container(
-        width: width,
-        height: height,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      errorWidget: (_, __, ___) => Container(
-        width: width,
-        height: height,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-            child: Icon(Icons.video_library_outlined, size: 24)),
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48),
-          const SizedBox(height: 16),
-          const Text("Couldn't load series. Try again."),
-          const SizedBox(height: 16),
-          FilledButton(onPressed: onRetry, child: const Text('Try Again')),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'No series found.',
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
-    );
-  }
-}

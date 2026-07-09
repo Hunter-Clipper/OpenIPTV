@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 
 bool _genreIsAdult(String? genre) =>
@@ -119,6 +120,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             suffixIcon: query.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear),
+                    tooltip: 'Clear search',
                     onPressed: _clearSearch,
                   )
                 : null,
@@ -131,8 +133,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           : resultsAsync.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Center(
-                child: Text('Search is unavailable right now.'),
+              error: (_, __) => ErrorStateView(
+                message: "Couldn't load search results. Try again.",
+                onRetry: () => ref.invalidate(_searchResultsProvider),
               ),
               data: (results) {
                 if (results.isEmpty) {
@@ -189,7 +192,7 @@ class _ResultsList extends ConsumerWidget {
       children: [
         if (results.channels.isNotEmpty)
           _ResultGroup<Channel>(
-            title: 'Live Channels',
+            title: 'Live TV',
             items: results.channels,
             icon: Icons.live_tv,
             labelOf: (c) => c.name,

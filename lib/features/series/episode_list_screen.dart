@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/shared/widgets/empty_state_view.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -32,17 +35,16 @@ class EpisodeListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('All Episodes')),
       body: episodesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _ErrorView(
+        loading: () => const LoadingView(),
+        error: (_, __) => ErrorStateView(
+          message: "Couldn't load episodes. Try again.",
           onRetry: () => ref.invalidate(_episodeListProvider(seriesId)),
         ),
         data: (episodes) {
           if (episodes.isEmpty) {
-            return Center(
-              child: Text(
-                'No episodes available yet.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+            return const EmptyStateView(
+              icon: Icons.video_library_outlined,
+              message: 'No episodes available yet.',
             );
           }
 
@@ -212,28 +214,3 @@ class _EpisodeRow extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Error view
-// ---------------------------------------------------------------------------
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48),
-          const SizedBox(height: 16),
-          const Text("Couldn't load episodes. Try again."),
-          const SizedBox(height: 16),
-          FilledButton(onPressed: onRetry, child: const Text('Try Again')),
-        ],
-      ),
-    );
-  }
-}

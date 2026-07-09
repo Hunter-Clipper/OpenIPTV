@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/pin_keypad.dart';
 
 /// Shows a 4-digit PIN entry dialog.
 /// Returns the entered PIN string, or null if the user cancelled.
@@ -41,12 +42,6 @@ class _ParentalPinDialogState extends State<_ParentalPinDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rows = [
-      ['1', '2', '3'],
-      ['4', '5', '6'],
-      ['7', '8', '9'],
-      ['', '0', '⌫'],
-    ];
 
     return Dialog(
       child: Padding(
@@ -59,49 +54,11 @@ class _ParentalPinDialogState extends State<_ParentalPinDialog> {
             const SizedBox(height: 10),
             Text(widget.title, style: theme.textTheme.titleMedium),
             const SizedBox(height: 24),
-            // PIN dots
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (i) {
-                final filled = i < _pin.length;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: filled
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outlineVariant,
-                    ),
-                  ),
-                );
-              }),
+            PinKeypad(
+              pin: _pin,
+              onDigit: _onDigit,
+              onBackspace: _onBackspace,
             ),
-            const SizedBox(height: 24),
-            // Number pad
-            ...rows.map((row) => Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: row.map((key) {
-                    if (key.isEmpty) return const SizedBox(width: 72, height: 52);
-                    return SizedBox(
-                      width: 72,
-                      height: 52,
-                      child: TextButton(
-                        onPressed:
-                            key == '⌫' ? _onBackspace : () => _onDigit(key),
-                        child: Text(
-                          key,
-                          style: key == '⌫'
-                              ? theme.textTheme.titleMedium
-                              : theme.textTheme.headlineSmall,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                )),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),

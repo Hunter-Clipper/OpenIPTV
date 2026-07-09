@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
 
 class ParentalScreen extends ConsumerStatefulWidget {
   const ParentalScreen({super.key});
@@ -56,7 +57,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
       appBar: AppBar(title: const Text('Parental Controls')),
       body: ListView(
         children: [
-          const _SectionHeader(title: 'Protection'),
+          const SectionHeader('Protection'),
           SwitchListTile(
             secondary: Icon(
               enabled ? Icons.lock_outline : Icons.lock_open_outlined,
@@ -76,7 +77,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
           // Locked category list
           if (enabled) ...[
-            const _SectionHeader(title: 'Locked Categories'),
+            const SectionHeader('Locked Categories'),
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -105,24 +106,6 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
                   )),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        title,
-        style: theme.textTheme.labelMedium!
-            .copyWith(color: theme.colorScheme.primary),
       ),
     );
   }

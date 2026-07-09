@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -30,7 +31,7 @@ class BackupScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
             // --------------- EXPORT ---------------
-            InfoTooltip(
+            const InfoTooltip(
               id: 'backup_export_section',
               title: 'Export Backup',
               body: 'Exporting saves every profile, every source, and your '
@@ -38,12 +39,9 @@ class BackupScreen extends ConsumerWidget {
                   'protect it with a password.',
               tip: "Save this file somewhere safe — you'll need it to "
                   'restore everything on a new device.',
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text(
-                  'Export',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+              child: SectionHeader(
+                'Export',
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
               ),
             ),
             const Divider(height: 1),
@@ -59,7 +57,7 @@ class BackupScreen extends ConsumerWidget {
 
             // --------------- IMPORT ---------------
             const SizedBox(height: 16),
-            InfoTooltip(
+            const InfoTooltip(
               id: 'backup_import_section',
               title: 'Restore Backup',
               body: 'Importing reads a .zip backup file and adds its '
@@ -68,12 +66,9 @@ class BackupScreen extends ConsumerWidget {
                   'for the password used when it was exported.',
               tip: 'Importing does not delete anything — your existing '
                   'profiles are kept.',
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text(
-                  'Restore',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+              child: SectionHeader(
+                'Restore',
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
               ),
             ),
             const Divider(height: 1),

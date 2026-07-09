@@ -21,6 +21,12 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.contentId,
     this.channelId,
     this.onTap,
+    this.isLiveDvr = false,
+    this.onLivePlayPause,
+    this.onLiveRewind,
+    this.onLiveForward,
+    this.onGoLive,
+    this.isBehindLive = false,
   });
 
   final String title;
@@ -29,6 +35,17 @@ class PlayerControls extends ConsumerStatefulWidget {
   final String? contentId;
   final String? channelId;
   final VoidCallback? onTap;
+  // True while a catch-up-enabled live channel has been switched into full
+  // DVR scrubbing (real seek bar via _VodControls) by the user pausing or
+  // rewinding — as opposed to a programme picked from the EPG guide.
+  final bool isLiveDvr;
+  final VoidCallback? onLivePlayPause;
+  final VoidCallback? onLiveRewind;
+  final VoidCallback? onLiveForward;
+  // Jumps back to the true live edge — from local-buffer rewind on a
+  // non-catch-up channel, or out of DVR mode on a catch-up one.
+  final VoidCallback? onGoLive;
+  final bool isBehindLive;
 
   @override
   ConsumerState<PlayerControls> createState() => _PlayerControlsState();
@@ -234,6 +251,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             onBack: () => context.pop(),
             onEpg: () => _showEpgPanel(context),
             onCc: () => _showCcPicker(context),
+            onPlayPause: widget.onLivePlayPause,
+            onRewind: widget.onLiveRewind,
+            onForward: widget.onLiveForward,
+            onGoLive: widget.onGoLive,
+            isBehindLive: widget.isBehindLive,
           )
         : _VodControls(
             title: widget.title,
@@ -263,6 +285,12 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                 _seekRelative(const Duration(seconds: -10)),
             onSkipForward: () =>
                 _seekRelative(const Duration(seconds: 10)),
+            onEpg: widget.contentType == 'catchup'
+                ? () => _showEpgPanel(context)
+                : null,
+            contentId:
+                widget.contentType == 'catchup' ? widget.contentId : null,
+            onGoLive: widget.isLiveDvr ? widget.onGoLive : null,
           );
   }
 }
@@ -282,6 +310,11 @@ class _LiveControls extends ConsumerWidget {
     required this.ccActive,
     this.qualityLabel,
     this.decodeLabel,
+    this.onPlayPause,
+    this.onRewind,
+    this.onForward,
+    this.onGoLive,
+    this.isBehindLive = false,
   });
 
   final String title;
@@ -293,12 +326,18 @@ class _LiveControls extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onEpg;
   final VoidCallback onCc;
+  final VoidCallback? onPlayPause;
+  final VoidCallback? onRewind;
+  final VoidCallback? onForward;
+  final VoidCallback? onGoLive;
+  final bool isBehindLive;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final profile = ref.watch(activeProfileProvider).valueOrNull;
     final isFav = profile?.favoriteChannelIds.contains(contentId) ?? false;
+    final player = ref.watch(playbackServiceProvider).player;
 
     return Container(
       decoration: const BoxDecoration(
@@ -334,6 +373,7 @@ class _LiveControls extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
                       color: Colors.white,
+                      tooltip: 'Back',
                       onPressed: onBack,
                     ),
                     Expanded(
@@ -354,20 +394,34 @@ class _LiveControls extends ConsumerWidget {
                       _DecodeBadge(label: decodeLabel!),
                       const SizedBox(width: 8),
                     ],
-                    // LIVE badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'LIVE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                    // LIVE badge — doubles as a "back to live" tap target
+                    // once the user has paused/rewound behind the live edge.
+                    GestureDetector(
+                      onTap: isBehindLive ? onGoLive : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isBehindLive ? Colors.white24 : Colors.red,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isBehindLive) ...[
+                              const Icon(Icons.fast_forward,
+                                  color: Colors.white, size: 12),
+                              const SizedBox(width: 2),
+                            ],
+                            const Text(
+                              'LIVE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -378,7 +432,7 @@ class _LiveControls extends ConsumerWidget {
                       icon: Icon(
                         ccActive
                             ? Icons.closed_caption
-                            : Icons.closed_caption_off_outlined,
+                            : Icons.closed_caption_outlined,
                         color: ccActive
                             ? Colors.white
                             : (hasCc ? Colors.white54 : Colors.white24),
@@ -391,8 +445,13 @@ class _LiveControls extends ConsumerWidget {
                       IconButton(
                         icon: Icon(
                           isFav ? Icons.star : Icons.star_border,
-                          color: isFav ? Colors.amber : Colors.white,
+                          color: isFav
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.white,
                         ),
+                        tooltip: isFav
+                            ? 'Remove from Favorites'
+                            : 'Add to Favorites',
                         onPressed: () => ref
                             .read(profileServiceProvider)
                             .toggleFavoriteChannel(profile.id, contentId!),
@@ -408,7 +467,51 @@ class _LiveControls extends ConsumerWidget {
                 ),
               ),
             ),
-            const Spacer(),
+            if (onPlayPause != null)
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.replay_10,
+                          color: Colors.white70, size: 32),
+                      onPressed: onRewind,
+                    ),
+                    const SizedBox(width: 24),
+                    StreamBuilder<bool>(
+                      stream: player.stream.playing,
+                      initialData: player.state.playing,
+                      builder: (context, snap) {
+                        final playing = snap.data ?? false;
+                        return GestureDetector(
+                          onTap: onPlayPause,
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.black45,
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            child: Icon(
+                              playing ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 24),
+                    IconButton(
+                      icon: const Icon(Icons.forward_10,
+                          color: Colors.white70, size: 32),
+                      onPressed: onForward,
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Spacer(),
             // Current programme at bottom
             if (contentId != null)
               _LiveProgrammeBar(channelId: contentId!),
@@ -530,11 +633,17 @@ class _VodControls extends ConsumerWidget {
     required this.onSkipForward,
     this.qualityLabel,
     this.decodeLabel,
+    this.onEpg,
+    this.contentId,
+    this.onGoLive,
   });
 
   final String title;
   final String? qualityLabel;
   final String? decodeLabel;
+  // Only set for catch-up playback — the channel id, reused so the
+  // favourite toggle applies to the channel, same as live playback.
+  final String? contentId;
   final bool hasCc;
   final bool ccActive;
   final Duration position;
@@ -549,6 +658,12 @@ class _VodControls extends ConsumerWidget {
   final void Function(double) onSeekEnd;
   final VoidCallback onSkipBack;
   final VoidCallback onSkipForward;
+  // Only set for catch-up playback — lets the user get back to the guide
+  // (browse other times, or jump back to live) without exiting the player.
+  final VoidCallback? onEpg;
+  // Only set when a live channel was switched into DVR scrubbing (pause/
+  // rewind from _LiveControls) — jumps back to the true live edge.
+  final VoidCallback? onGoLive;
 
   double get _sliderValue {
     if (isSeeking) return seekValue;
@@ -561,6 +676,8 @@ class _VodControls extends ConsumerWidget {
     final theme = Theme.of(context);
     final service = ref.watch(playbackServiceProvider);
     final player = service.player;
+    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final isFav = profile?.favoriteChannelIds.contains(contentId) ?? false;
 
     return Container(
       decoration: const BoxDecoration(
@@ -596,6 +713,7 @@ class _VodControls extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
                       color: Colors.white,
+                      tooltip: 'Back',
                       onPressed: onBack,
                     ),
                     Expanded(
@@ -615,16 +733,60 @@ class _VodControls extends ConsumerWidget {
                       _DecodeBadge(label: decodeLabel!),
                       const SizedBox(width: 8),
                     ],
+                    if (onGoLive != null) ...[
+                      GestureDetector(
+                        onTap: onGoLive,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'LIVE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     if (hasCc)
                       IconButton(
                         icon: Icon(
                           ccActive
                               ? Icons.closed_caption
-                              : Icons.closed_caption_off_outlined,
+                              : Icons.closed_caption_outlined,
                           color: ccActive ? Colors.white : Colors.white54,
                         ),
                         tooltip: 'Subtitles / CC',
                         onPressed: onCc,
+                      ),
+                    if (contentId != null && profile != null)
+                      IconButton(
+                        icon: Icon(
+                          isFav ? Icons.star : Icons.star_border,
+                          color: isFav
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.white,
+                        ),
+                        tooltip: isFav
+                            ? 'Remove from Favorites'
+                            : 'Add to Favorites',
+                        onPressed: () => ref
+                            .read(profileServiceProvider)
+                            .toggleFavoriteChannel(profile.id, contentId!),
+                      ),
+                    if (onEpg != null)
+                      IconButton(
+                        icon: const Icon(Icons.list_alt),
+                        color: Colors.white,
+                        tooltip: 'TV Guide',
+                        onPressed: onEpg,
                       ),
                   ],
                 ),

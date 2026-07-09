@@ -53,6 +53,21 @@ class PlaybackService {
   void attachVideoController(VideoController c) => _activeController = c;
   void detachVideoController() => _activeController = null;
 
+  // Set by a caller (e.g. the EPG panel) right before it replaces the
+  // current PlayerScreen with a new one on the same shared Player — such as
+  // switching from live to catch-up. The outgoing PlayerScreen has no way to
+  // know its dispose() was triggered by a deliberate hand-off rather than a
+  // real exit, since pushReplacement is called from outside its own state.
+  // Its dispose() consumes this flag to skip stop()/orientation-reset, which
+  // would otherwise kill the incoming screen's just-started playback.
+  bool _transitioning = false;
+  void markTransitioning() => _transitioning = true;
+  bool consumeTransitioning() {
+    final v = _transitioning;
+    _transitioning = false;
+    return v;
+  }
+
   Player get player => _player;
 
   // ---------------------------------------------------------------------------

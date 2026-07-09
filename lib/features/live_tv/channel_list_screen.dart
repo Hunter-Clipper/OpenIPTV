@@ -14,7 +14,13 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/category_tile.dart';
+import 'package:open_iptv/shared/widgets/empty_state_view.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -140,8 +146,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         ],
       ),
       body: channelsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(
+        loading: () => const LoadingView(),
+        error: (e, _) => ErrorStateView(
+            message: "Couldn't load channels. Check your internet connection.",
             onRetry: () => ref.invalidate(_allChannelsProvider)),
         data: (all) {
           final cats = _buildCategories(all, hiddenCats, sort)
@@ -161,11 +168,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 if (recent.isNotEmpty) ...[
-                  const _SectionHeader(title: 'Recently Watched'),
+                  const SectionHeader('Recently Watched'),
                   _RecentChannelsRow(channels: recent),
                 ],
                 if (favCount > 0)
-                  _CategoryTile(
+                  CategoryTile(
                     label: 'Favorites',
                     count: favCount,
                     icon: Icons.star_outlined,
@@ -173,7 +180,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                         '/live/category/${Uri.encodeComponent('Favorites')}'),
                   ),
                 if (cats.isEmpty)
-                  _CategoryTile(
+                  CategoryTile(
                     label: 'All',
                     count: all.length,
                     icon: Icons.live_tv_outlined,
@@ -184,7 +191,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   final count = catCounts[cat] ?? 0;
                   final locked = parentalPrefs != null &&
                       isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
-                  return _CategoryTile(
+                  return CategoryTile(
                     label: cat,
                     count: count,
                     icon: Icons.folder_outlined,
@@ -315,15 +322,19 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
         ],
       ),
       body: channelsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            _ErrorView(onRetry: () => ref.invalidate(_allChannelsProvider)),
+        loading: () => const LoadingView(),
+        error: (e, _) => ErrorStateView(
+            message: "Couldn't load channels. Check your internet connection.",
+            onRetry: () => ref.invalidate(_allChannelsProvider)),
         data: (all) {
           final channels = _channelsForCategory(all, favIds, sort);
           if (channels.isEmpty) {
             return const RefreshIndicator(
               onRefresh: _refreshStatic,
-              child: _EmptyView(),
+              child: EmptyStateView(
+                icon: Icons.live_tv_outlined,
+                message: 'No channels here yet.',
+              ),
             );
           }
           if (viewMode == 'grid') {
@@ -445,69 +456,31 @@ class _ChannelGridCard extends ConsumerWidget {
                 ],
               ),
             ),
-            if (isFavorite)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: StarButton(
+                isFavorite: isFavorite,
+                onTap: profileId == null
+                    ? null
+                    : () async {
+                        await ref
+                            .read(profileServiceProvider)
+                            .toggleFavoriteChannel(profileId!, channel.id);
+                        ref.invalidate(activeProfileProvider);
+                      },
+              ),
+            ),
+            if (channel.hasCatchup)
               Positioned(
                 top: 4,
-                right: 4,
-                child: Icon(Icons.star,
-                    size: 12, color: theme.colorScheme.primary),
+                left: 4,
+                child: Icon(Icons.replay_circle_filled_outlined,
+                    size: 12, color: theme.colorScheme.onSurfaceVariant),
               ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category tile
-// ---------------------------------------------------------------------------
-
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({
-    required this.label,
-    required this.count,
-    required this.icon,
-    required this.onTap,
-    this.isLocked = false,
-    this.onLongPress,
-  });
-
-  final String label;
-  final int count;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isLocked;
-  final VoidCallback? onLongPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListTile(
-      leading: Icon(icon, color: theme.colorScheme.primary),
-      title: Text(label),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLocked)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Icon(Icons.lock_outline,
-                  size: 16, color: theme.colorScheme.onSurfaceVariant),
-            ),
-          Text(
-            count.toString(),
-            style: theme.textTheme.bodySmall!.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
-      onTap: onTap,
-      enableFeedback: false,
-      onLongPress: onLongPress,
     );
   }
 }
@@ -535,21 +508,36 @@ class _ChannelRow extends ConsumerWidget {
       leading: _ChannelLogo(url: channel.logoUrl),
       title: Text(channel.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: _EpgSubtitle(channelId: channel.id),
-      trailing: IconButton(
-        icon: Icon(
-          isFavorite ? Icons.star : Icons.star_border,
-          color: isFavorite
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurfaceVariant,
-        ),
-        onPressed: profileId == null
-            ? null
-            : () async {
-                await ref
-                    .read(profileServiceProvider)
-                    .toggleFavoriteChannel(profileId!, channel.id);
-                ref.invalidate(activeProfileProvider);
-              },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (channel.hasCatchup)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                Icons.replay_circle_filled_outlined,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          IconButton(
+            icon: Icon(
+              isFavorite ? Icons.star : Icons.star_border,
+              color: isFavorite
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+            tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+            onPressed: profileId == null
+                ? null
+                : () async {
+                    await ref
+                        .read(profileServiceProvider)
+                        .toggleFavoriteChannel(profileId!, channel.id);
+                    ref.invalidate(activeProfileProvider);
+                  },
+          ),
+        ],
       ),
       onTap: () => context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
@@ -772,57 +760,8 @@ class _ChannelOptionsSheet extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Error and empty states
-// ---------------------------------------------------------------------------
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.signal_wifi_connected_no_internet_4, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              "Couldn't load channels. Check your internet connection.",
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Try Again')),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Recently Watched row
 // ---------------------------------------------------------------------------
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall,
-      ),
-    );
-  }
-}
 
 class _RecentChannelsRow extends ConsumerWidget {
   const _RecentChannelsRow({required this.channels});
@@ -832,12 +771,13 @@ class _RecentChannelsRow extends ConsumerWidget {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.remove_circle_outline),
+              leading: Icon(Icons.remove_circle_outline,
+                  color: Theme.of(sheetContext).colorScheme.error),
               title: const Text('Remove from Recently Watched'),
               onTap: () async {
                 Navigator.pop(context);
@@ -913,30 +853,6 @@ class _RecentChannelsRow extends ConsumerWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.live_tv_outlined, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'No channels here yet.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
       ),
     );
   }

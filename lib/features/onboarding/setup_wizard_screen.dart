@@ -10,18 +10,27 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/friendly_error.dart';
+import 'package:open_iptv/shared/widgets/pin_keypad.dart';
 
 // ---------------------------------------------------------------------------
 // Shared theme constants
+//
+// These alias the app's real palette (AppTheme) rather than declaring an
+// unrelated one, so the first screen a new user sees already matches every
+// screen after it. _kMuted/_kBgDark/_kCardBg etc. are kept as short local
+// names purely to avoid a much larger diff across this file.
 // ---------------------------------------------------------------------------
 
-const _kBgDark = Color(0xFF07070F);
-const _kBgMid = Color(0xFF12122A);
-const _kAccent = Color(0xFF5B4FFF);
-const _kAccentLight = Color(0xFF8B7FFF);
-const _kMuted = Color(0xFF6868A0);
-const _kCardBg = Color(0xFF12122E);
-const _kCardBorder = Color(0xFF2A2A4A);
+const _kBgDark = AppTheme.backgroundColor;
+const _kBgMid = AppTheme.surfaceColor;
+const _kMuted = AppTheme.mutedTextColor;
+const _kCardBg = AppTheme.surfaceVariantColor;
+const _kCardBorder = AppTheme.outlineColor;
+
+/// A lighter tint of [color], used for the wizard's gradient accents.
+Color _lighten(Color color, [double amount = 0.3]) =>
+    Color.lerp(color, Colors.white, amount)!;
 
 // ---------------------------------------------------------------------------
 // SetupWizardScreen
@@ -174,24 +183,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       if (mounted) context.go('/live');
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString();
-      String userMessage;
-      if (msg.contains('http_401') || msg.contains('http_403')) {
-        userMessage =
-            "Your username or password doesn't seem right. Check with your provider.";
-      } else if (msg.contains('timeout') || msg.contains('SocketException')) {
-        userMessage =
-            "Couldn't reach this server. Check your internet connection and try again.";
-      } else if (msg.contains('http_')) {
-        userMessage =
-            "This link doesn't look like a valid channel list. Check the URL with your provider.";
-      } else {
-        userMessage =
-            'Something went wrong. Check your details and try again.';
-      }
       setState(() {
         _isLoading = false;
-        _errorMessage = userMessage;
+        _errorMessage = friendlySourceErrorMessage(e);
       });
       _goToPage(4);
     }
@@ -219,6 +213,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             },
           ),
           _PinPage(
+            accentColor: _accentColor,
             onSkip: () {
               setState(() {
                 _wantsPin = false;
@@ -235,12 +230,14 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             },
           ),
           _PlaylistTypePage(
+            accentColor: _accentColor,
             onSelected: (type) {
               setState(() => _playlistType = type);
               _goToPage(4);
             },
           ),
           _CredentialsPage(
+            accentColor: _accentColor,
             playlistType: _playlistType,
             nicknameCtrl: _nicknameCtrl,
             xtreamHostCtrl: _xtreamHostCtrl,
@@ -254,9 +251,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             onBack: () => _goToPage(3),
             onSubmit: _isLoading ? null : _submitSource,
           ),
-          _LoadingPage(message: _progressMessage),
+          _LoadingPage(message: _progressMessage, accentColor: _accentColor),
           _AllSetPage(
             name: _nameCtrl.text.trim(),
+            accentColor: _accentColor,
             checkScale: _checkScale,
             sparkleAngle: _sparkleAngle,
           ),
@@ -434,7 +432,8 @@ class _WelcomePageState extends State<_WelcomePage>
                     Transform.scale(scale: _btnScale.value, child: child),
                 child: _GradientButton(
                   label: 'Get Started',
-                  icon: Icons.arrow_forward_rounded,
+                  icon: Icons.arrow_forward,
+                  accentColor: AppTheme.accentSwatches.first.color,
                   onTap: widget.onStart,
                 ),
               ),
@@ -484,7 +483,7 @@ class _NamePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              const _StepIndicator(current: 0, total: 4),
+              _StepIndicator(current: 0, total: 4, accentColor: selectedColor),
               const SizedBox(height: 36),
               const Text(
                 "What's your name?",
@@ -522,7 +521,7 @@ class _NamePage extends StatelessWidget {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: _kAccent, width: 2),
+                    borderSide: BorderSide(color: selectedColor, width: 2),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 18),
@@ -554,10 +553,10 @@ class _NamePage extends StatelessWidget {
                         height: 54,
                         decoration: BoxDecoration(
                           color: selected
-                              ? _kAccent.withValues(alpha: 0.2)
+                              ? selectedColor.withValues(alpha: 0.2)
                               : _kCardBg,
                           border: Border.all(
-                            color: selected ? _kAccent : _kCardBorder,
+                            color: selected ? selectedColor : _kCardBorder,
                             width: selected ? 2 : 1,
                           ),
                           borderRadius: BorderRadius.circular(14),
@@ -573,7 +572,7 @@ class _NamePage extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               const Text(
-                'Favourite colour',
+                'Accent Color',
                 style: TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
@@ -609,7 +608,7 @@ class _NamePage extends StatelessWidget {
                               : null,
                         ),
                         child: sel
-                            ? const Icon(Icons.check_rounded,
+                            ? const Icon(Icons.check,
                                 color: Colors.white, size: 18)
                             : null,
                       ),
@@ -620,7 +619,8 @@ class _NamePage extends StatelessWidget {
               const Spacer(),
               _GradientButton(
                 label: 'Continue',
-                icon: Icons.arrow_forward_rounded,
+                icon: Icons.arrow_forward,
+                accentColor: selectedColor,
                 onTap: onContinue,
               ),
               const SizedBox(height: 32),
@@ -637,7 +637,12 @@ class _NamePage extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PinPage extends StatefulWidget {
-  const _PinPage({required this.onSkip, required this.onPinSet});
+  const _PinPage({
+    required this.accentColor,
+    required this.onSkip,
+    required this.onPinSet,
+  });
+  final Color accentColor;
   final VoidCallback onSkip;
   final ValueChanged<String> onPinSet;
 
@@ -657,13 +662,13 @@ class _PinPageState extends State<_PinPage> {
     );
   }
 
-  void _onKey(String key) {
-    if (key == '⌫') {
-      if (_digits.isNotEmpty) {
-        setState(() => _digits = _digits.substring(0, _digits.length - 1));
-      }
-    } else if (_digits.length < 4) {
-      setState(() => _digits += key);
+  void _onDigit(String d) {
+    if (_digits.length < 4) setState(() => _digits += d);
+  }
+
+  void _onBackspace() {
+    if (_digits.isNotEmpty) {
+      setState(() => _digits = _digits.substring(0, _digits.length - 1));
     }
   }
 
@@ -677,7 +682,8 @@ class _PinPageState extends State<_PinPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              const _StepIndicator(current: 1, total: 4),
+              _StepIndicator(
+                  current: 1, total: 4, accentColor: widget.accentColor),
               const SizedBox(height: 36),
               const Text(
                 'Secure your account',
@@ -692,58 +698,25 @@ class _PinPageState extends State<_PinPage> {
                 style: TextStyle(color: _kMuted, fontSize: 14, height: 1.5),
               ),
               const SizedBox(height: 40),
-              // PIN dots
               Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(4, (i) {
-                    final filled = i < _digits.length;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.symmetric(horizontal: 10),
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: filled ? _kAccent : Colors.transparent,
-                        border: Border.all(
-                          color: filled ? _kAccent : _kMuted,
-                          width: 2,
-                        ),
-                      ),
-                    );
-                  }),
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: Theme.of(context)
+                        .colorScheme
+                        .copyWith(primary: widget.accentColor),
+                  ),
+                  child: PinKeypad(
+                    pin: _digits,
+                    onDigit: _onDigit,
+                    onBackspace: _onBackspace,
+                  ),
                 ),
               ),
-              const SizedBox(height: 40),
-              // Number pad
-              ...([
-                ['1', '2', '3'],
-                ['4', '5', '6'],
-                ['7', '8', '9'],
-                ['', '0', '⌫'],
-              ].map((row) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: row.map((key) {
-                        if (key.isEmpty) {
-                          return const SizedBox(width: 80);
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: _KeypadButton(
-                            label: key,
-                            onTap: () => _onKey(key),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ))),
               const SizedBox(height: 8),
               _GradientButton(
                 label: 'Set PIN',
-                icon: Icons.lock_rounded,
+                icon: Icons.lock,
+                accentColor: widget.accentColor,
                 onTap: _digits.length == 4
                     ? () => widget.onPinSet(_digits)
                     : null,
@@ -767,47 +740,13 @@ class _PinPageState extends State<_PinPage> {
   }
 }
 
-class _KeypadButton extends StatelessWidget {
-  const _KeypadButton({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          color: _kCardBg,
-          borderRadius: BorderRadius.circular(36),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Center(
-          child: label == '⌫'
-              ? const Icon(Icons.backspace_outlined,
-                  color: Colors.white70, size: 22)
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Page 3 — Playlist type selector
 // ---------------------------------------------------------------------------
 
 class _PlaylistTypePage extends StatelessWidget {
-  const _PlaylistTypePage({required this.onSelected});
+  const _PlaylistTypePage({required this.accentColor, required this.onSelected});
+  final Color accentColor;
   final ValueChanged<SourceType> onSelected;
 
   @override
@@ -820,7 +759,7 @@ class _PlaylistTypePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              const _StepIndicator(current: 2, total: 4),
+              _StepIndicator(current: 2, total: 4, accentColor: accentColor),
               const SizedBox(height: 36),
               const Text(
                 'What kind of playlist\ndo you have?',
@@ -963,7 +902,7 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(Icons.arrow_forward_ios_rounded,
+              const Icon(Icons.chevron_right,
                   color: Colors.white70, size: 18),
             ],
           ),
@@ -979,6 +918,7 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
 
 class _CredentialsPage extends StatelessWidget {
   const _CredentialsPage({
+    required this.accentColor,
     required this.playlistType,
     required this.nicknameCtrl,
     required this.xtreamHostCtrl,
@@ -993,6 +933,7 @@ class _CredentialsPage extends StatelessWidget {
     required this.onSubmit,
   });
 
+  final Color accentColor;
   final SourceType playlistType;
   final TextEditingController nicknameCtrl;
   final TextEditingController xtreamHostCtrl;
@@ -1008,6 +949,7 @@ class _CredentialsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isXtream = playlistType == SourceType.xtream;
     return _WizardBackground(
       child: SafeArea(
@@ -1021,12 +963,14 @@ class _CredentialsPage extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded,
+                        icon: const Icon(Icons.arrow_back,
                             color: Colors.white70),
+                        tooltip: 'Back',
                         onPressed: onBack,
                       ),
                       const SizedBox(width: 4),
-                      const _StepIndicator(current: 3, total: 4),
+                      _StepIndicator(
+                          current: 3, total: 4, accentColor: accentColor),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1067,6 +1011,7 @@ class _CredentialsPage extends StatelessWidget {
                       label: 'Nickname',
                       ctrl: nicknameCtrl,
                       hint: 'e.g. Home Server',
+                      accentColor: accentColor,
                     ),
                     const SizedBox(height: 16),
                     if (isXtream) ...[
@@ -1075,12 +1020,14 @@ class _CredentialsPage extends StatelessWidget {
                         ctrl: xtreamHostCtrl,
                         hint: 'http://your-provider.com:8080',
                         type: TextInputType.url,
+                        accentColor: accentColor,
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
                         label: 'Username',
                         ctrl: xtreamUserCtrl,
                         hint: 'your_username',
+                        accentColor: accentColor,
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
@@ -1088,6 +1035,7 @@ class _CredentialsPage extends StatelessWidget {
                         ctrl: xtreamPassCtrl,
                         hint: 'your_password',
                         obscure: !passVisible,
+                        accentColor: accentColor,
                         suffix: IconButton(
                           icon: Icon(
                             passVisible
@@ -1095,6 +1043,7 @@ class _CredentialsPage extends StatelessWidget {
                                 : Icons.visibility,
                             color: _kMuted,
                           ),
+                          tooltip: passVisible ? 'Hide password' : 'Show password',
                           onPressed: onTogglePass,
                         ),
                       ),
@@ -1104,6 +1053,7 @@ class _CredentialsPage extends StatelessWidget {
                         ctrl: m3uUrlCtrl,
                         hint: 'https://example.com/playlist.m3u',
                         type: TextInputType.url,
+                        accentColor: accentColor,
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
@@ -1111,6 +1061,7 @@ class _CredentialsPage extends StatelessWidget {
                         ctrl: epgUrlCtrl,
                         hint: 'https://example.com/epg.xml',
                         type: TextInputType.url,
+                        accentColor: accentColor,
                       ),
                     ],
                     if (errorMessage != null) ...[
@@ -1118,21 +1069,21 @@ class _CredentialsPage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.12),
+                          color: theme.colorScheme.error.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: Colors.red.withValues(alpha: 0.4)),
+                              color: theme.colorScheme.error.withValues(alpha: 0.4)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline,
-                                color: Colors.redAccent, size: 18),
+                            Icon(Icons.error_outline,
+                                color: theme.colorScheme.error, size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 errorMessage!,
-                                style: const TextStyle(
-                                    color: Colors.redAccent, fontSize: 13),
+                                style: TextStyle(
+                                    color: theme.colorScheme.error, fontSize: 13),
                               ),
                             ),
                           ],
@@ -1142,7 +1093,8 @@ class _CredentialsPage extends StatelessWidget {
                     const SizedBox(height: 28),
                     _GradientButton(
                       label: 'Load My Playlist',
-                      icon: Icons.download_rounded,
+                      icon: Icons.download,
+                      accentColor: accentColor,
                       onTap: onSubmit,
                     ),
                     const SizedBox(height: 16),
@@ -1162,6 +1114,7 @@ class _WizardField extends StatelessWidget {
     required this.label,
     required this.ctrl,
     required this.hint,
+    required this.accentColor,
     this.type,
     this.obscure = false,
     this.suffix,
@@ -1170,6 +1123,7 @@ class _WizardField extends StatelessWidget {
   final String label;
   final TextEditingController ctrl;
   final String hint;
+  final Color accentColor;
   final TextInputType? type;
   final bool obscure;
   final Widget? suffix;
@@ -1209,7 +1163,7 @@ class _WizardField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _kAccent, width: 2),
+              borderSide: BorderSide(color: accentColor, width: 2),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1226,8 +1180,9 @@ class _WizardField extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _LoadingPage extends StatefulWidget {
-  const _LoadingPage({required this.message});
+  const _LoadingPage({required this.message, required this.accentColor});
   final String message;
+  final Color accentColor;
 
   @override
   State<_LoadingPage> createState() => _LoadingPageState();
@@ -1280,15 +1235,16 @@ class _LoadingPageState extends State<_LoadingPage>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              _kAccent.withValues(alpha: _pulse.value * 0.25),
+                              widget.accentColor
+                                  .withValues(alpha: _pulse.value * 0.25),
                               Colors.transparent,
                             ],
                           ),
                         ),
                       ),
                     ),
-                    const CircularProgressIndicator(
-                      color: _kAccent,
+                    CircularProgressIndicator(
+                      color: widget.accentColor,
                       strokeWidth: 3,
                     ),
                   ],
@@ -1331,11 +1287,13 @@ class _LoadingPageState extends State<_LoadingPage>
 class _AllSetPage extends StatelessWidget {
   const _AllSetPage({
     required this.name,
+    required this.accentColor,
     required this.checkScale,
     required this.sparkleAngle,
   });
 
   final String name;
+  final Color accentColor;
   final Animation<double> checkScale;
   final Animation<double> sparkleAngle;
 
@@ -1379,9 +1337,9 @@ class _AllSetPage extends StatelessWidget {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: i % 3 == 0
-                                    ? _kAccent
+                                    ? accentColor
                                     : i % 3 == 1
-                                        ? _kAccentLight
+                                        ? _lighten(accentColor)
                                         : Colors.white
                                             .withValues(alpha: 0.5),
                               ),
@@ -1396,7 +1354,7 @@ class _AllSetPage extends StatelessWidget {
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
                               colors: [
-                                _kAccent.withValues(alpha: 0.3),
+                                accentColor.withValues(alpha: 0.3),
                                 Colors.transparent,
                               ],
                             ),
@@ -1410,21 +1368,21 @@ class _AllSetPage extends StatelessWidget {
                             height: 100,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [_kAccent, _kAccentLight],
+                              gradient: LinearGradient(
+                                colors: [accentColor, _lighten(accentColor)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _kAccent.withValues(alpha: 0.5),
+                                  color: accentColor.withValues(alpha: 0.5),
                                   blurRadius: 30,
                                   offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
                             child: const Icon(
-                              Icons.check_rounded,
+                              Icons.check,
                               color: Colors.white,
                               size: 54,
                             ),
@@ -1490,9 +1448,14 @@ class _WizardBackground extends StatelessWidget {
 }
 
 class _StepIndicator extends StatelessWidget {
-  const _StepIndicator({required this.current, required this.total});
+  const _StepIndicator({
+    required this.current,
+    required this.total,
+    required this.accentColor,
+  });
   final int current;
   final int total;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1508,9 +1471,9 @@ class _StepIndicator extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4),
             color: active
-                ? _kAccent
+                ? accentColor
                 : done
-                    ? _kAccentLight.withValues(alpha: 0.6)
+                    ? _lighten(accentColor).withValues(alpha: 0.6)
                     : _kCardBorder,
           ),
         );
@@ -1523,11 +1486,13 @@ class _GradientButton extends StatelessWidget {
   const _GradientButton({
     required this.label,
     required this.icon,
+    required this.accentColor,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
+  final Color accentColor;
   final VoidCallback? onTap;
 
   @override
@@ -1542,8 +1507,8 @@ class _GradientButton extends StatelessWidget {
           height: 56,
           decoration: BoxDecoration(
             gradient: enabled
-                ? const LinearGradient(
-                    colors: [_kAccent, Color(0xFF7B6FFF)],
+                ? LinearGradient(
+                    colors: [accentColor, _lighten(accentColor)],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   )
@@ -1553,7 +1518,7 @@ class _GradientButton extends StatelessWidget {
             boxShadow: enabled
                 ? [
                     BoxShadow(
-                      color: _kAccent.withValues(alpha: 0.4),
+                      color: accentColor.withValues(alpha: 0.4),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),

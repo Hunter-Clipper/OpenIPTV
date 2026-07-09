@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +7,9 @@ import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/poster_image.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -59,7 +61,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
     return Scaffold(
       body: seriesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingView(),
         error: (_, __) => _ErrorScaffold(onBack: () => context.pop()),
         data: (series) {
           if (series == null) {
@@ -178,6 +180,8 @@ class _SeriesBody extends ConsumerWidget {
                 isFav ? Icons.star : Icons.star_border,
                 color: isFav ? theme.colorScheme.primary : null,
               ),
+              tooltip:
+                  isFav ? 'Remove from Favorites' : 'Add to Favorites',
               onPressed: profileId == null
                   ? null
                   : () => ref
@@ -199,7 +203,8 @@ class _SeriesBody extends ConsumerWidget {
                   child: SizedBox(
                     width: 120,
                     height: 180,
-                    child: _PosterImage(posterUrl: series.posterUrl),
+                    child: PosterImage(
+                        posterUrl: series.posterUrl, iconSize: 40),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -468,7 +473,8 @@ class _EpisodeRow extends ConsumerWidget {
           children: [
             if (episode.isInProgress)
               ListTile(
-                leading: const Icon(Icons.delete_outline),
+                leading: Icon(Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error),
                 title: const Text('Clear Progress'),
                 onTap: () async {
                   Navigator.pop(context);
@@ -517,8 +523,10 @@ class _EpisodeRow extends ConsumerWidget {
               ),
             )
           : null,
-      trailing:
-          episode.isWatched ? const Icon(Icons.check_circle_outline) : null,
+      trailing: episode.isWatched
+          ? Icon(Icons.check_circle_outline,
+              size: 18, color: theme.colorScheme.primary)
+          : null,
       onTap: () => context.push('/player', extra: {
         'streamUrl': episode.streamUrl,
         'title': '${episode.episodeLabel} – ${episode.title}',
@@ -538,37 +546,6 @@ class _EpisodeRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-class _PosterImage extends StatelessWidget {
-  const _PosterImage({required this.posterUrl});
-
-  final String? posterUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    if (posterUrl == null || posterUrl!.isEmpty) {
-      return Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-            child: Icon(Icons.video_library_outlined, size: 40)),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: posterUrl!,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      placeholder: (_, __) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      errorWidget: (_, __, ___) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-            child: Icon(Icons.video_library_outlined, size: 40)),
-      ),
-    );
-  }
-}
 
 class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.label});
@@ -603,18 +580,10 @@ class _ErrorScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48),
-            const SizedBox(height: 16),
-            const Text("Couldn't load this series."),
-            const SizedBox(height: 16),
-            FilledButton(
-                onPressed: onBack, child: const Text('Go Back')),
-          ],
-        ),
+      body: ErrorStateView(
+        message: "Couldn't load this series. Try again.",
+        onRetry: onBack,
+        retryLabel: 'Go Back',
       ),
     );
   }

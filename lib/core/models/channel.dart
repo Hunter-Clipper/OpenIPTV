@@ -11,6 +11,9 @@ class Channel {
     this.tvgName,
     this.isFavorite = false,
     this.lastWatchedAt,
+    this.hasCatchup = false,
+    this.catchupDays = 0,
+    this.streamId,
   });
 
   final String id;
@@ -24,6 +27,13 @@ class Channel {
   final bool isFavorite;
   final int sortOrder;
   final DateTime? lastWatchedAt;
+  // Catch-up (timeshift) support, Xtream sources only — see XtreamClient's
+  // buildCatchupUrl(). M3U sources never set these (no standard mechanism).
+  final bool hasCatchup;
+  final int catchupDays;
+  // The raw Xtream numeric stream id, needed to build a catch-up URL later.
+  // Null for M3U-sourced channels.
+  final String? streamId;
 
   Channel copyWith({
     String? id,
@@ -37,6 +47,9 @@ class Channel {
     bool? isFavorite,
     int? sortOrder,
     DateTime? lastWatchedAt,
+    bool? hasCatchup,
+    int? catchupDays,
+    String? streamId,
   }) {
     return Channel(
       id: id ?? this.id,
@@ -50,6 +63,9 @@ class Channel {
       isFavorite: isFavorite ?? this.isFavorite,
       sortOrder: sortOrder ?? this.sortOrder,
       lastWatchedAt: lastWatchedAt ?? this.lastWatchedAt,
+      hasCatchup: hasCatchup ?? this.hasCatchup,
+      catchupDays: catchupDays ?? this.catchupDays,
+      streamId: streamId ?? this.streamId,
     );
   }
 }

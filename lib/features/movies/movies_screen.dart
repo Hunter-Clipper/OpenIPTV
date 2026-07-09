@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +12,13 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/category_tile.dart';
+import 'package:open_iptv/shared/widgets/empty_state_view.dart';
+import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/poster_image.dart';
+import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 bool _movieGenreIsAdult(String? genre) =>
@@ -126,13 +131,17 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
         ],
       ),
       body: moviesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _ErrorView(onRetry: _refresh),
+        error: (_, __) => ErrorStateView(
+          message: "Couldn't load movies. Try again.",
+          onRetry: _refresh,
+        ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
           final inProgress = (inProgressAsync.valueOrNull ?? [])
@@ -166,7 +175,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
             child: CustomScrollView(
               slivers: [
                 if (inProgress.isNotEmpty) ...[
-                  const _SectionHeader(title: 'Continue Watching'),
+                  const SectionHeaderSliver('Continue Watching'),
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
                       movies: inProgress,
@@ -177,7 +186,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   ),
                 ],
                 if (favorites.isNotEmpty) ...[
-                  const _SectionHeader(title: 'Favorites'),
+                  const SectionHeaderSliver('Favorites'),
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
                       movies: favorites,
@@ -187,7 +196,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                     ),
                   ),
                 ],
-                const _SectionHeader(title: 'Browse by Genre'),
+                const SectionHeaderSliver('Browse by Genre'),
                 SliverToBoxAdapter(
                   child: _GenreTileList(
                     genres: genres.isEmpty ? ['All'] : genres,
@@ -311,13 +320,17 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
         ],
       ),
       body: moviesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _ErrorView(onRetry: _refresh),
+        error: (_, __) => ErrorStateView(
+          message: "Couldn't load movies. Try again.",
+          onRetry: _refresh,
+        ),
         data: (all) {
           final filtered = _filtered(all);
           if (sort == 'az') {
@@ -329,7 +342,12 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
-                  const SliverFillRemaining(child: _EmptyView())
+                  const SliverFillRemaining(
+                    child: EmptyStateView(
+                      icon: Icons.movie_outlined,
+                      message: 'No movies found.',
+                    ),
+                  )
                 else if (viewMode == 'list')
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
@@ -396,61 +414,20 @@ class _GenreTileList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       children: genres.map((g) {
         final locked = lockedGenres.contains(g);
-        return ListTile(
-          leading: Icon(
-            g == 'All' ? Icons.movie_outlined : Icons.category_outlined,
-            color: theme.colorScheme.primary,
-          ),
-          title: Text(g),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (locked)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(Icons.lock_outline,
-                      size: 16, color: theme.colorScheme.onSurfaceVariant),
-                ),
-              Text(
-                (movieCounts[g] ?? 0).toString(),
-                style: theme.textTheme.bodySmall!.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
+        return CategoryTile(
+          label: g,
+          count: movieCounts[g] ?? 0,
+          icon: g == 'All' ? Icons.movie_outlined : Icons.category_outlined,
+          isLocked: locked,
           onTap: () => onTap(g),
           onLongPress: g == 'All' || onHideGenre == null
               ? null
               : () => onHideGenre!(g),
         );
       }).toList(),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Section header sliver
-// ---------------------------------------------------------------------------
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-      ),
     );
   }
 }
@@ -498,7 +475,8 @@ class _HorizontalPosterRow extends ConsumerWidget {
               ),
             if (isContinueWatchingRow)
               ListTile(
-                leading: const Icon(Icons.remove_circle_outline),
+                leading: Icon(Icons.remove_circle_outline,
+                    color: Theme.of(context).colorScheme.error),
                 title: const Text('Remove from Continue Watching'),
                 onTap: () async {
                   Navigator.pop(context);
@@ -544,7 +522,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                         ClipRRect(
                           borderRadius:
                               BorderRadius.circular(AppTheme.cardRadius),
-                          child: _PosterImage(posterUrl: movie.posterUrl),
+                          child: PosterImage(posterUrl: movie.posterUrl),
                         ),
                         if (movie.isWatched)
                           Positioned(
@@ -643,7 +621,7 @@ class _MovieListTile extends ConsumerWidget {
           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: _PosterImage(posterUrl: movie.posterUrl,
+        child: PosterImage(posterUrl: movie.posterUrl,
             width: 40, height: 56),
       ),
       title: Text(movie.title,
@@ -717,7 +695,7 @@ class _PosterCard extends ConsumerWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-            child: _PosterImage(posterUrl: movie.posterUrl),
+            child: PosterImage(posterUrl: movie.posterUrl),
           ),
           if (movie.isInProgress)
             Positioned(
@@ -750,7 +728,7 @@ class _PosterCard extends ConsumerWidget {
           Positioned(
             top: 4,
             right: 4,
-            child: _StarButton(
+            child: StarButton(
               isFavorite: ref.watch(activeProfileProvider.select((a) =>
                   a.valueOrNull?.favoriteMovieIds.contains(movie.id) ?? false)),
               onTap: profileId == null
@@ -769,112 +747,3 @@ class _PosterCard extends ConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shared widgets
-// ---------------------------------------------------------------------------
-
-class _PosterImage extends StatelessWidget {
-  const _PosterImage({required this.posterUrl, this.width, this.height});
-
-  final String? posterUrl;
-  final double? width;
-  final double? height;
-
-  @override
-  Widget build(BuildContext context) {
-    if (posterUrl == null || posterUrl!.isEmpty) {
-      return Container(
-        width: width,
-        height: height,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-          child: Icon(Icons.movie_outlined, size: 24),
-        ),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: posterUrl!,
-      fit: BoxFit.cover,
-      width: width ?? double.infinity,
-      height: height ?? double.infinity,
-      memCacheWidth: width?.toInt() ?? 220,
-      memCacheHeight: height?.toInt() ?? 320,
-      placeholder: (_, __) => Container(
-        width: width,
-        height: height,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      errorWidget: (_, __, ___) => Container(
-        width: width,
-        height: height,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(child: Icon(Icons.movie_outlined, size: 24)),
-      ),
-    );
-  }
-}
-
-class _StarButton extends StatelessWidget {
-  const _StarButton({required this.isFavorite, required this.onTap});
-
-  final bool isFavorite;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: Colors.black54,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Icon(
-          isFavorite ? Icons.star : Icons.star_border,
-          size: 16,
-          color: isFavorite
-              ? Theme.of(context).colorScheme.primary
-              : Colors.white70,
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48),
-          const SizedBox(height: 16),
-          const Text("Couldn't load movies. Try again."),
-          const SizedBox(height: 16),
-          FilledButton(onPressed: onRetry, child: const Text('Try Again')),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'No movies found.',
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
-    );
-  }
-}

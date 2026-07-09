@@ -5,13 +5,18 @@ class XmltvParser {
   /// Stream-parses an XMLTV feed and yields Programme objects.
   ///
   /// Never loads the full document into memory — safe for large EPG feeds.
-  /// Keeps only programmes within [windowDays] days from now.
+  /// Keeps only programmes within [windowDays] days ahead and [pastWindow]
+  /// behind now. [pastWindow] should cover the largest catch-up window of
+  /// any channel in the source being refreshed — the parser has no
+  /// per-channel knowledge, so it's a blunt per-source bound; the caller's
+  /// database cleanup pass does the precise per-channel trim afterward.
   static Stream<Programme> parse(
     Stream<String> chunks, {
     int windowDays = 5,
+    Duration pastWindow = const Duration(hours: 1),
   }) async* {
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
-    final cutoffStart = DateTime.now().subtract(const Duration(hours: 1));
+    final cutoffStart = DateTime.now().subtract(pastWindow);
 
     DateTime? progStart;
     DateTime? progEnd;

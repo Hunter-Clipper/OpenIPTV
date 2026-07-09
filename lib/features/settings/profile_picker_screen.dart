@@ -73,7 +73,7 @@ class ProfilePickerScreen extends ConsumerWidget {
       if (!ok) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect PIN. Try again.')),
+            const SnackBar(content: Text('Incorrect PIN')),
           );
         }
         return;

@@ -179,6 +179,33 @@ class XtreamClient {
     return '$base$type/$username/$password/$streamId.$ext';
   }
 
+  /// Builds a catch-up (timeshift) stream URL for a past programme on a
+  /// channel with catch-up enabled. [start] should be the programme's own
+  /// start time; [duration] its length — the Xtream panel serves exactly
+  /// that programme's archived recording, not an arbitrary time range.
+  ///
+  /// Uses UTC for the timestamp, since the device's own timezone has no
+  /// relation to the panel server's — but Xtream panels vary on what
+  /// timezone they actually expect here (often the server's own local time),
+  /// so this may need adjusting once tested against a real catch-up-enabled
+  /// provider.
+  String buildCatchupUrl(
+    String streamId,
+    DateTime start,
+    Duration duration, {
+    String ext = 'ts',
+  }) {
+    final base = host.endsWith('/') ? host : '$host/';
+    final utc = start.toUtc();
+    final startStr = '${utc.year}-'
+        '${utc.month.toString().padLeft(2, '0')}-'
+        '${utc.day.toString().padLeft(2, '0')}:'
+        '${utc.hour.toString().padLeft(2, '0')}-'
+        '${utc.minute.toString().padLeft(2, '0')}';
+    final minutes = duration.inMinutes.clamp(1, 1440);
+    return '${base}timeshift/$username/$password/$minutes/$startStr/$streamId.$ext';
+  }
+
   // ---------------------------------------------------------------------------
   // HTTP
   // ---------------------------------------------------------------------------
@@ -238,6 +265,12 @@ class XtreamClient {
       final m = entry.value as Map<String, dynamic>;
       final streamId = '${m['stream_id'] ?? ''}';
       final catId = '${m['category_id'] ?? ''}';
+      // Xtream panels are inconsistent about JSON types for these two fields
+      // — sometimes numbers, sometimes numeric strings — so parse leniently.
+      final tvArchive = '${m['tv_archive'] ?? '0'}';
+      final hasCatchup = tvArchive == '1' || tvArchive.toLowerCase() == 'true';
+      final catchupDays =
+          int.tryParse('${m['tv_archive_duration'] ?? '0'}') ?? 0;
       return Channel(
         id: '${sourceId}_ch_$streamId',
         sourceId: sourceId,
@@ -248,6 +281,9 @@ class XtreamClient {
         tvgId: m['epg_channel_id'] as String?,
         tvgName: m['name'] as String?,
         sortOrder: entry.key,
+        hasCatchup: hasCatchup && catchupDays > 0,
+        catchupDays: catchupDays,
+        streamId: streamId,
       );
     }).toList();
   }
