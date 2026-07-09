@@ -29,7 +29,9 @@ class SectionHeader extends StatelessWidget {
 }
 
 /// Sliver-compatible wrapper for [SectionHeader], for use directly inside a
-/// CustomScrollView's slivers list.
+/// CustomScrollView's slivers list. Wraps in [SliverToBoxAdapter] since
+/// [SectionHeader] itself builds ordinary box widgets (Padding/Text), which
+/// a sliver viewport cannot accept directly as a child.
 class SectionHeaderSliver extends StatelessWidget {
   const SectionHeaderSliver(this.title, {super.key, this.padding});
 
@@ -38,5 +40,5 @@ class SectionHeaderSliver extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      SectionHeader(title, padding: padding);
+      SliverToBoxAdapter(child: SectionHeader(title, padding: padding));
 }
