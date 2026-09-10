@@ -41,7 +41,11 @@ final _allSeriesProvider = StreamProvider<List<Series>>((ref) {
 });
 
 final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  // .select — see movies_screen.dart's _allMoviesProvider: only the profile
+  // id matters here, so a favorite/watch-progress toggle elsewhere (which
+  // invalidates activeProfileProvider) doesn't tear down this stream.
+  final profileId =
+      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
   return db.watchEpisodesInProgress(profileId);
@@ -581,12 +585,26 @@ class _SeriesListTile extends ConsumerWidget {
           ? Text(series.genre!.split(',').first.trim(),
               maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
-      trailing: Icon(
-        isFav ? Icons.star : Icons.star_border,
-        color: isFav
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.onSurfaceVariant,
-        size: 20,
+      // A tappable IconButton, not a static status Icon — see
+      // movies_screen.dart's _MovieListTile for why (favoriting consistency
+      // with Live TV's directly-tappable channel-row star).
+      trailing: IconButton(
+        icon: Icon(
+          isFav ? Icons.star : Icons.star_border,
+          color: isFav
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          size: 20,
+        ),
+        tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+        onPressed: profileId == null
+            ? null
+            : () async {
+                await ref
+                    .read(profileServiceProvider)
+                    .toggleFavoriteSeries(profileId!, series.id);
+                ref.invalidate(activeProfileProvider);
+              },
       ),
       onTap: () => context.push('/series/${series.id}'),
       onLongPress:

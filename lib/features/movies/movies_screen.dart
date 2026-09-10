@@ -31,7 +31,13 @@ bool _movieGenreIsAdult(String? genre) =>
 final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  // .select — only the profile id matters for these queries. Watching the
+  // whole activeProfileProvider meant toggling a favorite (which invalidates
+  // activeProfileProvider to refresh favoriteMovieIds) tore down and
+  // re-subscribed this entire stream, flashing the loading spinner even
+  // though the movie list itself hadn't changed.
+  final profileId =
+      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
   if (activeSourceId != null) {
     return db.watchMoviesForSource(activeSourceId, profileId: profileId);
   }
@@ -39,7 +45,8 @@ final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
 });
 
 final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final profileId =
+      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
   return db.watchMoviesInProgress(profileId);
@@ -630,12 +637,27 @@ class _MovieListTile extends ConsumerWidget {
           ? Text(movie.genre!.split(',').first.trim(),
               maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
-      trailing: Icon(
-        isFav ? Icons.star : Icons.star_border,
-        color: isFav
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.onSurfaceVariant,
-        size: 20,
+      // A tappable IconButton, not a static status Icon — Live TV's channel
+      // rows already let you toggle favorite with a direct tap here; this
+      // previously required a long-press to reach the same option, an
+      // inconsistency between the two favoriting paths.
+      trailing: IconButton(
+        icon: Icon(
+          isFav ? Icons.star : Icons.star_border,
+          color: isFav
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          size: 20,
+        ),
+        tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+        onPressed: profileId == null
+            ? null
+            : () async {
+                await ref
+                    .read(profileServiceProvider)
+                    .toggleFavoriteMovie(profileId!, movie.id);
+                ref.invalidate(activeProfileProvider);
+              },
       ),
       onTap: () => context.push('/movies/${movie.id}'),
       onLongPress: profileId == null ? null : () => _showOptions(context, ref),

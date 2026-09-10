@@ -30,7 +30,11 @@ import 'package:open_iptv/ui/platform_helper.dart';
 final _allChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  // .select — see movies_screen.dart's _allMoviesProvider: only the profile
+  // id matters here, so a favorite/watch-progress toggle elsewhere (which
+  // invalidates activeProfileProvider) doesn't tear down this stream.
+  final profileId =
+      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
   if (activeSourceId != null) {
     return db.watchChannelsForSource(activeSourceId, profileId: profileId);
   }
@@ -38,7 +42,8 @@ final _allChannelsProvider = StreamProvider<List<Channel>>((ref) {
 });
 
 final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final profileId =
+      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
   return db.watchRecentChannels(profileId);
