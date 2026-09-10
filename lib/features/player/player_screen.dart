@@ -10,6 +10,7 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
+import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -411,6 +412,57 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _playbackStarted = true;
   }
 
+  // Classic-cable-box channel up/down, driven by the D-pad/remote (see
+  // _handleKeyEvent below). Re-tunes by pushReplacement-ing a fresh
+  // PlayerScreen for the neighboring channel in allChannelsProvider's
+  // order — the same shared-Player hand-off pattern catch-up uses, so it
+  // needs the same markTransitioning() guard against this screen's dispose()
+  // undoing the new screen's just-started playback.
+  Future<void> _changeChannel(int delta) async {
+    final channel = _liveChannel;
+    if (channel == null) return;
+    final channels = ref.read(allChannelsProvider).valueOrNull;
+    if (channels == null || channels.isEmpty) return;
+    final index = channels.indexWhere((c) => c.id == channel.id);
+    if (index == -1) return;
+    final next =
+        channels[((index + delta) % channels.length + channels.length) %
+            channels.length];
+    if (next.id == channel.id) return;
+
+    _playbackService.markTransitioning();
+    context.pushReplacement('/player', extra: {
+      'streamUrl': next.streamUrl,
+      'title': next.name,
+      'contentType': 'live',
+      'contentId': next.id,
+    });
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent || !_isChannelPlayback) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    // Dedicated channel-up/down remote buttons always work; the arrow keys
+    // only double as channel-up/down when this screen's own surface holds
+    // focus directly (not one of the on-screen control buttons) — otherwise
+    // they're left alone for normal control-to-control D-pad navigation.
+    final isUp = key == LogicalKeyboardKey.channelUp ||
+        (key == LogicalKeyboardKey.arrowUp && node.hasPrimaryFocus);
+    final isDown = key == LogicalKeyboardKey.channelDown ||
+        (key == LogicalKeyboardKey.arrowDown && node.hasPrimaryFocus);
+    if (isUp) {
+      unawaited(_changeChannel(1));
+      return KeyEventResult.handled;
+    }
+    if (isDown) {
+      unawaited(_changeChannel(-1));
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   void dispose() {
     _hideTimer?.cancel();
@@ -656,7 +708,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
     return Scaffold(
       backgroundColor: Colors.black,
-      body: GestureDetector(
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: GestureDetector(
         onTap: _onTap,
         behavior: HitTestBehavior.opaque,
         child: Stack(
@@ -743,6 +798,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     setState(() => _showUpNext = false),
               ),
           ],
+        ),
         ),
       ),
     );
