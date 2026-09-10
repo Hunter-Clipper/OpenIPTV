@@ -10,6 +10,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
+import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
 import 'package:open_iptv/features/onboarding/add_source_screen.dart';
@@ -26,6 +27,8 @@ import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 class OpenIPTVApp extends ConsumerStatefulWidget {
   const OpenIPTVApp({super.key});
@@ -155,6 +158,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                   builder: (_, state) => LiveCategoryScreen(
                     category: state.pathParameters['cat']!,
                   ),
+                ),
+                GoRoute(
+                  path: 'guide',
+                  builder: (_, __) => const TvGuideScreen(),
                 ),
               ],
             ),
@@ -306,38 +313,78 @@ class _ShellState extends State<_Shell> {
     // we're at a root tab (genre/category pages pop naturally before this).
     // Detail pages on the root navigator (movies/:id, settings, player)
     // pop via the root navigator and never reach onPop.
-    return Scaffold(
-      body: NavigatorPopHandler(
-        onPopWithResult: (Object? result) {
-          if (!mounted) return;
-          final path =
-              GoRouter.of(context).routeInformationProvider.value.uri.path;
+    void onBeforeNavigate(int currentIndex, int newIndex) {
+      if (newIndex == 3 && currentIndex != 3) {
+        setState(() => _previousTabIndex = currentIndex);
+      }
+    }
 
-          // Search tab: go back to whichever tab was active before.
-          if (path == '/search') {
-            switch (_previousTabIndex) {
-              case 0:
-                context.go('/live');
-              case 1:
-                context.go('/movies');
-              case 2:
-                context.go('/series');
-            }
-            return;
+    final navigator = NavigatorPopHandler(
+      onPopWithResult: (Object? result) {
+        if (!mounted) return;
+        final path =
+            GoRouter.of(context).routeInformationProvider.value.uri.path;
+
+        // Search tab: go back to whichever tab was active before.
+        if (path == '/search') {
+          switch (_previousTabIndex) {
+            case 0:
+              context.go('/live');
+            case 1:
+              context.go('/movies');
+            case 2:
+              context.go('/series');
           }
-          // Root tab (live/movies/series) — back is disabled.
-        },
-        child: widget.child,
-      ),
-      bottomNavigationBar: _BottomNav(
-        onBeforeNavigate: (currentIndex, newIndex) {
-          if (newIndex == 3 && currentIndex != 3) {
-            setState(() => _previousTabIndex = currentIndex);
-          }
-        },
-      ),
+          return;
+        }
+        // Root tab (live/movies/series) — back is disabled.
+      },
+      child: widget.child,
+    );
+
+    if (PlatformHelper.isTV(context)) {
+      return Scaffold(
+        body: Row(
+          children: [
+            _TvNavRail(onBeforeNavigate: onBeforeNavigate),
+            Expanded(child: navigator),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: navigator,
+      bottomNavigationBar: _BottomNav(onBeforeNavigate: onBeforeNavigate),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Shared tab destinations — one source of truth for phone bottom nav and TV
+// side rail, so the two chrome styles can't drift out of sync.
+// ---------------------------------------------------------------------------
+
+class _NavDestination {
+  const _NavDestination(this.icon, this.label, this.path);
+  final IconData icon;
+  final String label;
+  final String path;
+}
+
+const _kNavDestinations = [
+  _NavDestination(Icons.tv, 'Live TV', '/live'),
+  _NavDestination(Icons.movie_outlined, 'Movies', '/movies'),
+  _NavDestination(Icons.video_library_outlined, 'Series', '/series'),
+  _NavDestination(Icons.search, 'Search', '/search'),
+];
+
+int _navIndexForLocation(BuildContext context) {
+  final location = GoRouterState.of(context).fullPath ?? '/live';
+  for (var i = _kNavDestinations.length - 1; i >= 0; i--) {
+    if (location.startsWith(_kNavDestinations[i].path)) return i;
+  }
+  return 0;
 }
 
 class _BottomNav extends ConsumerWidget {
@@ -347,38 +394,85 @@ class _BottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final location = GoRouterState.of(context).fullPath ?? '/live';
-
-    int index = 0;
-    if (location.startsWith('/live')) index = 0;
-    if (location.startsWith('/movies')) index = 1;
-    if (location.startsWith('/series')) index = 2;
-    if (location.startsWith('/search')) index = 3;
+    final index = _navIndexForLocation(context);
 
     return BottomNavigationBar(
       currentIndex: index,
       onTap: (i) {
         onBeforeNavigate(index, i);
-        switch (i) {
-          case 0:
-            context.go('/live');
-          case 1:
-            context.go('/movies');
-          case 2:
-            context.go('/series');
-          case 3:
-            context.go('/search');
-        }
+        context.go(_kNavDestinations[i].path);
       },
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.tv), label: 'Live TV'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.movie_outlined), label: 'Movies'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.video_library_outlined), label: 'Series'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.search), label: 'Search'),
+      items: [
+        for (final d in _kNavDestinations)
+          BottomNavigationBarItem(icon: Icon(d.icon), label: d.label),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TV side rail — replaces the bottom bar on Android TV. Hand-built (not
+// Flutter's NavigationRail) so each destination is a chunky, obviously
+// focusable TvFocusable target rather than NavigationRail's denser default
+// touch-target sizing.
+// ---------------------------------------------------------------------------
+
+class _TvNavRail extends ConsumerWidget {
+  const _TvNavRail({required this.onBeforeNavigate});
+
+  final void Function(int currentIndex, int newIndex) onBeforeNavigate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final index = _navIndexForLocation(context);
+
+    return Container(
+      width: 96,
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < _kNavDestinations.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: TvFocusable(
+                  autofocus: i == index,
+                  onTap: () {
+                    onBeforeNavigate(index, i);
+                    context.go(_kNavDestinations[i].path);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _kNavDestinations[i].icon,
+                          size: 28,
+                          color: i == index
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _kNavDestinations[i].label,
+                          style: theme.textTheme.labelSmall!.copyWith(
+                            color: i == index
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
