@@ -93,6 +93,9 @@ class PlaybackService {
   // ---------------------------------------------------------------------------
 
   Future<void> play(String streamUrl, {Duration? startPosition}) async {
+    // A pending target from a previous session must never bleed into this
+    // new one's relative seeks.
+    _pendingSeekTarget = null;
     // Set hwdec here — after VideoController.initState() has run and may have
     // set hwdec=auto internally — so our value wins when the media opens.
     final native = _player.platform;
@@ -129,6 +132,7 @@ class PlaybackService {
       }
       debugPrint('[OTV-play] duration=${_player.state.duration.inSeconds}s, seeking to ${startPosition.inSeconds}s');
       await _player.seek(startPosition);
+      _pendingSeekTarget = startPosition;
       debugPrint('[OTV-play] seek() returned, state.position=${_player.state.position.inSeconds}s');
     }
   }
@@ -136,11 +140,36 @@ class PlaybackService {
   Future<void> pause() => _player.pause();
   Future<void> resume() => _player.play();
   Future<void> togglePlayPause() => _player.playOrPause();
-  Future<void> seek(Duration position) => _player.seek(position);
-  Future<void> seekRelative(Duration delta) async {
-    final current = _player.state.position;
-    await _player.seek(current + delta);
+
+  // Tracks the last position we asked mpv to seek to, so a rapid run of
+  // relative seeks (repeated rewind/forward taps) compounds off the
+  // intended target instead of re-reading _player.state.position — which
+  // can still report the pre-seek value for a beat after seek() is called,
+  // since mpv's position updates asynchronously. Reading it mid-flight was
+  // producing seeks that landed at unexpected ("random") points.
+  Duration? _pendingSeekTarget;
+
+  Future<void> seek(Duration position) {
+    _pendingSeekTarget = position;
+    return _player.seek(position);
   }
+
+  Future<void> seekRelative(Duration delta) async {
+    final base = _pendingSeekTarget ?? _player.state.position;
+    final target = base + delta;
+    _pendingSeekTarget = target;
+    debugPrint('[OTV-seek] seekRelative: base=${base.inSeconds}s '
+        'delta=${delta.inSeconds}s target=${target.inSeconds}s '
+        '(state.position=${_player.state.position.inSeconds}s)');
+    await _player.seek(target);
+    debugPrint('[OTV-seek] seekRelative done: '
+        'state.position=${_player.state.position.inSeconds}s');
+  }
+
+  // Call whenever a fresh absolute open/seek happens outside of seek()/
+  // seekRelative() (e.g. opening a new URL) so a stale pending target from
+  // a previous session can't bleed into the next one's relative seeks.
+  void clearPendingSeek() => _pendingSeekTarget = null;
 
   Future<void> stop() => _player.stop();
 

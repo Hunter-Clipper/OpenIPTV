@@ -106,6 +106,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool get _isLive =>
       widget.contentType == 'live' || widget.contentType == null;
 
+  // Channel-based playback (live or catch-up) as opposed to movie/episode
+  // VOD — covers both ways a viewer ends up watching catch-up: pausing/
+  // rewinding out of live (_enterLiveDvr, starts as 'live'), and picking a
+  // specific past programme from the EPG guide directly (epg_panel.dart's
+  // _playCatchup, starts as 'catchup'). Both need the same "Go Live"
+  // affordance and the same live/catch-up controls switch, so this — not
+  // widget.contentType, which never changes after construction — is what
+  // drives that UI once _liveDvrActive can flip either way.
+  bool get _isChannelPlayback =>
+      _isLive || widget.contentType == 'catchup';
+
   // ref can throw "Bad state: Cannot use ref after the widget was disposed"
   // when read from dispose() — observed after popping straight back out of
   // catch-up playback. Best-effort like _updateNowPlayingMetadata(): a failed
@@ -135,7 +146,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _videoController = VideoController(_playbackService.player);
     _playbackService.attachVideoController(_videoController);
     _currentUrl = widget.streamUrl;
-    if (_isLive && widget.contentId != null) {
+    // A guide-picked catch-up programme starts life already "in DVR mode"
+    // for this channel — there's no separate live-then-rewind transition to
+    // flip it on, since this screen was launched straight into catch-up.
+    _liveDvrActive = widget.contentType == 'catchup';
+    if (_isChannelPlayback && widget.contentId != null) {
       unawaited(_loadLiveChannelInfo());
     }
 
@@ -361,21 +376,38 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _playbackStarted = false;
     _currentUrl = url;
     setState(() => _liveDvrActive = true);
-    await _playbackService.play(url);
-    _playbackStarted = true;
+    debugPrint('[OTV-dvr] _enterLiveDvr: _liveDvrActive set to true');
     final tail = window - initialRewind;
-    await _playbackService.seek(tail.isNegative ? Duration.zero : tail);
+    // Route the initial seek through play()'s own startPosition handling —
+    // it waits for mpv to report a real duration before seeking. A bare
+    // seek() called right after play() can silently no-op if the container
+    // hasn't been parsed yet, leaving the app's idea of "current position"
+    // out of sync with mpv's actual position — every subsequent relative
+    // rewind/forward then compounds off that wrong position, which looked
+    // like rewind jumping to "random" times.
+    await _playbackService.play(
+      url,
+      startPosition: tail.isNegative ? Duration.zero : tail,
+    );
+    _playbackStarted = true;
     if (startPaused) await _playbackService.pause();
   }
 
   // Exits DVR mode back to true live — used both by the manual "Go Live"
   // button and by auto-snap when playback reaches the tail of the DVR window.
+  //
+  // widget.streamUrl is only the true live URL for the live-then-rewind
+  // entry path; a guide-picked catch-up screen was launched with the
+  // catch-up URL as widget.streamUrl, so _liveChannel's own streamUrl
+  // (loaded in initState for both entry paths) is the real source of truth.
   Future<void> _goLive() async {
     _completionHandled = false;
     _playbackStarted = false;
-    _currentUrl = widget.streamUrl;
+    final liveUrl = _liveChannel?.streamUrl ?? widget.streamUrl;
+    _currentUrl = liveUrl;
     setState(() => _liveDvrActive = false);
-    await _playbackService.play(widget.streamUrl);
+    debugPrint('[OTV-dvr] _goLive: _liveDvrActive set to false');
+    await _playbackService.play(liveUrl);
     _playbackStarted = true;
   }
 
@@ -685,9 +717,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ignoring: !_controlsVisible,
                 child: PlayerControls(
                   title: widget.title,
-                  contentType: _liveDvrActive ? 'catchup' : widget.contentType,
+                  contentType: _isChannelPlayback
+                      ? (_liveDvrActive ? 'catchup' : 'live')
+                      : widget.contentType,
                   contentId: widget.contentId,
-                  isLive: _isLive && !_liveDvrActive,
+                  isLive: _isChannelPlayback && !_liveDvrActive,
                   isLiveDvr: _liveDvrActive,
                   onTap: _onTap,
                   onLivePlayPause: _onLivePlayPause,
