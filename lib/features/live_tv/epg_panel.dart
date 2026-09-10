@@ -1,15 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/source.dart';
-import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
-import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 
 /// Slide-up panel widget showing the EPG schedule for a single channel.
@@ -117,47 +113,17 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   Future<void> _playCatchup(Programme p) async {
     final channel = _channel;
     final source = _source;
-    if (channel?.streamId == null ||
-        source?.xtreamHost == null ||
-        source?.xtreamUsername == null ||
-        source?.xtreamPassword == null) {
-      return;
-    }
-
-    final client = XtreamClient(
-      host: source!.xtreamHost!,
-      username: source.xtreamUsername!,
-      password: source.xtreamPassword!,
-      sourceId: source.id,
+    if (channel == null || source == null) return;
+    await launchCatchup(
+      context: context,
+      ref: ref,
+      channel: channel,
+      source: source,
+      programme: p,
+      // Dismiss this bottom sheet first, leaving pushReplacement to replace
+      // the still-playing live PlayerScreen underneath it.
+      dismiss: () => Navigator.of(context).pop(),
     );
-    final url = client.buildCatchupUrl(channel!.streamId!, p.start, p.duration);
-    client.dispose();
-
-    final router = GoRouter.of(context);
-    // pop() only dismisses this bottom sheet, leaving the still-playing live
-    // PlayerScreen mounted underneath. push()-ing a second player screen on
-    // top of it meant two screens fighting over the single shared Player —
-    // the live screen's VideoController never detached, so mpv's native
-    // callback thread fired into an object that got torn down mid-flight
-    // (a real native crash, not just a logic bug). pushReplacement() instead
-    // disposes the live screen first, matching the existing safe pattern
-    // used for episode auto-advance in player_screen.dart.
-    //
-    // markTransitioning() tells the outgoing live PlayerScreen's dispose()
-    // (which runs after this pushReplacement, from a screen instance this
-    // code has no direct reference to) to skip its normal stop()/orientation
-    // reset — otherwise it undoes the catch-up screen's just-started
-    // playback and landscape lock a moment after they're set.
-    ref.read(playbackServiceProvider).markTransitioning();
-    router.pop();
-    unawaited(router.pushReplacement('/player', extra: {
-      'streamUrl': url,
-      'title': p.title,
-      'contentType': 'catchup',
-      // Same key live playback uses for the channel id — keeps the EPG
-      // guide button working in catch-up mode without a new field.
-      'contentId': widget.channelId,
-    }));
   }
 
   void _showCatchupUnavailable() {

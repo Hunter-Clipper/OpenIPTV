@@ -614,6 +614,28 @@ class AppDatabase extends _$AppDatabase {
     return rows.map(_programmeFromRow).toList();
   }
 
+  // Powers the TV guide grid: programmes for many channels at once, within
+  // a single scrolled time window. The composite (channel_id, start, end)
+  // index already covers this — no migration needed.
+  Future<List<model.Programme>> getProgrammesForChannelsInRange(
+    List<String> channelIds,
+    DateTime rangeStart,
+    DateTime rangeEnd,
+  ) async {
+    if (channelIds.isEmpty) return [];
+    final rows = await (select(programmes)
+          ..where((t) =>
+              t.channelId.isIn(channelIds) &
+              t.start.isSmallerThanValue(rangeEnd) &
+              t.end.isBiggerThanValue(rangeStart))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.channelId),
+            (t) => OrderingTerm.asc(t.start),
+          ]))
+        .get();
+    return rows.map(_programmeFromRow).toList();
+  }
+
   Future<List<model.Programme>> searchProgrammes(String query) async {
     final q = '%${query.toLowerCase()}%';
     final rows = await (select(programmes)
