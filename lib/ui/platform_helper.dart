@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/device_info_channel.dart';
 
 enum AppLayout { phone, tablet, tv }
 
@@ -31,7 +32,15 @@ class PlatformHelper {
     }
   }
 
-  // Phase 2 will wire up actual Android TV detection via device_info_plus.
-  // For Phase 1 (Android phone/tablet only), always returns false.
-  static bool _isTV() => false;
+  static bool? _cachedIsTv;
+
+  /// Queries native Android once (via a UiModeManager MethodChannel) and
+  /// caches the result. Call before runApp() so isTV() is correct from the
+  /// very first frame; defaults to false (phone/tablet layout) if queried
+  /// before this completes.
+  static Future<void> initTvDetection() async {
+    _cachedIsTv = await isTelevisionDevice();
+  }
+
+  static bool _isTV() => _cachedIsTv ?? false;
 }

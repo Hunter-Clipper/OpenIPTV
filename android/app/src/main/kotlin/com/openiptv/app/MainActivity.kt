@@ -1,6 +1,8 @@
 package com.openiptv.app
 
 import android.app.PictureInPictureParams
+import android.app.UiModeManager
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.util.Log
@@ -14,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 // notification in sync with the same media_kit Player instance.
 class MainActivity : AudioServiceActivity() {
     private var pipChannel: MethodChannel? = null
+    private var deviceChannel: MethodChannel? = null
 
     // Updated proactively by Dart via pip_service.dart's updatePipAvailability()
     // whenever "PiP enabled AND actively playing" changes. Read synchronously
@@ -30,6 +33,17 @@ class MainActivity : AudioServiceActivity() {
                 "setPipAvailable" -> {
                     pipAvailable = call.arguments as? Boolean ?: false
                     result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        deviceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/device")
+        deviceChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isTelevision" -> {
+                    val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+                    result.success(uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION)
                 }
                 else -> result.notImplemented()
             }
