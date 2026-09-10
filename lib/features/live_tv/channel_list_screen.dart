@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
+import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -21,25 +22,12 @@ import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
 // ---------------------------------------------------------------------------
-
-final _allChannelsProvider = StreamProvider<List<Channel>>((ref) {
-  final activeSourceId = ref.watch(activeSourceIdProvider);
-  final db = ref.watch(appDatabaseProvider);
-  // .select — see movies_screen.dart's _allMoviesProvider: only the profile
-  // id matters here, so a favorite/watch-progress toggle elsewhere (which
-  // invalidates activeProfileProvider) doesn't tear down this stream.
-  final profileId =
-      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
-  if (activeSourceId != null) {
-    return db.watchChannelsForSource(activeSourceId, profileId: profileId);
-  }
-  return db.watchAllChannels(profileId: profileId);
-});
 
 final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final profileId =
@@ -74,8 +62,8 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         await ref.read(sourceManagerProvider).refreshChannels(s);
       }
     } finally {
-      ref.invalidate(_allChannelsProvider);
-      await ref.read(_allChannelsProvider.future);
+      ref.invalidate(allChannelsProvider);
+      await ref.read(allChannelsProvider.future);
     }
   }
 
@@ -118,7 +106,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final channelsAsync = ref.watch(_allChannelsProvider);
+    final channelsAsync = ref.watch(allChannelsProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
     final profileId = profile?.id;
@@ -134,6 +122,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         leading: const AppLogo(),
         title: const Text('Live TV'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.grid_view),
+            tooltip: 'TV Guide',
+            onPressed: () => context.push('/live/guide'),
+          ),
           IconButton(
             icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
             tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
@@ -154,7 +147,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         loading: () => const LoadingView(),
         error: (e, _) => ErrorStateView(
             message: "Couldn't load channels. Check your internet connection.",
-            onRetry: () => ref.invalidate(_allChannelsProvider)),
+            onRetry: () => ref.invalidate(allChannelsProvider)),
         data: (all) {
           final cats = _buildCategories(all, hiddenCats, sort)
               .where((c) => !isKid || !isAdultCategory(c))
@@ -250,8 +243,8 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
         await ref.read(sourceManagerProvider).refreshChannels(s);
       }
     } finally {
-      ref.invalidate(_allChannelsProvider);
-      await ref.read(_allChannelsProvider.future);
+      ref.invalidate(allChannelsProvider);
+      await ref.read(allChannelsProvider.future);
     }
   }
 
@@ -286,7 +279,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final channelsAsync = ref.watch(_allChannelsProvider);
+    final channelsAsync = ref.watch(allChannelsProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
     final profileId = profile?.id;
@@ -330,7 +323,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
         loading: () => const LoadingView(),
         error: (e, _) => ErrorStateView(
             message: "Couldn't load channels. Check your internet connection.",
-            onRetry: () => ref.invalidate(_allChannelsProvider)),
+            onRetry: () => ref.invalidate(allChannelsProvider)),
         data: (all) {
           final channels = _channelsForCategory(all, favIds, sort);
           if (channels.isEmpty) {
@@ -406,7 +399,8 @@ class _ChannelGridCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return GestureDetector(
+    return TvFocusable(
+      borderRadius: BorderRadius.circular(10),
       onTap: () => context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
@@ -508,49 +502,13 @@ class _ChannelRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: _ChannelLogo(url: channel.logoUrl),
-      title: Text(channel.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: _EpgSubtitle(channelId: channel.id),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (channel.hasCatchup)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.replay_circle_filled_outlined,
-                size: 18,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          IconButton(
-            icon: Icon(
-              isFavorite ? Icons.star : Icons.star_border,
-              color: isFavorite
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
-            onPressed: profileId == null
-                ? null
-                : () async {
-                    await ref
-                        .read(profileServiceProvider)
-                        .toggleFavoriteChannel(profileId!, channel.id);
-                    ref.invalidate(activeProfileProvider);
-                  },
-          ),
-        ],
-      ),
+    return TvFocusable(
       onTap: () => context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
         'contentType': 'live',
         'contentId': channel.id,
       }),
-      enableFeedback: false,
       onLongPress: profileId == null
           ? null
           : () {
@@ -568,6 +526,47 @@ class _ChannelRow extends ConsumerWidget {
                 ),
               );
             },
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: _ChannelLogo(url: channel.logoUrl),
+        title:
+            Text(channel.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: _EpgSubtitle(channelId: channel.id),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (channel.hasCatchup)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.replay_circle_filled_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            IconButton(
+              icon: Icon(
+                isFavorite ? Icons.star : Icons.star_border,
+                color: isFavorite
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              tooltip:
+                  isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+              onPressed: profileId == null
+                  ? null
+                  : () async {
+                      await ref
+                          .read(profileServiceProvider)
+                          .toggleFavoriteChannel(profileId!, channel.id);
+                      ref.invalidate(activeProfileProvider);
+                    },
+            ),
+          ],
+        ),
+        enableFeedback: false,
+      ),
     );
   }
 }
@@ -812,7 +811,7 @@ class _RecentChannelsRow extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final ch = channels[i];
-          return GestureDetector(
+          return TvFocusable(
             onTap: () => context.push('/player', extra: {
               'streamUrl': ch.streamUrl,
               'title': ch.name,

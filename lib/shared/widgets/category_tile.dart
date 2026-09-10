@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Standardized category/genre row: icon, label, item count, optional lock
 /// badge, and a trailing chevron. Used for Live TV categories and Movies/
@@ -25,31 +26,33 @@ class CategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ListTile(
-      leading: Icon(icon, color: theme.colorScheme.primary),
-      title: Text(label),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLocked)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Icon(Icons.lock_outline,
-                  size: 16, color: theme.colorScheme.onSurfaceVariant),
-            ),
-          Text(
-            count.toString(),
-            style: theme.textTheme.bodySmall!.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
+    return TvFocusable(
       onTap: onTap,
-      enableFeedback: false,
       onLongPress: onLongPress,
+      child: ListTile(
+        leading: Icon(icon, color: theme.colorScheme.primary),
+        title: Text(label),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isLocked)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(Icons.lock_outline,
+                    size: 16, color: theme.colorScheme.onSurfaceVariant),
+              ),
+            Text(
+              count.toString(),
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+        enableFeedback: false,
+      ),
     );
   }
 }
