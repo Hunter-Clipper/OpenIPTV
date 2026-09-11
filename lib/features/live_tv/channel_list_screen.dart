@@ -401,6 +401,7 @@ class _ChannelGridCard extends ConsumerWidget {
     final theme = Theme.of(context);
     return TvFocusable(
       borderRadius: BorderRadius.circular(10),
+      ensureVisibleOnFocus: true,
       onTap: () => context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
@@ -503,6 +504,7 @@ class _ChannelRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return TvFocusable(
+      ensureVisibleOnFocus: true,
       onTap: () => context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
@@ -812,6 +814,7 @@ class _RecentChannelsRow extends ConsumerWidget {
         itemBuilder: (context, i) {
           final ch = channels[i];
           return TvFocusable(
+            ensureVisibleOnFocus: true,
             onTap: () => context.push('/player', extra: {
               'streamUrl': ch.streamUrl,
               'title': ch.name,

@@ -42,5 +42,9 @@ class PlatformHelper {
     _cachedIsTv = await isTelevisionDevice();
   }
 
+  /// Context-free equivalent of isTV(context), for call sites that run
+  /// before a BuildContext exists (e.g. main(), before runApp()).
+  static bool get isTVDevice => _isTV();
+
   static bool _isTV() => _cachedIsTv ?? false;
 }

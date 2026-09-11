@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Standardized 4-digit PIN entry: dot progress indicator + numeric keypad.
 /// Used by both the parental-PIN dialog and the setup wizard's PIN step,
@@ -11,12 +12,20 @@ class PinKeypad extends StatelessWidget {
     required this.onDigit,
     required this.onBackspace,
     this.length = 4,
+    this.firstDigitFocusNode,
   });
 
   final String pin;
   final ValueChanged<String> onDigit;
   final VoidCallback onBackspace;
   final int length;
+  // See TvFocusable.focusNode's doc — a plain `autofocus: true` on the "1"
+  // button isn't reliable when this keypad appears inside a page that isn't
+  // built fresh at the moment it's shown (e.g. a wizard's PageView keeps
+  // every page built up front). Callers that need the keypad to have real
+  // D-pad focus the instant it becomes visible should own this node and
+  // call requestFocus() on it at the actual moment of navigation.
+  final FocusNode? firstDigitFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -61,13 +70,18 @@ class PinKeypad extends StatelessWidget {
                 return SizedBox(
                   width: 72,
                   height: 52,
-                  child: TextButton(
-                    onPressed: key == '⌫' ? onBackspace : () => onDigit(key),
-                    child: Text(
-                      key,
-                      style: key == '⌫'
-                          ? theme.textTheme.titleMedium
-                          : theme.textTheme.headlineSmall,
+                  child: TvFocusable(
+                    borderRadius: BorderRadius.circular(8),
+                    ensureVisibleOnFocus: true,
+                    focusNode: key == '1' ? firstDigitFocusNode : null,
+                    onTap: key == '⌫' ? onBackspace : () => onDigit(key),
+                    child: Center(
+                      child: Text(
+                        key,
+                        style: key == '⌫'
+                            ? theme.textTheme.titleMedium
+                            : theme.textTheme.headlineSmall,
+                      ),
                     ),
                   ),
                 );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -12,6 +13,8 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/pin_keypad.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
 // Shared theme constants
@@ -49,6 +52,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
   // Profile state
   final _nameCtrl = TextEditingController();
+  final _nameFocusNode = FocusNode();
+  // Each explicitly requestFocus()'d from _goToPage at the moment the
+  // wizard actually navigates to that page — see _nameFocusNode's original
+  // comment and TvFocusable.focusNode's doc for why plain `autofocus: true`
+  // doesn't work reliably on this PageView (every page is built up front,
+  // so autofocus fires far too early and loses the initial-focus race to
+  // whichever page happened to build first).
+  final _pin1FocusNode = FocusNode();
+  final _xtreamCardFocusNode = FocusNode();
+  final _nicknameFocusNode = FocusNode();
   String _avatarEmoji = '🧑';
   Color _accentColor = const Color(0xFF0A84FF); // default blue
   String _pin = '';
@@ -90,6 +103,37 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       duration: const Duration(milliseconds: 3000),
     )..repeat();
     _sparkleAngle = Tween(begin: 0.0, end: 2 * pi).animate(_sparkleCtrl);
+
+    // Autofocus on a TextField at page-transition time (rather than the
+    // widget's own `autofocus: true`) is notoriously unreliable at getting
+    // Android's soft keyboard to actually show — the IME often only shows
+    // for a focus change it can tie to a genuine user gesture. Nudging it
+    // explicitly here (also re-armed in the focus listener below) is the
+    // standard workaround.
+    _nameFocusNode.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      // TextField swallows arrow keys for cursor movement, which — with
+      // nothing to move to in a single-line field — otherwise traps D-pad
+      // focus inside it with no way out (reported directly by a user
+      // testing on a real Android TV remote).
+      final key = event.logicalKey;
+      final ctx = node.context;
+      if (ctx == null) return KeyEventResult.ignored;
+      if (key == LogicalKeyboardKey.arrowDown) {
+        FocusScope.of(ctx).nextFocus();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowUp) {
+        FocusScope.of(ctx).previousFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+    _nameFocusNode.addListener(() {
+      if (_nameFocusNode.hasFocus) {
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      }
+    });
   }
 
   @override
@@ -98,6 +142,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     _checkCtrl.dispose();
     _sparkleCtrl.dispose();
     _nameCtrl.dispose();
+    _nameFocusNode.dispose();
+    _pin1FocusNode.dispose();
+    _xtreamCardFocusNode.dispose();
+    _nicknameFocusNode.dispose();
     _nicknameCtrl.dispose();
     _xtreamHostCtrl.dispose();
     _xtreamUserCtrl.dispose();
@@ -113,6 +161,22 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       duration: const Duration(milliseconds: 380),
       curve: Curves.easeInOutCubic,
     );
+    // PageView keeps every page built at once, so each page's own controls
+    // exist (and could otherwise steal focus) well before that page is
+    // actually shown — only request focus once we're actually navigating
+    // to it, on whichever control should be the D-pad starting point there.
+    final focusNode = switch (page) {
+      1 => _nameFocusNode,
+      2 => _pin1FocusNode,
+      3 => _xtreamCardFocusNode,
+      4 => _nicknameFocusNode,
+      _ => null,
+    };
+    if (focusNode != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) focusNode.requestFocus();
+      });
+    }
   }
 
   Future<void> _submitSource() async {
@@ -203,6 +267,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           _WelcomePage(onStart: () => _goToPage(1)),
           _NamePage(
             nameCtrl: _nameCtrl,
+            nameFocusNode: _nameFocusNode,
             selectedAvatar: _avatarEmoji,
             onAvatarSelected: (e) => setState(() => _avatarEmoji = e),
             selectedColor: _accentColor,
@@ -214,6 +279,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           ),
           _PinPage(
             accentColor: _accentColor,
+            firstDigitFocusNode: _pin1FocusNode,
             onSkip: () {
               setState(() {
                 _wantsPin = false;
@@ -231,6 +297,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           ),
           _PlaylistTypePage(
             accentColor: _accentColor,
+            firstCardFocusNode: _xtreamCardFocusNode,
             onSelected: (type) {
               setState(() => _playlistType = type);
               _goToPage(4);
@@ -240,6 +307,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             accentColor: _accentColor,
             playlistType: _playlistType,
             nicknameCtrl: _nicknameCtrl,
+            nicknameFocusNode: _nicknameFocusNode,
             xtreamHostCtrl: _xtreamHostCtrl,
             xtreamUserCtrl: _xtreamUserCtrl,
             xtreamPassCtrl: _xtreamPassCtrl,
@@ -453,6 +521,7 @@ class _WelcomePageState extends State<_WelcomePage>
 class _NamePage extends StatelessWidget {
   const _NamePage({
     required this.nameCtrl,
+    required this.nameFocusNode,
     required this.selectedAvatar,
     required this.onAvatarSelected,
     required this.selectedColor,
@@ -461,6 +530,7 @@ class _NamePage extends StatelessWidget {
   });
 
   final TextEditingController nameCtrl;
+  final FocusNode nameFocusNode;
   final String selectedAvatar;
   final ValueChanged<String> onAvatarSelected;
   final Color selectedColor;
@@ -475,16 +545,30 @@ class _NamePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTV = PlatformHelper.isTV(context);
+    // A modest bump, not a multiplier applied blindly — Android TV renders
+    // at a much higher density than a phone (this hardware reports 1920x1080
+    // physical but only ~960x540 *logical* px), so the actual usable height
+    // on TV is often SHORTER than a phone's, not taller. The scrollable
+    // wrapper below is the real safety net; this is just breathing room.
+    double v(double base) => isTV ? base * 1.15 : base;
+
     return _WizardBackground(
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: EdgeInsets.symmetric(
+              horizontal: 28, vertical: isTV ? 16 : 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+              SizedBox(height: v(24)),
               _StepIndicator(current: 0, total: 4, accentColor: selectedColor),
-              const SizedBox(height: 36),
+              SizedBox(height: v(36)),
               const Text(
                 "What's your name?",
                 style: TextStyle(
@@ -493,15 +577,15 @@ class _NamePage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: v(8)),
               const Text(
                 'All information stays on your device.\nOpenIPTV never collects personal data.',
                 style: TextStyle(color: _kMuted, fontSize: 14, height: 1.5),
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: v(32)),
               TextField(
                 controller: nameCtrl,
-                autofocus: true,
+                focusNode: nameFocusNode,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => onContinue(),
@@ -527,7 +611,7 @@ class _NamePage extends StatelessWidget {
                       horizontal: 20, vertical: 18),
                 ),
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: v(32)),
               const Text(
                 'Pick an avatar',
                 style: TextStyle(
@@ -535,7 +619,7 @@ class _NamePage extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: v(12)),
               SizedBox(
                 height: 62,
                 child: ListView.builder(
@@ -544,7 +628,9 @@ class _NamePage extends StatelessWidget {
                   itemBuilder: (context, i) {
                     final emoji = _avatars[i];
                     final selected = emoji == selectedAvatar;
-                    return GestureDetector(
+                    return TvFocusable(
+                      borderRadius: BorderRadius.circular(14),
+                      ensureVisibleOnFocus: true,
                       onTap: () => onAvatarSelected(emoji),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -570,7 +656,7 @@ class _NamePage extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: v(28)),
               const Text(
                 'Accent Color',
                 style: TextStyle(
@@ -578,13 +664,14 @@ class _NamePage extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: v(12)),
               Row(
                 children: AppTheme.accentSwatches.map((s) {
                   final sel = s.color == selectedColor;
                   return Padding(
                     padding: const EdgeInsets.only(right: 14),
-                    child: GestureDetector(
+                    child: TvFocusable(
+                      borderRadius: BorderRadius.circular(19),
                       onTap: () => onColorSelected(s.color),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -616,14 +703,22 @@ class _NamePage extends StatelessWidget {
                   );
                 }).toList(),
               ),
-              const Spacer(),
+                    ],
+                  ),
+                ),
+              ),
+              // Continue is a sibling of the scrollable content above, not a
+              // child inside it — always visible and reachable regardless of
+              // how tall the content above ends up (scrolls instead of
+              // pushing this off-screen, unlike the old Spacer-based layout).
+              SizedBox(height: v(16)),
               _GradientButton(
                 label: 'Continue',
                 icon: Icons.arrow_forward,
                 accentColor: selectedColor,
                 onTap: onContinue,
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: v(20)),
             ],
           ),
         ),
@@ -641,10 +736,12 @@ class _PinPage extends StatefulWidget {
     required this.accentColor,
     required this.onSkip,
     required this.onPinSet,
+    required this.firstDigitFocusNode,
   });
   final Color accentColor;
   final VoidCallback onSkip;
   final ValueChanged<String> onPinSet;
+  final FocusNode firstDigitFocusNode;
 
   @override
   State<_PinPage> createState() => _PinPageState();
@@ -652,15 +749,6 @@ class _PinPage extends StatefulWidget {
 
 class _PinPageState extends State<_PinPage> {
   String _digits = '';
-
-  @override
-  void initState() {
-    super.initState();
-    // Dismiss the soft keyboard — this page uses an on-screen keypad.
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) { if (mounted) FocusScope.of(context).unfocus(); },
-    );
-  }
 
   void _onDigit(String d) {
     if (_digits.length < 4) setState(() => _digits += d);
@@ -674,45 +762,63 @@ class _PinPageState extends State<_PinPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isTV = PlatformHelper.isTV(context);
+    // See _NamePage — a modest bump only, TV's usable height can be
+    // shorter than a phone's, not taller. The Expanded/SingleChildScrollView
+    // below is the real safety net against overflow.
+    double v(double base) => isTV ? base * 1.15 : base;
+
     return _WizardBackground(
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding:
+              EdgeInsets.symmetric(horizontal: 28, vertical: isTV ? 16 : 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
-              _StepIndicator(
-                  current: 1, total: 4, accentColor: widget.accentColor),
-              const SizedBox(height: 36),
-              const Text(
-                'Secure your account',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Set a 4-digit PIN to protect this admin account.\nYou can skip this and add one later in Settings.',
-                style: TextStyle(color: _kMuted, fontSize: 14, height: 1.5),
-              ),
-              const SizedBox(height: 40),
-              Center(
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: Theme.of(context)
-                        .colorScheme
-                        .copyWith(primary: widget.accentColor),
-                  ),
-                  child: PinKeypad(
-                    pin: _digits,
-                    onDigit: _onDigit,
-                    onBackspace: _onBackspace,
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: v(24)),
+                      _StepIndicator(
+                          current: 1, total: 4, accentColor: widget.accentColor),
+                      SizedBox(height: v(36)),
+                      const Text(
+                        'Secure your account',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800),
+                      ),
+                      SizedBox(height: v(8)),
+                      const Text(
+                        'Set a 4-digit PIN to protect this admin account.\nYou can skip this and add one later in Settings.',
+                        style: TextStyle(
+                            color: _kMuted, fontSize: 14, height: 1.5),
+                      ),
+                      SizedBox(height: v(40)),
+                      Center(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: Theme.of(context)
+                                .colorScheme
+                                .copyWith(primary: widget.accentColor),
+                          ),
+                          child: PinKeypad(
+                            pin: _digits,
+                            onDigit: _onDigit,
+                            onBackspace: _onBackspace,
+                            firstDigitFocusNode: widget.firstDigitFocusNode,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: v(16)),
               _GradientButton(
                 label: 'Set PIN',
                 icon: Icons.lock,
@@ -721,7 +827,7 @@ class _PinPageState extends State<_PinPage> {
                     ? () => widget.onPinSet(_digits)
                     : null,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: v(12)),
               Center(
                 child: TextButton(
                   onPressed: widget.onSkip,
@@ -731,7 +837,7 @@ class _PinPageState extends State<_PinPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: v(16)),
             ],
           ),
         ),
@@ -745,56 +851,70 @@ class _PinPageState extends State<_PinPage> {
 // ---------------------------------------------------------------------------
 
 class _PlaylistTypePage extends StatelessWidget {
-  const _PlaylistTypePage({required this.accentColor, required this.onSelected});
+  const _PlaylistTypePage({
+    required this.accentColor,
+    required this.onSelected,
+    required this.firstCardFocusNode,
+  });
   final Color accentColor;
   final ValueChanged<SourceType> onSelected;
+  final FocusNode firstCardFocusNode;
 
   @override
   Widget build(BuildContext context) {
+    final isTV = PlatformHelper.isTV(context);
+    // See _NamePage — a modest bump only; the SingleChildScrollView below
+    // is what actually protects against overflow on TV's shorter viewport.
+    double v(double base) => isTV ? base * 1.15 : base;
+
     return _WizardBackground(
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              _StepIndicator(current: 2, total: 4, accentColor: accentColor),
-              const SizedBox(height: 36),
-              const Text(
-                'What kind of playlist\ndo you have?',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  height: 1.25,
+          padding:
+              EdgeInsets.symmetric(horizontal: 28, vertical: isTV ? 16 : 0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: v(24)),
+                _StepIndicator(current: 2, total: 4, accentColor: accentColor),
+                SizedBox(height: v(36)),
+                const Text(
+                  'What kind of playlist\ndo you have?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Not sure? Ask your IPTV provider — they'll know!",
-                style: TextStyle(color: _kMuted, fontSize: 14),
-              ),
-              const SizedBox(height: 40),
-              _PlaylistTypeCard(
-                icon: '📡',
-                title: 'Xtream Codes',
-                description:
-                    'Login with a server address, username, and password.',
-                gradient: const [Color(0xFF3A2ECC), Color(0xFF5B4FFF)],
-                onTap: () => onSelected(SourceType.xtream),
-              ),
-              const SizedBox(height: 16),
-              _PlaylistTypeCard(
-                icon: '📋',
-                title: 'M3U Playlist',
-                description:
-                    'Load from a direct playlist URL (ending in .m3u or .m3u8).',
-                gradient: const [Color(0xFF1A2E6A), Color(0xFF2A4FBF)],
-                onTap: () => onSelected(SourceType.m3u),
-              ),
-              const Spacer(),
-            ],
+                SizedBox(height: v(8)),
+                const Text(
+                  "Not sure? Ask your IPTV provider — they'll know!",
+                  style: TextStyle(color: _kMuted, fontSize: 14),
+                ),
+                SizedBox(height: v(40)),
+                _PlaylistTypeCard(
+                  icon: '📡',
+                  title: 'Xtream Codes',
+                  description:
+                      'Login with a server address, username, and password.',
+                  gradient: const [Color(0xFF3A2ECC), Color(0xFF5B4FFF)],
+                  onTap: () => onSelected(SourceType.xtream),
+                  focusNode: firstCardFocusNode,
+                ),
+                SizedBox(height: v(16)),
+                _PlaylistTypeCard(
+                  icon: '📋',
+                  title: 'M3U Playlist',
+                  description:
+                      'Load from a direct playlist URL (ending in .m3u or .m3u8).',
+                  gradient: const [Color(0xFF1A2E6A), Color(0xFF2A4FBF)],
+                  onTap: () => onSelected(SourceType.m3u),
+                ),
+                SizedBox(height: v(16)),
+              ],
+            ),
           ),
         ),
       ),
@@ -809,6 +929,7 @@ class _PlaylistTypeCard extends StatefulWidget {
     required this.description,
     required this.gradient,
     required this.onTap,
+    this.focusNode,
   });
 
   final String icon;
@@ -816,6 +937,10 @@ class _PlaylistTypeCard extends StatefulWidget {
   final String description;
   final List<Color> gradient;
   final VoidCallback onTap;
+  // See TvFocusable.focusNode's doc — plain autofocus isn't reliable here
+  // since this card lives inside a wizard PageView page that's built up
+  // front, long before it's actually shown.
+  final FocusNode? focusNode;
 
   @override
   State<_PlaylistTypeCard> createState() => _PlaylistTypeCardState();
@@ -845,7 +970,13 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TvFocusable(
+      wrapsGesture: false,
+      ensureVisibleOnFocus: true,
+      focusNode: widget.focusNode,
+      borderRadius: BorderRadius.circular(20),
+      onTap: widget.onTap,
+      child: GestureDetector(
       onTapDown: (_) => _pressCtrl.reverse(),
       onTapUp: (_) {
         _pressCtrl.forward();
@@ -908,6 +1039,7 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -931,11 +1063,13 @@ class _CredentialsPage extends StatelessWidget {
     required this.errorMessage,
     required this.onBack,
     required this.onSubmit,
+    required this.nicknameFocusNode,
   });
 
   final Color accentColor;
   final SourceType playlistType;
   final TextEditingController nicknameCtrl;
+  final FocusNode nicknameFocusNode;
   final TextEditingController xtreamHostCtrl;
   final TextEditingController xtreamUserCtrl;
   final TextEditingController xtreamPassCtrl;
@@ -1012,6 +1146,7 @@ class _CredentialsPage extends StatelessWidget {
                       ctrl: nicknameCtrl,
                       hint: 'e.g. Home Server',
                       accentColor: accentColor,
+                      focusNode: nicknameFocusNode,
                     ),
                     const SizedBox(height: 16),
                     if (isXtream) ...[
@@ -1118,6 +1253,7 @@ class _WizardField extends StatelessWidget {
     this.type,
     this.obscure = false,
     this.suffix,
+    this.focusNode,
   });
 
   final String label;
@@ -1127,6 +1263,9 @@ class _WizardField extends StatelessWidget {
   final TextInputType? type;
   final bool obscure;
   final Widget? suffix;
+  // See TvFocusable.focusNode's doc — plain autofocus isn't reliable on a
+  // wizard page that's built up front, long before it's actually shown.
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -1143,6 +1282,7 @@ class _WizardField extends StatelessWidget {
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,
+          focusNode: focusNode,
           keyboardType: type,
           obscureText: obscure,
           autocorrect: false,
@@ -1434,6 +1574,31 @@ class _WizardBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // This wizard's pages are all designed at phone width (fixed 28px side
+    // padding, buttons/cards that stretch to fill whatever width they're
+    // given) — full-bleed on a TV screen stretches everything into an
+    // oversized, "mooshed"-looking layout. Capping and centering the width
+    // here, in the one shared background wrapper every page uses, fixes all
+    // of them at once without touching each page's own layout.
+    //
+    // Height is deliberately NOT force-fit here — Android TV renders at a
+    // much higher density than a phone (this hardware: 1920x1080 physical
+    // but only ~960x540 *logical* px, since TV UI is drawn bigger for
+    // 10-foot viewing), so the actual usable height on TV can be SHORTER
+    // than a phone's, not taller. Each page handles its own vertical
+    // overflow (scrolling the middle, pinning the action button) rather
+    // than this wrapper guessing at available height.
+    Widget wrap(Widget page) {
+      if (!PlatformHelper.isTV(context)) return page;
+      return Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: page,
+        ),
+      );
+    }
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -1442,7 +1607,7 @@ class _WizardBackground extends StatelessWidget {
           colors: [_kBgDark, _kBgMid],
         ),
       ),
-      child: child,
+      child: wrap(child),
     );
   }
 }
@@ -1498,8 +1663,10 @@ class _GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    return GestureDetector(
-      onTap: onTap,
+    return TvFocusable(
+      autofocus: enabled,
+      onTap: onTap ?? () {},
+      borderRadius: BorderRadius.circular(14),
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
         opacity: enabled ? 1.0 : 0.45,

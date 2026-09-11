@@ -5,6 +5,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 class AddSourceScreen extends ConsumerStatefulWidget {
   const AddSourceScreen({super.key});
@@ -143,6 +144,20 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
     }
   }
 
+  // This screen's fields/tabs are designed at phone width — full-bleed on a
+  // TV screen stretches them oversized. Caps and centers on TV only; a
+  // no-op ConstrainedBox on phone/tablet.
+  Widget _tvCapped(BuildContext context, Widget child) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: PlatformHelper.isTV(context) ? 640 : double.infinity,
+        ),
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -152,14 +167,19 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
         bottomNavigationBar: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-            child: FilledButton(
-              onPressed: _isLoading ? null : _addSource,
-              child: const Text('Add Playlist'),
+            child: _tvCapped(
+              context,
+              FilledButton(
+                onPressed: _isLoading ? null : _addSource,
+                child: const Text('Add Playlist'),
+              ),
             ),
           ),
         ),
         body: SafeArea(
-          child: CustomScrollView(
+          child: _tvCapped(
+            context,
+            CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
                 child: IgnorePointer(
@@ -306,6 +326,7 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
