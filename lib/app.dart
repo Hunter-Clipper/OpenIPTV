@@ -83,12 +83,14 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           ref.read(pipActiveProvider.notifier).state = isInPip,
     );
     void pushPipAvailability() {
-      final playing = ref.read(playbackServiceProvider).player.state.playing;
+      final playing = ref.read(playbackServiceProvider).lastState.playing;
       updatePipAvailability(ref.read(pipEnabledProvider) && playing);
     }
     pushPipAvailability();
-    ref.read(playbackServiceProvider).player.stream.playing.listen(
-        (_) => pushPipAvailability());
+    ref
+        .read(playbackServiceProvider)
+        .stateStream
+        .listen((_) => pushPipAvailability());
 
     // Profile setup.
     final profiles = await db.getAllProfiles();
@@ -306,6 +308,22 @@ class _ShellState extends State<_Shell> {
   // Remembers which tab was active before the user navigated to Search.
   int _previousTabIndex = 0;
 
+  // The currently-active tab's rail item — explicitly refocused as a
+  // fallback when arrow-left has nowhere left to go within the content pane
+  // (see _EdgeAwareDirectionalFocusAction below), rather than relying on
+  // Flutter's default directional traversal to find it on its own — it
+  // doesn't reliably jump from the content pane (often inside its own
+  // scrollable grid/list) across into a separate sibling column like this
+  // rail.
+  final FocusNode _activeRailItemFocusNode =
+      FocusNode(debugLabel: 'NavRailActiveItem');
+
+  @override
+  void dispose() {
+    _activeRailItemFocusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // NavigatorPopHandler wraps the inner Navigator from ShellRoute.
@@ -344,11 +362,21 @@ class _ShellState extends State<_Shell> {
 
     if (PlatformHelper.isTV(context)) {
       return Scaffold(
-        body: Row(
-          children: [
-            _TvNavRail(onBeforeNavigate: onBeforeNavigate),
-            Expanded(child: navigator),
-          ],
+        body: Actions(
+          actions: {
+            DirectionalFocusIntent: _EdgeAwareDirectionalFocusAction(
+              onNoMoveLeft: () => _activeRailItemFocusNode.requestFocus(),
+            ),
+          },
+          child: Row(
+            children: [
+              _TvNavRail(
+                onBeforeNavigate: onBeforeNavigate,
+                activeItemFocusNode: _activeRailItemFocusNode,
+              ),
+              Expanded(child: navigator),
+            ],
+          ),
         ),
       );
     }
@@ -364,6 +392,32 @@ class _ShellState extends State<_Shell> {
 // Shared tab destinations — one source of truth for phone bottom nav and TV
 // side rail, so the two chrome styles can't drift out of sync.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Arrow-left "escape into the nav rail" — only when the grid/list genuinely
+// has nothing further left, not on every left press.
+// ---------------------------------------------------------------------------
+
+/// Overrides the default D-pad directional-focus action so arrow-left falls
+/// back to [onNoMoveLeft] only when Flutter's own traversal (tried first, via
+/// [FocusNode.focusInDirection]) finds no focusable widget in that direction
+/// — e.g. the content pane's leftmost column/row. Every other direction, and
+/// every left press that has a real neighbor to move to, behaves exactly as
+/// Flutter's built-in traversal already does.
+class _EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
+  _EdgeAwareDirectionalFocusAction({required this.onNoMoveLeft});
+
+  final VoidCallback onNoMoveLeft;
+
+  @override
+  Object? invoke(DirectionalFocusIntent intent) {
+    final moved = primaryFocus?.focusInDirection(intent.direction) ?? false;
+    if (!moved && intent.direction == TraversalDirection.left) {
+      onNoMoveLeft();
+    }
+    return moved;
+  }
+}
 
 class _NavDestination {
   const _NavDestination(this.icon, this.label, this.path);
@@ -418,9 +472,16 @@ class _BottomNav extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _TvNavRail extends ConsumerWidget {
-  const _TvNavRail({required this.onBeforeNavigate});
+  const _TvNavRail({
+    required this.onBeforeNavigate,
+    required this.activeItemFocusNode,
+  });
 
   final void Function(int currentIndex, int newIndex) onBeforeNavigate;
+  // Attached to whichever destination is currently active, so the shell can
+  // explicitly refocus the rail (arrow-left from the content pane) without
+  // depending on Flutter's default directional traversal finding it.
+  final FocusNode activeItemFocusNode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -439,6 +500,7 @@ class _TvNavRail extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: TvFocusable(
                   autofocus: i == index,
+                  focusNode: i == index ? activeItemFocusNode : null,
                   onTap: () {
                     onBeforeNavigate(index, i);
                     context.go(_kNavDestinations[i].path);

@@ -14,6 +14,7 @@ class CategoryTile extends StatelessWidget {
     required this.onTap,
     this.isLocked = false,
     this.onLongPress,
+    this.autofocus = false,
   });
 
   final String label;
@@ -22,6 +23,7 @@ class CategoryTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool isLocked;
   final VoidCallback? onLongPress;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +31,8 @@ class CategoryTile extends StatelessWidget {
     return TvFocusable(
       onTap: onTap,
       onLongPress: onLongPress,
+      autofocus: autofocus,
+      ensureVisibleOnFocus: true,
       child: ListTile(
         leading: Icon(icon, color: theme.colorScheme.primary),
         title: Text(label),

@@ -22,6 +22,7 @@ import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 bool _seriesGenreIsAdult(String? genre) =>
@@ -180,6 +181,14 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
               genreCounts[g] = (genreCounts[g] ?? 0) + 1;
             }
           }
+          // Whichever section renders first gets its first item autofocused
+          // so the D-pad can start navigating immediately once the page
+          // loads, without an extra "warm-up" press.
+          final firstSectionIsFavorites = favorites.isNotEmpty;
+          final firstSectionIsContinueWatching =
+              !firstSectionIsFavorites && visibleInProgress.isNotEmpty;
+          final firstSectionIsGenres =
+              !firstSectionIsFavorites && !firstSectionIsContinueWatching;
           return RefreshIndicator(
             onRefresh: _refresh,
             child: CustomScrollView(
@@ -190,6 +199,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                     child: _HorizontalPosterRow(
                       items: favorites,
                       profileId: profile?.id,
+                      autofocusFirst: firstSectionIsFavorites,
                     ),
                   ),
                 ],
@@ -197,7 +207,9 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                   const SectionHeaderSliver('Continue Watching'),
                   SliverToBoxAdapter(
                     child: _EpisodeContinueWatchingRow(
-                        episodes: visibleInProgress),
+                      episodes: visibleInProgress,
+                      autofocusFirst: firstSectionIsContinueWatching,
+                    ),
                   ),
                 ],
                 const SectionHeaderSliver('Browse by Genre'),
@@ -211,6 +223,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                     onTap: _tapGenre,
                     lockedGenres: lockedGenres,
                     profileId: profile?.id,
+                    autofocusFirst: firstSectionIsGenres,
                     onHideGenre: profile?.id == null
                         ? null
                         : (g) async {
@@ -359,6 +372,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
                         key: ValueKey(filtered[i].id),
                         series: filtered[i],
                         profileId: profile?.id,
+                        autofocus: i == 0,
                       ),
                       childCount: filtered.length,
                     ),
@@ -373,6 +387,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
                           key: ValueKey(filtered[i].id),
                           series: filtered[i],
                           profileId: profile?.id,
+                          autofocus: i == 0,
                         ),
                         childCount: filtered.length,
                       ),
@@ -407,6 +422,7 @@ class _GenreTileList extends StatelessWidget {
     this.profileId,
     this.onHideGenre,
     this.lockedGenres = const {},
+    this.autofocusFirst = false,
   });
 
   final List<String> genres;
@@ -415,24 +431,27 @@ class _GenreTileList extends StatelessWidget {
   final String? profileId;
   final void Function(String)? onHideGenre;
   final Set<String> lockedGenres;
+  final bool autofocusFirst;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: genres.map((g) {
-        return CategoryTile(
-          label: g,
-          count: seriesCounts[g] ?? 0,
-          icon: g == 'All'
-              ? Icons.video_library_outlined
-              : Icons.category_outlined,
-          isLocked: lockedGenres.contains(g),
-          onTap: () => onTap(g),
-          onLongPress: g == 'All' || onHideGenre == null
-              ? null
-              : () => onHideGenre!(g),
-        );
-      }).toList(),
+      children: [
+        for (var i = 0; i < genres.length; i++)
+          CategoryTile(
+            label: genres[i],
+            count: seriesCounts[genres[i]] ?? 0,
+            icon: genres[i] == 'All'
+                ? Icons.video_library_outlined
+                : Icons.category_outlined,
+            isLocked: lockedGenres.contains(genres[i]),
+            onTap: () => onTap(genres[i]),
+            onLongPress: genres[i] == 'All' || onHideGenre == null
+                ? null
+                : () => onHideGenre!(genres[i]),
+            autofocus: autofocusFirst && i == 0,
+          ),
+      ],
     );
   }
 }
@@ -445,10 +464,12 @@ class _HorizontalPosterRow extends ConsumerWidget {
   const _HorizontalPosterRow({
     required this.items,
     required this.profileId,
+    this.autofocusFirst = false,
   });
 
   final List<Series> items;
   final String? profileId;
+  final bool autofocusFirst;
 
   void _showRemoveSheet(BuildContext context, WidgetRef ref, Series s) {
     HapticFeedback.mediumImpact();
@@ -488,11 +509,13 @@ class _HorizontalPosterRow extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final s = items[i];
-          return GestureDetector(
+          return TvFocusable(
             onTap: () => context.push('/series/${s.id}'),
             onLongPress: profileId != null
                 ? () => _showRemoveSheet(context, ref, s)
                 : null,
+            autofocus: autofocusFirst && i == 0,
+            ensureVisibleOnFocus: true,
             child: SizedBox(
               width: 110,
               child: Column(
@@ -527,11 +550,16 @@ class _HorizontalPosterRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _SeriesListTile extends ConsumerWidget {
-  const _SeriesListTile(
-      {super.key, required this.series, required this.profileId});
+  const _SeriesListTile({
+    super.key,
+    required this.series,
+    required this.profileId,
+    this.autofocus = false,
+  });
 
   final Series series;
   final String? profileId;
+  final bool autofocus;
 
   void _showOptions(BuildContext context, WidgetRef ref) {
     HapticFeedback.mediumImpact();
@@ -571,44 +599,51 @@ class _SeriesListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isFav = ref.watch(activeProfileProvider.select(
         (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
-    return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: PosterImage(
-            posterUrl: series.posterUrl, width: 40, height: 56),
-      ),
-      title: Text(series.title,
-          maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: series.genre != null && series.genre!.isNotEmpty
-          ? Text(series.genre!.split(',').first.trim(),
-              maxLines: 1, overflow: TextOverflow.ellipsis)
-          : null,
-      // A tappable IconButton, not a static status Icon — see
-      // movies_screen.dart's _MovieListTile for why (favoriting consistency
-      // with Live TV's directly-tappable channel-row star).
-      trailing: IconButton(
-        icon: Icon(
-          isFav ? Icons.star : Icons.star_border,
-          color: isFav
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-          size: 20,
+    void onTap() => context.push('/series/${series.id}');
+    return TvFocusable(
+      wrapsGesture: false,
+      onTap: onTap,
+      autofocus: autofocus,
+      ensureVisibleOnFocus: true,
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: PosterImage(
+              posterUrl: series.posterUrl, width: 40, height: 56),
         ),
-        tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
-        onPressed: profileId == null
-            ? null
-            : () async {
-                await ref
-                    .read(profileServiceProvider)
-                    .toggleFavoriteSeries(profileId!, series.id);
-                ref.invalidate(activeProfileProvider);
-              },
+        title: Text(series.title,
+            maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: series.genre != null && series.genre!.isNotEmpty
+            ? Text(series.genre!.split(',').first.trim(),
+                maxLines: 1, overflow: TextOverflow.ellipsis)
+            : null,
+        // A tappable IconButton, not a static status Icon — see
+        // movies_screen.dart's _MovieListTile for why (favoriting consistency
+        // with Live TV's directly-tappable channel-row star).
+        trailing: IconButton(
+          icon: Icon(
+            isFav ? Icons.star : Icons.star_border,
+            color: isFav
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+            size: 20,
+          ),
+          tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+          onPressed: profileId == null
+              ? null
+              : () async {
+                  await ref
+                      .read(profileServiceProvider)
+                      .toggleFavoriteSeries(profileId!, series.id);
+                  ref.invalidate(activeProfileProvider);
+                },
+        ),
+        onTap: onTap,
+        onLongPress:
+            profileId == null ? null : () => _showOptions(context, ref),
       ),
-      onTap: () => context.push('/series/${series.id}'),
-      onLongPress:
-          profileId == null ? null : () => _showOptions(context, ref),
     );
   }
 }
@@ -618,10 +653,16 @@ class _SeriesListTile extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _PosterCard extends ConsumerWidget {
-  const _PosterCard({super.key, required this.series, required this.profileId});
+  const _PosterCard({
+    super.key,
+    required this.series,
+    required this.profileId,
+    this.autofocus = false,
+  });
 
   final Series series;
   final String? profileId;
+  final bool autofocus;
 
   void _showOptions(BuildContext context, WidgetRef ref) {
     HapticFeedback.mediumImpact();
@@ -661,9 +702,12 @@ class _PosterCard extends ConsumerWidget {
     final isFav = ref.watch(activeProfileProvider.select(
         (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
 
-    return GestureDetector(
+    return TvFocusable(
       onTap: () => context.push('/series/${series.id}'),
       onLongPress: profileId == null ? null : () => _showOptions(context, ref),
+      autofocus: autofocus,
+      ensureVisibleOnFocus: true,
+      borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -697,8 +741,12 @@ class _PosterCard extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _EpisodeContinueWatchingRow extends ConsumerWidget {
-  const _EpisodeContinueWatchingRow({required this.episodes});
+  const _EpisodeContinueWatchingRow({
+    required this.episodes,
+    this.autofocusFirst = false,
+  });
   final List<Episode> episodes;
+  final bool autofocusFirst;
 
   void _showRemoveSheet(BuildContext context, WidgetRef ref, Episode ep) {
     HapticFeedback.mediumImpact();
@@ -748,7 +796,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
         itemBuilder: (context, i) {
           final ep = episodes[i];
           final posterUrl = seriesPosterMap[ep.seriesId] ?? ep.stillUrl;
-          return GestureDetector(
+          return TvFocusable(
             onTap: () => context.push('/player', extra: {
               'streamUrl': ep.streamUrl,
               'title': '${ep.episodeLabel} – ${ep.title}',
@@ -757,6 +805,8 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
               'resumePosition': ep.watchedDuration,
             }),
             onLongPress: () => _showRemoveSheet(context, ref, ep),
+            autofocus: autofocusFirst && i == 0,
+            ensureVisibleOnFocus: true,
             child: SizedBox(
               width: 110,
               child: Column(

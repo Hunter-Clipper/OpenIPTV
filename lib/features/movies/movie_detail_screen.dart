@@ -242,6 +242,7 @@ class _ActionButtons extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FilledButton.icon(
+            autofocus: true,
             icon: const Icon(Icons.play_arrow),
             label: Text(
                 'Resume from ${_formatShort(movie.watchedDuration)}'),
@@ -287,6 +288,7 @@ class _ActionButtons extends ConsumerWidget {
     }
 
     return FilledButton.icon(
+      autofocus: true,
       icon: const Icon(Icons.play_arrow),
       label: const Text('Play'),
       onPressed: () => context.push('/player', extra: {

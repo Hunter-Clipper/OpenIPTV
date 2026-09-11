@@ -10,6 +10,7 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -303,8 +304,13 @@ class _SeriesBody extends ConsumerWidget {
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(
-              (context, i) =>
-                  _EpisodeRow(episode: seasonEpisodes[i], seriesId: series.id),
+              (context, i) => _EpisodeRow(
+                episode: seasonEpisodes[i],
+                seriesId: series.id,
+                // Only the very first row when there's no Next Episode card
+                // above it claiming the initial D-pad focus already.
+                autofocus: i == 0 && _nextPlayEpisode(episodes) == null,
+              ),
               childCount: seasonEpisodes.length,
             ),
           ),
@@ -342,22 +348,31 @@ class _NextEpisodeCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isResume = episode.isInProgress;
 
+    void onTap() => context.push('/player', extra: {
+          'streamUrl': episode.streamUrl,
+          'title': '${episode.episodeLabel} – ${episode.title}',
+          'contentId': episode.id,
+          'contentType': 'episode',
+          'seriesId': seriesId,
+          'resumePosition':
+              episode.isInProgress ? episode.watchedDuration : null,
+        });
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Material(
+      child: TvFocusable(
+        wrapsGesture: false,
+        onTap: onTap,
+        // Always the natural first landing spot when this card is shown —
+        // it's the "resume/next" call to action for the whole page.
+        autofocus: true,
+        borderRadius: BorderRadius.circular(12),
+        child: Material(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => context.push('/player', extra: {
-            'streamUrl': episode.streamUrl,
-            'title': '${episode.episodeLabel} – ${episode.title}',
-            'contentId': episode.id,
-            'contentType': 'episode',
-            'seriesId': seriesId,
-            'resumePosition':
-                episode.isInProgress ? episode.watchedDuration : null,
-          }),
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -405,6 +420,7 @@ class _NextEpisodeCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -458,10 +474,15 @@ class _SeasonDropdown extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _EpisodeRow extends ConsumerWidget {
-  const _EpisodeRow({required this.episode, required this.seriesId});
+  const _EpisodeRow({
+    required this.episode,
+    required this.seriesId,
+    this.autofocus = false,
+  });
 
   final Episode episode;
   final String seriesId;
+  final bool autofocus;
 
   void _showOptions(BuildContext context, WidgetRef ref) {
     HapticFeedback.mediumImpact();
@@ -496,49 +517,56 @@ class _EpisodeRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: SizedBox(
-        width: 56,
-        child: Text(
-          episode.episodeLabel,
-          style: theme.textTheme.bodySmall!.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.primary,
+    void onTap() => context.push('/player', extra: {
+          'streamUrl': episode.streamUrl,
+          'title': '${episode.episodeLabel} – ${episode.title}',
+          'contentId': episode.id,
+          'contentType': 'episode',
+          'seriesId': episode.seriesId,
+          'resumePosition':
+              episode.isInProgress ? episode.watchedDuration : null,
+        });
+    return TvFocusable(
+      wrapsGesture: false,
+      onTap: onTap,
+      autofocus: autofocus,
+      ensureVisibleOnFocus: true,
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: SizedBox(
+          width: 56,
+          child: Text(
+            episode.episodeLabel,
+            style: theme.textTheme.bodySmall!.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.primary,
+            ),
           ),
         ),
-      ),
-      title: Text(episode.title,
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: episode.isInProgress
-          ? Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: episode.watchProgress,
-                  minHeight: 3,
+        title: Text(episode.title,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: episode.isInProgress
+            ? Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: episode.watchProgress,
+                    minHeight: 3,
+                  ),
                 ),
-              ),
-            )
-          : null,
-      trailing: episode.isWatched
-          ? Icon(Icons.check_circle_outline,
-              size: 18, color: theme.colorScheme.primary)
-          : null,
-      onTap: () => context.push('/player', extra: {
-        'streamUrl': episode.streamUrl,
-        'title': '${episode.episodeLabel} – ${episode.title}',
-        'contentId': episode.id,
-        'contentType': 'episode',
-        'seriesId': episode.seriesId,
-        'resumePosition':
-            episode.isInProgress ? episode.watchedDuration : null,
-      }),
-      onLongPress: episode.isInProgress
-          ? () => _showOptions(context, ref)
-          : null,
+              )
+            : null,
+        trailing: episode.isWatched
+            ? Icon(Icons.check_circle_outline,
+                size: 18, color: theme.colorScheme.primary)
+            : null,
+        onTap: onTap,
+        onLongPress: episode.isInProgress
+            ? () => _showOptions(context, ref)
+            : null,
+      ),
     );
   }
 }

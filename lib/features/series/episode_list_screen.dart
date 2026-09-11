@@ -6,6 +6,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -63,7 +64,11 @@ class EpisodeListScreen extends ConsumerWidget {
             itemBuilder: (context, si) {
               final season = sortedSeasons[si];
               final eps = seasons[season]!;
-              return _SeasonSection(season: season, episodes: eps);
+              return _SeasonSection(
+                season: season,
+                episodes: eps,
+                autofocusFirst: si == 0,
+              );
             },
           );
         },
@@ -80,10 +85,12 @@ class _SeasonSection extends StatelessWidget {
   const _SeasonSection({
     required this.season,
     required this.episodes,
+    this.autofocusFirst = false,
   });
 
   final int season;
   final List<Episode> episodes;
+  final bool autofocusFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +105,11 @@ class _SeasonSection extends StatelessWidget {
             style: theme.textTheme.titleMedium,
           ),
         ),
-        ...episodes.map((ep) => _EpisodeRow(episode: ep)),
+        for (var i = 0; i < episodes.length; i++)
+          _EpisodeRow(
+            episode: episodes[i],
+            autofocus: autofocusFirst && i == 0,
+          ),
         const Divider(height: 1),
       ],
     );
@@ -110,9 +121,10 @@ class _SeasonSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _EpisodeRow extends StatelessWidget {
-  const _EpisodeRow({required this.episode});
+  const _EpisodeRow({required this.episode, this.autofocus = false});
 
   final Episode episode;
+  final bool autofocus;
 
   String _formatDuration(Duration? d) {
     if (d == null || d.inSeconds == 0) return '';
@@ -126,17 +138,23 @@ class _EpisodeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final durationText = _formatDuration(episode.totalDuration);
+    void onTap() => context.push('/player', extra: {
+          'streamUrl': episode.streamUrl,
+          'title': '${episode.episodeLabel} – ${episode.title}',
+          'contentId': episode.id,
+          'contentType': 'episode',
+          'seriesId': episode.seriesId,
+          'resumePosition':
+              episode.isInProgress ? episode.watchedDuration : null,
+        });
 
-    return InkWell(
-      onTap: () => context.push('/player', extra: {
-        'streamUrl': episode.streamUrl,
-        'title': '${episode.episodeLabel} – ${episode.title}',
-        'contentId': episode.id,
-        'contentType': 'episode',
-        'seriesId': episode.seriesId,
-        'resumePosition':
-            episode.isInProgress ? episode.watchedDuration : null,
-      }),
+    return TvFocusable(
+      wrapsGesture: false,
+      autofocus: autofocus,
+      ensureVisibleOnFocus: true,
+      onTap: onTap,
+      child: InkWell(
+      onTap: onTap,
       child: Padding(
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -209,6 +227,7 @@ class _EpisodeRow extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }
