@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -13,10 +11,12 @@ import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({
@@ -43,17 +43,35 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   late final PlaybackService _playbackService;
-  late final VideoController _videoController;
+  bool _textureReady = false;
   bool _controlsVisible = true;
   Timer? _hideTimer;
+  // Wraps the PlayerControls overlay so the hide-timer can check whether the
+  // D-pad cursor is still somewhere inside it (ExcludeFocus below evicts any
+  // focus inside once controls are hidden, handing focus back to the root
+  // Focus so channel-up/down and the reveal-on-select key handler keep
+  // working while the overlay is gone).
+  final FocusNode _controlsFocusNode =
+      FocusNode(debugLabel: 'PlayerControls', canRequestFocus: false, skipTraversal: true);
+  // Focus lands here whenever the controls are revealed, so the D-pad can
+  // navigate the overlay immediately without an extra "warm-up" press.
+  final FocusNode _playPauseFocusNode = FocusNode(debugLabel: 'PlayPause');
+  // The screen's own surface, held while controls are hidden. ExcludeFocus
+  // evicting a focused control doesn't reliably land focus back here on its
+  // own (Flutter's default unfocus disposition can hand it to an outer
+  // FocusScope instead, e.g. the Navigator's), so hiding the controls always
+  // explicitly reclaims this node — otherwise a hidden screen's key handler
+  // (channel up/down, reveal-on-select) silently stops receiving events.
+  final FocusNode _rootFocusNode = FocusNode(debugLabel: 'PlayerRoot');
   bool _resumeDialogShown = false;
   // Start true so the overlay covers corrupt decoder warmup frames.
   bool _isBuffering = true;
-  StreamSubscription<bool>? _bufferingSub;
-  StreamSubscription<VideoParams>? _videoParamsSub;
-  StreamSubscription<Duration>? _positionSub;
-  StreamSubscription<Duration>? _durationSub;
-  StreamSubscription<bool>? _completedSub;
+  StreamSubscription<NativeVideoPlayerState>? _stateSub;
+  // Decoded CC/subtitle cue text — the native engine forwards this (Flutter,
+  // not ExoPlayer, owns rendering, matching the previous mpv-based setup's
+  // subtitle overlay). Empty string means "nothing showing right now".
+  String _cueText = '';
+  StreamSubscription<String>? _cueSub;
   // Tracks the last non-zero position independently of player state, so that
   // reconnection (which temporarily resets state.position to zero) doesn't
   // corrupt the progress save on dispose.
@@ -61,7 +79,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Duration _lastKnownDuration = Duration.zero;
 
   // Set true once completion has been handled to prevent double-firing
-  // (both the completed stream and the position-based fallback can fire).
+  // (both the completed flag and the position-based fallback can fire).
   bool _completionHandled = false;
   // Set true once we've saved 100% progress on natural completion, so that
   // dispose()'s _saveProgressIfNeeded() doesn't overwrite with a stale value.
@@ -71,9 +89,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Episode? _nextEpisode;
   bool _showUpNext = false;
   // Set before pushReplacement so dispose() skips stop() and orientation-reset,
-  // avoiding races with the new screen's play() on the shared Player instance.
+  // avoiding races with the new screen's play() on the shared engine.
   bool _navigatingToNext = false;
-  // Guards position/duration/completed listeners against stale stream events
+  // Guards position/duration/completed handling against stale state events
   // that fire before play() has actually started the new media. Without this,
   // the new PlayerScreen picks up the previous episode's end-position and
   // immediately triggers completion (skipping the new episode entirely).
@@ -97,7 +115,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // scrubbing (real seek bar via _VodControls) by pausing/rewinding.
   bool _liveDvrActive = false;
   static const _dvrWindowDefault = Duration(hours: 1);
-  // Non-catch-up channels: local mpv-cache-only pause/rewind, hard-capped —
+  // Non-catch-up channels: local decoder-cache-only pause/rewind, hard-capped —
   // there is no server-side archive to fall back on beyond this.
   static const _maxLocalBuffer = Duration(seconds: 30);
   Duration _liveOffset = Duration.zero;
@@ -141,11 +159,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _playbackService = ref.read(playbackServiceProvider);
-    // Create a fresh VideoController tied to this screen's platform view.
-    // Register it with the service as a GC anchor so that mpv's native opener
-    // thread can never fire Dart callbacks on a collected object.
-    _videoController = VideoController(_playbackService.player);
-    _playbackService.attachVideoController(_videoController);
+    _playbackService.ensureTexture().then((_) {
+      if (mounted) setState(() => _textureReady = true);
+    });
     _currentUrl = widget.streamUrl;
     // A guide-picked catch-up programme starts life already "in DVR mode"
     // for this channel — there's no separate live-then-rewind transition to
@@ -155,70 +171,55 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       unawaited(_loadLiveChannelInfo());
     }
 
-    final player = _playbackService.player;
-
-    // Track buffering state. Overlay stays up until the first real frame
-    // arrives (videoParams.w > 0), hiding blocky decoder-warmup artifacts.
-    _bufferingSub = player.stream.buffering.listen((buffering) {
+    // Buffering overlay stays up until the first real frame arrives
+    // (state.hasVideo), hiding blocky decoder-warmup artifacts. Also tracks
+    // last real position/duration and drives completion + stall detection.
+    _stateSub = _playbackService.stateStream.listen((s) {
       if (!mounted) return;
-      setState(() => _isBuffering = buffering);
-      if (buffering) {
+      if (s.buffering && !s.hasVideo) {
+        if (!_isBuffering) setState(() => _isBuffering = true);
         _startStallTimer();
-      } else {
+      } else if (_isBuffering) {
         _cancelStallTimer();
         _retryCount = 0;
-        if (_isRecovering) setState(() => _isRecovering = false);
+        setState(() {
+          _isBuffering = false;
+          _isRecovering = false;
+        });
       }
-    });
-    _videoParamsSub = player.stream.videoParams.listen((vp) {
-      if ((vp.w ?? 0) > 0 && mounted) {
-        setState(() => _isBuffering = false);
-        _cancelStallTimer();
-        _retryCount = 0;
-        if (_isRecovering) setState(() => _isRecovering = false);
-      }
-    });
-    // Track the last real position so dispose() can save it reliably even if
-    // a reconnection has temporarily reset player.state.position to zero.
-    // Always subscribed (not just for VOD) so a live channel switched into
-    // DVR scrubbing (_liveDvrActive) picks up position/duration/completion
-    // tracking too — the plain-live case just no-ops via the guard below.
-    _positionSub = player.stream.position.listen((p) {
-      if (_isLive && !_liveDvrActive) return;
-      // Ignore stale stream events until play() has started the new media.
-      // Without this guard the new PlayerScreen picks up the previous
+
+      // Ignore stale state events until play() has actually started the new
+      // media. Without this guard the new PlayerScreen picks up the previous
       // episode's end-position and immediately triggers completion.
       if (!_playbackStarted) return;
-      if (p > Duration.zero) _lastKnownPosition = p;
-      if (!_completionHandled &&
-          _lastKnownDuration > Duration.zero &&
-          p > Duration.zero) {
-        final remaining = _lastKnownDuration - p;
-        if (remaining.inSeconds <= 3) {
-          _completionHandled = true;
-          _onPlaybackCompleted();
+      final isPlainLive = _isLive && !_liveDvrActive;
+      if (!isPlainLive) {
+        if (s.position > Duration.zero) _lastKnownPosition = s.position;
+        if (s.duration > Duration.zero) _lastKnownDuration = s.duration;
+        if (!_completionHandled) {
+          final remaining = _lastKnownDuration - s.position;
+          final nearEnd = _lastKnownDuration > Duration.zero &&
+              s.position > Duration.zero &&
+              remaining.inSeconds <= 3;
+          if (s.completed || nearEnd) {
+            _completionHandled = true;
+            _onPlaybackCompleted();
+          }
         }
       }
     });
-    _durationSub = player.stream.duration.listen((d) {
-      if (_isLive && !_liveDvrActive) return;
-      if (!_playbackStarted) return;
-      if (d > Duration.zero) _lastKnownDuration = d;
+
+    _cueSub = _playbackService.cueStream.listen((text) {
+      if (mounted) setState(() => _cueText = text);
     });
-    _completedSub = player.stream.completed.listen((completed) {
-      if (_isLive && !_liveDvrActive) return;
-      if (!_playbackStarted) return;
-      if (completed && mounted && !_completionHandled) {
-        _completionHandled = true;
-        _onPlaybackCompleted();
-      }
-    });
+
+    HardwareKeyboard.instance.addHandler(_onAnyKeyEvent);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startPlayback();
     });
 
-    _resetHideTimer();
+    _showControls();
   }
 
   void _startStallTimer() {
@@ -288,7 +289,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       await _enterLiveDvr(startPaused: true);
       return;
     }
-    final playing = _playbackService.player.state.playing;
+    final playing = _playbackService.lastState.playing;
     if (playing) {
       _livePausedAt = DateTime.now();
       await _playbackService.pause();
@@ -380,12 +381,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     debugPrint('[OTV-dvr] _enterLiveDvr: _liveDvrActive set to true');
     final tail = window - initialRewind;
     // Route the initial seek through play()'s own startPosition handling —
-    // it waits for mpv to report a real duration before seeking. A bare
-    // seek() called right after play() can silently no-op if the container
-    // hasn't been parsed yet, leaving the app's idea of "current position"
-    // out of sync with mpv's actual position — every subsequent relative
-    // rewind/forward then compounds off that wrong position, which looked
-    // like rewind jumping to "random" times.
+    // it waits for the engine to report a real duration before seeking. A
+    // bare seek() called right after play() can silently no-op if the
+    // container hasn't been parsed yet, leaving the app's idea of "current
+    // position" out of sync with the engine's actual position — every
+    // subsequent relative rewind/forward then compounds off that wrong
+    // position, which looked like rewind jumping to "random" times.
     await _playbackService.play(
       url,
       startPosition: tail.isNegative ? Duration.zero : tail,
@@ -415,7 +416,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Classic-cable-box channel up/down, driven by the D-pad/remote (see
   // _handleKeyEvent below). Re-tunes by pushReplacement-ing a fresh
   // PlayerScreen for the neighboring channel in allChannelsProvider's
-  // order — the same shared-Player hand-off pattern catch-up uses, so it
+  // order — the same shared-engine hand-off pattern catch-up uses, so it
   // needs the same markTransitioning() guard against this screen's dispose()
   // undoing the new screen's just-started playback.
   Future<void> _changeChannel(int delta) async {
@@ -440,10 +441,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent || !_isChannelPlayback) {
-      return KeyEventResult.ignored;
-    }
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
+
+    // This only fires while the root Focus itself holds primary focus —
+    // i.e. the controls are hidden (ExcludeFocus evicted them) and nothing
+    // else claimed the key first. Reveal the overlay and hand focus to it
+    // rather than acting on the press directly, matching remote-control
+    // convention (press OK to bring up controls, press again to act).
+    if (!_controlsVisible &&
+        node.hasPrimaryFocus &&
+        (key == LogicalKeyboardKey.select ||
+            key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.gameButtonA)) {
+      _showControls();
+      return KeyEventResult.handled;
+    }
+
+    if (!_isChannelPlayback) return KeyEventResult.ignored;
     // Dedicated channel-up/down remote buttons always work; the arrow keys
     // only double as channel-up/down when this screen's own surface holds
     // focus directly (not one of the on-screen control buttons) — otherwise
@@ -463,26 +478,44 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return KeyEventResult.ignored;
   }
 
+  // Shows the controls overlay (if hidden), (re)starts the auto-hide
+  // countdown, and moves D-pad focus onto the play/pause button so arrow
+  // keys can navigate the overlay immediately.
+  void _showControls() {
+    if (!_controlsVisible) {
+      setState(() => _controlsVisible = true);
+    }
+    _resetHideTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _playPauseFocusNode.requestFocus();
+    });
+  }
+
   @override
   void dispose() {
     _hideTimer?.cancel();
     _stallTimer?.cancel();
-    _bufferingSub?.cancel();
-    _videoParamsSub?.cancel();
-    _positionSub?.cancel();
-    _durationSub?.cancel();
-    _completedSub?.cancel();
-    _playbackService.detachVideoController();
+    _stateSub?.cancel();
+    _cueSub?.cancel();
+    HardwareKeyboard.instance.removeHandler(_onAnyKeyEvent);
+    _controlsFocusNode.dispose();
+    _playPauseFocusNode.dispose();
+    _rootFocusNode.dispose();
     // When transitioning to the next episode (pushReplacement from within
     // this same screen) or to a different content type entirely (e.g. an
     // external pushReplacement from the EPG panel into catch-up), skip the
     // orientation/UI reset and stop() so the new screen's landscape lock and
     // just-started playback aren't undone by this dispose() running after
-    // the new screen's initState() already took over the shared Player.
+    // the new screen's initState() already took over the shared engine.
     final skipTeardown =
         _navigatingToNext || _playbackService.consumeTransitioning();
     if (!skipTeardown) {
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      // A TV has no portrait mode at all — restoring one here would
+      // letterbox the whole app into a small portrait compat box on every
+      // exit from playback.
+      if (!PlatformHelper.isTVDevice) {
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      }
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     // A failed progress save must never block the stop() below — that
@@ -602,14 +635,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final id = widget.contentId;
     if (id == null) return;
     final service = _playbackService;
-    // Use _lastKnownPosition (tracked via stream) rather than reading
-    // player.state.position directly — the latter can be zero if a reconnection
-    // attempt called player.open() and the seek hasn't completed yet.
+    // Use _lastKnownPosition (tracked via the state stream) rather than
+    // reading service.lastState.position directly — the latter can be zero
+    // if a reconnection attempt called play() and the seek hasn't
+    // completed yet.
     final position = _lastKnownPosition;
-    // Prefer the stream-tracked duration; fall back to player state.
+    // Prefer the stream-tracked duration; fall back to the last known state.
     final total = _lastKnownDuration > Duration.zero
         ? _lastKnownDuration
-        : service.player.state.duration;
+        : service.lastState.duration;
     debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s');
     final profileId = _profileId;
     if (profileId == null) return;
@@ -680,13 +714,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _resetHideTimer() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _controlsVisible = false);
+      if (mounted) _hideControls();
     });
   }
 
+  // Arrow-key focus traversal within the controls is handled by Flutter's
+  // default focus shortcuts, not by anything in this screen's own key
+  // handlers — so it would otherwise never reset the hide countdown. This
+  // raw, non-consuming hook sees every key press regardless of who ends up
+  // handling it, which is what actually lets D-pad navigation count as
+  // "still active" without keeping the controls up forever just because
+  // some button happens to still have focus.
+  bool _onAnyKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent && _controlsVisible) {
+      _resetHideTimer();
+    }
+    return false;
+  }
+
+  void _hideControls() {
+    setState(() => _controlsVisible = false);
+    _rootFocusNode.requestFocus();
+  }
+
   void _onTap() {
-    setState(() => _controlsVisible = !_controlsVisible);
-    if (_controlsVisible) _resetHideTimer();
+    if (_controlsVisible) {
+      _hideTimer?.cancel();
+      _hideControls();
+    } else {
+      _showControls();
+    }
   }
 
   String _formatDuration(Duration d) {
@@ -696,6 +753,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
+  Widget _buildVideoSurface() {
+    if (!_textureReady) return const SizedBox.shrink();
+    return Texture(textureId: _playbackService.textureId);
+  }
+
+  Widget _buildCueOverlay() {
+    if (_cueText.isEmpty) return const SizedBox.shrink();
+    return Positioned(
+      left: 24,
+      right: 24,
+      bottom: 24,
+      child: IgnorePointer(
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            color: Colors.black54,
+            child: Text(
+              _cueText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 20),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final inPip = ref.watch(pipActiveProvider);
@@ -703,12 +787,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Bare video surface only — no controls/overlays fit the tiny PiP window.
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Video(controller: _videoController, controls: NoVideoControls),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [_buildVideoSurface(), _buildCueOverlay()],
+        ),
       );
     }
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
+        focusNode: _rootFocusNode,
         autofocus: true,
         onKeyEvent: _handleKeyEvent,
         child: GestureDetector(
@@ -717,10 +805,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Video(
-              controller: _videoController,
-              controls: NoVideoControls,
-            ),
+            _buildVideoSurface(),
+            _buildCueOverlay(),
             // Buffering / recovery overlay.
             AnimatedOpacity(
               opacity: _isBuffering ? 1.0 : 0.0,
@@ -770,22 +856,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               duration: const Duration(milliseconds: 250),
               child: IgnorePointer(
                 ignoring: !_controlsVisible,
-                child: PlayerControls(
-                  title: widget.title,
-                  contentType: _isChannelPlayback
-                      ? (_liveDvrActive ? 'catchup' : 'live')
-                      : widget.contentType,
-                  contentId: widget.contentId,
-                  isLive: _isChannelPlayback && !_liveDvrActive,
-                  isLiveDvr: _liveDvrActive,
-                  onTap: _onTap,
-                  onLivePlayPause: _onLivePlayPause,
-                  onLiveRewind: _onLiveRewind,
-                  onLiveForward: _onLiveForward,
-                  onGoLive: _liveDvrActive
-                      ? _goLive
-                      : (_isBehindLive ? _goLiveLocal : null),
-                  isBehindLive: _isBehindLive,
+                child: ExcludeFocus(
+                  excluding: !_controlsVisible,
+                  child: Focus(
+                    focusNode: _controlsFocusNode,
+                    child: PlayerControls(
+                      title: widget.title,
+                      contentType: _isChannelPlayback
+                          ? (_liveDvrActive ? 'catchup' : 'live')
+                          : widget.contentType,
+                      contentId: widget.contentId,
+                      isLive: _isChannelPlayback && !_liveDvrActive,
+                      isLiveDvr: _liveDvrActive,
+                      onTap: _onTap,
+                      onLivePlayPause: _onLivePlayPause,
+                      onLiveRewind: _onLiveRewind,
+                      onLiveForward: _onLiveForward,
+                      onGoLive: _liveDvrActive
+                          ? _goLive
+                          : (_isBehindLive ? _goLiveLocal : null),
+                      isBehindLive: _isBehindLive,
+                      playPauseFocusNode: _playPauseFocusNode,
+                    ),
+                  ),
                 ),
               ),
             ),

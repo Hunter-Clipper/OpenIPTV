@@ -90,7 +90,7 @@ Future<void> setPipEnabled(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(pipEnabledProvider.notifier).state = enabled;
   await prefs.setPipEnabled(enabled);
-  final playing = ref.read(playbackServiceProvider).player.state.playing;
+  final playing = ref.read(playbackServiceProvider).lastState.playing;
   await updatePipAvailability(enabled && playing);
 }
 

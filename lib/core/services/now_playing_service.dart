@@ -20,30 +20,26 @@ Future<void> initNowPlayingService(PlaybackService playbackService) async {
   );
 }
 
-/// Mirrors [PlaybackService]'s media_kit player state into a system media
+/// Mirrors [PlaybackService]'s native engine state into a system media
 /// notification with transport controls (play/pause/stop), so users can see
 /// and control what's playing from the notification shade or lock screen.
 ///
 /// [setEnabled] gates every visible side effect — the underlying player state
-/// stream listeners run for the app's whole lifetime, so without this check
+/// stream listener runs for the app's whole lifetime, so without this check
 /// the notification would keep reappearing on every play/pause change
 /// regardless of the user's "Media Notification" setting.
 class NowPlayingHandler extends BaseAudioHandler {
   NowPlayingHandler(this._playbackService) {
-    final player = _playbackService.player;
-    player.stream.playing.listen((_) => _broadcastState());
-    player.stream.buffering.listen((_) => _broadcastState());
-    player.stream.position.listen((_) => _broadcastState());
-    player.stream.duration.listen((_) => _broadcastState());
+    _playbackService.stateStream.listen((_) => _broadcastState());
   }
 
   final PlaybackService _playbackService;
   bool _enabled = true;
   // Starts true (nothing playing yet). Guards against the player's state
-  // streams re-pushing a non-idle PlaybackState after stop() — media_kit's
-  // stop() is async and its playing/buffering stream events can arrive after
-  // our idle state, which would otherwise leave the notification stuck
-  // instead of torn down. Cleared by setNowPlaying(), set by stop().
+  // stream re-pushing a non-idle PlaybackState after stop() — its
+  // playing/buffering updates can arrive after our idle state, which would
+  // otherwise leave the notification stuck instead of torn down. Cleared by
+  // setNowPlaying(), set by stop().
   bool _stopped = true;
   MediaItem? _lastMediaItem;
 
@@ -64,7 +60,7 @@ class NowPlayingHandler extends BaseAudioHandler {
 
   void setNowPlaying(String title, {String? artist, Uri? artUri}) {
     _stopped = false;
-    final duration = _playbackService.player.state.duration;
+    final duration = _playbackService.lastState.duration;
     final item = MediaItem(
       id: title,
       title: title,
@@ -85,7 +81,7 @@ class NowPlayingHandler extends BaseAudioHandler {
 
   void _broadcastState() {
     if (!_enabled || _stopped) return;
-    final state = _playbackService.player.state;
+    final state = _playbackService.lastState;
     playbackState.add(PlaybackState(
       controls: [
         state.playing ? MediaControl.pause : MediaControl.play,

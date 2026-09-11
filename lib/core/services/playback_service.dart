@@ -1,8 +1,7 @@
-import 'dart:io' show Platform;
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart'; // needed for VideoController GC anchor
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -21,40 +20,38 @@ PlaybackService playbackService(PlaybackServiceRef ref) {
 
 class PlaybackService {
   PlaybackService({required this.db}) {
-    _player = Player();
-    final native = _player.platform;
-    if (native is NativePlayer) {
-      // Default CC/subtitles to off.
-      // sub-auto=no: don't load external subtitle files.
-      // sid=no: deselect any embedded subtitle track (e.g. CEA-608/708 in MPEG-TS).
-      // sub-visibility=no: belt-and-suspenders render suppression.
-      // These are re-applied after every open() call in play() because mpv
-      // resets sid during track auto-selection when a new stream is loaded.
-      native.setProperty('sub-auto', 'no');
-      native.setProperty('sid', 'no');
-      native.setProperty('sub-visibility', 'no');
-      // Tell FFmpeg's lavf demuxer to scan all PMTs in MPEG-TS containers.
-      // Required to surface CEA-608/708 CC and other tracks that live in
-      // secondary programs (common in US broadcast-style IPTV streams).
-      native.setProperty('demuxer-lavf-o', 'scan_all_pmts=1');
-    }
+    _stateSub = _player.stateStream.listen((s) => _lastState = s);
   }
 
   final AppDatabase db;
-  late final Player _player;
+  final NativeVideoPlayer _player = NativeVideoPlayer();
+  late final StreamSubscription<NativeVideoPlayerState> _stateSub;
+  NativeVideoPlayerState _lastState = const NativeVideoPlayerState(
+    position: Duration.zero,
+    duration: Duration.zero,
+    playing: false,
+    buffering: false,
+    completed: false,
+    videoWidth: 0,
+    videoHeight: 0,
+  );
+  Future<int>? _createFuture;
 
-  // GC anchor: keeps the active VideoController alive while mpv's native
-  // opener thread may still fire Dart callbacks (Callback invoked after deleted).
-  // Set by PlayerScreen.initState, cleared by PlayerScreen.dispose. Never read
-  // — holding the reference is the entire point, so the analyzer's
-  // "unused field" warning here is a false positive.
-  // ignore: unused_field
-  VideoController? _activeController;
-  void attachVideoController(VideoController c) => _activeController = c;
-  void detachVideoController() => _activeController = null;
+  // One ExoPlayer instance lives for the whole app session (same lifetime
+  // media_kit's single global Player had) — this creates its texture once,
+  // on first use, and every later play() just reuses it.
+  Future<int> ensureTexture() => _createFuture ??= _player.create();
+
+  bool get hasTexture => _player.isCreated;
+  int get textureId => _player.textureId;
+
+  NativeVideoPlayerState get lastState => _lastState;
+  Stream<NativeVideoPlayerState> get stateStream => _player.stateStream;
+  Stream<String> get cueStream => _player.cueStream;
+  Stream<List<NativeVideoTrack>> get tracksStream => _player.tracksStream;
 
   // Set by a caller (e.g. the EPG panel) right before it replaces the
-  // current PlayerScreen with a new one on the same shared Player — such as
+  // current PlayerScreen with a new one on the same shared engine — such as
   // switching from live to catch-up. The outgoing PlayerScreen has no way to
   // know its dispose() was triggered by a deliberate hand-off rather than a
   // real exit, since pushReplacement is called from outside its own state.
@@ -67,8 +64,6 @@ class PlaybackService {
     _transitioning = false;
     return v;
   }
-
-  Player get player => _player;
 
   // ---------------------------------------------------------------------------
   // Stream type detection
@@ -88,100 +83,69 @@ class PlaybackService {
     return StreamType.auto;
   }
 
+  static String? _streamTypeHint(String url) {
+    switch (detectStreamType(url)) {
+      case StreamType.hls:
+        return 'hls';
+      case StreamType.mpegTs:
+        return 'ts';
+      case StreamType.progressive:
+      case StreamType.auto:
+        // Let the native side use ExoPlayer's default extractors — the
+        // CC-aware custom TsExtractor path is for raw MPEG-TS (live/catch-up)
+        // only; forcing it on VOD containers like mp4/mkv silently stalls
+        // playback forever (TsExtractor never finds valid TS sync bytes in
+        // an mp4 file, so ExoPlayer just sits in BUFFERING with no samples).
+        return null;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Playback control
   // ---------------------------------------------------------------------------
 
   Future<void> play(String streamUrl, {Duration? startPosition}) async {
-    // A pending target from a previous session must never bleed into this
-    // new one's relative seeks.
-    _pendingSeekTarget = null;
-    // Set hwdec here — after VideoController.initState() has run and may have
-    // set hwdec=auto internally — so our value wins when the media opens.
-    final native = _player.platform;
-    if (native is NativePlayer) {
-      final hwdecValue = Platform.isAndroid ? 'mediacodec-copy' : 'auto';
-      await native.setProperty('hwdec', hwdecValue);
-      await native.setProperty('hwdec-codecs', 'all');
-      debugPrint('[OTV-hwdec] setProperty hwdec=$hwdecValue done');
-    } else {
-      debugPrint('[OTV-hwdec] NativePlayer not available — skipping hwdec setup');
-    }
-    final media = Media(streamUrl);
-    debugPrint('[OTV-play] opening url=${streamUrl.split('?').first}, startPosition=${startPosition?.inSeconds}s');
-    await _player.open(media);
-    debugPrint('[OTV-play] open() returned, playing=${_player.state.playing}, duration=${_player.state.duration.inSeconds}s');
-    // Re-apply CC-off after every open: mpv resets sid during track auto-selection
-    // when the stream's PMTs are parsed. Setting sid=no here wins over any default
-    // track flag in the container.
-    if (native is NativePlayer) {
-      await native.setProperty('sid', 'no');
-      await native.setProperty('sub-visibility', 'no');
-    }
+    await ensureTexture();
+    debugPrint('[OTV-play] opening url=${streamUrl.split('?').first}, '
+        'startPosition=${startPosition?.inSeconds}s');
+    await _player.open(streamUrl, streamTypeHint: _streamTypeHint(streamUrl));
+    await _player.play();
+    debugPrint('[OTV-play] open()/play() done');
     if (startPosition != null && startPosition.inSeconds > 0) {
-      // Wait for mpv to parse the container and populate duration before seeking.
-      // 'playing=true' fires too early (before the index is ready), so a seek
-      // at that point silently no-ops. Duration > 0 means the demuxer has the
-      // seek table and can honor arbitrary position requests.
-      final durationFuture = _player.stream.duration
-          .firstWhere((d) => d > Duration.zero)
-          .timeout(const Duration(seconds: 20), onTimeout: () => Duration.zero);
-      if (_player.state.duration == Duration.zero) {
+      // Wait for ExoPlayer to parse the container and populate duration
+      // before seeking — a seek attempted before that silently no-ops.
+      final durationReady = _player.stateStream
+          .firstWhere((s) => s.duration > Duration.zero)
+          .timeout(const Duration(seconds: 20),
+              onTimeout: () => _lastState);
+      if (_lastState.duration == Duration.zero) {
         debugPrint('[OTV-play] waiting for duration...');
-        await durationFuture;
+        await durationReady;
       }
-      debugPrint('[OTV-play] duration=${_player.state.duration.inSeconds}s, seeking to ${startPosition.inSeconds}s');
-      await _player.seek(startPosition);
-      _pendingSeekTarget = startPosition;
-      debugPrint('[OTV-play] seek() returned, state.position=${_player.state.position.inSeconds}s');
+      debugPrint('[OTV-play] seeking to ${startPosition.inSeconds}s');
+      await _player.seekTo(startPosition);
     }
   }
 
   Future<void> pause() => _player.pause();
   Future<void> resume() => _player.play();
-  Future<void> togglePlayPause() => _player.playOrPause();
+  Future<void> togglePlayPause() =>
+      _lastState.playing ? pause() : resume();
 
-  // Tracks the last position we asked mpv to seek to, so a rapid run of
-  // relative seeks (repeated rewind/forward taps) compounds off the
-  // intended target instead of re-reading _player.state.position — which
-  // can still report the pre-seek value for a beat after seek() is called,
-  // since mpv's position updates asynchronously. Reading it mid-flight was
-  // producing seeks that landed at unexpected ("random") points.
-  Duration? _pendingSeekTarget;
-
-  Future<void> seek(Duration position) {
-    _pendingSeekTarget = position;
-    return _player.seek(position);
-  }
+  Future<void> seek(Duration position) => _player.seekTo(position);
 
   Future<void> seekRelative(Duration delta) async {
-    final base = _pendingSeekTarget ?? _player.state.position;
-    final target = base + delta;
-    _pendingSeekTarget = target;
-    debugPrint('[OTV-seek] seekRelative: base=${base.inSeconds}s '
-        'delta=${delta.inSeconds}s target=${target.inSeconds}s '
-        '(state.position=${_player.state.position.inSeconds}s)');
-    await _player.seek(target);
-    debugPrint('[OTV-seek] seekRelative done: '
-        'state.position=${_player.state.position.inSeconds}s');
+    final target = _lastState.position + delta;
+    debugPrint('[OTV-seek] seekRelative: delta=${delta.inSeconds}s '
+        'target=${target.inSeconds}s');
+    await _player.seekTo(target);
   }
-
-  // Call whenever a fresh absolute open/seek happens outside of seek()/
-  // seekRelative() (e.g. opening a new URL) so a stale pending target from
-  // a previous session can't bleed into the next one's relative seeks.
-  void clearPendingSeek() => _pendingSeekTarget = null;
 
   Future<void> stop() => _player.stop();
 
-  Future<void> setSubtitleTrack(SubtitleTrack track) async {
-    await _player.setSubtitleTrack(track);
-    // sub-visibility is decoupled from track selection — sync it explicitly.
-    final native = _player.platform;
-    if (native is NativePlayer) {
-      await native.setProperty(
-          'sub-visibility', track.id == 'no' ? 'no' : 'yes');
-    }
-  }
+  Future<void> selectTrack(String trackId) => _player.selectTrack(trackId);
+  Future<void> clearTextTrack() => _player.clearTextTrack();
+  Future<List<NativeVideoTrack>> getTracks() => _player.getTracks();
 
   // ---------------------------------------------------------------------------
   // Progress persistence (VOD)
@@ -209,5 +173,8 @@ class PlaybackService {
     debugPrint('[OTV-save] updateEpisodeProgress done');
   }
 
-  void dispose() => _player.dispose();
+  void dispose() {
+    _stateSub.cancel();
+    _player.dispose();
+  }
 }

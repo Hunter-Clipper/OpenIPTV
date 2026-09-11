@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/epg_panel.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Overlay controls for the full-screen player.
 /// Supports both Live TV and VOD (movie / episode) modes.
@@ -27,6 +28,7 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.onLiveForward,
     this.onGoLive,
     this.isBehindLive = false,
+    this.playPauseFocusNode,
   });
 
   final String title;
@@ -35,6 +37,10 @@ class PlayerControls extends ConsumerStatefulWidget {
   final String? contentId;
   final String? channelId;
   final VoidCallback? onTap;
+  // Focus lands here whenever PlayerScreen reveals the controls (initial
+  // show, tap-to-show, or pressing select/OK while hidden) so the D-pad can
+  // immediately navigate from a sensible starting point.
+  final FocusNode? playPauseFocusNode;
   // True while a catch-up-enabled live channel has been switched into full
   // DVR scrubbing (real seek bar via _VodControls) by the user pausing or
   // rewinding — as opposed to a programme picked from the EPG guide.
@@ -52,95 +58,53 @@ class PlayerControls extends ConsumerStatefulWidget {
 }
 
 class _PlayerControlsState extends ConsumerState<PlayerControls> {
-  StreamSubscription<Duration>? _positionSub;
-  StreamSubscription<Duration>? _durationSub;
-  StreamSubscription<VideoParams>? _videoParamsSub;
-  StreamSubscription<Tracks>? _tracksSub;
-  StreamSubscription<Track>? _trackSub;
+  StreamSubscription<NativeVideoPlayerState>? _stateSub;
+  StreamSubscription<List<NativeVideoTrack>>? _tracksSub;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  VideoParams _videoParams = const VideoParams();
-  Tracks _tracks = const Tracks();
-  Track _currentTrack = const Track();
-  String _hwdecCurrent = '';
+  int _videoHeight = 0;
+  List<NativeVideoTrack> _tracks = const [];
   bool _isSeeking = false;
   double _seekValue = 0;
 
-  bool get _hasSubtitles => _tracks.subtitle
-      .any((t) => t.id != 'auto' && t.id != 'no');
+  bool get _hasSubtitles => _tracks.any((t) => t.type == 'text');
 
-  bool get _ccActive =>
-      _currentTrack.subtitle.id != 'no' &&
-      _currentTrack.subtitle.id != 'auto';
+  bool get _ccActive => _tracks.any((t) => t.type == 'text' && t.selected);
 
   String? get _qualityLabel {
-    final h = _videoParams.h ?? _videoParams.dh;
-    if (h == null || h == 0) return null;
+    final h = _videoHeight;
+    if (h == 0) return null;
     if (h >= 2160) return '4K';
     if (h >= 1080) return 'FHD';
     if (h >= 720) return 'HD';
     return 'SD';
   }
 
-  // Non-null only once video is playing; 'HW' if GPU decode is active.
-  // Uses hwdec-current from mpv — hwPixelformat is null for mediacodec-copy
-  // (frames are copied to CPU so mpv reports the software pixelformat instead).
-  String? get _decodeLabel {
-    final h = _videoParams.h ?? _videoParams.dh;
-    if (h == null || h == 0) return null;
-    return (_hwdecCurrent.isNotEmpty && _hwdecCurrent != 'no') ? 'HW' : 'SW';
-  }
-
   @override
   void initState() {
     super.initState();
-    final player = ref.read(playbackServiceProvider).player;
-    _position = player.state.position;
-    _duration = player.state.duration;
-    _videoParams = player.state.videoParams;
-    _tracks = player.state.tracks;
-    _currentTrack = player.state.track;
-    _positionSub = player.stream.position.listen((p) {
-      if (!_isSeeking && mounted) setState(() => _position = p);
+    final service = ref.read(playbackServiceProvider);
+    final initial = service.lastState;
+    _position = initial.position;
+    _duration = initial.duration;
+    _videoHeight = initial.videoHeight;
+    _stateSub = service.stateStream.listen((s) {
+      if (!mounted) return;
+      setState(() {
+        if (!_isSeeking) _position = s.position;
+        _duration = s.duration;
+        _videoHeight = s.videoHeight;
+      });
     });
-    _durationSub = player.stream.duration.listen((d) {
-      if (mounted) setState(() => _duration = d);
-    });
-    _videoParamsSub = player.stream.videoParams.listen((vp) {
-      if (mounted) setState(() => _videoParams = vp);
-      // Log hwdec status every time video params update.
-      debugPrint('[OTV-vp] w=${vp.w} h=${vp.h} '
-          'pixelformat=${vp.pixelformat} hwPixelformat=${vp.hwPixelformat}');
-      final native = player.platform;
-      if (native is NativePlayer) {
-        native.getProperty('hwdec-current').then<void>((v) {
-          debugPrint('[OTV-hwdec-current] "$v"');
-          if (mounted) setState(() => _hwdecCurrent = v);
-        });
-      }
-    });
-    _tracksSub = player.stream.tracks.listen((t) {
+    _tracksSub = service.tracksStream.listen((t) {
       if (mounted) setState(() => _tracks = t);
-      debugPrint('[OTV-tracks] audio=${t.audio.length} '
-          'video=${t.video.length} subtitle=${t.subtitle.length}');
-      for (final s in t.subtitle) {
-        debugPrint('[OTV-sub] id=${s.id} lang=${s.language} title=${s.title}');
-      }
-    });
-    _trackSub = player.stream.track.listen((t) {
-      if (mounted) setState(() => _currentTrack = t);
-      debugPrint('[OTV-track-active] sub.id=${t.subtitle.id} '
-          'sub.lang=${t.subtitle.language}');
     });
   }
 
   @override
   void dispose() {
-    _positionSub?.cancel();
-    _durationSub?.cancel();
-    _videoParamsSub?.cancel();
+    _stateSub?.cancel();
     _tracksSub?.cancel();
-    _trackSub?.cancel();
     super.dispose();
   }
 
@@ -153,9 +117,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   }
 
   void _showCcPicker(BuildContext context) {
-    final realTracks = _tracks.subtitle
-        .where((t) => t.id != 'auto' && t.id != 'no')
-        .toList();
+    final realTracks = _tracks.where((t) => t.type == 'text').toList();
     if (realTracks.isEmpty && widget.isLive) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -187,26 +149,22 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                 title: const Text('Off'),
                 selected: !_ccActive,
                 onTap: () {
-                  ref
-                      .read(playbackServiceProvider)
-                      .setSubtitleTrack(SubtitleTrack.no());
+                  ref.read(playbackServiceProvider).clearTextTrack();
                   Navigator.of(ctx).pop();
                 },
               ),
               ...realTracks.map((t) {
-                final label = t.title?.isNotEmpty == true
-                    ? t.title!
+                final label = t.label.isNotEmpty
+                    ? t.label
                     : (t.language?.isNotEmpty == true
                         ? t.language!.toUpperCase()
                         : 'Track ${t.id}');
                 return ListTile(
                   leading: const Icon(Icons.subtitles_outlined),
                   title: Text(label),
-                  selected: _currentTrack.subtitle == t,
+                  selected: t.selected,
                   onTap: () {
-                    ref
-                        .read(playbackServiceProvider)
-                        .setSubtitleTrack(t);
+                    ref.read(playbackServiceProvider).selectTrack(t.id);
                     Navigator.of(ctx).pop();
                   },
                 );
@@ -245,7 +203,6 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             title: widget.title,
             contentId: widget.contentId,
             qualityLabel: _qualityLabel,
-            decodeLabel: _decodeLabel,
             hasCc: _hasSubtitles,
             ccActive: _ccActive,
             onBack: () => context.pop(),
@@ -256,11 +213,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             onForward: widget.onLiveForward,
             onGoLive: widget.onGoLive,
             isBehindLive: widget.isBehindLive,
+            playPauseFocusNode: widget.playPauseFocusNode,
           )
         : _VodControls(
             title: widget.title,
             qualityLabel: _qualityLabel,
-            decodeLabel: _decodeLabel,
             hasCc: _hasSubtitles,
             ccActive: _ccActive,
             position: _position,
@@ -291,6 +248,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             contentId:
                 widget.contentType == 'catchup' ? widget.contentId : null,
             onGoLive: widget.isLiveDvr ? widget.onGoLive : null,
+            playPauseFocusNode: widget.playPauseFocusNode,
           );
   }
 }
@@ -309,18 +267,17 @@ class _LiveControls extends ConsumerWidget {
     required this.hasCc,
     required this.ccActive,
     this.qualityLabel,
-    this.decodeLabel,
     this.onPlayPause,
     this.onRewind,
     this.onForward,
     this.onGoLive,
     this.isBehindLive = false,
+    this.playPauseFocusNode,
   });
 
   final String title;
   final String? contentId;
   final String? qualityLabel;
-  final String? decodeLabel;
   final bool hasCc;
   final bool ccActive;
   final VoidCallback onBack;
@@ -331,13 +288,14 @@ class _LiveControls extends ConsumerWidget {
   final VoidCallback? onForward;
   final VoidCallback? onGoLive;
   final bool isBehindLive;
+  final FocusNode? playPauseFocusNode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final profile = ref.watch(activeProfileProvider).valueOrNull;
     final isFav = profile?.favoriteChannelIds.contains(contentId) ?? false;
-    final player = ref.watch(playbackServiceProvider).player;
+    final service = ref.watch(playbackServiceProvider);
 
     return Container(
       decoration: const BoxDecoration(
@@ -370,11 +328,10 @@ class _LiveControls extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.white,
+                    _ControlIconButton(
+                      icon: Icons.arrow_back,
                       tooltip: 'Back',
-                      onPressed: onBack,
+                      onTap: onBack,
                     ),
                     Expanded(
                       child: Text(
@@ -385,83 +342,52 @@ class _LiveControls extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Quality + decode badges
+                    // Quality badge
                     if (qualityLabel != null) ...[
                       _QualityBadge(label: qualityLabel!),
-                      const SizedBox(width: 4),
-                    ],
-                    if (decodeLabel != null) ...[
-                      _DecodeBadge(label: decodeLabel!),
                       const SizedBox(width: 8),
                     ],
                     // LIVE badge — doubles as a "back to live" tap target
                     // once the user has paused/rewound behind the live edge.
-                    GestureDetector(
-                      onTap: isBehindLive ? onGoLive : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isBehindLive ? Colors.white24 : Colors.red,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isBehindLive) ...[
-                              const Icon(Icons.fast_forward,
-                                  color: Colors.white, size: 12),
-                              const SizedBox(width: 2),
-                            ],
-                            const Text(
-                              'LIVE',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    isBehindLive
+                        ? TvFocusable(
+                            onTap: onGoLive!,
+                            borderRadius: BorderRadius.circular(4),
+                            child: const _LiveBadge(isBehindLive: true),
+                          )
+                        : const _LiveBadge(isBehindLive: false),
                     const SizedBox(width: 8),
                     // CC button — always visible for live TV; dims when no
                     // tracks detected (embedded CEA-608/708 may appear late)
-                    IconButton(
-                      icon: Icon(
-                        ccActive
-                            ? Icons.closed_caption
-                            : Icons.closed_caption_outlined,
-                        color: ccActive
-                            ? Colors.white
-                            : (hasCc ? Colors.white54 : Colors.white24),
-                      ),
+                    _ControlIconButton(
+                      icon: ccActive
+                          ? Icons.closed_caption
+                          : Icons.closed_caption_outlined,
                       tooltip: 'Subtitles / CC',
-                      onPressed: onCc,
+                      color: ccActive
+                          ? Colors.white
+                          : (hasCc ? Colors.white54 : Colors.white24),
+                      onTap: onCc,
                     ),
                     // Favourite toggle
                     if (contentId != null && profile != null)
-                      IconButton(
-                        icon: Icon(
-                          isFav ? Icons.star : Icons.star_border,
-                          color: isFav
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.white,
-                        ),
+                      _ControlIconButton(
+                        icon: isFav ? Icons.star : Icons.star_border,
                         tooltip: isFav
                             ? 'Remove from Favorites'
                             : 'Add to Favorites',
-                        onPressed: () => ref
+                        color: isFav
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.white,
+                        onTap: () => ref
                             .read(profileServiceProvider)
                             .toggleFavoriteChannel(profile.id, contentId!),
                       ),
                     // EPG button
-                    IconButton(
-                      icon: const Icon(Icons.list_alt),
-                      color: Colors.white,
+                    _ControlIconButton(
+                      icon: Icons.list_alt,
                       tooltip: 'TV Guide',
-                      onPressed: onEpg,
+                      onTap: onEpg,
                     ),
                   ],
                 ),
@@ -472,19 +398,25 @@ class _LiveControls extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.replay_10,
-                          color: Colors.white70, size: 32),
-                      onPressed: onRewind,
+                    TvFocusable(
+                      onTap: onRewind!,
+                      borderRadius: BorderRadius.circular(24),
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(Icons.replay_10,
+                            color: Colors.white70, size: 32),
+                      ),
                     ),
                     const SizedBox(width: 24),
-                    StreamBuilder<bool>(
-                      stream: player.stream.playing,
-                      initialData: player.state.playing,
+                    StreamBuilder<NativeVideoPlayerState>(
+                      stream: service.stateStream,
+                      initialData: service.lastState,
                       builder: (context, snap) {
-                        final playing = snap.data ?? false;
-                        return GestureDetector(
-                          onTap: onPlayPause,
+                        final playing = snap.data?.playing ?? false;
+                        return TvFocusable(
+                          onTap: onPlayPause!,
+                          focusNode: playPauseFocusNode,
+                          borderRadius: BorderRadius.circular(28),
                           child: Container(
                             width: 56,
                             height: 56,
@@ -502,10 +434,14 @@ class _LiveControls extends ConsumerWidget {
                       },
                     ),
                     const SizedBox(width: 24),
-                    IconButton(
-                      icon: const Icon(Icons.forward_10,
-                          color: Colors.white70, size: 32),
-                      onPressed: onForward,
+                    TvFocusable(
+                      onTap: onForward!,
+                      borderRadius: BorderRadius.circular(24),
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(Icons.forward_10,
+                            color: Colors.white70, size: 32),
+                      ),
                     ),
                   ],
                 ),
@@ -632,15 +568,15 @@ class _VodControls extends ConsumerWidget {
     required this.onSkipBack,
     required this.onSkipForward,
     this.qualityLabel,
-    this.decodeLabel,
     this.onEpg,
     this.contentId,
     this.onGoLive,
+    this.playPauseFocusNode,
   });
 
   final String title;
   final String? qualityLabel;
-  final String? decodeLabel;
+  final FocusNode? playPauseFocusNode;
   // Only set for catch-up playback — the channel id, reused so the
   // favourite toggle applies to the channel, same as live playback.
   final String? contentId;
@@ -675,7 +611,6 @@ class _VodControls extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final service = ref.watch(playbackServiceProvider);
-    final player = service.player;
     final profile = ref.watch(activeProfileProvider).valueOrNull;
     final isFav = profile?.favoriteChannelIds.contains(contentId) ?? false;
 
@@ -710,11 +645,10 @@ class _VodControls extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.white,
+                    _ControlIconButton(
+                      icon: Icons.arrow_back,
                       tooltip: 'Back',
-                      onPressed: onBack,
+                      onTap: onBack,
                     ),
                     Expanded(
                       child: Text(
@@ -727,66 +661,43 @@ class _VodControls extends ConsumerWidget {
                     ),
                     if (qualityLabel != null) ...[
                       _QualityBadge(label: qualityLabel!),
-                      const SizedBox(width: 4),
-                    ],
-                    if (decodeLabel != null) ...[
-                      _DecodeBadge(label: decodeLabel!),
                       const SizedBox(width: 8),
                     ],
                     if (onGoLive != null) ...[
-                      GestureDetector(
-                        onTap: onGoLive,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'LIVE',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
+                      TvFocusable(
+                        onTap: onGoLive!,
+                        borderRadius: BorderRadius.circular(4),
+                        child: const _LiveBadge(isBehindLive: false),
                       ),
                       const SizedBox(width: 8),
                     ],
                     if (hasCc)
-                      IconButton(
-                        icon: Icon(
-                          ccActive
-                              ? Icons.closed_caption
-                              : Icons.closed_caption_outlined,
-                          color: ccActive ? Colors.white : Colors.white54,
-                        ),
+                      _ControlIconButton(
+                        icon: ccActive
+                            ? Icons.closed_caption
+                            : Icons.closed_caption_outlined,
                         tooltip: 'Subtitles / CC',
-                        onPressed: onCc,
+                        color: ccActive ? Colors.white : Colors.white54,
+                        onTap: onCc,
                       ),
                     if (contentId != null && profile != null)
-                      IconButton(
-                        icon: Icon(
-                          isFav ? Icons.star : Icons.star_border,
-                          color: isFav
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.white,
-                        ),
+                      _ControlIconButton(
+                        icon: isFav ? Icons.star : Icons.star_border,
                         tooltip: isFav
                             ? 'Remove from Favorites'
                             : 'Add to Favorites',
-                        onPressed: () => ref
+                        color: isFav
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.white,
+                        onTap: () => ref
                             .read(profileServiceProvider)
                             .toggleFavoriteChannel(profile.id, contentId!),
                       ),
                     if (onEpg != null)
-                      IconButton(
-                        icon: const Icon(Icons.list_alt),
-                        color: Colors.white,
+                      _ControlIconButton(
+                        icon: Icons.list_alt,
                         tooltip: 'TV Guide',
-                        onPressed: onEpg,
+                        onTap: onEpg!,
                       ),
                   ],
                 ),
@@ -796,29 +707,35 @@ class _VodControls extends ConsumerWidget {
             Expanded(
               child: Row(
                 children: [
-                  // ‑10s double-tap zone
+                  // ‑10s zone — double-tap for touch, select/OK for D-pad.
                   Expanded(
-                    child: GestureDetector(
-                      onDoubleTap: onSkipBack,
-                      child: Container(
-                        color: Colors.transparent,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.replay_10,
-                          color: Colors.white70,
-                          size: 36,
+                    child: TvFocusable(
+                      wrapsGesture: false,
+                      onTap: onSkipBack,
+                      child: GestureDetector(
+                        onDoubleTap: onSkipBack,
+                        child: Container(
+                          color: Colors.transparent,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.replay_10,
+                            color: Colors.white70,
+                            size: 36,
+                          ),
                         ),
                       ),
                     ),
                   ),
                   // Centre play/pause
-                  StreamBuilder<bool>(
-                    stream: player.stream.playing,
-                    initialData: player.state.playing,
+                  StreamBuilder<NativeVideoPlayerState>(
+                    stream: service.stateStream,
+                    initialData: service.lastState,
                     builder: (context, snap) {
-                      final playing = snap.data ?? false;
-                      return GestureDetector(
+                      final playing = snap.data?.playing ?? false;
+                      return TvFocusable(
                         onTap: () => service.togglePlayPause(),
+                        focusNode: playPauseFocusNode,
+                        borderRadius: BorderRadius.circular(32),
                         child: Container(
                           width: 64,
                           height: 64,
@@ -835,17 +752,21 @@ class _VodControls extends ConsumerWidget {
                       );
                     },
                   ),
-                  // +10s double-tap zone
+                  // +10s zone — double-tap for touch, select/OK for D-pad.
                   Expanded(
-                    child: GestureDetector(
-                      onDoubleTap: onSkipForward,
-                      child: Container(
-                        color: Colors.transparent,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.forward_10,
-                          color: Colors.white70,
-                          size: 36,
+                    child: TvFocusable(
+                      wrapsGesture: false,
+                      onTap: onSkipForward,
+                      child: GestureDetector(
+                        onDoubleTap: onSkipForward,
+                        child: Container(
+                          color: Colors.transparent,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.forward_10,
+                            color: Colors.white70,
+                            size: 36,
+                          ),
                         ),
                       ),
                     ),
@@ -905,8 +826,75 @@ class _VodControls extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Shared badges
+// Shared controls
 // ---------------------------------------------------------------------------
+
+/// Icon-only control button, focusable/selectable via D-pad (see
+/// TvFocusable) — the icon-button equivalent used throughout the controls
+/// overlay instead of plain IconButton, which has no visible focus
+/// indicator on TV.
+class _ControlIconButton extends StatelessWidget {
+  const _ControlIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.color = Colors.white,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return TvFocusable(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Tooltip(
+        message: tooltip,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: color, size: 24),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  const _LiveBadge({required this.isBehindLive});
+
+  final bool isBehindLive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isBehindLive ? Colors.white24 : Colors.red,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isBehindLive) ...[
+            const Icon(Icons.fast_forward, color: Colors.white, size: 12),
+            const SizedBox(width: 2),
+          ],
+          const Text(
+            'LIVE',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _QualityBadge extends StatelessWidget {
   const _QualityBadge({required this.label});
@@ -926,34 +914,6 @@ class _QualityBadge extends StatelessWidget {
         label,
         style: const TextStyle(
           color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
-      ),
-    );
-  }
-}
-
-class _DecodeBadge extends StatelessWidget {
-  const _DecodeBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final isHw = label == 'HW';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: isHw ? Colors.green.withValues(alpha: 0.3) : Colors.white12,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-            color: isHw ? Colors.greenAccent.withValues(alpha: 0.6) : Colors.white24),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isHw ? Colors.greenAccent : Colors.white54,
           fontWeight: FontWeight.bold,
           fontSize: 11,
         ),

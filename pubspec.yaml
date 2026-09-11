@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.9.0+1
+version: 0.10.3+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -9,11 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # Player
-  media_kit: ^1.1.10
-  media_kit_video: ^1.2.4
-  media_kit_libs_video: ^1.0.4
 
   # State
   flutter_riverpod: ^2.5.1
@@ -57,18 +52,11 @@ dependencies:
   # Utilities
   uuid: ^4.4.0
   shared_preferences: ^2.2.3
-  media_kit_native_event_loop: ^1.0.9
 
   # Background auto-refresh
   workmanager: ^0.9.0+3
   flutter_local_notifications: ^18.0.1
   permission_handler: ^11.3.1
-
-dependency_overrides:
-  # Custom-built libmpv with CEA-608/708 closed-caption decoding enabled
-  # (upstream disables it) — see third_party/media_kit_libs_android_video.
-  media_kit_libs_android_video:
-    path: third_party/media_kit_libs_android_video
 
 dev_dependencies:
   flutter_test:

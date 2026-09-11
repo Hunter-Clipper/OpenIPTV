@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -98,8 +97,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
     _previewDebounce?.cancel();
     _previewDebounce = Timer(const Duration(milliseconds: 400), () {
       if (!mounted) return;
-      (_preview ??= GuidePreviewController()).tune(channel.streamUrl);
-      if (mounted) setState(() {});
+      _preview ??= GuidePreviewController();
+      setState(() {});
+      _preview!.tune(channel.streamUrl).then((_) {
+        if (mounted) setState(() {});
+      });
     });
   }
 
@@ -311,6 +313,7 @@ class _GuideRow extends StatelessWidget {
           SizedBox(
             width: _railWidth,
             child: TvFocusable(
+              ensureVisibleOnFocus: true,
               onTap: () {
                 onFocus();
                 onSelect(_currentOrFirst());
@@ -545,10 +548,10 @@ class _PreviewPanel extends StatelessWidget {
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       clipBehavior: Clip.antiAlias,
-      child: preview == null
+      child: preview?.textureId == null
           ? const Center(
               child: Icon(Icons.live_tv, color: Colors.white54, size: 32))
-          : Video(controller: preview!.controller, controls: NoVideoControls),
+          : Texture(textureId: preview!.textureId!),
     );
   }
 }

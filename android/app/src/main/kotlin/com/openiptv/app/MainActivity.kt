@@ -17,6 +17,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private var pipChannel: MethodChannel? = null
     private var deviceChannel: MethodChannel? = null
+    private var videoPlayerManager: NativeVideoPlayerManager? = null
 
     // Updated proactively by Dart via pip_service.dart's updatePipAvailability()
     // whenever "PiP enabled AND actively playing" changes. Read synchronously
@@ -48,6 +49,12 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        videoPlayerManager = NativeVideoPlayerManager(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+            flutterEngine.renderer,
+        )
     }
 
     // Fired when the user presses Home (or otherwise leaves the activity)

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -12,9 +11,14 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
-  unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
+  // Must resolve before the orientation lock below — a TV has no rotation
+  // concept and no portrait mode at all, so requesting one here causes
+  // Android to letterbox the whole app into a small portrait compat box.
   await PlatformHelper.initTvDetection();
+  if (!PlatformHelper.isTVDevice) {
+    unawaited(
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
+  }
   await initAutoRefresh();
 
   // Built here (rather than implicitly by ProviderScope) so the same
