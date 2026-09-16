@@ -389,7 +389,7 @@ class _ShellState extends State<_Shell> {
         body: Actions(
           actions: {
             DirectionalFocusIntent: EdgeAwareDirectionalFocusAction(
-              direction: TraversalDirection.left,
+              directions: {TraversalDirection.left},
               onNoMove: () => _activeRailItemFocusNode.requestFocus(),
             ),
           },

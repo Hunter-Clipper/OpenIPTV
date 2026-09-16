@@ -206,33 +206,35 @@ class _TvFocusableState extends State<TvFocusable> {
 /// control renders and behaves as disabled) and no focus node is added at
 /// all, keeping it out of the D-pad traversal order the way a disabled
 /// Material control already is.
-/// Overrides the default D-pad directional-focus action so a press in
-/// [direction] that finds nothing to move to (Flutter's own traversal, tried
-/// first via [FocusNode.focusInDirection]) falls back to [onNoMove] instead
-/// of silently doing nothing. Every other direction, and every press that has
-/// a real neighbor to move to, behaves exactly like Flutter's built-in
-/// traversal already does.
+/// Overrides the default D-pad directional-focus action so a press in one of
+/// [directions] that finds nothing to move to (Flutter's own traversal,
+/// tried first via [FocusNode.focusInDirection]) falls back to [onNoMove]
+/// instead of silently doing nothing. Every other direction, and every press
+/// that has a real neighbor to move to, behaves exactly like Flutter's
+/// built-in traversal already does.
 ///
-/// Flutter's traversal only considers widgets whose rect overlaps the
-/// current one on the perpendicular axis — e.g. moving up/down only looks at
-/// candidates sharing some horizontal span. A narrow, centered control (the
-/// player's play/pause button) can then have no candidate directly above it
-/// even though a screen-edge button (the player's Back button, off to the
-/// side) is clearly the intended target, and the same gap shows up moving
-/// left out of a content grid into a side nav rail.
+/// Flutter's traversal weighs how much a candidate overlaps the current
+/// node on the perpendicular axis, not just same-row/column adjacency — a
+/// screen-edge button far off to one side can lose out to something closer
+/// but only loosely aligned. That leaves real gaps: the player's centered
+/// play/pause button has no good candidate directly above it even though
+/// the screen-edge Back button is the obvious target moving up, the CC
+/// button has the same gap moving left past the (non-focusable) title text
+/// to that same Back button, and a content grid can have the equivalent gap
+/// moving left into a side nav rail.
 class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
   EdgeAwareDirectionalFocusAction({
-    required this.direction,
+    required this.directions,
     required this.onNoMove,
   });
 
-  final TraversalDirection direction;
+  final Set<TraversalDirection> directions;
   final VoidCallback onNoMove;
 
   @override
   Object? invoke(DirectionalFocusIntent intent) {
     final moved = primaryFocus?.focusInDirection(intent.direction) ?? false;
-    if (!moved && intent.direction == direction) {
+    if (!moved && directions.contains(intent.direction)) {
       onNoMove();
     }
     return moved;

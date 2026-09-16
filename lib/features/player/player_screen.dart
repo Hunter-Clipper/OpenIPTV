@@ -57,11 +57,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Focus lands here whenever the controls are revealed, so the D-pad can
   // navigate the overlay immediately without an extra "warm-up" press.
   final FocusNode _playPauseFocusNode = FocusNode(debugLabel: 'PlayPause');
-  // Fallback target for the edge-aware "Up" override below — Flutter's own
-  // directional traversal has no candidate directly above the centered
-  // play/pause button (nothing else shares its narrow horizontal span), so
-  // pressing Up from it would otherwise silently do nothing instead of
-  // reaching the screen-edge Back button.
+  // Fallback target for the edge-aware Up/Left override below — Flutter's
+  // own directional traversal has no good candidate directly above the
+  // centered play/pause button, nor to the left of the CC button past the
+  // (non-focusable) title text, so either press would otherwise silently do
+  // nothing instead of reaching the screen-edge Back button.
   final FocusNode _backFocusNode = FocusNode(debugLabel: 'PlayerBack');
   // The screen's own surface, held while controls are hidden. ExcludeFocus
   // evicting a focused control doesn't reliably land focus back here on its
@@ -871,7 +871,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     child: Actions(
                       actions: {
                         DirectionalFocusIntent: EdgeAwareDirectionalFocusAction(
-                          direction: TraversalDirection.up,
+                          directions: {
+                            TraversalDirection.up,
+                            TraversalDirection.left,
+                          },
                           onNoMove: () => _backFocusNode.requestFocus(),
                         ),
                       },
