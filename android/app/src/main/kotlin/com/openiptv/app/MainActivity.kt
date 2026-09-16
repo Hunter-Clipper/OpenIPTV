@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.util.Log
 import android.util.Rational
+import android.view.WindowManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -78,7 +79,23 @@ class MainActivity : AudioServiceActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
             flutterEngine.renderer,
-        )
+        ) { anyPlaying -> setKeepScreenOn(anyPlaying) }
+    }
+
+    // Issue #28: the system's normal screen-timeout/screensaver rules apply
+    // during playback because nothing was telling Android the device is in
+    // active use. FLAG_KEEP_SCREEN_ON is the standard fix for this (what
+    // ExoPlayer's own PlayerView does internally) — unlike a PowerManager
+    // WakeLock it needs no permission and is scoped to this Window, so it's
+    // released automatically if the Activity is destroyed while playing.
+    private fun setKeepScreenOn(keepOn: Boolean) {
+        runOnUiThread {
+            if (keepOn) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
     }
 
     @Suppress("DEPRECATION", "MissingSuperCall")

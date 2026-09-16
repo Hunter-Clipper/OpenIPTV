@@ -40,7 +40,11 @@ import io.flutter.view.TextureRegistry
  * with Flutter (including PiP) since it's just a GPU texture, no view
  * hierarchy overlay.
  */
-class NativeVideoPlayer(context: Context, private val surfaceProducer: TextureRegistry.SurfaceProducer) {
+class NativeVideoPlayer(
+    context: Context,
+    private val surfaceProducer: TextureRegistry.SurfaceProducer,
+    private val onPlayingChanged: (Boolean) -> Unit = {},
+) {
     private val appContext = context.applicationContext
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
 
@@ -60,7 +64,10 @@ class NativeVideoPlayer(context: Context, private val surfaceProducer: TextureRe
         exoPlayer.setVideoSurface(surfaceProducer.surface)
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) = emitState()
-            override fun onIsPlayingChanged(isPlaying: Boolean) = emitState()
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                onPlayingChanged(isPlaying)
+                emitState()
+            }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 android.util.Log.e("OTV-exo", "playback error: ${error.errorCodeName}", error)
             }
@@ -221,6 +228,7 @@ class NativeVideoPlayer(context: Context, private val surfaceProducer: TextureRe
 
     fun dispose() {
         mainHandler.removeCallbacks(positionUpdater)
+        onPlayingChanged(false)
         exoPlayer.release()
         surfaceProducer.release()
     }
@@ -236,9 +244,20 @@ class NativeVideoPlayerManager(
     private val context: Context,
     private val messenger: BinaryMessenger,
     private val textureRegistry: TextureRegistry,
+    // Lets the Activity keep the screen awake (FLAG_KEEP_SCREEN_ON) for as
+    // long as any instance is actively playing — the TV guide's mini preview
+    // can run alongside the main player, so "playing" is tracked per id
+    // rather than assumed to be a single player.
+    private val onAnyPlayingChanged: (Boolean) -> Unit = {},
 ) {
     private val players = mutableMapOf<Long, NativeVideoPlayer>()
+    private val playingIds = mutableSetOf<Long>()
     private val controlChannel = MethodChannel(messenger, "openiptv/video_player")
+
+    private fun setPlaying(id: Long, isPlaying: Boolean) {
+        val changed = if (isPlaying) playingIds.add(id) else playingIds.remove(id)
+        if (changed) onAnyPlayingChanged(playingIds.isNotEmpty())
+    }
 
     init {
         controlChannel.setMethodCallHandler { call, result -> handle(call, result) }
@@ -251,7 +270,9 @@ class NativeVideoPlayerManager(
             "create" -> {
                 val surfaceProducer = textureRegistry.createSurfaceProducer()
                 val id = surfaceProducer.id()
-                val player = NativeVideoPlayer(context, surfaceProducer)
+                val player = NativeVideoPlayer(context, surfaceProducer) { isPlaying ->
+                    setPlaying(id, isPlaying)
+                }
                 val eventChannel = EventChannel(messenger, "openiptv/video_player_events/$id")
                 eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
                     override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {
