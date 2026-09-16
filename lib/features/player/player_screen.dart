@@ -16,6 +16,7 @@ import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
@@ -56,6 +57,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Focus lands here whenever the controls are revealed, so the D-pad can
   // navigate the overlay immediately without an extra "warm-up" press.
   final FocusNode _playPauseFocusNode = FocusNode(debugLabel: 'PlayPause');
+  // Fallback target for the edge-aware "Up" override below — Flutter's own
+  // directional traversal has no candidate directly above the centered
+  // play/pause button (nothing else shares its narrow horizontal span), so
+  // pressing Up from it would otherwise silently do nothing instead of
+  // reaching the screen-edge Back button.
+  final FocusNode _backFocusNode = FocusNode(debugLabel: 'PlayerBack');
   // The screen's own surface, held while controls are hidden. ExcludeFocus
   // evicting a focused control doesn't reliably land focus back here on its
   // own (Flutter's default unfocus disposition can hand it to an outer
@@ -500,6 +507,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     HardwareKeyboard.instance.removeHandler(_onAnyKeyEvent);
     _controlsFocusNode.dispose();
     _playPauseFocusNode.dispose();
+    _backFocusNode.dispose();
     _rootFocusNode.dispose();
     // When transitioning to the next episode (pushReplacement from within
     // this same screen) or to a different content type entirely (e.g. an
@@ -860,23 +868,32 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   excluding: !_controlsVisible,
                   child: Focus(
                     focusNode: _controlsFocusNode,
-                    child: PlayerControls(
-                      title: widget.title,
-                      contentType: _isChannelPlayback
-                          ? (_liveDvrActive ? 'catchup' : 'live')
-                          : widget.contentType,
-                      contentId: widget.contentId,
-                      isLive: _isChannelPlayback && !_liveDvrActive,
-                      isLiveDvr: _liveDvrActive,
-                      onTap: _onTap,
-                      onLivePlayPause: _onLivePlayPause,
-                      onLiveRewind: _onLiveRewind,
-                      onLiveForward: _onLiveForward,
-                      onGoLive: _liveDvrActive
-                          ? _goLive
-                          : (_isBehindLive ? _goLiveLocal : null),
-                      isBehindLive: _isBehindLive,
-                      playPauseFocusNode: _playPauseFocusNode,
+                    child: Actions(
+                      actions: {
+                        DirectionalFocusIntent: EdgeAwareDirectionalFocusAction(
+                          direction: TraversalDirection.up,
+                          onNoMove: () => _backFocusNode.requestFocus(),
+                        ),
+                      },
+                      child: PlayerControls(
+                        title: widget.title,
+                        contentType: _isChannelPlayback
+                            ? (_liveDvrActive ? 'catchup' : 'live')
+                            : widget.contentType,
+                        contentId: widget.contentId,
+                        isLive: _isChannelPlayback && !_liveDvrActive,
+                        isLiveDvr: _liveDvrActive,
+                        onTap: _onTap,
+                        onLivePlayPause: _onLivePlayPause,
+                        onLiveRewind: _onLiveRewind,
+                        onLiveForward: _onLiveForward,
+                        onGoLive: _liveDvrActive
+                            ? _goLive
+                            : (_isBehindLive ? _goLiveLocal : null),
+                        isBehindLive: _isBehindLive,
+                        playPauseFocusNode: _playPauseFocusNode,
+                        backFocusNode: _backFocusNode,
+                      ),
                     ),
                   ),
                 ),

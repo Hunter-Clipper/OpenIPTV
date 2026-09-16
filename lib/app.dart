@@ -326,7 +326,7 @@ class _ShellState extends State<_Shell> {
 
   // The currently-active tab's rail item — explicitly refocused as a
   // fallback when arrow-left has nowhere left to go within the content pane
-  // (see _EdgeAwareDirectionalFocusAction below), rather than relying on
+  // (see EdgeAwareDirectionalFocusAction in tv_focusable.dart), rather than relying on
   // Flutter's default directional traversal to find it on its own — it
   // doesn't reliably jump from the content pane (often inside its own
   // scrollable grid/list) across into a separate sibling column like this
@@ -388,8 +388,9 @@ class _ShellState extends State<_Shell> {
       return Scaffold(
         body: Actions(
           actions: {
-            DirectionalFocusIntent: _EdgeAwareDirectionalFocusAction(
-              onNoMoveLeft: () => _activeRailItemFocusNode.requestFocus(),
+            DirectionalFocusIntent: EdgeAwareDirectionalFocusAction(
+              direction: TraversalDirection.left,
+              onNoMove: () => _activeRailItemFocusNode.requestFocus(),
             ),
           },
           child: Row(
@@ -421,32 +422,6 @@ class _ShellState extends State<_Shell> {
 // Shared tab destinations — one source of truth for phone bottom nav and TV
 // side rail, so the two chrome styles can't drift out of sync.
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Arrow-left "escape into the nav rail" — only when the grid/list genuinely
-// has nothing further left, not on every left press.
-// ---------------------------------------------------------------------------
-
-/// Overrides the default D-pad directional-focus action so arrow-left falls
-/// back to [onNoMoveLeft] only when Flutter's own traversal (tried first, via
-/// [FocusNode.focusInDirection]) finds no focusable widget in that direction
-/// — e.g. the content pane's leftmost column/row. Every other direction, and
-/// every left press that has a real neighbor to move to, behaves exactly as
-/// Flutter's built-in traversal already does.
-class _EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
-  _EdgeAwareDirectionalFocusAction({required this.onNoMoveLeft});
-
-  final VoidCallback onNoMoveLeft;
-
-  @override
-  Object? invoke(DirectionalFocusIntent intent) {
-    final moved = primaryFocus?.focusInDirection(intent.direction) ?? false;
-    if (!moved && intent.direction == TraversalDirection.left) {
-      onNoMoveLeft();
-    }
-    return moved;
-  }
-}
 
 class _NavDestination {
   const _NavDestination(this.icon, this.label, this.path);
@@ -536,7 +511,7 @@ class _TvNavRail extends ConsumerWidget {
                   // Live TV) — NOT `i == index`, which would re-fire
                   // autofocus on every navigation. `activeItemFocusNode` is
                   // still wired up below so the explicit arrow-left "escape
-                  // to rail" fallback (_EdgeAwareDirectionalFocusAction) can
+                  // to rail" fallback (EdgeAwareDirectionalFocusAction) can
                   // requestFocus() it on demand.
                   autofocus: i == 0,
                   focusNode: i == index ? activeItemFocusNode : null,

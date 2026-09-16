@@ -29,6 +29,7 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.onGoLive,
     this.isBehindLive = false,
     this.playPauseFocusNode,
+    this.backFocusNode,
   });
 
   final String title;
@@ -41,6 +42,12 @@ class PlayerControls extends ConsumerStatefulWidget {
   // show, tap-to-show, or pressing select/OK while hidden) so the D-pad can
   // immediately navigate from a sensible starting point.
   final FocusNode? playPauseFocusNode;
+  // Lets PlayerScreen's edge-aware "Up" fallback request focus here directly
+  // when Flutter's own directional traversal finds nothing above whatever's
+  // currently focused (e.g. the centered play/pause button has no candidate
+  // overlapping it horizontally, even though this screen-edge Back button is
+  // clearly the intended target).
+  final FocusNode? backFocusNode;
   // True while a catch-up-enabled live channel has been switched into full
   // DVR scrubbing (real seek bar via _VodControls) by the user pausing or
   // rewinding — as opposed to a programme picked from the EPG guide.
@@ -214,6 +221,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             onGoLive: widget.onGoLive,
             isBehindLive: widget.isBehindLive,
             playPauseFocusNode: widget.playPauseFocusNode,
+            backFocusNode: widget.backFocusNode,
           )
         : _VodControls(
             title: widget.title,
@@ -249,6 +257,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                 widget.contentType == 'catchup' ? widget.contentId : null,
             onGoLive: widget.isLiveDvr ? widget.onGoLive : null,
             playPauseFocusNode: widget.playPauseFocusNode,
+            backFocusNode: widget.backFocusNode,
           );
   }
 }
@@ -273,6 +282,7 @@ class _LiveControls extends ConsumerWidget {
     this.onGoLive,
     this.isBehindLive = false,
     this.playPauseFocusNode,
+    this.backFocusNode,
   });
 
   final String title;
@@ -289,6 +299,7 @@ class _LiveControls extends ConsumerWidget {
   final VoidCallback? onGoLive;
   final bool isBehindLive;
   final FocusNode? playPauseFocusNode;
+  final FocusNode? backFocusNode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -332,6 +343,7 @@ class _LiveControls extends ConsumerWidget {
                       icon: Icons.arrow_back,
                       tooltip: 'Back',
                       onTap: onBack,
+                      focusNode: backFocusNode,
                     ),
                     Expanded(
                       child: Text(
@@ -572,11 +584,13 @@ class _VodControls extends ConsumerWidget {
     this.contentId,
     this.onGoLive,
     this.playPauseFocusNode,
+    this.backFocusNode,
   });
 
   final String title;
   final String? qualityLabel;
   final FocusNode? playPauseFocusNode;
+  final FocusNode? backFocusNode;
   // Only set for catch-up playback — the channel id, reused so the
   // favourite toggle applies to the channel, same as live playback.
   final String? contentId;
@@ -649,6 +663,7 @@ class _VodControls extends ConsumerWidget {
                       icon: Icons.arrow_back,
                       tooltip: 'Back',
                       onTap: onBack,
+                      focusNode: backFocusNode,
                     ),
                     Expanded(
                       child: Text(
@@ -839,17 +854,20 @@ class _ControlIconButton extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     this.color = Colors.white,
+    this.focusNode,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
   final Color color;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
     return TvFocusable(
       onTap: onTap,
+      focusNode: focusNode,
       borderRadius: BorderRadius.circular(8),
       child: Tooltip(
         message: tooltip,

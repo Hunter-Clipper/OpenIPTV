@@ -206,6 +206,39 @@ class _TvFocusableState extends State<TvFocusable> {
 /// control renders and behaves as disabled) and no focus node is added at
 /// all, keeping it out of the D-pad traversal order the way a disabled
 /// Material control already is.
+/// Overrides the default D-pad directional-focus action so a press in
+/// [direction] that finds nothing to move to (Flutter's own traversal, tried
+/// first via [FocusNode.focusInDirection]) falls back to [onNoMove] instead
+/// of silently doing nothing. Every other direction, and every press that has
+/// a real neighbor to move to, behaves exactly like Flutter's built-in
+/// traversal already does.
+///
+/// Flutter's traversal only considers widgets whose rect overlaps the
+/// current one on the perpendicular axis — e.g. moving up/down only looks at
+/// candidates sharing some horizontal span. A narrow, centered control (the
+/// player's play/pause button) can then have no candidate directly above it
+/// even though a screen-edge button (the player's Back button, off to the
+/// side) is clearly the intended target, and the same gap shows up moving
+/// left out of a content grid into a side nav rail.
+class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
+  EdgeAwareDirectionalFocusAction({
+    required this.direction,
+    required this.onNoMove,
+  });
+
+  final TraversalDirection direction;
+  final VoidCallback onNoMove;
+
+  @override
+  Object? invoke(DirectionalFocusIntent intent) {
+    final moved = primaryFocus?.focusInDirection(intent.direction) ?? false;
+    if (!moved && intent.direction == direction) {
+      onNoMove();
+    }
+    return moved;
+  }
+}
+
 class TvActivatable extends StatelessWidget {
   const TvActivatable({
     super.key,
