@@ -8,6 +8,7 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Profile overview screen — shows the active profile and lets the user
 /// manage settings, PIN, kids mode, and other profiles.
@@ -30,6 +31,21 @@ class ProfileScreen extends ConsumerWidget {
           if (profile == null) {
             return const Center(child: Text('No active profile.'));
           }
+          final String kidsSubtitle;
+          if (profile.isAdmin) {
+            kidsSubtitle = "Admin accounts can't be marked as kid accounts";
+          } else if (profile.isKidsProfile) {
+            kidsSubtitle = 'Adult content will be hidden';
+          } else {
+            kidsSubtitle = 'All content is visible';
+          }
+          void showPinDialog() => _showPinDialog(
+                context,
+                ref,
+                profile,
+                blockPinRemoval: profile.isAdmin &&
+                    (allAsync.valueOrNull?.length ?? 1) > 1,
+              );
           return ListView(
             children: [
               // ── Hero ──────────────────────────────────────────────
@@ -51,57 +67,23 @@ class ProfileScreen extends ConsumerWidget {
                       'profile and adult content is automatically hidden '
                       'from Live, Movies, and Series. Requires Parental '
                       'Protection to be enabled.',
-                  child: SwitchListTile(
-                    secondary: const Icon(Icons.child_care_outlined),
-                    title: const Text('Kids Profile'),
-                    subtitle: Text(
-                      profile.isAdmin
-                          ? "Admin accounts can't be marked as kid accounts"
-                          : profile.isKidsProfile
-                              ? 'Adult content will be hidden'
-                              : 'All content is visible',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    value: profile.isKidsProfile,
-                    onChanged: profile.isAdmin
+                  child: TvActivatable(
+                    autofocus: true,
+                    onTap: profile.isAdmin
                         ? null
-                        : (val) async {
-                            if (val) {
-                              final prefs = await ref
-                                  .read(appPreferencesProvider.future);
-                              if (!context.mounted) return;
-                              if (!prefs.parentalProtectionEnabled) {
-                                final enable =
-                                    await _showParentalProtectionRequiredDialog(
-                                        context);
-                                if (!enable) return;
-                                await prefs
-                                    .setParentalProtectionEnabled(true);
-                              }
-                            } else {
-                              final pin = await showParentalPinEntry(context,
-                                  'Enter admin PIN to disable Kids Profile');
-                              if (pin == null) return;
-                              if (!await ref
-                                  .read(profileServiceProvider)
-                                  .verifyAnyAdminPin(pin)) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Incorrect PIN')));
-                                }
-                                return;
-                              }
-                            }
-                            await ref
-                                .read(profileServiceProvider)
-                                .updateProfile(
-                                  profile.copyWith(
-                                      isKidsProfile: val,
-                                      updatedAt: DateTime.now()),
-                                );
-                            ref.invalidate(activeProfileProvider);
-                          },
+                        : () => _setKidsProfile(
+                            context, ref, profile, !profile.isKidsProfile),
+                    builder: (_) => SwitchListTile(
+                      secondary: const Icon(Icons.child_care_outlined),
+                      title: const Text('Kids Profile'),
+                      subtitle:
+                          Text(kidsSubtitle, style: theme.textTheme.bodySmall),
+                      value: profile.isKidsProfile,
+                      onChanged: profile.isAdmin
+                          ? null
+                          : (val) =>
+                              _setKidsProfile(context, ref, profile, val),
+                    ),
                   ),
                 ),
               ),
@@ -109,27 +91,25 @@ class ProfileScreen extends ConsumerWidget {
               // ── Security ──────────────────────────────────────────
               if (!profile.isKidsProfile) ...[
                 const SectionHeader('Security'),
-                ListTile(
-                  leading: Icon(profile.hasPin
-                      ? Icons.lock_outline
-                      : Icons.lock_open_outlined),
-                  title: const Text('PIN Lock'),
-                  subtitle: Text(
-                    profile.hasPin
-                        ? 'PIN is set — tap to change or remove'
-                        : 'No PIN — tap to set one',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  trailing: profile.hasPin
-                      ? Icon(Icons.check_circle,
-                          color: theme.colorScheme.primary, size: 20)
-                      : null,
-                  onTap: () => _showPinDialog(
-                    context,
-                    ref,
-                    profile,
-                    blockPinRemoval: profile.isAdmin &&
-                        (allAsync.valueOrNull?.length ?? 1) > 1,
+                TvActivatable(
+                  autofocus: profile.isAdmin,
+                  onTap: showPinDialog,
+                  builder: (onTap) => ListTile(
+                    leading: Icon(profile.hasPin
+                        ? Icons.lock_outline
+                        : Icons.lock_open_outlined),
+                    title: const Text('PIN Lock'),
+                    subtitle: Text(
+                      profile.hasPin
+                          ? 'PIN is set — tap to change or remove'
+                          : 'No PIN — tap to set one',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    trailing: profile.hasPin
+                        ? Icon(Icons.check_circle,
+                            color: theme.colorScheme.primary, size: 20)
+                        : null,
+                    onTap: onTap,
                   ),
                 ),
               ],
@@ -150,10 +130,13 @@ class ProfileScreen extends ConsumerWidget {
                                 ? () => _confirmDelete(context, ref, p)
                                 : null,
                           )),
-                      ListTile(
-                        leading: const Icon(Icons.add),
-                        title: const Text('Add Profile'),
+                      TvActivatable(
                         onTap: () => _showCreateDialog(context, ref),
+                        builder: (onTap) => ListTile(
+                          leading: const Icon(Icons.add),
+                          title: const Text('Add Profile'),
+                          onTap: onTap,
+                        ),
                       ),
                     ],
                   ),
@@ -165,6 +148,36 @@ class ProfileScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  /// Turning Kids Profile on requires Parental Protection (offering to enable
+  /// it if it isn't yet); turning it off requires an admin PIN.
+  Future<void> _setKidsProfile(
+      BuildContext context, WidgetRef ref, Profile profile, bool val) async {
+    if (val) {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      if (!context.mounted) return;
+      if (!prefs.parentalProtectionEnabled) {
+        final enable = await _showParentalProtectionRequiredDialog(context);
+        if (!enable) return;
+        await prefs.setParentalProtectionEnabled(true);
+      }
+    } else {
+      final pin = await showParentalPinEntry(
+          context, 'Enter admin PIN to disable Kids Profile');
+      if (pin == null) return;
+      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Incorrect PIN')));
+        }
+        return;
+      }
+    }
+    await ref.read(profileServiceProvider).updateProfile(
+          profile.copyWith(isKidsProfile: val, updatedAt: DateTime.now()),
+        );
+    ref.invalidate(activeProfileProvider);
   }
 
   Future<void> _showEditDialog(
@@ -215,14 +228,19 @@ class ProfileScreen extends ConsumerWidget {
           'settings. Your sources and channels are not affected.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
-          FilledButton(
-            style: AppTheme.destructiveButtonStyle(ctx),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(true),
+            builder: (onTap) => FilledButton(
+              style: AppTheme.destructiveButtonStyle(ctx),
+              onPressed: onTap,
+              child: const Text('Delete'),
+            ),
           ),
         ],
       ),
@@ -253,13 +271,16 @@ Future<bool> _showParentalProtectionRequiredDialog(BuildContext context) async {
           'Kid profiles require Parental Protection to be turned on, so '
           'adult content can be hidden automatically. Enable it now?'),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+        TvActivatable(
+          autofocus: true,
+          onTap: () => Navigator.pop(context, false),
+          builder: (onTap) =>
+              TextButton(onPressed: onTap, child: const Text('Cancel')),
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Enable Protection'),
+        TvActivatable(
+          onTap: () => Navigator.pop(context, true),
+          builder: (onTap) => FilledButton(
+              onPressed: onTap, child: const Text('Enable Protection')),
         ),
       ],
     ),
@@ -301,8 +322,9 @@ class _ProfileHero extends StatelessWidget {
                   ),
                 ),
               ),
-              GestureDetector(
+              TvFocusable(
                 onTap: onEdit,
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -379,6 +401,7 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final menuKey = GlobalKey<PopupMenuButtonState<_Action>>();
     return ListTile(
       leading: Stack(
         children: [
@@ -423,19 +446,24 @@ class _ProfileTile extends StatelessWidget {
             ]),
         ],
       ),
-      trailing: PopupMenuButton<_Action>(
-        onSelected: (a) {
-          if (a == _Action.edit) onEdit();
-          if (a == _Action.delete) onDelete?.call();
-        },
-        itemBuilder: (_) => [
-          const PopupMenuItem(value: _Action.edit, child: Text('Edit')),
-          if (onDelete != null) ...[
-            const PopupMenuDivider(),
-            const PopupMenuItem(
-                value: _Action.delete, child: Text('Delete')),
+      trailing: TvFocusable(
+        wrapsGesture: false,
+        onTap: () => menuKey.currentState?.showButtonMenu(),
+        child: PopupMenuButton<_Action>(
+          key: menuKey,
+          onSelected: (a) {
+            if (a == _Action.edit) onEdit();
+            if (a == _Action.delete) onDelete?.call();
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: _Action.edit, child: Text('Edit')),
+            if (onDelete != null) ...[
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                  value: _Action.delete, child: Text('Delete')),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -503,7 +531,6 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
             const SizedBox(height: 8),
             TextField(
               controller: _name,
-              autofocus: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _save(),
             ),
@@ -525,11 +552,21 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+        TvActivatable(
+          onTap: () => Navigator.of(context).pop(),
+          builder: (onTap) =>
+              TextButton(onPressed: onTap, child: const Text('Cancel')),
         ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
+        TvActivatable(
+          // A plain autofocus TextField above would trap D-pad focus there
+          // permanently (Flutter's EditableText consumes vertical arrow
+          // keys), so this button gets the default focus instead — the
+          // field is still one press up if the name needs editing.
+          autofocus: true,
+          onTap: _save,
+          builder: (onTap) =>
+              FilledButton(onPressed: onTap, child: const Text('Save')),
+        ),
       ],
     );
   }
@@ -606,7 +643,6 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
             const SizedBox(height: 8),
             TextField(
               controller: _name,
-              autofocus: true,
               decoration:
                   const InputDecoration(hintText: 'e.g. Kids, Living Room'),
               textInputAction: TextInputAction.done,
@@ -620,18 +656,21 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
               onSelected: (e) => setState(() => _emoji = e),
             ),
             const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.child_care_outlined),
-              title: const Text('Is Kid Account'),
-              subtitle: Text(
-                _isKidAccount
-                    ? 'Adult content will be hidden'
-                    : 'All content is visible',
-                style: Theme.of(context).textTheme.bodySmall,
+            TvActivatable(
+              onTap: () => _onKidToggle(!_isKidAccount),
+              builder: (_) => SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(Icons.child_care_outlined),
+                title: const Text('Is Kid Account'),
+                subtitle: Text(
+                  _isKidAccount
+                      ? 'Adult content will be hidden'
+                      : 'All content is visible',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                value: _isKidAccount,
+                onChanged: _onKidToggle,
               ),
-              value: _isKidAccount,
-              onChanged: _onKidToggle,
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -644,11 +683,22 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+        TvActivatable(
+          onTap: () => Navigator.of(context).pop(),
+          builder: (onTap) =>
+              TextButton(onPressed: onTap, child: const Text('Cancel')),
         ),
-        FilledButton(onPressed: _create, child: const Text('Create')),
+        TvActivatable(
+          // A plain autofocus TextField above would trap D-pad focus there
+          // permanently (Flutter's EditableText consumes vertical arrow
+          // keys), so this button gets the default focus instead — the
+          // field, avatar picker, and Kid Account toggle are still one or
+          // more presses up if they need editing.
+          autofocus: true,
+          onTap: _create,
+          builder: (onTap) =>
+              FilledButton(onPressed: onTap, child: const Text('Create')),
+        ),
       ],
     );
   }
@@ -746,13 +796,9 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                 maxLength: 8,
                 decoration: InputDecoration(
                   hintText: 'Current PIN',
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscureCurrent
-                        ? Icons.visibility
-                        : Icons.visibility_off),
-                    tooltip:
-                        _obscureCurrent ? 'Show password' : 'Hide password',
-                    onPressed: () =>
+                  suffixIcon: _obscureToggle(
+                    obscured: _obscureCurrent,
+                    onToggle: () =>
                         setState(() => _obscureCurrent = !_obscureCurrent),
                   ),
                 ),
@@ -770,12 +816,9 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               autofocus: !widget.profile.hasPin,
               decoration: InputDecoration(
                 hintText: '4–8 digits',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                      _obscureNew ? Icons.visibility : Icons.visibility_off),
-                  tooltip: _obscureNew ? 'Show password' : 'Hide password',
-                  onPressed: () =>
-                      setState(() => _obscureNew = !_obscureNew),
+                suffixIcon: _obscureToggle(
+                  obscured: _obscureNew,
+                  onToggle: () => setState(() => _obscureNew = !_obscureNew),
                 ),
               ),
             ),
@@ -790,13 +833,9 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               maxLength: 8,
               decoration: InputDecoration(
                 hintText: 'Repeat new PIN',
-                suffixIcon: IconButton(
-                  icon: Icon(_obscureConfirm
-                      ? Icons.visibility
-                      : Icons.visibility_off),
-                  tooltip:
-                      _obscureConfirm ? 'Show password' : 'Hide password',
-                  onPressed: () =>
+                suffixIcon: _obscureToggle(
+                  obscured: _obscureConfirm,
+                  onToggle: () =>
                       setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
@@ -813,18 +852,38 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+        TvActivatable(
+          onTap: () => Navigator.of(context).pop(),
+          builder: (onTap) =>
+              TextButton(onPressed: onTap, child: const Text('Cancel')),
         ),
         if (widget.profile.hasPin && !widget.blockPinRemoval)
-          FilledButton(
-            style: AppTheme.destructiveButtonStyle(context),
-            onPressed: _remove,
-            child: const Text('Remove PIN'),
+          TvActivatable(
+            onTap: _remove,
+            builder: (onTap) => FilledButton(
+              style: AppTheme.destructiveButtonStyle(context),
+              onPressed: onTap,
+              child: const Text('Remove PIN'),
+            ),
           ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
+        TvActivatable(
+          onTap: _save,
+          builder: (onTap) =>
+              FilledButton(onPressed: onTap, child: const Text('Save')),
+        ),
       ],
+    );
+  }
+
+  /// The show/hide eye inside a PIN field. A plain IconButton here can't be
+  /// reached by the D-pad, so the bare icon gets its own focus target.
+  Widget _obscureToggle({
+    required bool obscured,
+    required VoidCallback onToggle,
+  }) {
+    return TvFocusable(
+      onTap: onToggle,
+      child: Icon(obscured ? Icons.visibility : Icons.visibility_off),
     );
   }
 }
@@ -846,8 +905,9 @@ class _EmojiPicker extends StatelessWidget {
       runSpacing: 8,
       children: Profile.avatarOptions.map((emoji) {
         final isSelected = emoji == selected;
-        return GestureDetector(
+        return TvFocusable(
           onTap: () => onSelected(emoji),
+          borderRadius: BorderRadius.circular(8),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             width: 40,

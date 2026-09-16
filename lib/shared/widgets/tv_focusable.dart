@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Wraps [child] so it can receive D-pad/keyboard focus: shows an animated
 /// accent focus ring (matching AppTheme.focusDecoration) when focused,
 /// activates [onTap] on remote OK/Enter, and scrolls itself into view when
-/// focused inside a scrollable list/grid. This is additive to (not a
-/// replacement for) normal tap handling, and is unconditional — harmless on
-/// phone/tablet, essential on TV where nothing else shows where the D-pad
-/// cursor is.
+/// focused inside a scrollable list/grid. Focus/key handling is unconditional
+/// (harmless on phone/tablet — a Bluetooth keyboard or switch-access user
+/// still benefits), but the visible ring itself is TV-only: a phone/tablet
+/// has no D-pad cursor to show, and touch users would otherwise see a stray
+/// blue outline flash on whatever they last tapped.
 class TvFocusable extends StatefulWidget {
   const TvFocusable({
     super.key,
@@ -21,6 +25,7 @@ class TvFocusable extends StatefulWidget {
     this.ensureVisibleOnFocus = false,
     this.wrapsGesture = true,
     this.focusNode,
+    this.showFocusRing = true,
   });
 
   final Widget child;
@@ -60,6 +65,12 @@ class TvFocusable extends StatefulWidget {
   // scrollable list/grid that benefits from auto-scrolling the focused item
   // into view.
   final bool ensureVisibleOnFocus;
+  // False for callers that paint their own bespoke focus treatment (e.g. the
+  // TV nav rail's glowing pill) off the `onFocusChange` callback instead of
+  // this widget's generic accent-border box. Focus/key handling and
+  // scroll-into-view behavior are unaffected — only the built-in ring is
+  // skipped.
+  final bool showFocusRing;
 
   @override
   State<TvFocusable> createState() => _TvFocusableState();
@@ -67,6 +78,29 @@ class TvFocusable extends StatefulWidget {
 
 class _TvFocusableState extends State<TvFocusable> {
   bool _focused = false;
+  // Lets a held-down select/OK on the remote reach [onLongPress] the same way
+  // a touch long-press does — e.g. the favorite-toggle overlay on a poster
+  // card sits fully inside the card's own focus rectangle, so D-pad
+  // directional navigation can never land on it as a separate stop; holding
+  // select on the card itself is the only way a remote user can reach it.
+  Timer? _longPressTimer;
+  bool _longPressFired = false;
+  // Guards against an orphaned KeyUpEvent: a select press that triggers a
+  // synchronous navigation (e.g. the nav rail's context.go) can autofocus a
+  // brand-new widget instance — with its own fresh _TvFocusableState — before
+  // the remote's key-up for that SAME physical press is delivered. That
+  // key-up then lands on the new widget, which never saw the matching
+  // key-down, so _longPressFired is still false and it would otherwise look
+  // exactly like a valid completed short-press and fire onTap a second time
+  // on whatever the user just landed on. Only treat a key-up as real if this
+  // widget instance actually recorded the key-down that started it.
+  bool _keyDownActive = false;
+
+  @override
+  void dispose() {
+    _longPressTimer?.cancel();
+    super.dispose();
+  }
 
   void _handleFocusChange(bool focused) {
     setState(() => _focused = focused);
@@ -85,12 +119,43 @@ class _TvFocusableState extends State<TvFocusable> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.select ||
+    final isActivationKey = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.gameButtonA) {
-      widget.onTap();
+        key == LogicalKeyboardKey.gameButtonA;
+    if (!isActivationKey) return KeyEventResult.ignored;
+
+    // No long-press handler: behave exactly as before this hold-to-long-press
+    // support was added — fire once on key-down and ignore the matching
+    // key-up entirely. (Handling both would double-fire onTap on every plain
+    // select press, which silently cancels itself out for a toggle callback.)
+    if (widget.onLongPress == null) {
+      if (event is KeyDownEvent) widget.onTap();
+      return KeyEventResult.handled;
+    }
+
+    if (event is KeyUpEvent) {
+      // Orphaned key-up (this instance never saw the key-down) — see
+      // _keyDownActive's doc comment. Swallow it without firing onTap.
+      if (!_keyDownActive) return KeyEventResult.handled;
+      _keyDownActive = false;
+      final firedLongPress = _longPressFired;
+      _longPressTimer?.cancel();
+      _longPressTimer = null;
+      if (!firedLongPress) widget.onTap();
+      return KeyEventResult.handled;
+    }
+    if (event is KeyDownEvent) {
+      _keyDownActive = true;
+      // Ignore auto-repeat KeyDownEvents while a hold is already in
+      // progress — only the first press of a hold should start the timer.
+      if (_longPressTimer == null) {
+        _longPressFired = false;
+        _longPressTimer = Timer(const Duration(milliseconds: 500), () {
+          _longPressFired = true;
+          widget.onLongPress!();
+        });
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -98,20 +163,24 @@ class _TvFocusableState extends State<TvFocusable> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.primary;
-    final radius = widget.borderRadius ??
-        BorderRadius.circular(AppTheme.cardRadius);
-    final ring = AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: _focused ? accent : Colors.transparent,
-          width: 3,
+    var content = widget.child;
+    if (widget.showFocusRing) {
+      final lit = _focused && PlatformHelper.isTV(context);
+      content = AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: lit
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
+            width: 3,
+          ),
+          borderRadius: widget.borderRadius ??
+              BorderRadius.circular(AppTheme.cardRadius),
         ),
-        borderRadius: radius,
-      ),
-      child: widget.child,
-    );
+        child: widget.child,
+      );
+    }
     return Focus(
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
@@ -121,9 +190,50 @@ class _TvFocusableState extends State<TvFocusable> {
           ? GestureDetector(
               onTap: widget.onTap,
               onLongPress: widget.onLongPress,
-              child: ring,
+              child: content,
             )
-          : ring,
+          : content,
+    );
+  }
+}
+
+/// Pairs a widget that already handles its own pointer taps (a button, a
+/// [ListTile], a [SwitchListTile], …) with [TvFocusable]'s D-pad/remote
+/// activation, without writing the action out twice: [builder] is handed the
+/// very same [onTap] the remote fires.
+///
+/// A null [onTap] means disabled — [builder] receives null (so the underlying
+/// control renders and behaves as disabled) and no focus node is added at
+/// all, keeping it out of the D-pad traversal order the way a disabled
+/// Material control already is.
+class TvActivatable extends StatelessWidget {
+  const TvActivatable({
+    super.key,
+    required this.onTap,
+    required this.builder,
+    this.autofocus = false,
+    this.borderRadius,
+    this.focusNode,
+  });
+
+  final VoidCallback? onTap;
+  final Widget Function(VoidCallback? onTap) builder;
+  final bool autofocus;
+  final BorderRadius? borderRadius;
+  final FocusNode? focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    final tap = onTap;
+    final child = builder(tap);
+    if (tap == null) return child;
+    return TvFocusable(
+      wrapsGesture: false,
+      onTap: tap,
+      autofocus: autofocus,
+      borderRadius: borderRadius,
+      focusNode: focusNode,
+      child: child,
     );
   }
 }

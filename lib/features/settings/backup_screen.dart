@@ -13,6 +13,7 @@ import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -45,14 +46,18 @@ class BackupScreen extends ConsumerWidget {
               ),
             ),
             const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.upload_file_outlined),
-              title: const Text('Export Backup'),
-              subtitle: const Text(
-                'Save all profiles, sources, and settings as a .zip file',
-              ),
-              trailing: const Icon(Icons.chevron_right),
+            TvActivatable(
+              autofocus: true,
               onTap: () => _exportBackup(context, ref),
+              builder: (onTap) => ListTile(
+                leading: const Icon(Icons.upload_file_outlined),
+                title: const Text('Export Backup'),
+                subtitle: const Text(
+                  'Save all profiles, sources, and settings as a .zip file',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: onTap,
+              ),
             ),
 
             // --------------- IMPORT ---------------
@@ -72,12 +77,15 @@ class BackupScreen extends ConsumerWidget {
               ),
             ),
             const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Import Backup'),
-              subtitle: const Text('Open a .zip backup file'),
-              trailing: const Icon(Icons.chevron_right),
+            TvActivatable(
               onTap: () => _importBackup(context, ref),
+              builder: (onTap) => ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Import Backup'),
+                subtitle: const Text('Open a .zip backup file'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: onTap,
+              ),
             ),
           ],
         ),
@@ -230,7 +238,6 @@ class BackupScreen extends ConsumerWidget {
             TextField(
               controller: controller,
               obscureText: true,
-              autofocus: true,
               decoration:
                   const InputDecoration(hintText: 'Password (optional)'),
               onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
@@ -238,13 +245,23 @@ class BackupScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(''),
-            child: const Text('Skip'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(''),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Skip')),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Export'),
+          TvActivatable(
+            // A plain autofocus TextField above this would otherwise trap
+            // D-pad focus permanently: Flutter's EditableText consumes
+            // vertical arrow keys for its own (single-line, no-op) caret
+            // movement, so DirectionalFocusIntent never bubbles up to move
+            // focus onto Skip/Export. Landing here by default keeps the
+            // dialog fully navigable; typing a password still works by
+            // pressing up into the field first.
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(controller.text),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Export')),
           ),
         ],
       ),
@@ -269,20 +286,24 @@ class BackupScreen extends ConsumerWidget {
             TextField(
               controller: controller,
               obscureText: true,
-              autofocus: true,
               decoration: const InputDecoration(hintText: 'Enter password'),
               onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(null),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Restore'),
+          TvActivatable(
+            // See the matching comment in _promptSetPassword: autofocusing
+            // the TextField instead would trap D-pad focus there permanently.
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(controller.text),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Restore')),
           ),
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -89,19 +90,21 @@ class _MovieDetailBody extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
           ),
           actions: [
-            IconButton(
-              icon: Icon(
-                isFavourite ? Icons.star : Icons.star_border,
-                color: isFavourite
-                    ? theme.colorScheme.primary
-                    : null,
-              ),
-              tooltip: isFavourite ? 'Remove from Favorites' : 'Add to Favorites',
-              onPressed: profileId == null
+            TvActivatable(
+              onTap: profileId == null
                   ? null
                   : () => ref
                       .read(profileServiceProvider)
                       .toggleFavoriteMovie(profileId!, movie.id),
+              builder: (onTap) => IconButton(
+                icon: Icon(
+                  isFavourite ? Icons.star : Icons.star_border,
+                  color: isFavourite ? theme.colorScheme.primary : null,
+                ),
+                tooltip:
+                    isFavourite ? 'Remove from Favorites' : 'Add to Favorites',
+                onPressed: onTap,
+              ),
             ),
           ],
         ),

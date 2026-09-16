@@ -21,6 +21,21 @@ class _ParentalPinDialog extends StatefulWidget {
 
 class _ParentalPinDialogState extends State<_ParentalPinDialog> {
   String _pin = '';
+  final _firstDigitFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _firstDigitFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _firstDigitFocusNode.dispose();
+    super.dispose();
+  }
 
   void _onDigit(String d) {
     if (_pin.length >= 4) return;
@@ -58,6 +73,7 @@ class _ParentalPinDialogState extends State<_ParentalPinDialog> {
               pin: _pin,
               onDigit: _onDigit,
               onBackspace: _onBackspace,
+              firstDigitFocusNode: _firstDigitFocusNode,
             ),
             const SizedBox(height: 8),
             TextButton(

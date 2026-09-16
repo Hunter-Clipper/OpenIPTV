@@ -20,6 +20,8 @@ final profileServiceProvider = Provider<ProfileService>.internal(
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef ProfileServiceRef = ProviderRef<ProfileService>;
 String _$allProfilesHash() => r'6459a01309ddbc9c12c12471255782738a9240d4';
 
@@ -34,6 +36,8 @@ final allProfilesProvider = StreamProvider<List<Profile>>.internal(
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef AllProfilesRef = StreamProviderRef<List<Profile>>;
 String _$activeProfileHash() => r'eb22759cf2e92fdfc696da94e9a2e25d930fd364';
 
@@ -49,6 +53,8 @@ final activeProfileProvider = FutureProvider<Profile?>.internal(
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef ActiveProfileRef = FutureProviderRef<Profile?>;
 String _$appDatabaseHash() => r'92a246abcb363d93aa5a028712241f464abc4efe';
 
@@ -63,6 +69,8 @@ final appDatabaseProvider = Provider<AppDatabase>.internal(
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef AppDatabaseRef = ProviderRef<AppDatabase>;
 // ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member
+// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

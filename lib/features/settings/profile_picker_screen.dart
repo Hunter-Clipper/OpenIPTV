@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 class ProfilePickerScreen extends ConsumerWidget {
   /// Called after a profile is successfully selected.
@@ -50,6 +51,7 @@ class ProfilePickerScreen extends ConsumerWidget {
                   itemCount: profiles.length,
                   itemBuilder: (context, i) => _ProfileCard(
                     profile: profiles[i],
+                    autofocus: i == 0,
                     onSelected: () =>
                         _selectProfile(context, ref, profiles[i]),
                   ),
@@ -100,19 +102,25 @@ class ProfilePickerScreen extends ConsumerWidget {
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(6),
           ],
-          autofocus: true,
           decoration: const InputDecoration(hintText: 'PIN'),
           onSubmitted: (_) =>
               Navigator.of(ctx).pop(controller.text),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Unlock'),
+          TvActivatable(
+            // A plain autofocus TextField above would trap D-pad focus there
+            // permanently (Flutter's EditableText consumes vertical arrow
+            // keys), so this button gets the default focus instead — the
+            // PIN field is still one press up to enter a code.
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(controller.text),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Unlock')),
           ),
         ],
       ),
@@ -121,58 +129,68 @@ class ProfilePickerScreen extends ConsumerWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.profile, required this.onSelected});
+  const _ProfileCard({
+    required this.profile,
+    required this.onSelected,
+    this.autofocus = false,
+  });
 
   final Profile profile;
   final VoidCallback onSelected;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
+    return TvActivatable(
       onTap: onSelected,
+      autofocus: autofocus,
       borderRadius: BorderRadius.circular(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: Text(
-                    profile.avatarEmoji,
-                    style: const TextStyle(fontSize: 40),
-                  ),
-                ),
-              ),
-              if (profile.hasPin)
+      builder: (onTap) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(2),
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    shape: BoxShape.circle,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(Icons.lock,
-                      size: 16, color: theme.colorScheme.primary),
+                  child: Center(
+                    child: Text(
+                      profile.avatarEmoji,
+                      style: const TextStyle(fontSize: 40),
+                    ),
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            profile.name,
-            style: theme.textTheme.bodyMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-        ],
+                if (profile.hasPin)
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.lock,
+                        size: 16, color: theme.colorScheme.primary),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              profile.name,
+              style: theme.textTheme.bodyMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

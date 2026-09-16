@@ -7,6 +7,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Slide-up panel widget showing the EPG schedule for a single channel.
 ///
@@ -34,6 +35,8 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   Channel? _channel;
   Source? _source;
   bool _loadingChannel = true;
+  final _prevDayFocusNode = FocusNode();
+  final _nextDayFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -47,6 +50,8 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _prevDayFocusNode.dispose();
+    _nextDayFocusNode.dispose();
     super.dispose();
   }
 
@@ -65,6 +70,20 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
       _source = source;
       _loadingChannel = false;
     });
+    // Catch-up-capable channels show the day-switcher — give the D-pad
+    // something to land on when the sheet opens. Non-catch-up channels have
+    // no interactive controls in this panel at all, so there's nothing
+    // sensible to focus.
+    if (channel?.hasCatchup ?? false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_canGoPrev) {
+          _prevDayFocusNode.requestFocus();
+        } else if (_canGoNext) {
+          _nextDayFocusNode.requestFocus();
+        }
+      });
+    }
   }
 
   bool get _isToday => _selectedDate.isAtSameMomentAs(_dateOnly(_now));
@@ -133,10 +152,41 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
     );
   }
 
+  /// One chevron of the catch-up day switcher. When disabled it becomes a
+  /// plain dimmed icon rather than a focusable target, so the D-pad never
+  /// stops on a control that can't do anything.
+  Widget _dayShiftButton({
+    required IconData icon,
+    required int days,
+    required bool enabled,
+    required FocusNode focusNode,
+  }) {
+    if (!enabled) {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(
+          icon,
+          color:
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+        ),
+      );
+    }
+    return TvFocusable(
+      onTap: () => _shiftDay(days),
+      focusNode: focusNode,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final epg = ref.watch(epgServiceProvider);
+    final showDaySwitcher = !_loadingChannel && (_channel?.hasCatchup ?? false);
 
     return Container(
       decoration: BoxDecoration(
@@ -176,8 +226,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                             _isToday ? 'Today' : _formatDate(_selectedDate),
                             style: theme.textTheme.bodySmall,
                           ),
-                          if (!_loadingChannel &&
-                              (_channel?.hasCatchup ?? false)) ...[
+                          if (showDaySwitcher) ...[
                             const SizedBox(width: 6),
                             Icon(Icons.replay_circle_filled_outlined,
                                 size: 16,
@@ -188,16 +237,18 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                     ],
                   ),
                 ),
-                if (!_loadingChannel && (_channel?.hasCatchup ?? false)) ...[
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    tooltip: 'Previous day',
-                    onPressed: _canGoPrev ? () => _shiftDay(-1) : null,
+                if (showDaySwitcher) ...[
+                  _dayShiftButton(
+                    icon: Icons.chevron_left,
+                    days: -1,
+                    enabled: _canGoPrev,
+                    focusNode: _prevDayFocusNode,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    tooltip: 'Next day',
-                    onPressed: _canGoNext ? () => _shiftDay(1) : null,
+                  _dayShiftButton(
+                    icon: Icons.chevron_right,
+                    days: 1,
+                    enabled: _canGoNext,
+                    focusNode: _nextDayFocusNode,
                   ),
                 ],
               ],
@@ -331,7 +382,7 @@ class _ProgrammeCard extends StatelessWidget {
 
     final borderColor = isLive ? theme.colorScheme.primary : Colors.transparent;
 
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -418,6 +469,13 @@ class _ProgrammeCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+    if (onTap == null) return card;
+    return TvFocusable(
+      wrapsGesture: false,
+      onTap: onTap!,
+      borderRadius: BorderRadius.circular(12),
+      child: card,
     );
   }
 

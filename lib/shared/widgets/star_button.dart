@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Standardized small circular favorite-toggle overlay used on poster/grid
 /// thumbnails (as opposed to the plain [IconButton] favorite toggle used in
@@ -13,23 +14,26 @@ class StarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: const BoxDecoration(
-          color: Colors.black54,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          isFavorite ? Icons.star : Icons.star_border,
-          size: 18,
-          color: isFavorite
-              ? Theme.of(context).colorScheme.primary
-              : Colors.white70,
-        ),
+    final content = Container(
+      width: 32,
+      height: 32,
+      decoration: const BoxDecoration(
+        color: Colors.black54,
+        shape: BoxShape.circle,
       ),
+      child: Icon(
+        isFavorite ? Icons.star : Icons.star_border,
+        size: 18,
+        color: isFavorite
+            ? Theme.of(context).colorScheme.primary
+            : Colors.white70,
+      ),
+    );
+    if (onTap == null) return content;
+    return TvFocusable(
+      onTap: onTap!,
+      borderRadius: BorderRadius.circular(16),
+      child: content,
     );
   }
 }

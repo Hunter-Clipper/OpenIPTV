@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -13,6 +14,16 @@ import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+
+// Read by _ShellState (app.dart) when the native Back-button channel fires
+// while sitting on the Search tab, to decide whether Back should refocus the
+// nav rail (search field was focused) or leave the tab entirely. A plain
+// ValueNotifier rather than Riverpod/InheritedWidget plumbing since it only
+// ever needs a one-off synchronous read at the exact moment Back fires, not
+// a rebuild-driving subscription.
+final ValueNotifier<bool> searchFieldFocused = ValueNotifier<bool>(false);
 
 bool _genreIsAdult(String? genre) =>
     (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
@@ -82,11 +93,51 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   Timer? _debounce;
 
+  // A plain TextField swallows arrow keys for its own (single-line, no-op)
+  // caret movement, so it never bubbles up to Flutter's directional focus
+  // system — arrow-left here would otherwise never reach the nav rail, and
+  // arrow-down would never reach the results list below. Handling them
+  // directly on this exact FocusNode (rather than an ancestor) intercepts
+  // them before EditableText's own key handling gets a chance.
+  late final FocusNode _searchFocusNode = FocusNode(onKeyEvent: _handleKey);
+  final FocusNode _firstResultFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.addListener(_handleFocusChange);
+  }
+
   @override
   void dispose() {
+    _searchFocusNode.removeListener(_handleFocusChange);
+    _searchFocusNode.dispose();
+    _firstResultFocusNode.dispose();
     _controller.dispose();
     _debounce?.cancel();
+    searchFieldFocused.value = false;
     super.dispose();
+  }
+
+  void _handleFocusChange() {
+    searchFieldFocused.value = _searchFocusNode.hasFocus;
+  }
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowLeft && _controller.text.isEmpty) {
+      TvNavRailFocus.maybeOf(context)?.requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowDown && _controller.text.isNotEmpty) {
+      final results = ref.read(_searchResultsProvider).valueOrNull;
+      if (results != null && !results.isEmpty) {
+        _firstResultFocusNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   void _onChanged(String value) {
@@ -111,6 +162,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       appBar: AppBar(
         title: TextField(
           controller: _controller,
+          focusNode: _searchFocusNode,
           autofocus: true,
           onChanged: _onChanged,
           decoration: InputDecoration(
@@ -118,10 +170,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             border: InputBorder.none,
             filled: false,
             suffixIcon: query.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    tooltip: 'Clear search',
-                    onPressed: _clearSearch,
+                ? TvFocusable(
+                    onTap: _clearSearch,
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.clear),
+                    ),
                   )
                 : null,
           ),
@@ -141,7 +196,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 if (results.isEmpty) {
                   return _EmptyResults(query: query);
                 }
-                return _ResultsList(results: results);
+                return _ResultsList(
+                  results: results,
+                  firstItemFocusNode: _firstResultFocusNode,
+                );
               },
             ),
     );
@@ -153,9 +211,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 // ---------------------------------------------------------------------------
 
 class _ResultsList extends ConsumerWidget {
-  const _ResultsList({required this.results});
+  const _ResultsList({required this.results, required this.firstItemFocusNode});
 
   final SearchResults results;
+  // Attached to the very first result tile across all groups (whichever
+  // group is non-empty first), so arrow-down from the search field has a
+  // fixed, reliable landing spot regardless of which groups are present.
+  final FocusNode firstItemFocusNode;
 
   Future<void> _gate(
     BuildContext context,
@@ -187,6 +249,12 @@ class _ResultsList extends ConsumerWidget {
     bool genreLocked(String? genre) =>
         prefs != null && _genreIsLocked(genre, prefs, sessionUnlocked);
 
+    final firstGroupIsChannels = results.channels.isNotEmpty;
+    final firstGroupIsMovies = !firstGroupIsChannels && results.movies.isNotEmpty;
+    final firstGroupIsSeries = !firstGroupIsChannels &&
+        !firstGroupIsMovies &&
+        results.series.isNotEmpty;
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
@@ -198,6 +266,7 @@ class _ResultsList extends ConsumerWidget {
             labelOf: (c) => c.name,
             subtitleOf: (_) => null,
             isLockedOf: channelLocked,
+            firstItemFocusNode: firstGroupIsChannels ? firstItemFocusNode : null,
             onTap: (c) {
               void proceed() => context.push('/player', extra: {
                     'streamUrl': c.streamUrl,
@@ -220,6 +289,7 @@ class _ResultsList extends ConsumerWidget {
             labelOf: (m) => m.title,
             subtitleOf: (m) => m.year,
             isLockedOf: (m) => genreLocked(m.genre),
+            firstItemFocusNode: firstGroupIsMovies ? firstItemFocusNode : null,
             onTap: (m) {
               void proceed() => context.push('/movies/${m.id}');
               if (genreLocked(m.genre)) {
@@ -237,6 +307,7 @@ class _ResultsList extends ConsumerWidget {
             labelOf: (s) => s.title,
             subtitleOf: (s) => s.year,
             isLockedOf: (s) => genreLocked(s.genre),
+            firstItemFocusNode: firstGroupIsSeries ? firstItemFocusNode : null,
             onTap: (s) {
               void proceed() => context.push('/series/${s.id}');
               if (genreLocked(s.genre)) {
@@ -264,6 +335,7 @@ class _ResultGroup<T> extends StatelessWidget {
     required this.subtitleOf,
     required this.onTap,
     this.isLockedOf,
+    this.firstItemFocusNode,
   });
 
   final String title;
@@ -273,6 +345,9 @@ class _ResultGroup<T> extends StatelessWidget {
   final String? Function(T) subtitleOf;
   final void Function(T) onTap;
   final bool Function(T)? isLockedOf;
+  // Non-null only when this is the first group rendered across all result
+  // types — see _ResultsList.
+  final FocusNode? firstItemFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -296,26 +371,29 @@ class _ResultGroup<T> extends StatelessWidget {
             ],
           ),
         ),
-        ...items.map(
-          (item) => ListTile(
-            title: Text(
-              labelOf(item),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: subtitleOf(item) != null
-                ? Text(
-                    subtitleOf(item)!,
-                    style: theme.textTheme.bodySmall,
-                  )
-                : null,
-            trailing: (isLockedOf?.call(item) ?? false)
-                ? Icon(Icons.lock_outline,
-                    size: 16, color: theme.colorScheme.onSurfaceVariant)
-                : null,
+        ...items.asMap().entries.map((entry) {
+          final item = entry.value;
+          final subtitle = subtitleOf(item);
+          return TvActivatable(
+            focusNode: entry.key == 0 ? firstItemFocusNode : null,
             onTap: () => onTap(item),
-          ),
-        ),
+            builder: (onTap) => ListTile(
+              title: Text(
+                labelOf(item),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: subtitle != null
+                  ? Text(subtitle, style: theme.textTheme.bodySmall)
+                  : null,
+              trailing: (isLockedOf?.call(item) ?? false)
+                  ? Icon(Icons.lock_outline,
+                      size: 16, color: theme.colorScheme.onSurfaceVariant)
+                  : null,
+              onTap: onTap,
+            ),
+          );
+        }),
         const Divider(height: 1),
       ],
     );

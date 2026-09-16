@@ -176,18 +176,20 @@ class _SeriesBody extends ConsumerWidget {
           title: Text(series.title,
               maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
-            IconButton(
-              icon: Icon(
-                isFav ? Icons.star : Icons.star_border,
-                color: isFav ? theme.colorScheme.primary : null,
-              ),
-              tooltip:
-                  isFav ? 'Remove from Favorites' : 'Add to Favorites',
-              onPressed: profileId == null
+            TvActivatable(
+              onTap: profileId == null
                   ? null
                   : () => ref
                       .read(profileServiceProvider)
                       .toggleFavoriteSeries(profileId!, series.id),
+              builder: (onTap) => IconButton(
+                icon: Icon(
+                  isFav ? Icons.star : Icons.star_border,
+                  color: isFav ? theme.colorScheme.primary : null,
+                ),
+                tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+                onPressed: onTap,
+              ),
             ),
           ],
         ),
@@ -368,58 +370,58 @@ class _NextEpisodeCard extends StatelessWidget {
         autofocus: true,
         borderRadius: BorderRadius.circular(12),
         child: Material(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
+          color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  isResume ? Icons.play_circle : Icons.play_circle_outline,
-                  color: theme.colorScheme.primary,
-                  size: 40,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isResume ? 'Continue Watching' : 'Next Episode',
-                        style: theme.textTheme.labelSmall!.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${episode.episodeLabel} – ${episode.title}',
-                        style: theme.textTheme.bodyMedium!
-                            .copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (isResume) ...[
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: episode.watchProgress,
-                            minHeight: 3,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    isResume ? Icons.play_circle : Icons.play_circle_outline,
+                    color: theme.colorScheme.primary,
+                    size: 40,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isResume ? 'Continue Watching' : 'Next Episode',
+                          style: theme.textTheme.labelSmall!.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${episode.episodeLabel} – ${episode.title}',
+                          style: theme.textTheme.bodyMedium!
+                              .copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (isResume) ...[
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: episode.watchProgress,
+                              minHeight: 3,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
       ),
       ),
     );

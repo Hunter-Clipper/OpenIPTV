@@ -4,6 +4,7 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 class ParentalScreen extends ConsumerStatefulWidget {
   const ParentalScreen({super.key});
@@ -58,21 +59,25 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
       body: ListView(
         children: [
           const SectionHeader('Protection'),
-          SwitchListTile(
-            secondary: Icon(
-              enabled ? Icons.lock_outline : Icons.lock_open_outlined,
-              color: enabled
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
+          TvActivatable(
+            autofocus: true,
+            onTap: () => _setProtectionEnabled(prefs, !enabled),
+            builder: (_) => SwitchListTile(
+              secondary: Icon(
+                enabled ? Icons.lock_outline : Icons.lock_open_outlined,
+                color: enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              title: const Text('Parental Protection'),
+              subtitle: Text(
+                enabled
+                    ? 'Adult and locked categories require an admin PIN'
+                    : 'Disabled — all content visible',
+              ),
+              value: enabled,
+              onChanged: (v) => _setProtectionEnabled(prefs, v),
             ),
-            title: const Text('Parental Protection'),
-            subtitle: Text(
-              enabled
-                  ? 'Adult and locked categories require an admin PIN'
-                  : 'Disabled — all content visible',
-            ),
-            value: enabled,
-            onChanged: (v) => _setProtectionEnabled(prefs, v),
           ),
 
           // Locked category list
@@ -97,11 +102,14 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
               ...locked.map((cat) => ListTile(
                     leading: const Icon(Icons.lock_outline),
                     title: Text(cat),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: theme.colorScheme.error),
-                      tooltip: 'Remove from locked list',
-                      onPressed: () => _removeLockedCat(prefs, cat),
+                    trailing: TvActivatable(
+                      onTap: () => _removeLockedCat(prefs, cat),
+                      builder: (onTap) => IconButton(
+                        icon: Icon(Icons.delete_outline,
+                            color: theme.colorScheme.error),
+                        tooltip: 'Remove from locked list',
+                        onPressed: onTap,
+                      ),
                     ),
                   )),
           ],

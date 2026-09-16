@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
@@ -28,6 +29,7 @@ import 'package:open_iptv/features/settings/settings_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 class OpenIPTVApp extends ConsumerStatefulWidget {
@@ -308,6 +310,20 @@ class _ShellState extends State<_Shell> {
   // Remembers which tab was active before the user navigated to Search.
   int _previousTabIndex = 0;
 
+  // Root-tab back handling is done via a native MethodChannel rather than
+  // Flutter's PopScope/OnBackInvokedCallback: empirically, a PopScope
+  // wrapping this shell's content never actually stopped the system from
+  // closing the Activity here, even hard-coded to canPop:false (verified via
+  // an on-screen counter — its onPopInvokedWithResult callback never fired
+  // before the app closed). Handling Back directly in MainActivity.kt
+  // sidesteps whatever that mismatch was: Dart tells native whether a root
+  // tab is showing (nothing left to pop, otherwise closing the app instead
+  // of doing nothing), and native either lets the press through normally
+  // (sub-routes like /movies/genre/action keep popping exactly as before)
+  // or calls back into Dart to decide what "Back" should do here.
+  static const _backChannel = MethodChannel('openiptv/back');
+  bool? _lastReportedBlocked;
+
   // The currently-active tab's rail item — explicitly refocused as a
   // fallback when arrow-left has nowhere left to go within the content pane
   // (see _EdgeAwareDirectionalFocusAction below), rather than relying on
@@ -319,46 +335,54 @@ class _ShellState extends State<_Shell> {
       FocusNode(debugLabel: 'NavRailActiveItem');
 
   @override
+  void initState() {
+    super.initState();
+    _backChannel.setMethodCallHandler((call) async {
+      if (call.method == 'backPressed') _handleNativeBackPressed();
+    });
+  }
+
+  @override
   void dispose() {
+    _backChannel.setMethodCallHandler(null);
     _activeRailItemFocusNode.dispose();
     super.dispose();
   }
 
+  void _handleNativeBackPressed() {
+    if (!mounted) return;
+    if (GoRouterState.of(context).uri.path != '/search') {
+      // Live/Movies/Series root: absorb the press entirely — there's nowhere
+      // for "back" to mean anything on a root tab.
+      return;
+    }
+    if (searchFieldFocused.value) {
+      // The search field itself was focused — hand focus to the rail
+      // instead of leaving the tab outright.
+      _activeRailItemFocusNode.requestFocus();
+      return;
+    }
+    // Search tab: go back to whichever tab was active before it.
+    context.go(_kNavDestinations[_previousTabIndex].path);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // NavigatorPopHandler wraps the inner Navigator from ShellRoute.
-    // onPop fires only when the inner nav has nothing left to pop — i.e.
-    // we're at a root tab (genre/category pages pop naturally before this).
-    // Detail pages on the root navigator (movies/:id, settings, player)
-    // pop via the root navigator and never reach onPop.
     void onBeforeNavigate(int currentIndex, int newIndex) {
       if (newIndex == 3 && currentIndex != 3) {
         setState(() => _previousTabIndex = currentIndex);
       }
     }
 
-    final navigator = NavigatorPopHandler(
-      onPopWithResult: (Object? result) {
-        if (!mounted) return;
-        final path =
-            GoRouter.of(context).routeInformationProvider.value.uri.path;
-
-        // Search tab: go back to whichever tab was active before.
-        if (path == '/search') {
-          switch (_previousTabIndex) {
-            case 0:
-              context.go('/live');
-            case 1:
-              context.go('/movies');
-            case 2:
-              context.go('/series');
-          }
-          return;
-        }
-        // Root tab (live/movies/series) — back is disabled.
-      },
-      child: widget.child,
-    );
+    // True only when sitting exactly at one of the tab roots (not a pushed
+    // sub-route like /movies/genre/action, which the shell's own nested
+    // Navigator still pops normally — native only intervenes when told to).
+    final location = GoRouterState.of(context).uri.path;
+    final isRootTab = _kNavDestinations.any((d) => d.path == location);
+    if (_lastReportedBlocked != isRootTab) {
+      _lastReportedBlocked = isRootTab;
+      unawaited(_backChannel.invokeMethod('setBlocked', isRootTab));
+    }
 
     if (PlatformHelper.isTV(context)) {
       return Scaffold(
@@ -374,7 +398,12 @@ class _ShellState extends State<_Shell> {
                 onBeforeNavigate: onBeforeNavigate,
                 activeItemFocusNode: _activeRailItemFocusNode,
               ),
-              Expanded(child: navigator),
+              Expanded(
+                child: TvNavRailFocus(
+                  focusNode: _activeRailItemFocusNode,
+                  child: widget.child,
+                ),
+              ),
             ],
           ),
         ),
@@ -382,7 +411,7 @@ class _ShellState extends State<_Shell> {
     }
 
     return Scaffold(
-      body: navigator,
+      body: widget.child,
       bottomNavigationBar: _BottomNav(onBeforeNavigate: onBeforeNavigate),
     );
   }
@@ -497,42 +526,127 @@ class _TvNavRail extends ConsumerWidget {
           children: [
             for (var i = 0; i < _kNavDestinations.length; i++)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: TvFocusable(
-                  autofocus: i == index,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: _TvNavRailItem(
+                  icon: _kNavDestinations[i].icon,
+                  label: _kNavDestinations[i].label,
+                  active: i == index,
+                  // Only the very first item auto-claims focus, and only on
+                  // the rail's initial mount (cold app start, landing on
+                  // Live TV) — NOT `i == index`, which would re-fire
+                  // autofocus on every navigation. `activeItemFocusNode` is
+                  // still wired up below so the explicit arrow-left "escape
+                  // to rail" fallback (_EdgeAwareDirectionalFocusAction) can
+                  // requestFocus() it on demand.
+                  autofocus: i == 0,
                   focusNode: i == index ? activeItemFocusNode : null,
                   onTap: () {
+                    // Explicitly drop focus from whichever rail item the
+                    // user actually pressed select on — that item currently
+                    // holds real focus on its OWN internal FocusNode (from
+                    // D-pad navigation), separate from `activeItemFocusNode`.
+                    // The moment this item becomes "active" a few lines
+                    // above, its `focusNode` prop is swapped from that
+                    // internal node onto the shared `activeItemFocusNode`
+                    // instance — and Flutter's Focus widget carries a live
+                    // "hasFocus" over across a focusNode swap by design, so
+                    // without this the rail keeps real focus (and its glow
+                    // pill lit) even after the destination screen autofocuses
+                    // its own first item. Dropping focus first, before that
+                    // swap/rebuild happens, leaves nothing to carry over.
+                    FocusManager.instance.primaryFocus?.unfocus();
                     onBeforeNavigate(index, i);
                     context.go(_kNavDestinations[i].path);
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _kNavDestinations[i].icon,
-                          size: 28,
-                          color: i == index
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _kNavDestinations[i].label,
-                          style: theme.textTheme.labelSmall!.copyWith(
-                            color: i == index
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// A soft glowing pill (rather than TvFocusable's default hard-edged border
+// box) with a subtle scale pop on focus — reads as more deliberate/"designed"
+// for a rail the user dwells on and arrows up/down through, vs. the generic
+// ring used for one-off targets elsewhere in the app. Active-route coloring
+// (icon/label tinted `colorScheme.primary` when this is the current screen)
+// is untouched — that's driven entirely by `active`, independent of focus.
+class _TvNavRailItem extends StatefulWidget {
+  const _TvNavRailItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.autofocus = false,
+    this.focusNode,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final bool autofocus;
+  final FocusNode? focusNode;
+
+  @override
+  State<_TvNavRailItem> createState() => _TvNavRailItemState();
+}
+
+class _TvNavRailItemState extends State<_TvNavRailItem> {
+  bool _focused = false;
+
+  static const _duration = Duration(milliseconds: 200);
+  static const _curve = Curves.easeOutCubic;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final color =
+        widget.active ? accent : theme.colorScheme.onSurfaceVariant;
+
+    return TvFocusable(
+      autofocus: widget.autofocus,
+      focusNode: widget.focusNode,
+      onTap: widget.onTap,
+      showFocusRing: false,
+      onFocusChange: (focused) => setState(() => _focused = focused),
+      child: AnimatedScale(
+        scale: _focused ? 1.08 : 1.0,
+        duration: _duration,
+        curve: _curve,
+        child: AnimatedContainer(
+          duration: _duration,
+          curve: _curve,
+          margin: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          decoration: BoxDecoration(
+            color: _focused
+                ? accent.withValues(alpha: 0.16)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: _focused
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.35),
+                      blurRadius: 18,
+                    ),
+                  ]
+                : const [],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, size: 28, color: color),
+              const SizedBox(height: 4),
+              Text(
+                widget.label,
+                style: theme.textTheme.labelSmall!.copyWith(color: color),
+              ),
+            ],
+          ),
         ),
       ),
     );

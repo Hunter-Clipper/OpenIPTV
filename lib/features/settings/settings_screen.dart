@@ -15,6 +15,7 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -43,16 +44,16 @@ class SettingsScreen extends ConsumerWidget {
               body: 'OpenIPTV supports multiple profiles on one device. '
                   'Each profile has its own watch history, favorites, hidden '
                   'categories, and PIN lock. Tap to manage profiles.',
-              child: ListTile(
+              child: _NavTile(
+                autofocus: true,
                 leading: profile != null
                     ? Text(profile.avatarEmoji,
                         style: const TextStyle(fontSize: 28))
                     : const Icon(Icons.person_outline),
-                title: const Text('Profile'),
+                title: 'Profile',
                 subtitle: profile != null
                     ? Text(profile.name, style: theme.textTheme.bodySmall)
                     : const Text('No profile selected'),
-                trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/settings/profiles'),
               ),
             ),
@@ -66,12 +67,11 @@ class SettingsScreen extends ConsumerWidget {
                 body: 'Quickly change the active profile without going into '
                     'profile management. Useful when sharing a device with '
                     'family or roommates.',
-                child: ListTile(
+                child: _NavTile(
                   leading: const Icon(Icons.switch_account_outlined),
-                  title: const Text('Switch Profile'),
+                  title: 'Switch Profile',
                   subtitle: Text('$count profiles available',
                       style: theme.textTheme.bodySmall),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => showModalBottomSheet<void>(
                     context: context,
                     isScrollControlled: true,
@@ -96,9 +96,9 @@ class SettingsScreen extends ConsumerWidget {
                       'an M3U playlist URL or Xtream Codes credentials. '
                       'Playlists supply your channels, movies, and series. '
                       'You can add multiple playlists and refresh them here.',
-                  child: ListTile(
+                  child: _NavTile(
                     leading: const Icon(Icons.playlist_play_outlined),
-                    title: const Text('Playlists'),
+                    title: 'Playlists',
                     subtitle: sources.when(
                       loading: () => null,
                       error: (_, __) => null,
@@ -109,7 +109,6 @@ class SettingsScreen extends ConsumerWidget {
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
-                    trailing: const Icon(Icons.chevron_right),
                     onTap: () => _openSourcesPage(context, ref),
                   ),
                 );
@@ -124,14 +123,13 @@ class SettingsScreen extends ConsumerWidget {
                     '.zip file you can store anywhere. Restore it '
                     'later to move to a new device or recover from a reset. '
                     'Stream credentials are included — keep the file safe.',
-                child: ListTile(
+                child: _NavTile(
                   leading: const Icon(Icons.backup_outlined),
-                  title: const Text('Backup & Restore'),
+                  title: 'Backup & Restore',
                   subtitle: Text(
                     'Export or import your profile and playlists',
                     style: theme.textTheme.bodySmall,
                   ),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/settings/backup'),
                 ),
               ),
@@ -146,14 +144,13 @@ class SettingsScreen extends ConsumerWidget {
                       'Automatically refreshes your playlists and TV guide '
                       'in the background so channels and schedules stay '
                       'current without manual refreshing.',
-                  child: ListTile(
+                  child: _NavTile(
                     leading: const Icon(Icons.autorenew),
-                    title: const Text('Auto-Refresh'),
+                    title: 'Auto-Refresh',
                     subtitle: Text(
                       _refreshIntervalLabel(hours),
                       style: theme.textTheme.bodySmall,
                     ),
-                    trailing: const Icon(Icons.chevron_right),
                     onTap: () => _showAutoRefreshDialog(context, ref, hours),
                   ),
                 );
@@ -177,14 +174,13 @@ class SettingsScreen extends ConsumerWidget {
 
               // --------------- PARENTAL (admin only) ---------------
               const SectionHeader('Family'),
-              ListTile(
+              _NavTile(
                 leading: const Icon(Icons.family_restroom_outlined),
-                title: const Text('Parental Controls'),
+                title: 'Parental Controls',
                 subtitle: Text(
                   'PIN-protect adult and locked categories',
                   style: theme.textTheme.bodySmall,
                 ),
-                trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/settings/parental'),
               ),
             ],
@@ -253,14 +249,13 @@ class SettingsScreen extends ConsumerWidget {
                 body: 'Controls how channels, movies, and series are listed. '
                     'Provider order shows them in the sequence your IPTV '
                     'provider sends them. A–Z sorts them alphabetically.',
-                child: ListTile(
+                child: _NavTile(
                   leading: const Icon(Icons.sort),
-                  title: const Text('Content Sort Order'),
+                  title: 'Content Sort Order',
                   subtitle: Text(
                     sort == 'az' ? 'A–Z' : 'Provider order',
                     style: theme.textTheme.bodySmall,
                   ),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showSortOrderDialog(context, ref, sort),
                 ),
               );
@@ -275,19 +270,16 @@ class SettingsScreen extends ConsumerWidget {
                 body: 'Changes the highlight color used throughout the app — '
                     'active buttons, selected items, progress bars, and '
                     'other indicators. Pick whichever color you like best.',
-                child: ListTile(
-                  leading: CircleAvatar(
-                      backgroundColor: accent, radius: 12),
-                  title: const Text('Accent Color'),
+                child: _NavTile(
+                  leading: CircleAvatar(backgroundColor: accent, radius: 12),
+                  title: 'Accent Color',
                   subtitle: Text(
                     AppTheme.accentSwatches
                         .firstWhere((s) => s.color == accent,
-                            orElse: () =>
-                                (label: 'Custom', color: accent))
+                            orElse: () => (label: 'Custom', color: accent))
                         .label,
                     style: theme.textTheme.bodySmall,
                   ),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showAccentColorPicker(context, ref, accent),
                 ),
               );
@@ -300,10 +292,9 @@ class SettingsScreen extends ConsumerWidget {
                     "Categories you've hidden won't appear in your channel "
                     "list. Your channels are still there — they're just out "
                     "of the way. You can unhide them here at any time.",
-                child: ListTile(
+                child: _NavTile(
                   leading: const Icon(Icons.visibility_off_outlined),
-                  title: const Text('Hidden Categories'),
-                  trailing: const Icon(Icons.chevron_right),
+                  title: 'Hidden Categories',
                   onTap: () => _showHiddenCategoriesPage(context),
                 ),
               ),
@@ -322,10 +313,11 @@ class SettingsScreen extends ConsumerWidget {
                   final version = snap.hasData
                       ? 'Version ${snap.data!.version}'
                       : 'OpenIPTV';
-                  return ListTile(
+                  return _NavTile(
                     leading: const Icon(Icons.info_outline),
-                    title: const Text('About OpenIPTV'),
+                    title: 'About OpenIPTV',
                     subtitle: Text(version),
+                    showChevron: false,
                     onTap: () => _showAboutDialog(context, snap.data),
                   );
                 },
@@ -359,42 +351,29 @@ class SettingsScreen extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SimpleDialogOption(
-              onPressed: () async {
+            _DialogChoice(
+              label: 'Provider order',
+              selected: current == 'provider',
+              onTap: () async {
                 Navigator.of(ctx).pop();
                 await setContentSort(ref, 'provider', prefs);
               },
-              child: Row(children: [
-                Icon(Icons.check,
-                    size: 18,
-                    color: current == 'provider'
-                        ? Theme.of(ctx).colorScheme.primary
-                        : Colors.transparent),
-                const SizedBox(width: 8),
-                const Text('Provider order'),
-              ]),
             ),
-            SimpleDialogOption(
-              onPressed: () async {
+            _DialogChoice(
+              label: 'A–Z',
+              selected: current == 'az',
+              onTap: () async {
                 Navigator.of(ctx).pop();
                 await setContentSort(ref, 'az', prefs);
               },
-              child: Row(children: [
-                Icon(Icons.check,
-                    size: 18,
-                    color: current == 'az'
-                        ? Theme.of(ctx).colorScheme.primary
-                        : Colors.transparent),
-                const SizedBox(width: 8),
-                const Text('A–Z'),
-              ]),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
         ],
       ),
@@ -426,25 +405,19 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Auto-Refresh'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [0, 2, 6, 12, 24].map((hours) {
-            return SimpleDialogOption(
-              onPressed: () => Navigator.of(ctx).pop(hours),
-              child: Row(children: [
-                Icon(Icons.check,
-                    size: 18,
-                    color: current == hours
-                        ? Theme.of(ctx).colorScheme.primary
-                        : Colors.transparent),
-                const SizedBox(width: 8),
-                Text(_refreshIntervalLabel(hours)),
-              ]),
-            );
-          }).toList(),
+          children: [0, 2, 6, 12, 24]
+              .map((hours) => _DialogChoice(
+                    label: _refreshIntervalLabel(hours),
+                    selected: current == hours,
+                    onTap: () => Navigator.of(ctx).pop(hours),
+                  ))
+              .toList(),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
         ],
       ),
@@ -466,53 +439,60 @@ class SettingsScreen extends ConsumerWidget {
   /// battery exemption, and silently without a visible notification if that
   /// permission is denied.
   Future<void> _runAutoRefreshPermissionFlow(BuildContext context) async {
-    final wantsNotifications = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Stay Informed'),
-        content: const Text(
-            'Allow notifications so OpenIPTV can let you know when a '
-            'background refresh finishes or runs into a problem?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Not Now'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Allow'),
-          ),
-        ],
-      ),
+    final wantsNotifications = await _askPermission(
+      context,
+      title: 'Stay Informed',
+      body: 'Allow notifications so OpenIPTV can let you know when a '
+          'background refresh finishes or runs into a problem?',
+      confirmLabel: 'Allow',
     );
-    if (wantsNotifications == true) {
+    if (wantsNotifications) {
       await requestNotificationPermission();
     }
     if (!context.mounted) return;
 
-    final wantsBatteryExemption = await showDialog<bool>(
+    final wantsBatteryExemption = await _askPermission(
+      context,
+      title: 'Reliable Background Refresh',
+      body: 'Some phones aggressively limit background apps to save '
+          'battery, which can delay auto-refresh. Exempting OpenIPTV '
+          'from battery optimization makes refreshes more reliable.',
+      confirmLabel: 'Continue',
+    );
+    if (wantsBatteryExemption) {
+      await requestBatteryOptimizationExemption();
+    }
+  }
+
+  /// Rationale dialog shown before a system permission prompt: "Not Now" vs
+  /// [confirmLabel]. Dismissing it counts as declining.
+  Future<bool> _askPermission(
+    BuildContext context, {
+    required String title,
+    required String body,
+    required String confirmLabel,
+  }) async {
+    final accepted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reliable Background Refresh'),
-        content: const Text(
-            'Some phones aggressively limit background apps to save '
-            'battery, which can delay auto-refresh. Exempting OpenIPTV '
-            'from battery optimization makes refreshes more reliable.'),
+        title: Text(title),
+        content: Text(body),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Not Now'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Not Now')),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Continue'),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(true),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: Text(confirmLabel)),
           ),
         ],
       ),
     );
-    if (wantsBatteryExemption == true) {
-      await requestBatteryOptimizationExemption();
-    }
+    return accepted ?? false;
   }
 
   void _showAccentColorPicker(
@@ -534,9 +514,13 @@ class SettingsScreen extends ConsumerWidget {
               child: Wrap(
                 spacing: 16,
                 runSpacing: 16,
-                children: AppTheme.accentSwatches.map((swatch) {
+                children: AppTheme.accentSwatches.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final swatch = entry.value;
                   final selected = swatch.color == current;
-                  return GestureDetector(
+                  return TvFocusable(
+                    autofocus: i == 0,
+                    borderRadius: BorderRadius.circular(12),
                     onTap: () async {
                       Navigator.of(ctx).pop();
                       final prefs =
@@ -624,11 +608,83 @@ class _ToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      secondary: Icon(icon),
-      title: Text(title),
-      value: value,
-      onChanged: onChanged,
+    return TvActivatable(
+      onTap: () => onChanged(!value),
+      builder: (_) => SwitchListTile(
+        secondary: Icon(icon),
+        title: Text(title),
+        value: value,
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+/// A settings row that opens something else — icon, title, optional subtitle,
+/// trailing chevron — reachable by both tap and remote OK.
+class _NavTile extends StatelessWidget {
+  const _NavTile({
+    required this.leading,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.autofocus = false,
+    this.showChevron = true,
+  });
+
+  final Widget leading;
+  final String title;
+  final Widget? subtitle;
+  final VoidCallback onTap;
+  final bool autofocus;
+  final bool showChevron;
+
+  @override
+  Widget build(BuildContext context) {
+    return TvActivatable(
+      onTap: onTap,
+      autofocus: autofocus,
+      builder: (onTap) => ListTile(
+        leading: leading,
+        title: Text(title),
+        subtitle: subtitle,
+        trailing: showChevron ? const Icon(Icons.chevron_right) : null,
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// A radio-style dialog row: the check mark is tinted on the selected option
+/// and transparent (but still occupying its slot) on the others, so the
+/// labels stay aligned.
+class _DialogChoice extends StatelessWidget {
+  const _DialogChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TvActivatable(
+      onTap: onTap,
+      builder: (onTap) => SimpleDialogOption(
+        onPressed: onTap,
+        child: Row(children: [
+          Icon(Icons.check,
+              size: 18,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.transparent),
+          const SizedBox(width: 8),
+          Text(label),
+        ]),
+      ),
     );
   }
 }
@@ -709,13 +765,16 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
           'The channel list, movies, and series will update to show only this playlist.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Switch'),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(true),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Switch')),
           ),
         ],
       ),
@@ -739,14 +798,19 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             'This will remove "$nickname" and all its channels, '
             'movies, and series. This cannot be undone.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: AppTheme.destructiveButtonStyle(ctx),
-            child: const Text('Remove'),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(true),
+            builder: (onTap) => FilledButton(
+              onPressed: onTap,
+              style: AppTheme.destructiveButtonStyle(ctx),
+              child: const Text('Remove'),
+            ),
           ),
         ],
       ),
@@ -788,13 +852,16 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
               children: [
                 Text('Playlists',
                     style: Theme.of(context).textTheme.titleLarge),
-                FilledButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Playlist'),
-                  onPressed: () {
+                TvActivatable(
+                  onTap: () {
                     Navigator.of(context).pop();
                     context.push('/onboarding');
                   },
+                  builder: (onTap) => FilledButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Playlist'),
+                    onPressed: onTap,
+                  ),
                 ),
               ],
             ),
@@ -830,70 +897,55 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                     final isPlaylistRefreshing = _refreshingPlaylist.contains(s.id);
                     final isEpgRefreshing = _refreshingEpg.contains(s.id);
                     final isBusy = isPlaylistRefreshing || isEpgRefreshing;
-                    return ListTile(
-                      leading: isActive
-                          ? Icon(Icons.check_circle,
-                              color: Theme.of(context).colorScheme.primary)
-                          : const Icon(Icons.playlist_play),
-                      title: Text(s.nickname),
-                      subtitle: Text(
-                        s.type.name.toUpperCase(),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                    return TvActivatable(
                       onTap: multiSource && !isActive && !isBusy
                           ? () => _switchSource(context, s)
                           : null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Source info
-                          SizedBox(
-                            width: 36,
-                            height: 36,
-                            child: IconButton(
-                              icon: const Icon(Icons.info_outline, size: 20),
+                      builder: (onTap) => ListTile(
+                        leading: isActive
+                            ? Icon(Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary)
+                            : const Icon(Icons.playlist_play),
+                        title: Text(s.nickname),
+                        subtitle: Text(
+                          s.type.name.toUpperCase(),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        onTap: onTap,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _SourceAction(
+                              icon: Icons.info_outline,
                               tooltip: 'Playlist Info',
-                              onPressed: () => _showInfoPanel(context, s),
+                              onTap: () => _showInfoPanel(context, s),
                             ),
-                          ),
-                          // Playlist refresh
-                          SizedBox(
-                            width: 36,
-                            height: 36,
-                            child: isPlaylistRefreshing
-                                ? const Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(Icons.sync, size: 20),
-                                    tooltip: 'Refresh Playlist',
-                                    onPressed: isBusy ? null : () => _refreshPlaylist(s.id),
-                                  ),
-                          ),
-                          // EPG refresh
-                          SizedBox(
-                            width: 36,
-                            height: 36,
-                            child: isEpgRefreshing
-                                ? const Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(Icons.tv, size: 20),
-                                    tooltip: 'Refresh TV Guide',
-                                    onPressed: isBusy ? null : () => _refreshEpg(s.id),
-                                  ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 20),
-                            tooltip: 'Remove',
-                            onPressed: isBusy
-                                ? null
-                                : () => _confirmDelete(context, s.id, s.nickname),
-                          ),
-                        ],
+                            _SourceAction(
+                              icon: Icons.sync,
+                              tooltip: 'Refresh Playlist',
+                              busy: isPlaylistRefreshing,
+                              onTap:
+                                  isBusy ? null : () => _refreshPlaylist(s.id),
+                            ),
+                            _SourceAction(
+                              icon: Icons.tv,
+                              tooltip: 'Refresh TV Guide',
+                              busy: isEpgRefreshing,
+                              onTap: isBusy ? null : () => _refreshEpg(s.id),
+                            ),
+                            TvActivatable(
+                              onTap: isBusy
+                                  ? null
+                                  : () =>
+                                      _confirmDelete(context, s.id, s.nickname),
+                              builder: (onTap) => IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 20),
+                                tooltip: 'Remove',
+                                onPressed: onTap,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -903,6 +955,43 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// One fixed-size slot in a playlist row's trailing action strip — an icon
+/// button, or a spinner in its place while that action is running.
+class _SourceAction extends StatelessWidget {
+  const _SourceAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: busy
+          ? const Padding(
+              padding: EdgeInsets.all(8),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : TvActivatable(
+              onTap: onTap,
+              builder: (onTap) => IconButton(
+                icon: Icon(icon, size: 20),
+                tooltip: tooltip,
+                onPressed: onTap,
+              ),
+            ),
     );
   }
 }
@@ -1090,8 +1179,9 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                     itemCount: hidden.length,
                     itemBuilder: (context, i) => ListTile(
                       title: Text(hidden[i]),
-                      trailing: TextButton(
-                        onPressed: profile == null
+                      trailing: TvActivatable(
+                        autofocus: i == 0,
+                        onTap: profile == null
                             ? null
                             : () async {
                                 await ref
@@ -1099,7 +1189,10 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                                     .unhideCategory(profile.id, hidden[i]);
                                 ref.invalidate(activeProfileProvider);
                               },
-                        child: const Text('Show'),
+                        builder: (onTap) => TextButton(
+                          onPressed: onTap,
+                          child: const Text('Show'),
+                        ),
                       ),
                     ),
                   ),

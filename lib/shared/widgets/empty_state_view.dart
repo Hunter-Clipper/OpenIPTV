@@ -37,7 +37,10 @@ class EmptyStateView extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 16),
-              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+              FilledButton(
+                  autofocus: true,
+                  onPressed: onAction,
+                  child: Text(actionLabel!)),
             ],
           ],
         ),

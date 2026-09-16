@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
@@ -127,21 +128,9 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
       appBar: AppBar(
         leading: const AppLogo(),
         title: const Text('Movies'),
-        actions: [
-          IconButton(
-            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
-            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
-            onPressed: () async {
-              final prefs = await ref.read(appPreferencesProvider.future);
-              await setContentSort(
-                  ref, sort == 'az' ? 'provider' : 'az', prefs);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
+        actions: const [
+          SortToggleAction(),
+          SettingsAction(),
         ],
       ),
       body: moviesAsync.when(
@@ -316,32 +305,12 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
       appBar: AppBar(
         title: Text(widget.genre == 'All' ? 'All Movies' : widget.genre),
         actions: [
-          IconButton(
-            icon:
-                Icon(viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-            tooltip: viewMode == 'grid'
-                ? 'Switch to list view'
-                : 'Switch to grid view',
-            onPressed: () async {
-              final prefs = await ref.read(appPreferencesProvider.future);
-              await setViewModeMovies(
-                  ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
-            },
+          ViewModeToggleAction(
+            provider: viewModeMoviesProvider,
+            setMode: setViewModeMovies,
           ),
-          IconButton(
-            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
-            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
-            onPressed: () async {
-              final prefs = await ref.read(appPreferencesProvider.future);
-              await setContentSort(
-                  ref, sort == 'az' ? 'provider' : 'az', prefs);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
+          const SortToggleAction(),
+          const SettingsAction(),
         ],
       ),
       body: moviesAsync.when(

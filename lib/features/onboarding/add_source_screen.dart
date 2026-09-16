@@ -5,6 +5,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 class AddSourceScreen extends ConsumerStatefulWidget {
@@ -169,9 +170,18 @@ class _AddSourceScreenState extends ConsumerState<AddSourceScreen>
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
             child: _tvCapped(
               context,
-              FilledButton(
-                onPressed: _isLoading ? null : _addSource,
-                child: const Text('Add Playlist'),
+              TvActivatable(
+                // A plain autofocus TextField in the body below would trap
+                // D-pad focus there permanently (Flutter's EditableText
+                // consumes vertical arrow keys), leaving the tab bar, fields,
+                // and this button all unreachable. Landing here by default
+                // keeps the whole form navigable upward from a known start.
+                autofocus: true,
+                onTap: _isLoading ? null : _addSource,
+                builder: (onTap) => FilledButton(
+                  onPressed: onTap,
+                  child: const Text('Add Playlist'),
+                ),
               ),
             ),
           ),
@@ -453,11 +463,11 @@ class _XtreamTab extends StatelessWidget {
             controller: passwordController,
             decoration: InputDecoration(
               hintText: 'your_password',
-              suffixIcon: IconButton(
-                icon: Icon(
+              suffixIcon: TvFocusable(
+                onTap: onTogglePassword,
+                child: Icon(
                   passwordVisible ? Icons.visibility_off : Icons.visibility,
                 ),
-                onPressed: onTogglePassword,
               ),
             ),
             obscureText: !passwordVisible,

@@ -15,6 +15,7 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
+import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
@@ -122,25 +123,16 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         leading: const AppLogo(),
         title: const Text('Live TV'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.grid_view),
-            tooltip: 'TV Guide',
-            onPressed: () => context.push('/live/guide'),
+          TvActivatable(
+            onTap: () => context.push('/live/guide'),
+            builder: (onTap) => IconButton(
+              icon: const Icon(Icons.grid_view),
+              tooltip: 'TV Guide',
+              onPressed: onTap,
+            ),
           ),
-          IconButton(
-            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
-            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
-            onPressed: () async {
-              final prefs = await ref.read(appPreferencesProvider.future);
-              await setContentSort(
-                  ref, sort == 'az' ? 'provider' : 'az', prefs);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
+          const SortToggleAction(),
+          const SettingsAction(),
         ],
       ),
       body: channelsAsync.when(
@@ -291,32 +283,12 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
       appBar: AppBar(
         title: Text(widget.category),
         actions: [
-          IconButton(
-            icon:
-                Icon(viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-            tooltip: viewMode == 'grid'
-                ? 'Switch to list view'
-                : 'Switch to grid view',
-            onPressed: () async {
-              final prefs = await ref.read(appPreferencesProvider.future);
-              await setViewModeLive(
-                  ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
-            },
+          ViewModeToggleAction(
+            provider: viewModeLiveProvider,
+            setMode: setViewModeLive,
           ),
-          IconButton(
-            icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
-            tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
-            onPressed: () async {
-              final prefs = await ref.read(appPreferencesProvider.future);
-              await setContentSort(
-                  ref, sort == 'az' ? 'provider' : 'az', prefs);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
+          const SortToggleAction(),
+          const SettingsAction(),
         ],
       ),
       body: channelsAsync.when(
@@ -769,9 +741,36 @@ class _ChannelOptionsSheet extends StatelessWidget {
 // Recently Watched row
 // ---------------------------------------------------------------------------
 
-class _RecentChannelsRow extends ConsumerWidget {
+class _RecentChannelsRow extends ConsumerStatefulWidget {
   const _RecentChannelsRow({required this.channels});
   final List<Channel> channels;
+
+  @override
+  ConsumerState<_RecentChannelsRow> createState() => _RecentChannelsRowState();
+}
+
+class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
+  // Landing spot for "D-pad focus just entered this row from elsewhere" (see
+  // the wrapping Focus's onFocusChange below) — always the first tile,
+  // regardless of which tile the directional search would have geometrically
+  // picked otherwise.
+  final FocusNode _firstItemFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _firstItemFocusNode.dispose();
+    super.dispose();
+  }
+
+  // A FocusNode's `hasFocus` is true if it OR ANY DESCENDANT has focus, so
+  // this fires exactly once when focus arrives in the row from outside (the
+  // false->true edge) — not on every move between tiles within the row,
+  // since the row itself stays "focused" throughout that internal traversal.
+  void _handleRowFocusChange(bool hasFocus) {
+    if (hasFocus && widget.channels.isNotEmpty) {
+      _firstItemFocusNode.requestFocus();
+    }
+  }
 
   void _showRemoveSheet(BuildContext context, WidgetRef ref, Channel ch) {
     HapticFeedback.mediumImpact();
@@ -802,64 +801,69 @@ class _RecentChannelsRow extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      height: 88,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: channels.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (context, i) {
-          final ch = channels[i];
-          return TvFocusable(
-            ensureVisibleOnFocus: true,
-            onTap: () => context.push('/player', extra: {
-              'streamUrl': ch.streamUrl,
-              'title': ch.name,
-              'contentType': 'live',
-              'contentId': ch.id,
-            }),
-            onLongPress: () => _showRemoveSheet(context, ref, ch),
-            child: SizedBox(
-              width: 80,
-              child: Column(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+    return Focus(
+      canRequestFocus: false,
+      onFocusChange: _handleRowFocusChange,
+      child: SizedBox(
+        height: 88,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: widget.channels.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (context, i) {
+            final ch = widget.channels[i];
+            return TvFocusable(
+              focusNode: i == 0 ? _firstItemFocusNode : null,
+              ensureVisibleOnFocus: true,
+              onTap: () => context.push('/player', extra: {
+                'streamUrl': ch.streamUrl,
+                'title': ch.name,
+                'contentType': 'live',
+                'contentId': ch.id,
+              }),
+              onLongPress: () => _showRemoveSheet(context, ref, ch),
+              child: SizedBox(
+                width: 80,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ch.logoUrl != null && ch.logoUrl!.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: ch.logoUrl!,
+                                fit: BoxFit.contain,
+                                memCacheWidth: 120,
+                                memCacheHeight: 120,
+                                errorWidget: (_, __, ___) =>
+                                    const Icon(Icons.tv),
+                              ),
+                            )
+                          : const Icon(Icons.tv),
                     ),
-                    child: ch.logoUrl != null && ch.logoUrl!.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: ch.logoUrl!,
-                              fit: BoxFit.contain,
-                              memCacheWidth: 120,
-                              memCacheHeight: 120,
-                              errorWidget: (_, __, ___) =>
-                                  const Icon(Icons.tv),
-                            ),
-                          )
-                        : const Icon(Icons.tv),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ch.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      ch.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

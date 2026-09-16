@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Shared state so only one tooltip is open across the entire screen.
 class InfoTooltipController extends ChangeNotifier {
@@ -76,8 +77,9 @@ class InfoTooltip extends StatelessWidget {
                 const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
-                  child: GestureDetector(
+                  child: TvFocusable(
                     onTap: () => controller.toggle(id),
+                    borderRadius: BorderRadius.circular(12),
                     child: Icon(
                       Icons.info_outline,
                       size: 18,
