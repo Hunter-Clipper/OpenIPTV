@@ -763,12 +763,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  Widget _buildCueOverlay() {
+  Widget _buildCueOverlay({bool liftForControls = true}) {
     if (_cueText.isEmpty) return const SizedBox.shrink();
-    return Positioned(
+    // Lifted clear of the controls' bottom panel while it's showing.
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
       left: 24,
       right: 24,
-      bottom: 24,
+      bottom: liftForControls && _controlsVisible ? 180 : 24,
       child: IgnorePointer(
         child: Center(
           child: Container(
@@ -794,7 +797,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           fit: StackFit.expand,
-          children: [_buildVideoSurface(), _buildCueOverlay()],
+          children: [
+            _buildVideoSurface(),
+            _buildCueOverlay(liftForControls: false),
+          ],
         ),
       );
     }
@@ -964,15 +970,15 @@ class _UpNextBannerState extends State<_UpNextBanner> {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: 60,
-      right: 20,
+      bottom: 32,
+      right: 32,
       child: Container(
-        width: 280,
+        width: 300,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white24),
+          color: const Color(0xE6121212),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white12),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
