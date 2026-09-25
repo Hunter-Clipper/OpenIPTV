@@ -219,3 +219,9 @@ class ProfileService {
 // Provider for the AppDatabase — kept here to avoid circular imports.
 @Riverpod(keepAlive: true)
 AppDatabase appDatabase(AppDatabaseRef ref) => AppDatabase();
+
+/// Just the active profile's id. Watch this instead of [activeProfileProvider]
+/// when only the id matters, so favorite toggles (which invalidate
+/// activeProfileProvider) don't rebuild or re-subscribe dependents.
+final activeProfileIdProvider = Provider<String?>(
+    (ref) => ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id)));

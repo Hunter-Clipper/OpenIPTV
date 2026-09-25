@@ -11,8 +11,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 final allChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
-  final profileId =
-      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
+  final profileId = ref.watch(activeProfileIdProvider);
   if (activeSourceId != null) {
     return db.watchChannelsForSource(activeSourceId, profileId: profileId);
   }

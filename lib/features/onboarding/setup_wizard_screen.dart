@@ -16,21 +16,6 @@ import 'package:open_iptv/shared/widgets/pin_keypad.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
-// ---------------------------------------------------------------------------
-// Shared theme constants
-//
-// These alias the app's real palette (AppTheme) rather than declaring an
-// unrelated one, so the first screen a new user sees already matches every
-// screen after it. _kMuted/_kBgDark/_kCardBg etc. are kept as short local
-// names purely to avoid a much larger diff across this file.
-// ---------------------------------------------------------------------------
-
-const _kBgDark = AppTheme.backgroundColor;
-const _kBgMid = AppTheme.surfaceColor;
-const _kMuted = AppTheme.mutedTextColor;
-const _kCardBg = AppTheme.surfaceVariantColor;
-const _kCardBorder = AppTheme.outlineColor;
-
 /// A lighter tint of [color], used for the wizard's gradient accents.
 Color _lighten(Color color, [double amount = 0.3]) =>
     Color.lerp(color, Colors.white, amount)!;
@@ -63,9 +48,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   final _xtreamCardFocusNode = FocusNode();
   final _nicknameFocusNode = FocusNode();
   String _avatarEmoji = '🧑';
-  Color _accentColor = const Color(0xFF0A84FF); // default blue
+  Color _accentColor = AppTheme.defaultAccent;
   String _pin = '';
-  bool _wantsPin = false;
 
   // Source state
   SourceType _playlistType = SourceType.xtream;
@@ -202,25 +186,17 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       // Add the playlist first — it's the step most likely to fail (bad
       // credentials, bad URL, network issues). Only create the profile once
       // it succeeds, so a failed attempt leaves nothing behind to retry into.
-      if (_playlistType == SourceType.m3u) {
-        await manager.addSource(
-          nickname: nickname,
-          type: SourceType.m3u,
-          m3uUrl: _m3uUrlCtrl.text.trim(),
-          epgUrl: epgUrl,
-          onProgress: onProgress,
-        );
-      } else {
-        await manager.addSource(
-          nickname: nickname,
-          type: SourceType.xtream,
-          xtreamHost: _xtreamHostCtrl.text.trim(),
-          xtreamUsername: _xtreamUserCtrl.text.trim(),
-          xtreamPassword: _xtreamPassCtrl.text.trim(),
-          epgUrl: epgUrl,
-          onProgress: onProgress,
-        );
-      }
+      final isM3u = _playlistType == SourceType.m3u;
+      await manager.addSource(
+        nickname: nickname,
+        type: _playlistType,
+        m3uUrl: isM3u ? _m3uUrlCtrl.text.trim() : null,
+        xtreamHost: isM3u ? null : _xtreamHostCtrl.text.trim(),
+        xtreamUsername: isM3u ? null : _xtreamUserCtrl.text.trim(),
+        xtreamPassword: isM3u ? null : _xtreamPassCtrl.text.trim(),
+        epgUrl: epgUrl,
+        onProgress: onProgress,
+      );
 
       if (!mounted) return;
 
@@ -230,7 +206,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       await profileSvc.createProfile(
         name: _nameCtrl.text.trim(),
         avatarEmoji: _avatarEmoji,
-        pin: _wantsPin && _pin.length == 4 ? _pin : null,
+        pin: _pin.isEmpty ? null : _pin,
         isAdmin: true,
       );
 
@@ -258,7 +234,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBgDark,
+      backgroundColor: AppTheme.backgroundColor,
       resizeToAvoidBottomInset: true,
       body: PageView(
         controller: _pageController,
@@ -281,17 +257,11 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             accentColor: _accentColor,
             firstDigitFocusNode: _pin1FocusNode,
             onSkip: () {
-              setState(() {
-                _wantsPin = false;
-                _pin = '';
-              });
+              setState(() => _pin = '');
               _goToPage(3);
             },
             onPinSet: (pin) {
-              setState(() {
-                _wantsPin = true;
-                _pin = pin;
-              });
+              setState(() => _pin = pin);
               _goToPage(3);
             },
           ),
@@ -483,7 +453,7 @@ class _WelcomePageState extends State<_WelcomePage>
                           "Let's get you set up.\nIt only takes a minute.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _kMuted,
+                            color: AppTheme.mutedTextColor,
                             fontSize: 16,
                             height: 1.6,
                           ),
@@ -580,7 +550,7 @@ class _NamePage extends StatelessWidget {
               SizedBox(height: v(8)),
               const Text(
                 'All information stays on your device.\nOpenIPTV never collects personal data.',
-                style: TextStyle(color: _kMuted, fontSize: 14, height: 1.5),
+                style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
               ),
               SizedBox(height: v(32)),
               TextField(
@@ -592,16 +562,16 @@ class _NamePage extends StatelessWidget {
                 style: const TextStyle(color: Colors.white, fontSize: 18),
                 decoration: InputDecoration(
                   hintText: 'Your name',
-                  hintStyle: const TextStyle(color: _kMuted),
+                  hintStyle: const TextStyle(color: AppTheme.mutedTextColor),
                   filled: true,
-                  fillColor: _kCardBg,
+                  fillColor: AppTheme.surfaceVariantColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: _kCardBorder),
+                    borderSide: const BorderSide(color: AppTheme.outlineColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: _kCardBorder),
+                    borderSide: const BorderSide(color: AppTheme.outlineColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -640,9 +610,9 @@ class _NamePage extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: selected
                               ? selectedColor.withValues(alpha: 0.2)
-                              : _kCardBg,
+                              : AppTheme.surfaceVariantColor,
                           border: Border.all(
-                            color: selected ? selectedColor : _kCardBorder,
+                            color: selected ? selectedColor : AppTheme.outlineColor,
                             width: selected ? 2 : 1,
                           ),
                           borderRadius: BorderRadius.circular(14),
@@ -796,7 +766,7 @@ class _PinPageState extends State<_PinPage> {
                       const Text(
                         'Set a 4-digit PIN to protect this admin account.\nYou can skip this and add one later in Settings.',
                         style: TextStyle(
-                            color: _kMuted, fontSize: 14, height: 1.5),
+                            color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
                       ),
                       SizedBox(height: v(40)),
                       Center(
@@ -833,7 +803,7 @@ class _PinPageState extends State<_PinPage> {
                   onPressed: widget.onSkip,
                   child: const Text(
                     'Skip for now',
-                    style: TextStyle(color: _kMuted, fontSize: 15),
+                    style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 15),
                   ),
                 ),
               ),
@@ -891,7 +861,7 @@ class _PlaylistTypePage extends StatelessWidget {
                 SizedBox(height: v(8)),
                 const Text(
                   "Not sure? Ask your IPTV provider — they'll know!",
-                  style: TextStyle(color: _kMuted, fontSize: 14),
+                  style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
                 ),
                 SizedBox(height: v(40)),
                 _PlaylistTypeCard(
@@ -1127,7 +1097,7 @@ class _CredentialsPage extends StatelessWidget {
                               ? 'Enter the login details from your provider.'
                               : 'Paste the playlist link your provider gave you.',
                           style:
-                              const TextStyle(color: _kMuted, fontSize: 14),
+                              const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
                         ),
                       ],
                     ),
@@ -1176,7 +1146,7 @@ class _CredentialsPage extends StatelessWidget {
                             passVisible
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: _kMuted,
+                            color: AppTheme.mutedTextColor,
                           ),
                           tooltip: passVisible ? 'Hide password' : 'Show password',
                           onPressed: onTogglePass,
@@ -1290,16 +1260,16 @@ class _WizardField extends StatelessWidget {
           style: const TextStyle(color: Colors.white, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: _kMuted),
+            hintStyle: const TextStyle(color: AppTheme.mutedTextColor),
             filled: true,
-            fillColor: _kCardBg,
+            fillColor: AppTheme.surfaceVariantColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _kCardBorder),
+              borderSide: const BorderSide(color: AppTheme.outlineColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _kCardBorder),
+              borderSide: const BorderSide(color: AppTheme.outlineColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1407,7 +1377,7 @@ class _LoadingPageState extends State<_LoadingPage>
                   opacity: 0.5 + _pulse.value * 0.5,
                   child: Text(
                     widget.message,
-                    style: const TextStyle(color: _kMuted, fontSize: 14),
+                    style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1554,7 +1524,7 @@ class _AllSetPage extends StatelessWidget {
               const Text(
                 'Your playlist is ready.\nEnjoy the show.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: _kMuted, fontSize: 16, height: 1.6),
+                style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 16, height: 1.6),
               ),
             ],
           ),
@@ -1604,7 +1574,7 @@ class _WizardBackground extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_kBgDark, _kBgMid],
+          colors: [AppTheme.backgroundColor, AppTheme.surfaceColor],
         ),
       ),
       child: wrap(child),
@@ -1639,7 +1609,7 @@ class _StepIndicator extends StatelessWidget {
                 ? accentColor
                 : done
                     ? _lighten(accentColor).withValues(alpha: 0.6)
-                    : _kCardBorder,
+                    : AppTheme.outlineColor,
           ),
         );
       }),
@@ -1680,7 +1650,7 @@ class _GradientButton extends StatelessWidget {
                     end: Alignment.centerRight,
                   )
                 : null,
-            color: enabled ? null : _kCardBg,
+            color: enabled ? null : AppTheme.surfaceVariantColor,
             borderRadius: BorderRadius.circular(14),
             boxShadow: enabled
                 ? [

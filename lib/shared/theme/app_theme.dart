@@ -11,7 +11,8 @@ class AppTheme {
   static const _surface = Color(0xFF1C1C1E);
   static const _surfaceVariant = Color(0xFF2C2C2E);
   static const _outline = Color(0xFF3A3A3C);
-  static const _defaultAccent = Color(0xFF0A84FF);
+  static const defaultAccent = Color(0xFF0A84FF);
+  static const defaultAccentHex = '0A84FF';
   static const _onPrimary = Colors.white;
   static const _onBackground = Color(0xFFF2F2F7);
   static const _onSurface = Color(0xFFEBEBF5);
@@ -20,7 +21,7 @@ class AppTheme {
 
   // Available accent color swatches
   static const List<({String label, Color color})> accentSwatches = [
-    (label: 'Blue', color: Color(0xFF0A84FF)),
+    (label: 'Blue', color: defaultAccent),
     (label: 'Purple', color: Color(0xFFBF5AF2)),
     (label: 'Pink', color: Color(0xFFFF2D55)),
     (label: 'Orange', color: Color(0xFFFF9F0A)),
@@ -41,7 +42,7 @@ class AppTheme {
     try {
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      return _defaultAccent;
+      return defaultAccent;
     }
   }
 
@@ -53,7 +54,7 @@ class AppTheme {
   // ---------------------------------------------------------------------------
 
   static ThemeData dark([Color? accent]) {
-    final primary = accent ?? _defaultAccent;
+    final primary = accent ?? defaultAccent;
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,

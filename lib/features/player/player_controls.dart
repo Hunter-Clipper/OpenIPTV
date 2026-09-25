@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/epg_panel.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Overlay controls for the full-screen player.
@@ -20,8 +21,6 @@ class PlayerControls extends ConsumerStatefulWidget {
     required this.isLive,
     this.contentType,
     this.contentId,
-    this.channelId,
-    this.onTap,
     this.isLiveDvr = false,
     this.onLivePlayPause,
     this.onLiveRewind,
@@ -36,8 +35,6 @@ class PlayerControls extends ConsumerStatefulWidget {
   final bool isLive;
   final String? contentType;
   final String? contentId;
-  final String? channelId;
-  final VoidCallback? onTap;
   // Focus lands here whenever PlayerScreen reveals the controls (initial
   // show, tap-to-show, or pressing select/OK while hidden) so the D-pad can
   // immediately navigate from a sensible starting point.
@@ -190,17 +187,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => EpgPanel(
-        channelId: widget.channelId ?? widget.contentId ?? '',
+        channelId: widget.contentId ?? '',
         channelName: widget.title,
       ),
     );
-  }
-
-  String _formatDuration(Duration d) {
-    final h = d.inHours;
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
   @override
@@ -232,7 +222,6 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             duration: _duration,
             isSeeking: _isSeeking,
             seekValue: _seekValue,
-            formatDuration: _formatDuration,
             onBack: () => context.pop(),
             onCc: () => _showCcPicker(context),
             onSeekStart: () => setState(() => _isSeeking = true),
@@ -482,14 +471,32 @@ class _LiveProgrammeBar extends ConsumerStatefulWidget {
 class _LiveProgrammeBarState extends ConsumerState<_LiveProgrammeBar> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
+  // Held in state rather than built in build() — the parent rebuilds on
+  // every player state event, which would otherwise re-query the EPG
+  // several times a second.
+  late Future<Programme?> _programme;
 
   @override
   void initState() {
     super.initState();
-    // Refresh the progress position every 30 seconds.
+    _programme = _fetchProgramme();
+    // Refresh the progress position (and the current programme, in case it
+    // has rolled over) every 30 seconds.
     _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
+      if (!mounted) return;
+      setState(() {
+        _now = DateTime.now();
+        _programme = _fetchProgramme();
+      });
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant _LiveProgrammeBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channelId != widget.channelId) {
+      _programme = _fetchProgramme();
+    }
   }
 
   @override
@@ -498,11 +505,13 @@ class _LiveProgrammeBarState extends ConsumerState<_LiveProgrammeBar> {
     super.dispose();
   }
 
+  Future<Programme?> _fetchProgramme() =>
+      ref.read(epgServiceProvider).getCurrentProgramme(widget.channelId);
+
   @override
   Widget build(BuildContext context) {
-    final epg = ref.watch(epgServiceProvider);
     return FutureBuilder<Programme?>(
-      future: epg.getCurrentProgramme(widget.channelId),
+      future: _programme,
       builder: (context, snapshot) {
         final prog = snapshot.data;
         if (prog == null) return const SizedBox.shrink();
@@ -529,7 +538,7 @@ class _LiveProgrammeBarState extends ConsumerState<_LiveProgrammeBar> {
                     ),
                   ),
                   Text(
-                    '-${_fmtDuration(remaining)}',
+                    '-${formatRuntime(remaining, padMinutes: true)}',
                     style: const TextStyle(color: Colors.white60, fontSize: 12),
                   ),
                 ],
@@ -549,14 +558,7 @@ class _LiveProgrammeBarState extends ConsumerState<_LiveProgrammeBar> {
         );
       },
     );
-  }
-
-  String _fmtDuration(Duration d) {
-    final h = d.inHours;
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    return h > 0 ? '${h}h ${m}m' : '${m}m';
-  }
-}
+  }}
 
 // ---------------------------------------------------------------------------
 // VOD controls
@@ -569,7 +571,6 @@ class _VodControls extends ConsumerWidget {
     required this.duration,
     required this.isSeeking,
     required this.seekValue,
-    required this.formatDuration,
     required this.onBack,
     required this.onCc,
     required this.hasCc,
@@ -600,7 +601,6 @@ class _VodControls extends ConsumerWidget {
   final Duration duration;
   final bool isSeeking;
   final double seekValue;
-  final String Function(Duration) formatDuration;
   final VoidCallback onBack;
   final VoidCallback onCc;
   final VoidCallback onSeekStart;
@@ -800,14 +800,12 @@ class _VodControls extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        formatDuration(position),
+                        formatClock(position),
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 12),
                       ),
                       Text(
-                        duration.inSeconds > 0
-                            ? formatDuration(duration)
-                            : '',
+                        duration.inSeconds > 0 ? formatClock(duration) : '',
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 12),
                       ),

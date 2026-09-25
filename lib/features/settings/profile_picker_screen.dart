@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 class ProfilePickerScreen extends ConsumerWidget {
@@ -36,8 +37,7 @@ class ProfilePickerScreen extends ConsumerWidget {
             const SizedBox(height: 40),
             Expanded(
               child: profilesAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const LoadingView(),
                 error: (_, __) =>
                     const Center(child: Text('Could not load profiles.')),
                 data: (profiles) => GridView.builder(

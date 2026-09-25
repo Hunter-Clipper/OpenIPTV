@@ -132,12 +132,14 @@ class XmltvParser {
     }
   }
 
+  static final _nonDigit = RegExp(r'[^0-9]');
+
   // "+0100" → Duration(hours: 1), "-0530" → Duration(hours: -5, minutes: -30)
   static Duration _parseTzOffset(String tz) {
     if (tz.isEmpty) return Duration.zero;
     try {
       final sign = tz.startsWith('-') ? -1 : 1;
-      final digits = tz.replaceAll(RegExp(r'[^0-9]'), '');
+      final digits = tz.replaceAll(_nonDigit, '');
       if (digits.length < 4) return Duration.zero;
       final hours = int.parse(digits.substring(0, 2));
       final minutes = int.parse(digits.substring(2, 4));

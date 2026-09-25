@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -67,6 +68,14 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
   Timer? _nowTicker;
   Timer? _previewDebounce;
   GuidePreviewController? _preview;
+  // Cached so the provider family key keeps a stable identity across
+  // rebuilds (1-min ticker, row focus). The record holds a List, which
+  // compares by identity, so a freshly built key each build would create a
+  // new provider — re-querying and blanking the grid. Replaced only when the
+  // channel ids actually change.
+  _GuideWindow? _window;
+  List<Programme>? _groupedProgrammes;
+  Map<String, List<Programme>> _byChannel = const {};
 
   @override
   void initState() {
@@ -139,6 +148,24 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
     );
   }
 
+  _GuideWindow _windowFor(List<Channel> channels) {
+    final ids = [for (final c in channels) c.id];
+    final current = _window;
+    if (current != null && listEquals(current.channelIds, ids)) return current;
+    return _window =
+        (channelIds: ids, rangeStart: _rangeStart, rangeEnd: _rangeEnd);
+  }
+
+  Map<String, List<Programme>> _groupByChannel(List<Programme> programmes) {
+    if (identical(programmes, _groupedProgrammes)) return _byChannel;
+    final byChannel = <String, List<Programme>>{};
+    for (final p in programmes) {
+      (byChannel[p.channelId] ??= []).add(p);
+    }
+    _groupedProgrammes = programmes;
+    return _byChannel = byChannel;
+  }
+
   @override
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(allChannelsProvider);
@@ -154,18 +181,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
           if (channels.isEmpty) {
             return const Center(child: Text('No channels yet.'));
           }
-          final window = (
-            channelIds: [for (final c in channels) c.id],
-            rangeStart: _rangeStart,
-            rangeEnd: _rangeEnd,
-          );
-          final programmes =
-              ref.watch(_guideProgrammesProvider(window)).valueOrNull ??
-                  const <Programme>[];
-          final byChannel = <String, List<Programme>>{};
-          for (final p in programmes) {
-            (byChannel[p.channelId] ??= []).add(p);
-          }
+          final programmes = ref
+                  .watch(_guideProgrammesProvider(_windowFor(channels)))
+                  .valueOrNull ??
+              const <Programme>[];
+          final byChannel = _groupByChannel(programmes);
 
           return Stack(
             children: [

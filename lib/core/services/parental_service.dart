@@ -26,3 +26,15 @@ bool isCategoryLocked(
 /// Categories unlocked for the current app session (cleared on restart).
 final parentalSessionUnlockedProvider =
     StateProvider<Set<String>>((ref) => const {});
+
+/// Splits a comma-separated genre string into trimmed names; null → 'Other'.
+Iterable<String> splitGenres(String? genre) =>
+    (genre ?? 'Other').split(',').map((g) => g.trim());
+
+/// True if any genre in [genre] matches adult keywords.
+bool isAdultGenre(String? genre) => splitGenres(genre).any(isAdultCategory);
+
+/// True if any genre in [genre] is behind the parental PIN gate.
+bool isGenreLocked(
+        String? genre, AppPreferences prefs, Set<String> sessionUnlocked) =>
+    splitGenres(genre).any((g) => isCategoryLocked(g, prefs, sessionUnlocked));

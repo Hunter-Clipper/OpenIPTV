@@ -384,6 +384,27 @@ class AppDatabase extends _$AppDatabase {
     return items.map((c) => _applyChannelProgress(c, progress[c.id])).toList();
   }
 
+  /// Writes [items] in 500-row chunks, one batch per chunk.
+  Future<void> _batchInChunks<T>(
+    List<T> items,
+    void Function(Batch b, List<T> chunk) fill,
+  ) async {
+    for (var i = 0; i < items.length; i += 500) {
+      final chunk = items.sublist(i, (i + 500).clamp(0, items.length));
+      await batch((b) => fill(b, chunk));
+    }
+  }
+
+  Future<void> _clearProgress(
+      String profileId, String contentType, String id) async {
+    await (delete(watchProgress)
+          ..where((w) =>
+              w.profileId.equals(profileId) &
+              w.contentType.equals(contentType) &
+              w.contentId.equals(id)))
+        .go();
+  }
+
   // ---------------------------------------------------------------------------
   // Source DAOs
   // ---------------------------------------------------------------------------
@@ -391,12 +412,6 @@ class AppDatabase extends _$AppDatabase {
   Future<List<model.Source>> getAllSources() async {
     final rows = await select(sources).get();
     return rows.map(_sourceFromRow).toList();
-  }
-
-  Stream<List<model.Source>> watchAllSources() {
-    return select(sources).watch().map(
-          (rows) => rows.map(_sourceFromRow).toList(),
-        );
   }
 
   Future<model.Source?> getSourceById(String id) async {
@@ -423,15 +438,6 @@ class AppDatabase extends _$AppDatabase {
   // Channel DAOs
   // ---------------------------------------------------------------------------
 
-  Future<List<model.Channel>> getChannelsForSource(String sourceId,
-      {String? profileId}) async {
-    final rows = await (select(channels)
-          ..where((t) => t.sourceId.equals(sourceId))
-          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
-        .get();
-    return _withChannelProgress(rows.map(_channelFromRow).toList(), profileId);
-  }
-
   Stream<List<model.Channel>> watchChannelsForSource(String sourceId,
       {String? profileId}) {
     return (select(channels)
@@ -443,21 +449,12 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertChannels(List<model.Channel> channelList) async {
-    final companions = channelList.map(_channelToCompanion).toList();
-    for (var i = 0; i < companions.length; i += 500) {
-      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
-      await batch((b) => b.insertAllOnConflictUpdate(channels, chunk));
-    }
+    await _batchInChunks(channelList.map(_channelToCompanion).toList(),
+        (b, chunk) => b.insertAllOnConflictUpdate(channels, chunk));
   }
 
   Future<void> deleteChannelsForSource(String sourceId) async {
     await (delete(channels)..where((t) => t.sourceId.equals(sourceId))).go();
-  }
-
-  Future<void> setChannelFavorite(String id, bool favorite) async {
-    await (update(channels)..where((t) => t.id.equals(id))).write(
-      ChannelsCompanion(isFavorite: Value(favorite)),
-    );
   }
 
   Future<List<model.Channel>> getAllChannels({String? profileId}) async {
@@ -481,26 +478,23 @@ class AppDatabase extends _$AppDatabase {
   // ---------------------------------------------------------------------------
 
   Future<void> upsertProgrammes(List<model.Programme> programmes) async {
-    final companions = programmes.map(_programmeToCompanion).toList();
-    for (var i = 0; i < companions.length; i += 500) {
-      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
-      await batch((b) {
-        // Conflict target must be the (channel_id, start) unique index, not
-        // the meaningless autoincrement id (which is never set here) — that
-        // default target is why every refresh re-inserted every programme as
-        // a brand-new row instead of overwriting the existing one.
-        for (final c in chunk) {
-          b.insert(
-            this.programmes,
-            c,
-            onConflict: DoUpdate(
-              (_) => c,
-              target: [this.programmes.channelId, this.programmes.start],
-            ),
-          );
-        }
-      });
-    }
+    await _batchInChunks(programmes.map(_programmeToCompanion).toList(),
+        (b, chunk) {
+      // Conflict target must be the (channel_id, start) unique index, not
+      // the meaningless autoincrement id (which is never set here) — that
+      // default target is why every refresh re-inserted every programme as
+      // a brand-new row instead of overwriting the existing one.
+      for (final c in chunk) {
+        b.insert(
+          this.programmes,
+          c,
+          onConflict: DoUpdate(
+            (_) => c,
+            target: [this.programmes.channelId, this.programmes.start],
+          ),
+        );
+      }
+    });
   }
 
   /// Remaps programme channelId values from XMLTV IDs (e.g. 'BBC1.uk') to the
@@ -567,12 +561,6 @@ class AppDatabase extends _$AppDatabase {
       ..where(channels.sourceId.equals(sourceId));
     final row = await query.getSingleOrNull();
     return row?.read(channels.catchupDays.max()) ?? 0;
-  }
-
-  Future<void> deleteProgrammesForChannel(String channelId) async {
-    await (delete(programmes)
-          ..where((t) => t.channelId.equals(channelId)))
-        .go();
   }
 
   Future<model.Programme?> getCurrentProgramme(String channelId) async {
@@ -665,15 +653,6 @@ class AppDatabase extends _$AppDatabase {
   // Movie DAOs
   // ---------------------------------------------------------------------------
 
-  Future<List<model.Movie>> getMoviesForSource(String sourceId,
-      {String? profileId}) async {
-    final rows = await (select(movies)
-          ..where((t) => t.sourceId.equals(sourceId))
-          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
-        .get();
-    return _withMovieProgress(rows.map(_movieFromRow).toList(), profileId);
-  }
-
   Future<List<model.Movie>> getAllMovies({String? profileId}) async {
     final rows = await select(movies).get();
     return _withMovieProgress(rows.map(_movieFromRow).toList(), profileId);
@@ -731,14 +710,8 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<void> clearMovieProgress(String profileId, String id) async {
-    await (delete(watchProgress)
-          ..where((w) =>
-              w.profileId.equals(profileId) &
-              w.contentType.equals('movie') &
-              w.contentId.equals(id)))
-        .go();
-  }
+  Future<void> clearMovieProgress(String profileId, String id) =>
+      _clearProgress(profileId, 'movie', id);
 
   // ---------------------------------------------------------------------------
   // Channel recently-watched
@@ -755,14 +728,8 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<void> clearChannelLastWatched(String profileId, String id) async {
-    await (delete(watchProgress)
-          ..where((w) =>
-              w.profileId.equals(profileId) &
-              w.contentType.equals('channel') &
-              w.contentId.equals(id)))
-        .go();
-  }
+  Future<void> clearChannelLastWatched(String profileId, String id) =>
+      _clearProgress(profileId, 'channel', id);
 
   Stream<List<model.Channel>> watchRecentChannels(String profileId,
       {int limit = 20}) {
@@ -817,21 +784,12 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<void> clearEpisodeProgress(String profileId, String id) async {
-    await (delete(watchProgress)
-          ..where((w) =>
-              w.profileId.equals(profileId) &
-              w.contentType.equals('episode') &
-              w.contentId.equals(id)))
-        .go();
-  }
+  Future<void> clearEpisodeProgress(String profileId, String id) =>
+      _clearProgress(profileId, 'episode', id);
 
   Future<void> upsertMovies(List<model.Movie> movieList) async {
-    final companions = movieList.map(_movieToCompanion).toList();
-    for (var i = 0; i < companions.length; i += 500) {
-      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
-      await batch((b) => b.insertAllOnConflictUpdate(movies, chunk));
-    }
+    await _batchInChunks(movieList.map(_movieToCompanion).toList(),
+        (b, chunk) => b.insertAllOnConflictUpdate(movies, chunk));
   }
 
   Future<void> updateMovieProgress(
@@ -860,14 +818,6 @@ class AppDatabase extends _$AppDatabase {
   // Series DAOs
   // ---------------------------------------------------------------------------
 
-  Future<List<model.Series>> getSeriesForSource(String sourceId) async {
-    final rows = await (select(seriesEntries)
-          ..where((t) => t.sourceId.equals(sourceId))
-          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
-        .get();
-    return rows.map(_seriesFromRow).toList();
-  }
-
   Future<List<model.Series>> getAllSeries() async {
     final rows = await select(seriesEntries).get();
     return rows.map(_seriesFromRow).toList();
@@ -888,11 +838,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertSeries(List<model.Series> seriesList) async {
-    final companions = seriesList.map(_seriesToCompanion).toList();
-    for (var i = 0; i < companions.length; i += 500) {
-      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
-      await batch((b) => b.insertAllOnConflictUpdate(seriesEntries, chunk));
-    }
+    await _batchInChunks(seriesList.map(_seriesToCompanion).toList(),
+        (b, chunk) => b.insertAllOnConflictUpdate(seriesEntries, chunk));
   }
 
   Future<void> deleteSeriesForSource(String sourceId) async {
@@ -937,11 +884,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertEpisodes(List<model.Episode> episodeList) async {
-    final companions = episodeList.map(_episodeToCompanion).toList();
-    for (var i = 0; i < companions.length; i += 500) {
-      final chunk = companions.sublist(i, (i + 500).clamp(0, companions.length));
-      await batch((b) => b.insertAllOnConflictUpdate(episodes, chunk));
-    }
+    await _batchInChunks(episodeList.map(_episodeToCompanion).toList(),
+        (b, chunk) => b.insertAllOnConflictUpdate(episodes, chunk));
   }
 
   Future<void> updateEpisodeProgress(

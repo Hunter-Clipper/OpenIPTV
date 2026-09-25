@@ -6,6 +6,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -24,7 +25,7 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: activeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingView(),
         error: (_, __) =>
             const Center(child: Text("Couldn't load profile.")),
         data: (profile) {
@@ -163,14 +164,8 @@ class ProfileScreen extends ConsumerWidget {
         await prefs.setParentalProtectionEnabled(true);
       }
     } else {
-      final pin = await showParentalPinEntry(
-          context, 'Enter admin PIN to disable Kids Profile');
-      if (pin == null) return;
-      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Incorrect PIN')));
-        }
+      if (!await promptAdminPin(
+          context, ref, 'Enter admin PIN to disable Kids Profile')) {
         return;
       }
     }

@@ -16,6 +16,7 @@ import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -132,6 +133,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool get _isLive =>
       widget.contentType == 'live' || widget.contentType == null;
 
+  // Live at the live edge — no seekable timeline, no progress to track.
+  bool get _isPlainLive => _isLive && !_liveDvrActive;
+
   // Channel-based playback (live or catch-up) as opposed to movie/episode
   // VOD — covers both ways a viewer ends up watching catch-up: pausing/
   // rewinding out of live (_enterLiveDvr, starts as 'live'), and picking a
@@ -199,8 +203,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // media. Without this guard the new PlayerScreen picks up the previous
       // episode's end-position and immediately triggers completion.
       if (!_playbackStarted) return;
-      final isPlainLive = _isLive && !_liveDvrActive;
-      if (!isPlainLive) {
+      if (!_isPlainLive) {
         if (s.position > Duration.zero) _lastKnownPosition = s.position;
         if (s.duration > Duration.zero) _lastKnownDuration = s.duration;
         if (!_completionHandled) {
@@ -252,9 +255,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _retryCount++;
     setState(() => _isRecovering = true);
     debugPrint('[OTV-recovery] stall detected — attempt $_retryCount/$_maxRetries');
-    final position = (_isLive && !_liveDvrActive) ? null : _lastKnownPosition;
+    final position = _isPlainLive ? null : _lastKnownPosition;
     await _playbackService.play(_currentUrl, startPosition: position);
-    if (_isLive && !_liveDvrActive && _liveOffset > Duration.zero) {
+    if (_isPlainLive && _liveOffset > Duration.zero) {
       // Reconnecting a plain live stream always lands back at the live edge —
       // any local-buffer rewind offset no longer applies.
       _liveOffset = Duration.zero;
@@ -372,12 +375,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _dvrWindowDefault < maxWindow ? _dvrWindowDefault : maxWindow;
     if (window <= Duration.zero) return;
     final windowStart = DateTime.now().subtract(window);
-    final client = XtreamClient(
-      host: source!.xtreamHost!,
-      username: source.xtreamUsername!,
-      password: source.xtreamPassword!,
-      sourceId: source.id,
-    );
+    final client = XtreamClient.fromSource(source!);
     final url = client.buildCatchupUrl(channel.streamId!, windowStart, window);
     client.dispose();
 
@@ -545,10 +543,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // Stamp last-watched time for live channels so Recently Watched updates.
     final profileId = _profileId;
     if (_isLive && widget.contentId != null && profileId != null) {
-      await _playbackService.db
-          .updateChannelLastWatched(profileId, widget.contentId!);
+      unawaited(_playbackService.db
+          .updateChannelLastWatched(profileId, widget.contentId!));
     }
-    final service = _playbackService;
 
     // Show resume dialog if there is a saved position and user didn't
     // explicitly choose "Start Over" (i.e. resumePosition != Duration.zero).
@@ -567,7 +564,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
       _lastKnownPosition = Duration.zero;
       _lastKnownDuration = Duration.zero;
-      await service.play(
+      await _playbackService.play(
         widget.streamUrl,
         startPosition: resume ? widget.resumePosition : null,
       );
@@ -575,7 +572,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     } else {
       _lastKnownPosition = Duration.zero;
       _lastKnownDuration = Duration.zero;
-      await service.play(
+      await _playbackService.play(
         widget.streamUrl,
         startPosition: widget.resumePosition == Duration.zero
             ? null
@@ -621,7 +618,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Resume Watching?'),
-        content: Text('Continue from ${_formatDuration(position)}?'),
+        content: Text('Continue from ${formatClock(position)}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -642,23 +639,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_completionSaved) return;
     final id = widget.contentId;
     if (id == null) return;
-    final service = _playbackService;
     // Use _lastKnownPosition (tracked via the state stream) rather than
-    // reading service.lastState.position directly — the latter can be zero
+    // reading _playbackService.lastState.position directly — the latter can be zero
     // if a reconnection attempt called play() and the seek hasn't
     // completed yet.
     final position = _lastKnownPosition;
     // Prefer the stream-tracked duration; fall back to the last known state.
     final total = _lastKnownDuration > Duration.zero
         ? _lastKnownDuration
-        : service.lastState.duration;
+        : _playbackService.lastState.duration;
     debugPrint('[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s');
     final profileId = _profileId;
     if (profileId == null) return;
+    _saveProgress(profileId, id, position, total);
+  }
+
+  // Dispatches to the movie or episode progress store; other content types
+  // (live, catch-up) have no saved progress.
+  Future<void> _saveProgress(
+      String profileId, String id, Duration position, Duration total) async {
     if (widget.contentType == 'movie') {
-      service.saveMovieProgress(profileId, id, position, total);
+      await _playbackService.saveMovieProgress(profileId, id, position, total);
     } else if (widget.contentType == 'episode') {
-      service.saveEpisodeProgress(profileId, id, position, total);
+      await _playbackService.saveEpisodeProgress(profileId, id, position, total);
     }
   }
 
@@ -677,11 +680,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final profileId = _profileId;
     if (id != null && total > Duration.zero && profileId != null) {
       _completionSaved = true;
-      if (widget.contentType == 'movie') {
-        await _playbackService.saveMovieProgress(profileId, id, total, total);
-      } else if (widget.contentType == 'episode') {
-        await _playbackService.saveEpisodeProgress(profileId, id, total, total);
-      }
+      await _saveProgress(profileId, id, total, total);
     }
     if (!mounted) return;
 
@@ -752,13 +751,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     } else {
       _showControls();
     }
-  }
-
-  String _formatDuration(Duration d) {
-    final h = d.inHours;
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
   Widget _buildVideoSurface() {
@@ -886,7 +878,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         contentId: widget.contentId,
                         isLive: _isChannelPlayback && !_liveDvrActive,
                         isLiveDvr: _liveDvrActive,
-                        onTap: _onTap,
                         onLivePlayPause: _onLivePlayPause,
                         onLiveRewind: _onLiveRewind,
                         onLiveForward: _onLiveForward,

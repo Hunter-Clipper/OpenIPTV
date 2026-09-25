@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
@@ -14,7 +15,7 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 final _episodeListProvider =
     StreamProvider.family<List<Episode>, String>((ref, seriesId) {
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final profileId = ref.watch(activeProfileIdProvider);
   return ref
       .watch(appDatabaseProvider)
       .watchEpisodesForSeries(seriesId, profileId: profileId);
@@ -126,18 +127,12 @@ class _EpisodeRow extends StatelessWidget {
   final Episode episode;
   final bool autofocus;
 
-  String _formatDuration(Duration? d) {
-    if (d == null || d.inSeconds == 0) return '';
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    if (h > 0) return '${h}h ${m}m';
-    return '${d.inMinutes}m';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final durationText = _formatDuration(episode.totalDuration);
+    final total = episode.totalDuration;
+    final durationText =
+        total == null || total.inSeconds == 0 ? '' : formatRuntime(total);
     void onTap() => context.push('/player', extra: {
           'streamUrl': episode.streamUrl,
           'title': '${episode.episodeLabel} – ${episode.title}',

@@ -67,8 +67,10 @@ class M3uParser {
       final group = attrs['group-title'] ?? '';
       final id = _generateId(sourceId, streamUrl);
 
-      if (_isVod(group, name)) {
-        if (_isSeries(group, name)) {
+      final groupLower = group.toLowerCase();
+
+      if (_isVod(groupLower)) {
+        if (_isSeries(groupLower, name)) {
           final seriesTitle = _extractSeriesTitle(name);
           final seriesId = _generateId(sourceId, seriesTitle);
 
@@ -136,12 +138,13 @@ class M3uParser {
     return pattern.firstMatch(line)?.group(1);
   }
 
+  static final _attrPattern = RegExp(r'(\w[\w-]*)="([^"]*)"');
+
   /// Parses all key="value" attributes from an #EXTINF line plus the channel name.
   static Map<String, String> _parseExtinf(String line) {
     final result = <String, String>{};
 
-    final attrPattern = RegExp(r'(\w[\w-]*)="([^"]*)"');
-    for (final m in attrPattern.allMatches(line)) {
+    for (final m in _attrPattern.allMatches(line)) {
       result[m.group(1)!.toLowerCase()] = m.group(2)!;
     }
 
@@ -162,16 +165,18 @@ class M3uParser {
     'vod', 'movie', 'movies', 'film', 'films', 'series', 'shows',
   ];
 
-  static bool _isVod(String group, String name) {
-    final g = group.toLowerCase();
-    return _vodKeywords.any((kw) => g.contains(kw));
+  /// [groupLower] is the already-lowercased group title.
+  static bool _isVod(String groupLower) {
+    return _vodKeywords.any((kw) => groupLower.contains(kw));
   }
 
   static final _episodePattern = RegExp(r'[Ss](\d+)[Ee](\d+)');
 
-  static bool _isSeries(String group, String name) {
-    final g = group.toLowerCase();
-    if (g.contains('series') || g.contains('shows')) return true;
+  /// [groupLower] is the already-lowercased group title.
+  static bool _isSeries(String groupLower, String name) {
+    if (groupLower.contains('series') || groupLower.contains('shows')) {
+      return true;
+    }
     return _episodePattern.hasMatch(name);
   }
 

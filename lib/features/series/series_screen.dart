@@ -26,9 +26,6 @@ import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
-bool _seriesGenreIsAdult(String? genre) =>
-    (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
-
 // ---------------------------------------------------------------------------
 // Providers
 // ---------------------------------------------------------------------------
@@ -43,15 +40,26 @@ final _allSeriesProvider = StreamProvider<List<Series>>((ref) {
 });
 
 final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
-  // .select — see movies_screen.dart's _allMoviesProvider: only the profile
-  // id matters here, so a favorite/watch-progress toggle elsewhere (which
-  // invalidates activeProfileProvider) doesn't tear down this stream.
-  final profileId =
-      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
+  // Only the profile id matters here, so a favorite/watch-progress toggle
+  // elsewhere (which invalidates activeProfileProvider) doesn't tear down
+  // this stream.
+  final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
   return db.watchEpisodesInProgress(profileId);
 });
+
+Future<void> _refreshSeries(WidgetRef ref) async {
+  try {
+    final sources = await ref.read(allSourcesProvider.future);
+    for (final s in sources) {
+      await ref.read(sourceManagerProvider).refreshSeries(s);
+    }
+  } finally {
+    ref.invalidate(_allSeriesProvider);
+    await ref.read(_allSeriesProvider.future);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -65,37 +73,8 @@ class SeriesScreen extends ConsumerStatefulWidget {
 }
 
 class _SeriesScreenState extends ConsumerState<SeriesScreen> {
-  Future<void> _refresh() async {
-    try {
-      final sources = await ref.read(allSourcesProvider.future);
-      for (final s in sources) {
-        await ref.read(sourceManagerProvider).refreshSeries(s);
-      }
-    } finally {
-      ref.invalidate(_allSeriesProvider);
-      await ref.read(_allSeriesProvider.future);
-    }
-  }
-
   Future<void> _tapGenre(String g) async {
-    final prefs = ref.read(appPreferencesProvider).valueOrNull;
-    final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
-    if (prefs != null && isCategoryLocked(g, prefs, sessionUnlocked)) {
-      final pin = await showParentalPinEntry(
-          context, 'Enter admin PIN to unlock "$g"');
-      if (!mounted || pin == null) return;
-      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect PIN')));
-        return;
-      }
-      ref.read(parentalSessionUnlockedProvider.notifier).state = {
-        ...ref.read(parentalSessionUnlockedProvider),
-        g,
-      };
-    }
-    if (mounted) {
+    if (await ensureCategoryUnlocked(context, ref, g) && mounted) {
       unawaited(context.push('/series/genre/${Uri.encodeComponent(g)}'));
     }
   }
@@ -105,7 +84,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final seen = <String>{};
     final genres = <String>[];
     for (final s in all) {
-      for (final g in (s.genre ?? 'Other').split(',').map((g) => g.trim())) {
+      for (final g in splitGenres(s.genre)) {
         if (g.isNotEmpty && !hidden.contains(g) && seen.add(g)) genres.add(g);
       }
     }
@@ -137,20 +116,20 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         loading: () => const LoadingView(),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load series. Try again.",
-          onRetry: _refresh,
+          onRetry: () => _refreshSeries(ref),
         ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
           final favIdSet = (profile?.favoriteSeriesIds ?? []).toSet();
           final favorites = all
               .where((s) => favIdSet.contains(s.id))
-              .where((s) => !isKid || !_seriesGenreIsAdult(s.genre))
+              .where((s) => !isKid || !isAdultGenre(s.genre))
               .toList();
           final seriesById = {for (final s in all) s.id: s};
           final visibleInProgress = inProgress.where((e) {
             if (!isKid) return true;
             final series = seriesById[e.seriesId];
-            return series == null || !_seriesGenreIsAdult(series.genre);
+            return series == null || !isAdultGenre(series.genre);
           }).toList();
           final hidden = profile?.hiddenCategories.toSet() ?? {};
           final genres = _buildGenres(all, hidden, sort)
@@ -164,8 +143,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                   .toSet();
           final genreCounts = <String, int>{};
           for (final s in all) {
-            for (final g
-                in (s.genre ?? 'Other').split(',').map((x) => x.trim())) {
+            for (final g in splitGenres(s.genre)) {
               if (g.isEmpty) continue;
               genreCounts[g] = (genreCounts[g] ?? 0) + 1;
             }
@@ -179,7 +157,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           final firstSectionIsGenres =
               !firstSectionIsFavorites && !firstSectionIsContinueWatching;
           return RefreshIndicator(
-            onRefresh: _refresh,
+            onRefresh: () => _refreshSeries(ref),
             child: CustomScrollView(
               slivers: [
                 if (favorites.isNotEmpty) ...[
@@ -270,23 +248,14 @@ class SeriesGenreScreen extends ConsumerStatefulWidget {
 }
 
 class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
-  Future<void> _refresh() async {
-    try {
-      final sources = await ref.read(allSourcesProvider.future);
-      for (final s in sources) {
-        await ref.read(sourceManagerProvider).refreshSeries(s);
-      }
-    } finally {
-      ref.invalidate(_allSeriesProvider);
-      await ref.read(_allSeriesProvider.future);
-    }
-  }
-
+  // Always a fresh list — the caller sorts it in place, and 'All' must not
+  // mutate the provider's cached list.
   List<Series> _filtered(List<Series> all) {
-    if (widget.genre == 'All') return all;
+    if (widget.genre == 'All') return List.of(all);
+    final genre = widget.genre.toLowerCase();
     return all.where((s) {
       final g = s.genre ?? '';
-      return g.toLowerCase().contains(widget.genre.toLowerCase());
+      return g.toLowerCase().contains(genre);
     }).toList();
   }
 
@@ -315,7 +284,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
         loading: () => const LoadingView(),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load series. Try again.",
-          onRetry: _refresh,
+          onRetry: () => _refreshSeries(ref),
         ),
         data: (all) {
           final filtered = _filtered(all);
@@ -323,7 +292,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
             filtered.sort((a, b) => a.title.compareTo(b.title));
           }
           return RefreshIndicator(
-            onRefresh: _refresh,
+            onRefresh: () => _refreshSeries(ref),
             child: CustomScrollView(
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
@@ -518,6 +487,39 @@ class _HorizontalPosterRow extends ConsumerWidget {
 // Series list tile (list view)
 // ---------------------------------------------------------------------------
 
+/// Long-press sheet shared by [_SeriesListTile] and [_PosterCard].
+void _showSeriesOptions(
+    BuildContext context, WidgetRef ref, Series series, String profileId) {
+  HapticFeedback.mediumImpact();
+  final isFav = ref
+          .read(activeProfileProvider)
+          .valueOrNull
+          ?.favoriteSeriesIds
+          .contains(series.id) ??
+      false;
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (_) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(isFav ? Icons.star_border : Icons.star),
+            title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+            onTap: () async {
+              Navigator.pop(context);
+              await ref
+                  .read(profileServiceProvider)
+                  .toggleFavoriteSeries(profileId, series.id);
+              ref.invalidate(activeProfileProvider);
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _SeriesListTile extends ConsumerWidget {
   const _SeriesListTile({
     super.key,
@@ -529,40 +531,6 @@ class _SeriesListTile extends ConsumerWidget {
   final Series series;
   final String? profileId;
   final bool autofocus;
-
-  void _showOptions(BuildContext context, WidgetRef ref) {
-    HapticFeedback.mediumImpact();
-    final isFav = ref
-            .read(activeProfileProvider)
-            .valueOrNull
-            ?.favoriteSeriesIds
-            .contains(series.id) ??
-        false;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(isFav ? Icons.star_border : Icons.star),
-              title:
-                  Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
-              onTap: () async {
-                Navigator.pop(context);
-                if (profileId != null) {
-                  await ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteSeries(profileId!, series.id);
-                  ref.invalidate(activeProfileProvider);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -588,9 +556,8 @@ class _SeriesListTile extends ConsumerWidget {
             ? Text(series.genre!.split(',').first.trim(),
                 maxLines: 1, overflow: TextOverflow.ellipsis)
             : null,
-        // A tappable IconButton, not a static status Icon — see
-        // movies_screen.dart's _MovieListTile for why (favoriting consistency
-        // with Live TV's directly-tappable channel-row star).
+        // A tappable IconButton, not a static status Icon — favoriting stays
+        // consistent with Live TV's directly-tappable channel-row star.
         trailing: IconButton(
           icon: Icon(
             isFav ? Icons.star : Icons.star_border,
@@ -611,7 +578,7 @@ class _SeriesListTile extends ConsumerWidget {
         ),
         onTap: onTap,
         onLongPress:
-            profileId == null ? null : () => _showOptions(context, ref),
+            profileId == null ? null : () => _showSeriesOptions(context, ref, series, profileId!),
       ),
     );
   }
@@ -633,39 +600,6 @@ class _PosterCard extends ConsumerWidget {
   final String? profileId;
   final bool autofocus;
 
-  void _showOptions(BuildContext context, WidgetRef ref) {
-    HapticFeedback.mediumImpact();
-    final isFav = ref
-            .read(activeProfileProvider)
-            .valueOrNull
-            ?.favoriteSeriesIds
-            .contains(series.id) ??
-        false;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(isFav ? Icons.star_border : Icons.star),
-              title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
-              onTap: () async {
-                Navigator.pop(context);
-                if (profileId != null) {
-                  await ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteSeries(profileId!, series.id);
-                  ref.invalidate(activeProfileProvider);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFav = ref.watch(activeProfileProvider.select(
@@ -673,7 +607,7 @@ class _PosterCard extends ConsumerWidget {
 
     return TvFocusable(
       onTap: () => context.push('/series/${series.id}'),
-      onLongPress: profileId == null ? null : () => _showOptions(context, ref),
+      onLongPress: profileId == null ? null : () => _showSeriesOptions(context, ref, series, profileId!),
       autofocus: autofocus,
       ensureVisibleOnFocus: true,
       borderRadius: BorderRadius.circular(AppTheme.cardRadius),

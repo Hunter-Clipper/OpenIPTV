@@ -16,15 +16,13 @@ import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
-
-bool _movieGenreIsAdult(String? genre) =>
-    (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -33,13 +31,12 @@ bool _movieGenreIsAdult(String? genre) =>
 final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
   final activeSourceId = ref.watch(activeSourceIdProvider);
   final db = ref.watch(appDatabaseProvider);
-  // .select — only the profile id matters for these queries. Watching the
+  // Only the profile id matters for these queries. Watching the
   // whole activeProfileProvider meant toggling a favorite (which invalidates
   // activeProfileProvider to refresh favoriteMovieIds) tore down and
   // re-subscribed this entire stream, flashing the loading spinner even
   // though the movie list itself hadn't changed.
-  final profileId =
-      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
+  final profileId = ref.watch(activeProfileIdProvider);
   if (activeSourceId != null) {
     return db.watchMoviesForSource(activeSourceId, profileId: profileId);
   }
@@ -47,12 +44,23 @@ final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
 });
 
 final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
-  final profileId =
-      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
+  final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
   return db.watchMoviesInProgress(profileId);
 });
+
+Future<void> _refreshMovies(WidgetRef ref) async {
+  try {
+    final sources = await ref.read(allSourcesProvider.future);
+    for (final s in sources) {
+      await ref.read(sourceManagerProvider).refreshMovies(s);
+    }
+  } finally {
+    ref.invalidate(_allMoviesProvider);
+    await ref.read(_allMoviesProvider.future);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -66,37 +74,8 @@ class MoviesScreen extends ConsumerStatefulWidget {
 }
 
 class _MoviesScreenState extends ConsumerState<MoviesScreen> {
-  Future<void> _refresh() async {
-    try {
-      final sources = await ref.read(allSourcesProvider.future);
-      for (final s in sources) {
-        await ref.read(sourceManagerProvider).refreshMovies(s);
-      }
-    } finally {
-      ref.invalidate(_allMoviesProvider);
-      await ref.read(_allMoviesProvider.future);
-    }
-  }
-
   Future<void> _tapGenre(String g) async {
-    final prefs = ref.read(appPreferencesProvider).valueOrNull;
-    final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
-    if (prefs != null && isCategoryLocked(g, prefs, sessionUnlocked)) {
-      final pin = await showParentalPinEntry(
-          context, 'Enter admin PIN to unlock "$g"');
-      if (!mounted || pin == null) return;
-      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect PIN')));
-        return;
-      }
-      ref.read(parentalSessionUnlockedProvider.notifier).state = {
-        ...ref.read(parentalSessionUnlockedProvider),
-        g,
-      };
-    }
-    if (mounted) {
+    if (await ensureCategoryUnlocked(context, ref, g) && mounted) {
       unawaited(context.push('/movies/genre/${Uri.encodeComponent(g)}'));
     }
   }
@@ -106,7 +85,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     final seen = <String>{};
     final genres = <String>[];
     for (final m in movies) {
-      for (final g in (m.genre ?? 'Other').split(',').map((s) => s.trim())) {
+      for (final g in splitGenres(m.genre)) {
         if (g.isNotEmpty && !hidden.contains(g) && seen.add(g)) genres.add(g);
       }
     }
@@ -134,20 +113,20 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         ],
       ),
       body: moviesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingView(),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load movies. Try again.",
-          onRetry: _refresh,
+          onRetry: () => _refreshMovies(ref),
         ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
           final inProgress = (inProgressAsync.valueOrNull ?? [])
-              .where((m) => !isKid || !_movieGenreIsAdult(m.genre))
+              .where((m) => !isKid || !isAdultGenre(m.genre))
               .toList();
           final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
           final favorites = all
               .where((m) => favIdSet.contains(m.id))
-              .where((m) => !isKid || !_movieGenreIsAdult(m.genre))
+              .where((m) => !isKid || !isAdultGenre(m.genre))
               .toList();
           final hidden = profile?.hiddenCategories.toSet() ?? {};
           final genres = _buildGenres(all, hidden, sort)
@@ -161,8 +140,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   .toSet();
           final genreCounts = <String, int>{};
           for (final m in all) {
-            for (final g
-                in (m.genre ?? 'Other').split(',').map((s) => s.trim())) {
+            for (final g in splitGenres(m.genre)) {
               if (g.isEmpty) continue;
               genreCounts[g] = (genreCounts[g] ?? 0) + 1;
             }
@@ -176,7 +154,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           final firstSectionIsGenres =
               !firstSectionIsContinueWatching && !firstSectionIsFavorites;
           return RefreshIndicator(
-            onRefresh: _refresh,
+            onRefresh: () => _refreshMovies(ref),
             child: CustomScrollView(
               slivers: [
                 if (inProgress.isNotEmpty) ...[
@@ -272,23 +250,14 @@ class MovieGenreScreen extends ConsumerStatefulWidget {
 }
 
 class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
-  Future<void> _refresh() async {
-    try {
-      final sources = await ref.read(allSourcesProvider.future);
-      for (final s in sources) {
-        await ref.read(sourceManagerProvider).refreshMovies(s);
-      }
-    } finally {
-      ref.invalidate(_allMoviesProvider);
-      await ref.read(_allMoviesProvider.future);
-    }
-  }
-
+  // Always a fresh list — the caller sorts it in place, and 'All' must not
+  // mutate the provider's cached list.
   List<Movie> _filtered(List<Movie> all) {
-    if (widget.genre == 'All') return all;
+    if (widget.genre == 'All') return List.of(all);
+    final genre = widget.genre.toLowerCase();
     return all.where((m) {
       final g = m.genre ?? '';
-      return g.toLowerCase().contains(widget.genre.toLowerCase());
+      return g.toLowerCase().contains(genre);
     }).toList();
   }
 
@@ -314,10 +283,10 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
         ],
       ),
       body: moviesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingView(),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load movies. Try again.",
-          onRetry: _refresh,
+          onRetry: () => _refreshMovies(ref),
         ),
         data: (all) {
           final filtered = _filtered(all);
@@ -325,7 +294,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
             filtered.sort((a, b) => a.title.compareTo(b.title));
           }
           return RefreshIndicator(
-            onRefresh: _refresh,
+            onRefresh: () => _refreshMovies(ref),
             child: CustomScrollView(
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
@@ -572,6 +541,39 @@ class _HorizontalPosterRow extends ConsumerWidget {
 // Movie list tile (list view)
 // ---------------------------------------------------------------------------
 
+/// Long-press sheet shared by [_MovieListTile] and [_PosterCard].
+void _showMovieOptions(
+    BuildContext context, WidgetRef ref, Movie movie, String profileId) {
+  HapticFeedback.mediumImpact();
+  final isFav = ref
+          .read(activeProfileProvider)
+          .valueOrNull
+          ?.favoriteMovieIds
+          .contains(movie.id) ??
+      false;
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (_) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(isFav ? Icons.star_border : Icons.star),
+            title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+            onTap: () async {
+              Navigator.pop(context);
+              await ref
+                  .read(profileServiceProvider)
+                  .toggleFavoriteMovie(profileId, movie.id);
+              ref.invalidate(activeProfileProvider);
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _MovieListTile extends ConsumerWidget {
   const _MovieListTile({
     super.key,
@@ -583,39 +585,6 @@ class _MovieListTile extends ConsumerWidget {
   final Movie movie;
   final String? profileId;
   final bool autofocus;
-
-  void _showOptions(BuildContext context, WidgetRef ref) {
-    HapticFeedback.mediumImpact();
-    final isFav = ref
-            .read(activeProfileProvider)
-            .valueOrNull
-            ?.favoriteMovieIds
-            .contains(movie.id) ??
-        false;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(isFav ? Icons.star_border : Icons.star),
-              title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
-              onTap: () async {
-                Navigator.pop(context);
-                if (profileId != null) {
-                  await ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteMovie(profileId!, movie.id);
-                  ref.invalidate(activeProfileProvider);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -665,7 +634,7 @@ class _MovieListTile extends ConsumerWidget {
         ),
         onTap: onTap,
         onLongPress:
-            profileId == null ? null : () => _showOptions(context, ref),
+            profileId == null ? null : () => _showMovieOptions(context, ref, movie, profileId!),
       ),
     );
   }
@@ -687,44 +656,11 @@ class _PosterCard extends ConsumerWidget {
   final String? profileId;
   final bool autofocus;
 
-  void _showOptions(BuildContext context, WidgetRef ref) {
-    HapticFeedback.mediumImpact();
-    final isFav = ref
-            .read(activeProfileProvider)
-            .valueOrNull
-            ?.favoriteMovieIds
-            .contains(movie.id) ??
-        false;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(isFav ? Icons.star_border : Icons.star),
-              title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
-              onTap: () async {
-                Navigator.pop(context);
-                if (profileId != null) {
-                  await ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteMovie(profileId!, movie.id);
-                  ref.invalidate(activeProfileProvider);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return TvFocusable(
       onTap: () => context.push('/movies/${movie.id}'),
-      onLongPress: profileId == null ? null : () => _showOptions(context, ref),
+      onLongPress: profileId == null ? null : () => _showMovieOptions(context, ref, movie, profileId!),
       autofocus: autofocus,
       ensureVisibleOnFocus: true,
       borderRadius: BorderRadius.circular(AppTheme.cardRadius),

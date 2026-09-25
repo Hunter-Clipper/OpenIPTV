@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -111,9 +112,7 @@ class BackupScreen extends ConsumerWidget {
           await manager.exportAll(password: password.isEmpty ? null : password);
 
       final tempDir = await getTemporaryDirectory();
-      final now = DateTime.now();
-      final stamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-'
-          '${now.day.toString().padLeft(2, '0')}';
+      final stamp = formatYmd(DateTime.now());
       final file = File('${tempDir.path}/OpenIPTV_Backup_$stamp.zip');
       await file.writeAsBytes(bytes);
 

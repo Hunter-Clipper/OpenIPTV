@@ -234,28 +234,18 @@ class SourceManager {
     if (source.type == SourceType.m3u) {
       final url = source.m3uUrl;
       if (url == null) return;
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) throw Exception('http_${response.statusCode}');
-      final result = await M3uParser.parse(response.body, source.id);
+      final result = await _fetchM3u(url, source.id);
       if (source.epgUrl == null && result.epgUrl != null) {
         await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
       }
       await db.deleteChannelsForSource(source.id);
       if (result.channels.isNotEmpty) await db.upsertChannels(result.channels);
     } else {
-      final client = XtreamClient(
-        host: source.xtreamHost!,
-        username: source.xtreamUsername!,
-        password: source.xtreamPassword!,
-        sourceId: source.id,
-      );
-      try {
+      await _withXtream(source, (client) async {
         await db.deleteChannelsForSource(source.id);
         final channels = await client.getLiveStreams();
         if (channels.isNotEmpty) await db.upsertChannels(channels);
-      } finally {
-        client.dispose();
-      }
+      });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
     unawaited(epgService.refreshEpg(source));
@@ -266,25 +256,15 @@ class SourceManager {
     if (source.type == SourceType.m3u) {
       final url = source.m3uUrl;
       if (url == null) return;
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) throw Exception('http_${response.statusCode}');
-      final result = await M3uParser.parse(response.body, source.id);
+      final result = await _fetchM3u(url, source.id);
       await db.deleteMoviesForSource(source.id);
       if (result.movies.isNotEmpty) await db.upsertMovies(result.movies);
     } else {
-      final client = XtreamClient(
-        host: source.xtreamHost!,
-        username: source.xtreamUsername!,
-        password: source.xtreamPassword!,
-        sourceId: source.id,
-      );
-      try {
+      await _withXtream(source, (client) async {
         await db.deleteMoviesForSource(source.id);
         final movies = await client.getVodStreams();
         if (movies.isNotEmpty) await db.upsertMovies(movies);
-      } finally {
-        client.dispose();
-      }
+      });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
   }
@@ -294,25 +274,15 @@ class SourceManager {
     if (source.type == SourceType.m3u) {
       final url = source.m3uUrl;
       if (url == null) return;
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) throw Exception('http_${response.statusCode}');
-      final result = await M3uParser.parse(response.body, source.id);
+      final result = await _fetchM3u(url, source.id);
       await db.deleteSeriesForSource(source.id);
       if (result.series.isNotEmpty) await db.upsertSeries(result.series);
     } else {
-      final client = XtreamClient(
-        host: source.xtreamHost!,
-        username: source.xtreamUsername!,
-        password: source.xtreamPassword!,
-        sourceId: source.id,
-      );
-      try {
+      await _withXtream(source, (client) async {
         await db.deleteSeriesForSource(source.id);
         final seriesList = await client.getAllSeries();
         if (seriesList.isNotEmpty) await db.upsertSeries(seriesList);
-      } finally {
-        client.dispose();
-      }
+      });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
   }
@@ -324,18 +294,10 @@ class SourceManager {
     if (source == null || source.type != SourceType.xtream) return;
     // App internal ID format: "${sourceId}_ser_${xtreamSeriesId}"
     final xtreamId = seriesId.replaceFirst('${sourceId}_ser_', '');
-    final client = XtreamClient(
-      host: source.xtreamHost!,
-      username: source.xtreamUsername!,
-      password: source.xtreamPassword!,
-      sourceId: sourceId,
-    );
-    try {
+    await _withXtream(source, (client) async {
       final episodes = await client.getSeriesEpisodes(xtreamId);
       if (episodes.isNotEmpty) await db.upsertEpisodes(episodes);
-    } finally {
-      client.dispose();
-    }
+    });
   }
 
   Future<void> deleteSource(String sourceId) async {
@@ -347,6 +309,39 @@ class SourceManager {
   }
 
   // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  /// Downloads and parses an M3U playlist. [onFetched] fires between the
+  /// download and the parse, for progress reporting.
+  Future<M3uParseResult> _fetchM3u(
+    String url,
+    String sourceId, {
+    void Function()? onFetched,
+  }) async {
+    final response =
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw Exception('http_${response.statusCode}');
+    }
+    onFetched?.call();
+    return M3uParser.parse(response.body, sourceId);
+  }
+
+  /// Runs [fn] with an [XtreamClient] for [source], disposing it afterwards.
+  Future<T> _withXtream<T>(
+    Source source,
+    Future<T> Function(XtreamClient client) fn,
+  ) async {
+    final client = XtreamClient.fromSource(source);
+    try {
+      return await fn(client);
+    } finally {
+      client.dispose();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // M3U refresh
   // ---------------------------------------------------------------------------
 
@@ -355,15 +350,11 @@ class SourceManager {
     if (url == null) return source;
 
     onProgress?.call('Connecting to provider…');
-    final response = await http.get(Uri.parse(url)).timeout(
-          const Duration(seconds: 30),
-        );
-    if (response.statusCode != 200) {
-      throw Exception('http_${response.statusCode}');
-    }
-
-    onProgress?.call('Parsing channels…');
-    final result = await M3uParser.parse(response.body, source.id);
+    final result = await _fetchM3u(
+      url,
+      source.id,
+      onFetched: () => onProgress?.call('Parsing channels…'),
+    );
 
     Source updated = source;
     if (source.epgUrl == null && result.epgUrl != null) {
@@ -388,27 +379,15 @@ class SourceManager {
   // Xtream refresh
   // ---------------------------------------------------------------------------
 
-  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) async {
-    final client = XtreamClient(
-      host: source.xtreamHost!,
-      username: source.xtreamUsername!,
-      password: source.xtreamPassword!,
-      sourceId: source.id,
-    );
+  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) {
+    return _withXtream(source, (client) async {
+      // Auto-set XMLTV EPG URL for Xtream sources if not already configured.
+      Source updated = source;
+      if (source.epgUrl == null || source.epgUrl!.isEmpty) {
+        updated = source.copyWith(epgUrl: client.xmltvUrl);
+        await db.upsertSource(updated);
+      }
 
-    // Auto-set XMLTV EPG URL for Xtream sources if not already configured.
-    Source updated = source;
-    if (source.epgUrl == null || source.epgUrl!.isEmpty) {
-      final host = source.xtreamHost!.endsWith('/')
-          ? source.xtreamHost!
-          : '${source.xtreamHost!}/';
-      final epgUrl =
-          '${host}xmltv.php?username=${source.xtreamUsername}&password=${source.xtreamPassword}';
-      updated = source.copyWith(epgUrl: epgUrl);
-      await db.upsertSource(updated);
-    }
-
-    try {
       onProgress?.call('Connecting to provider…');
       await db.deleteChannelsForSource(source.id);
       await db.deleteMoviesForSource(source.id);
@@ -441,9 +420,7 @@ class SourceManager {
         onProgress?.call('Saving ${seriesList.length} series…');
         await db.upsertSeries(seriesList);
       }
-    } finally {
-      client.dispose();
-    }
-    return updated;
+      return updated;
+    });
   }
 }

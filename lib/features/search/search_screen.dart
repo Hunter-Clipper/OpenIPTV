@@ -13,6 +13,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
@@ -24,16 +25,6 @@ import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 // ever needs a one-off synchronous read at the exact moment Back fires, not
 // a rebuild-driving subscription.
 final ValueNotifier<bool> searchFieldFocused = ValueNotifier<bool>(false);
-
-bool _genreIsAdult(String? genre) =>
-    (genre ?? 'Other').split(',').map((g) => g.trim()).any(isAdultCategory);
-
-bool _genreIsLocked(
-        String? genre, AppPreferences prefs, Set<String> sessionUnlocked) =>
-    (genre ?? 'Other')
-        .split(',')
-        .map((g) => g.trim())
-        .any((g) => isCategoryLocked(g, prefs, sessionUnlocked));
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -73,8 +64,8 @@ final _searchResultsProvider =
     channels: results.channels
         .where((c) => !isAdultCategory(c.groupTitle ?? 'Uncategorized'))
         .toList(),
-    movies: results.movies.where((m) => !_genreIsAdult(m.genre)).toList(),
-    series: results.series.where((s) => !_genreIsAdult(s.genre)).toList(),
+    movies: results.movies.where((m) => !isAdultGenre(m.genre)).toList(),
+    series: results.series.where((s) => !isAdultGenre(s.genre)).toList(),
   );
 });
 
@@ -186,8 +177,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: query.length < SearchService.minQueryLength
           ? const _SearchPrompt()
           : resultsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const LoadingView(),
               error: (_, __) => ErrorStateView(
                 message: "Couldn't load search results. Try again.",
                 onRetry: () => ref.invalidate(_searchResultsProvider),
@@ -225,17 +215,10 @@ class _ResultsList extends ConsumerWidget {
     String label,
     VoidCallback proceed,
   ) async {
-    final pin = await showParentalPinEntry(
-        context, 'Enter admin PIN to unlock "$label"');
-    if (pin == null) return;
-    if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Incorrect PIN')));
-      }
-      return;
+    if (await promptAdminPin(
+        context, ref, 'Enter admin PIN to unlock "$label"')) {
+      proceed();
     }
-    proceed();
   }
 
   @override
@@ -247,7 +230,7 @@ class _ResultsList extends ConsumerWidget {
         isCategoryLocked(
             c.groupTitle ?? 'Uncategorized', prefs, sessionUnlocked);
     bool genreLocked(String? genre) =>
-        prefs != null && _genreIsLocked(genre, prefs, sessionUnlocked);
+        prefs != null && isGenreLocked(genre, prefs, sessionUnlocked);
 
     final firstGroupIsChannels = results.channels.isNotEmpty;
     final firstGroupIsMovies = !firstGroupIsChannels && results.movies.isNotEmpty;

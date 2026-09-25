@@ -31,6 +31,9 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   late ScrollController _scrollController;
   final _now = DateTime.now();
   late DateTime _selectedDate = _dateOnly(_now);
+  // Held in state (rather than built inline in build()) so unrelated
+  // setState calls don't re-query the schedule; refreshed only on day change.
+  late Future<List<Programme>> _programmesFuture;
 
   Channel? _channel;
   Source? _source;
@@ -42,6 +45,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _programmesFuture = _loadProgrammes();
     // Scroll to current programme after first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
     _loadChannelInfo();
@@ -101,8 +105,15 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   bool get _canGoNext =>
       _selectedDate.isBefore(_dateOnly(_now.add(const Duration(days: 5))));
 
+  Future<List<Programme>> _loadProgrammes() => ref
+      .read(epgServiceProvider)
+      .getProgrammesForChannel(widget.channelId, _selectedDate);
+
   void _shiftDay(int delta) {
-    setState(() => _selectedDate = _selectedDate.add(Duration(days: delta)));
+    setState(() {
+      _selectedDate = _selectedDate.add(Duration(days: delta));
+      _programmesFuture = _loadProgrammes();
+    });
   }
 
   void _scrollToCurrent() {
@@ -185,7 +196,6 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final epg = ref.watch(epgServiceProvider);
     final showDaySwitcher = !_loadingChannel && (_channel?.hasCatchup ?? false);
 
     return Container(
@@ -256,8 +266,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
           ),
           const Divider(height: 1),
           FutureBuilder<List<Programme>>(
-            future:
-                epg.getProgrammesForChannel(widget.channelId, _selectedDate),
+            future: _programmesFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(

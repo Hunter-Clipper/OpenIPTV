@@ -19,16 +19,12 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 final _seriesDetailProvider =
     FutureProvider.family<Series?, String>((ref, id) async {
   final all = await ref.watch(appDatabaseProvider).getAllSeries();
-  try {
-    return all.firstWhere((s) => s.id == id);
-  } catch (_) {
-    return null;
-  }
+  return all.where((s) => s.id == id).firstOrNull;
 });
 
 final _seriesEpisodesProvider =
     StreamProvider.family<List<Episode>, String>((ref, seriesId) {
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final profileId = ref.watch(activeProfileIdProvider);
   return ref
       .watch(appDatabaseProvider)
       .watchEpisodesForSeries(seriesId, profileId: profileId);
@@ -68,27 +64,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           if (series == null) {
             return _ErrorScaffold(onBack: () => context.pop());
           }
-          return episodesAsync.when(
-            loading: () => _SeriesBody(
-              series: series,
-              isFav: isFav,
-              profileId: profile?.id,
-              episodes: const [],
-              selectedSeason: _selectedSeason,
-              onSeasonChanged: (s) =>
-                  setState(() => _selectedSeason = s),
-              loading: true,
-            ),
-            error: (_, __) => _SeriesBody(
-              series: series,
-              isFav: isFav,
-              profileId: profile?.id,
-              episodes: const [],
-              selectedSeason: _selectedSeason,
-              onSeasonChanged: (s) =>
-                  setState(() => _selectedSeason = s),
-              loading: false,
-            ),
+          final (episodes, loading) = episodesAsync.when(
+            loading: () => (const <Episode>[], true),
+            error: (_, __) => (const <Episode>[], false),
             data: (episodes) {
               // If no episodes in DB yet, fetch them lazily from the API.
               if (episodes.isEmpty) {
@@ -117,17 +95,17 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   }
                 });
               }
-              return _SeriesBody(
-                series: series,
-                isFav: isFav,
-                profileId: profile?.id,
-                episodes: episodes,
-                selectedSeason: _selectedSeason,
-                onSeasonChanged: (s) =>
-                    setState(() => _selectedSeason = s),
-                loading: false,
-              );
+              return (episodes, false);
             },
+          );
+          return _SeriesBody(
+            series: series,
+            isFav: isFav,
+            profileId: profile?.id,
+            episodes: episodes,
+            selectedSeason: _selectedSeason,
+            onSeasonChanged: (s) => setState(() => _selectedSeason = s),
+            loading: loading,
           );
         },
       ),
@@ -167,6 +145,7 @@ class _SeriesBody extends ConsumerWidget {
         .where((e) => e.season == selectedSeason)
         .toList()
       ..sort((a, b) => a.episode.compareTo(b.episode));
+    final nextEpisode = _nextPlayEpisode(episodes);
 
     return CustomScrollView(
       slivers: [
@@ -243,10 +222,10 @@ class _SeriesBody extends ConsumerWidget {
           ),
         ),
         // Continue / Next Episode card
-        if (_nextPlayEpisode(episodes) != null)
+        if (nextEpisode != null)
           SliverToBoxAdapter(
             child: _NextEpisodeCard(
-              episode: _nextPlayEpisode(episodes)!,
+              episode: nextEpisode,
               seriesId: series.id,
             ),
           ),
@@ -311,7 +290,7 @@ class _SeriesBody extends ConsumerWidget {
                 seriesId: series.id,
                 // Only the very first row when there's no Next Episode card
                 // above it claiming the initial D-pad focus already.
-                autofocus: i == 0 && _nextPlayEpisode(episodes) == null,
+                autofocus: i == 0 && nextEpisode == null,
               ),
               childCount: seasonEpisodes.length,
             ),
@@ -324,16 +303,9 @@ class _SeriesBody extends ConsumerWidget {
 
 // Returns the episode to highlight at the top of the detail screen:
 // first in-progress → first unwatched → null (all watched, nothing to highlight).
-Episode? _nextPlayEpisode(List<Episode> episodes) {
-  if (episodes.isEmpty) return null;
-  try {
-    return episodes.firstWhere((e) => e.isInProgress);
-  } catch (_) {}
-  try {
-    return episodes.firstWhere((e) => !e.isWatched);
-  } catch (_) {}
-  return null;
-}
+Episode? _nextPlayEpisode(List<Episode> episodes) =>
+    episodes.where((e) => e.isInProgress).firstOrNull ??
+    episodes.where((e) => !e.isWatched).firstOrNull;
 
 // ---------------------------------------------------------------------------
 // Next Episode / Continue card

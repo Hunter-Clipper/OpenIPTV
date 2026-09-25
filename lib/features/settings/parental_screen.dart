@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
@@ -39,7 +40,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
     if (prefs == null || activeProfile == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: LoadingView(),
       );
     }
 

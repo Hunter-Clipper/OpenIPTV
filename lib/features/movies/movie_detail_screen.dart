@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
@@ -14,7 +16,7 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 final _movieDetailProvider =
     StreamProvider.family<Movie?, String>((ref, id) {
-  final profileId = ref.watch(activeProfileProvider).valueOrNull?.id;
+  final profileId = ref.watch(activeProfileIdProvider);
   return ref.watch(appDatabaseProvider).watchMovieById(id, profileId: profileId);
 });
 
@@ -36,7 +38,7 @@ class MovieDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       body: movieAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingView(),
         error: (_, __) => _buildError(context),
         data: (movie) {
           if (movie == null) return _buildError(context);
@@ -162,11 +164,15 @@ class _MovieDetailBody extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _formatProgress(movie.watchedDuration),
+                        movie.watchedDuration == null
+                            ? '0:00'
+                            : formatClock(movie.watchedDuration!),
                         style: theme.textTheme.bodySmall,
                       ),
                       Text(
-                        _formatDuration(movie.totalDuration),
+                        movie.totalDuration == null
+                            ? ''
+                            : formatRuntime(movie.totalDuration!),
                         style: theme.textTheme.bodySmall,
                       ),
                     ],
@@ -211,22 +217,6 @@ class _MovieDetailBody extends ConsumerWidget {
       ],
     );
   }
-
-  String _formatProgress(Duration? d) {
-    if (d == null) return '0:00';
-    final h = d.inHours;
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
-  }
-
-  String _formatDuration(Duration? d) {
-    if (d == null) return '';
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    if (h > 0) return '${h}h ${m}m';
-    return '${d.inMinutes}m';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -241,14 +231,15 @@ class _ActionButtons extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (movie.isInProgress) {
+      final watched = movie.watchedDuration;
+      final resumeLabel = watched == null ? '0:00' : formatClock(watched);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FilledButton.icon(
             autofocus: true,
             icon: const Icon(Icons.play_arrow),
-            label: Text(
-                'Resume from ${_formatShort(movie.watchedDuration)}'),
+            label: Text('Resume from $resumeLabel'),
             onPressed: () => context.push('/player', extra: {
               'streamUrl': movie.streamUrl,
               'title': movie.title,
@@ -301,14 +292,6 @@ class _ActionButtons extends ConsumerWidget {
         'contentType': 'movie',
       }),
     );
-  }
-
-  String _formatShort(Duration? d) {
-    if (d == null) return '0:00';
-    final h = d.inHours;
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 }
 

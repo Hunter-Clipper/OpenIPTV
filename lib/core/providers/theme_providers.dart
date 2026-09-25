@@ -11,7 +11,7 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 // Use notifier.state = x to update; app reads reactively via ref.watch.
 
 final accentColorProvider =
-    StateProvider<Color>((ref) => AppTheme.accentFromHex('0A84FF'));
+    StateProvider<Color>((ref) => AppTheme.defaultAccent);
 
 final contentSortProvider = StateProvider<String>((ref) => 'provider');
 

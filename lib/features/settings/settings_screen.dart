@@ -12,8 +12,10 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -109,7 +111,7 @@ class SettingsScreen extends ConsumerWidget {
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
-                    onTap: () => _openSourcesPage(context, ref),
+                    onTap: () => _openSourcesPage(context),
                   ),
                 );
               }),
@@ -330,7 +332,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _openSourcesPage(BuildContext context, WidgetRef ref) {
+  void _openSourcesPage(BuildContext context) {
     // Sources management: show a simple list with delete + refresh options.
     // Full sources page is a future enhancement; for Phase 1 we show a sheet.
     showModalBottomSheet(
@@ -866,8 +868,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
               ],
             ),
           ),
-          if (sourcesAsync.valueOrNull != null &&
-              sourcesAsync.valueOrNull!.length > 1)
+          if ((sourcesAsync.valueOrNull?.length ?? 0) > 1)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
@@ -878,8 +879,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
           const Divider(height: 1),
           Expanded(
             child: sourcesAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const LoadingView(),
               error: (_, __) =>
                   const Center(child: Text("Couldn't load playlists.")),
               data: (sources) {
@@ -1023,12 +1023,7 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
 
   Future<void> _fetchInfo() async {
     setState(() { _loading = true; _error = null; });
-    final client = XtreamClient(
-      host: widget.source.xtreamHost!,
-      username: widget.source.xtreamUsername!,
-      password: widget.source.xtreamPassword!,
-      sourceId: widget.source.id,
-    );
+    final client = XtreamClient.fromSource(widget.source);
     try {
       final info = await client.getServerInfo();
       if (mounted) {
@@ -1050,7 +1045,7 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
     final epoch = int.tryParse(value.toString());
     if (epoch == null || epoch == 0) return '—';
     final dt = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    return formatYmd(dt);
   }
 
   @override
@@ -1079,9 +1074,7 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
                 _InfoRow('EPG URL', source.epgUrl!),
               _InfoRow(
                 'Last refreshed',
-                lastRefreshed != null
-                    ? '${lastRefreshed.year}-${lastRefreshed.month.toString().padLeft(2, '0')}-${lastRefreshed.day.toString().padLeft(2, '0')}'
-                    : 'Never',
+                lastRefreshed != null ? formatYmd(lastRefreshed) : 'Never',
               ),
             ] else if (_loading) ...[
               const Center(

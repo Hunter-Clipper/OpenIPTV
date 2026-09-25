@@ -39,12 +39,7 @@ Future<void> launchCatchup({
     return;
   }
 
-  final client = XtreamClient(
-    host: source.xtreamHost!,
-    username: source.xtreamUsername!,
-    password: source.xtreamPassword!,
-    sourceId: source.id,
-  );
+  final client = XtreamClient.fromSource(source);
   final url = client.buildCatchupUrl(
       channel.streamId!, programme.start, programme.duration);
   client.dispose();

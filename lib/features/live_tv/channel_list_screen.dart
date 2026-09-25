@@ -31,8 +31,7 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // ---------------------------------------------------------------------------
 
 final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
-  final profileId =
-      ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id));
+  final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
   return db.watchRecentChannels(profileId);
@@ -43,6 +42,20 @@ final _nowProgrammeProvider =
     FutureProvider.autoDispose.family<Programme?, String>((ref, channelId) {
   return ref.read(epgServiceProvider).getCurrentProgramme(channelId);
 });
+
+/// Re-fetches channels for every source, then reloads [allChannelsProvider].
+/// Shared pull-to-refresh handler for the category list and category screens.
+Future<void> _refreshAllChannels(WidgetRef ref) async {
+  try {
+    final sources = await ref.read(allSourcesProvider.future);
+    for (final s in sources) {
+      await ref.read(sourceManagerProvider).refreshChannels(s);
+    }
+  } finally {
+    ref.invalidate(allChannelsProvider);
+    await ref.read(allChannelsProvider.future);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -56,18 +69,6 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
-  Future<void> _refreshChannels() async {
-    try {
-      final sources = await ref.read(allSourcesProvider.future);
-      for (final s in sources) {
-        await ref.read(sourceManagerProvider).refreshChannels(s);
-      }
-    } finally {
-      ref.invalidate(allChannelsProvider);
-      await ref.read(allChannelsProvider.future);
-    }
-  }
-
   List<String> _buildCategories(
       List<Channel> channels, Set<String> hidden, String sort) {
     // Preserve first-appearance order (channels are already in provider/sortOrder
@@ -83,23 +84,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   }
 
   Future<void> _tapCategory(String cat) async {
-    final prefs = ref.read(appPreferencesProvider).valueOrNull;
-    final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
-    if (prefs != null && isCategoryLocked(cat, prefs, sessionUnlocked)) {
-      final pin = await showParentalPinEntry(
-          context, 'Enter admin PIN to unlock "$cat"');
-      if (!mounted || pin == null) return;
-      if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect PIN')));
-        return;
-      }
-      ref.read(parentalSessionUnlockedProvider.notifier).state = {
-        ...ref.read(parentalSessionUnlockedProvider),
-        cat,
-      };
-    }
+    if (!await ensureCategoryUnlocked(context, ref, cat)) return;
     if (mounted) {
       unawaited(context.push('/live/category/${Uri.encodeComponent(cat)}'));
     }
@@ -153,7 +138,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             catCounts[cat] = (catCounts[cat] ?? 0) + 1;
           }
           return RefreshIndicator(
-            onRefresh: _refreshChannels,
+            onRefresh: () => _refreshAllChannels(ref),
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
@@ -228,17 +213,6 @@ class LiveCategoryScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
-  Future<void> _refresh() async {
-    try {
-      final sources = await ref.read(allSourcesProvider.future);
-      for (final s in sources) {
-        await ref.read(sourceManagerProvider).refreshChannels(s);
-      }
-    } finally {
-      ref.invalidate(allChannelsProvider);
-      await ref.read(allChannelsProvider.future);
-    }
-  }
 
   static Future<void> _refreshStatic() async {}
 
@@ -310,7 +284,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
           if (viewMode == 'grid') {
             final cols = PlatformHelper.posterColumns(context);
             return RefreshIndicator(
-              onRefresh: _refresh,
+              onRefresh: () => _refreshAllChannels(ref),
               child: GridView.builder(
                 key: ValueKey('${widget.category}_grid'),
                 padding: const EdgeInsets.all(12),
@@ -333,7 +307,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
             );
           }
           return RefreshIndicator(
-            onRefresh: _refresh,
+            onRefresh: () => _refreshAllChannels(ref),
             child: ListView.builder(
               key: ValueKey('${widget.category}_list'),
               itemCount: channels.length,
@@ -351,6 +325,36 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Channel tile actions (shared by grid card and list row)
+// ---------------------------------------------------------------------------
+
+void _playChannel(BuildContext context, Channel channel) {
+  context.push('/player', extra: {
+    'streamUrl': channel.streamUrl,
+    'title': channel.name,
+    'contentType': 'live',
+    'contentId': channel.id,
+  });
+}
+
+void _showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
+    String profileId, bool isFavorite) {
+  HapticFeedback.mediumImpact();
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (_) => _ChannelOptionsSheet(
+      isFavorite: isFavorite,
+      onToggle: () async {
+        await ref
+            .read(profileServiceProvider)
+            .toggleFavoriteChannel(profileId, channel.id);
+        ref.invalidate(activeProfileProvider);
+      },
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -374,29 +378,11 @@ class _ChannelGridCard extends ConsumerWidget {
     return TvFocusable(
       borderRadius: BorderRadius.circular(10),
       ensureVisibleOnFocus: true,
-      onTap: () => context.push('/player', extra: {
-        'streamUrl': channel.streamUrl,
-        'title': channel.name,
-        'contentType': 'live',
-        'contentId': channel.id,
-      }),
+      onTap: () => _playChannel(context, channel),
       onLongPress: profileId == null
           ? null
-          : () {
-              HapticFeedback.mediumImpact();
-              showModalBottomSheet<void>(
-                context: context,
-                builder: (_) => _ChannelOptionsSheet(
-                  isFavorite: isFavorite,
-                  onToggle: () async {
-                    await ref
-                        .read(profileServiceProvider)
-                        .toggleFavoriteChannel(profileId!, channel.id);
-                    ref.invalidate(activeProfileProvider);
-                  },
-                ),
-              );
-            },
+          : () => _showChannelOptions(
+              context, ref, channel, profileId!, isFavorite),
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
@@ -477,29 +463,11 @@ class _ChannelRow extends ConsumerWidget {
     final theme = Theme.of(context);
     return TvFocusable(
       ensureVisibleOnFocus: true,
-      onTap: () => context.push('/player', extra: {
-        'streamUrl': channel.streamUrl,
-        'title': channel.name,
-        'contentType': 'live',
-        'contentId': channel.id,
-      }),
+      onTap: () => _playChannel(context, channel),
       onLongPress: profileId == null
           ? null
-          : () {
-              HapticFeedback.mediumImpact();
-              showModalBottomSheet<void>(
-                context: context,
-                builder: (_) => _ChannelOptionsSheet(
-                  isFavorite: isFavorite,
-                  onToggle: () async {
-                    await ref
-                        .read(profileServiceProvider)
-                        .toggleFavoriteChannel(profileId!, channel.id);
-                    ref.invalidate(activeProfileProvider);
-                  },
-                ),
-              );
-            },
+          : () => _showChannelOptions(
+              context, ref, channel, profileId!, isFavorite),
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

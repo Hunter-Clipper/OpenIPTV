@@ -43,9 +43,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   late final GoRouter _router;
   final _tooltipController = InfoTooltipController();
   bool _dbReady = false;
-  // True once user has picked (or auto-selected) a profile this session.
-  bool _profilePicked = false;
-  // True when multiple profiles exist and user must actively choose.
+  // True while multiple profiles exist and the user hasn't picked one yet
+  // this session.
   bool _needsProfilePick = false;
 
   @override
@@ -107,7 +106,6 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       setState(() {
         _dbReady = true;
         _needsProfilePick = needsPick;
-        _profilePicked = !needsPick;
       });
     }
   }
@@ -199,8 +197,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             ),
           ],
         ),
-        // Detail pages on the root navigator so _RootNavObserver tracks depth
-        // and Shell's back handler returns false (same as Settings/Player).
+        // Detail pages on the root navigator, outside the shell (same as
+        // Settings/Player).
         GoRoute(
           path: '/movies/:id',
           builder: (_, state) =>
@@ -268,17 +266,14 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 
     // Show profile picker before mounting the router when multiple
     // profiles exist and the user hasn't selected one this session.
-    if (_needsProfilePick && !_profilePicked) {
+    if (_needsProfilePick) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark(accent),
         darkTheme: AppTheme.dark(accent),
         themeMode: ThemeMode.dark,
         home: ProfilePickerScreen(
-          onPicked: () => setState(() {
-            _needsProfilePick = false;
-            _profilePicked = true;
-          }),
+          onPicked: () => setState(() => _needsProfilePick = false),
         ),
       );
     }
@@ -445,13 +440,13 @@ int _navIndexForLocation(BuildContext context) {
   return 0;
 }
 
-class _BottomNav extends ConsumerWidget {
+class _BottomNav extends StatelessWidget {
   const _BottomNav({required this.onBeforeNavigate});
 
   final void Function(int currentIndex, int newIndex) onBeforeNavigate;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final index = _navIndexForLocation(context);
 
     return BottomNavigationBar(
@@ -475,7 +470,7 @@ class _BottomNav extends ConsumerWidget {
 // touch-target sizing.
 // ---------------------------------------------------------------------------
 
-class _TvNavRail extends ConsumerWidget {
+class _TvNavRail extends StatelessWidget {
   const _TvNavRail({
     required this.onBeforeNavigate,
     required this.activeItemFocusNode,
@@ -488,7 +483,7 @@ class _TvNavRail extends ConsumerWidget {
   final FocusNode activeItemFocusNode;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final index = _navIndexForLocation(context);
 
@@ -627,15 +622,3 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Root navigator observer — tracks how many routes are stacked above the shell
-// ---------------------------------------------------------------------------
-
-// Module-level singleton: one router, one root observer.
-// ---------------------------------------------------------------------------
-
-extension ProfileGear on BuildContext {
-  void openSettings() => push('/settings');
-}
-

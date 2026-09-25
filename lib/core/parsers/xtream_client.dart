@@ -6,6 +6,7 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/series.dart';
+import 'package:open_iptv/core/models/source.dart';
 
 class XtreamException implements Exception {
   const XtreamException(this.message);
@@ -29,6 +30,16 @@ class XtreamClient {
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
+  /// Builds a client from an Xtream [Source]'s stored credentials.
+  factory XtreamClient.fromSource(Source source, {http.Client? httpClient}) =>
+      XtreamClient(
+        host: source.xtreamHost!,
+        username: source.xtreamUsername!,
+        password: source.xtreamPassword!,
+        sourceId: source.id,
+        httpClient: httpClient,
+      );
+
   final String host;
   final String username;
   final String password;
@@ -38,6 +49,9 @@ class XtreamClient {
   // 90 s is generous for large providers (8 MB series lists on slow mobile connections).
   static const _timeout = Duration(seconds: 90);
 
+  /// [host] with a guaranteed trailing slash.
+  String get _base => host.endsWith('/') ? host : '$host/';
+
   // ---------------------------------------------------------------------------
   // Server info
   // ---------------------------------------------------------------------------
@@ -45,7 +59,7 @@ class XtreamClient {
   /// Fetches user_info + server_info from the root player_api.php endpoint
   /// (no action param). Returns the raw map — caller picks the keys it needs.
   Future<Map<String, dynamic>> getServerInfo() async {
-    final uri = Uri.parse(host.endsWith('/') ? host : '$host/').replace(
+    final uri = Uri.parse(_base).replace(
       path: '/player_api.php',
       queryParameters: {'username': username, 'password': password},
     );
@@ -170,13 +184,17 @@ class XtreamClient {
     return List<Map<String, dynamic>>.from(epg as List);
   }
 
+  /// The provider's full XMLTV guide URL. Credentials are interpolated raw
+  /// (not URL-encoded), matching what's been persisted as `epgUrl` all along.
+  String get xmltvUrl =>
+      '${_base}xmltv.php?username=$username&password=$password';
+
   // ---------------------------------------------------------------------------
   // Stream URL builder
   // ---------------------------------------------------------------------------
 
   String buildStreamUrl(String streamId, String type, {String ext = 'ts'}) {
-    final base = host.endsWith('/') ? host : '$host/';
-    return '$base$type/$username/$password/$streamId.$ext';
+    return '$_base$type/$username/$password/$streamId.$ext';
   }
 
   /// Builds a catch-up (timeshift) stream URL for a past programme on a
@@ -195,7 +213,6 @@ class XtreamClient {
     Duration duration, {
     String ext = 'ts',
   }) {
-    final base = host.endsWith('/') ? host : '$host/';
     final utc = start.toUtc();
     final startStr = '${utc.year}-'
         '${utc.month.toString().padLeft(2, '0')}-'
@@ -203,7 +220,7 @@ class XtreamClient {
         '${utc.hour.toString().padLeft(2, '0')}-'
         '${utc.minute.toString().padLeft(2, '0')}';
     final minutes = duration.inMinutes.clamp(1, 1440);
-    return '${base}timeshift/$username/$password/$minutes/$startStr/$streamId.$ext';
+    return '${_base}timeshift/$username/$password/$minutes/$startStr/$streamId.$ext';
   }
 
   // ---------------------------------------------------------------------------
@@ -211,7 +228,7 @@ class XtreamClient {
   // ---------------------------------------------------------------------------
 
   Future<Map<String, dynamic>> _get(Map<String, String> action) async {
-    final uri = Uri.parse(host.endsWith('/') ? host : '$host/').replace(
+    final uri = Uri.parse(_base).replace(
       path: '/player_api.php',
       queryParameters: {
         'username': username,
