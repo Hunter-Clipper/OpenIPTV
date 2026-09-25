@@ -53,6 +53,9 @@ class NativeVideoPlayer(
     private var currentTracks: Tracks = Tracks.EMPTY
     private var videoWidth = 0
     private var videoHeight = 0
+    // Non-square pixel ratio (anamorphic SD broadcasts, e.g. 720x576 shown
+    // as 16:9) — needed to compute the true display aspect ratio.
+    private var pixelRatio = 1f
     private val positionUpdater = object : Runnable {
         override fun run() {
             emitState()
@@ -77,6 +80,7 @@ class NativeVideoPlayer(
             override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                 videoWidth = videoSize.width
                 videoHeight = videoSize.height
+                pixelRatio = videoSize.pixelWidthHeightRatio
                 emitState()
             }
             override fun onTracksChanged(tracks: Tracks) {
@@ -222,6 +226,7 @@ class NativeVideoPlayer(
             "completed" to (exoPlayer.playbackState == Player.STATE_ENDED),
             "videoWidth" to videoWidth,
             "videoHeight" to videoHeight,
+            "pixelRatio" to pixelRatio.toDouble(),
         )
         eventSink?.success(state)
     }

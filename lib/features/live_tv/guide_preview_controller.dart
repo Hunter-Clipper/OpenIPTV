@@ -23,6 +23,8 @@ class GuidePreviewController {
   /// Null until the native texture is ready.
   int? get textureId => _ready ? _player.textureId : null;
 
+  Stream<NativeVideoPlayerState> get stateStream => _player.stateStream;
+
   Future<void> tune(String streamUrl) async {
     await _createFuture;
     if (streamUrl == _currentUrl) return;

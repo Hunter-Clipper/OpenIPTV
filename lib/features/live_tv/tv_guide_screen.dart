@@ -14,6 +14,7 @@ import 'package:open_iptv/features/live_tv/guide_preview_controller.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/video_surface.dart';
 
 // ---------------------------------------------------------------------------
 // Layout constants
@@ -571,7 +572,10 @@ class _PreviewPanel extends StatelessWidget {
       child: preview?.textureId == null
           ? const Center(
               child: Icon(Icons.live_tv, color: Colors.white54, size: 32))
-          : Texture(textureId: preview!.textureId!),
+          : VideoSurface(
+              textureId: preview!.textureId!,
+              stateStream: preview!.stateStream,
+            ),
     );
   }
 }

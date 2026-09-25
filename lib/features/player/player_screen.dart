@@ -18,6 +18,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
@@ -755,7 +756,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Widget _buildVideoSurface() {
     if (!_textureReady) return const SizedBox.shrink();
-    return Texture(textureId: _playbackService.textureId);
+    return VideoSurface(
+      textureId: _playbackService.textureId,
+      stateStream: _playbackService.stateStream,
+      initialAspectRatio: _playbackService.lastState.aspectRatio,
+    );
   }
 
   Widget _buildCueOverlay() {

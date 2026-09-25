@@ -12,6 +12,7 @@ class NativeVideoPlayerState {
     required this.completed,
     required this.videoWidth,
     required this.videoHeight,
+    this.pixelRatio = 1.0,
   });
 
   final Duration position;
@@ -24,8 +25,15 @@ class NativeVideoPlayerState {
   // media_kit's videoParams.w>0 gave the buffering overlay.
   final int videoWidth;
   final int videoHeight;
+  // Pixel width/height ratio; 1.0 except for anamorphic content.
+  final double pixelRatio;
 
   bool get hasVideo => videoWidth > 0;
+
+  /// Display aspect ratio of the content, or null until the first frame.
+  double? get aspectRatio => videoWidth > 0 && videoHeight > 0
+      ? videoWidth * pixelRatio / videoHeight
+      : null;
 }
 
 /// One audio or subtitle/CC track, as reported by ExoPlayer's track model.
@@ -104,6 +112,7 @@ class NativeVideoPlayer {
             completed: map['completed'] as bool? ?? false,
             videoWidth: map['videoWidth'] as int? ?? 0,
             videoHeight: map['videoHeight'] as int? ?? 0,
+            pixelRatio: (map['pixelRatio'] as num?)?.toDouble() ?? 1.0,
           ));
       }
     });
