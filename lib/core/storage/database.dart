@@ -522,31 +522,39 @@ class AppDatabase extends _$AppDatabase {
   /// provider-advertised [Channel.catchupDays] of history instead, so the
   /// guide can be browsed back far enough to actually use it.
   Future<void> deleteOldProgrammes() async {
-    final defaultCutoff = DateTime.now().subtract(const Duration(hours: 1));
+    final now = DateTime.now();
+    final defaultCutoff = now.subtract(const Duration(hours: 1));
 
-    final catchupChannels = await (select(channels)
-          ..where((t) => t.catchupDays.isBiggerThanValue(0)))
-        .get();
+    // Subqueries rather than id lists: binding every catch-up channel id
+    // (thousands on some Xtream providers) exceeds SQLite's bound-parameter
+    // limit, and a DELETE per channel held the DB connection for ages.
+    BaseSelectStatement catchupIdsWhere(Expression<bool> filter) =>
+        selectOnly(channels)
+          ..addColumns([channels.id])
+          ..where(filter);
 
-    if (catchupChannels.isEmpty) {
-      await (delete(programmes)
-            ..where((t) => t.end.isSmallerThanValue(defaultCutoff)))
-          .go();
-      return;
-    }
-
-    final catchupIds = catchupChannels.map((c) => c.id).toList();
+    // Non-catch-up channels keep only the last hour.
     await (delete(programmes)
           ..where((t) =>
               t.end.isSmallerThanValue(defaultCutoff) &
-              t.channelId.isNotIn(catchupIds)))
+              t.channelId.isNotInQuery(
+                  catchupIdsWhere(channels.catchupDays.isBiggerThanValue(0)))))
         .go();
 
-    for (final c in catchupChannels) {
-      final cutoff = DateTime.now().subtract(Duration(days: c.catchupDays));
+    // Catch-up channels keep their advertised window — one DELETE per
+    // distinct window length (usually a handful), not per channel.
+    final windows = await (selectOnly(channels, distinct: true)
+          ..addColumns([channels.catchupDays])
+          ..where(channels.catchupDays.isBiggerThanValue(0)))
+        .map((r) => r.read(channels.catchupDays)!)
+        .get();
+    for (final days in windows) {
+      final cutoff = now.subtract(Duration(days: days));
       await (delete(programmes)
             ..where((t) =>
-                t.channelId.equals(c.id) & t.end.isSmallerThanValue(cutoff)))
+                t.end.isSmallerThanValue(cutoff) &
+                t.channelId.isInQuery(
+                    catchupIdsWhere(channels.catchupDays.equals(days)))))
           .go();
     }
   }
@@ -611,9 +619,13 @@ class AppDatabase extends _$AppDatabase {
     DateTime rangeEnd,
   ) async {
     if (channelIds.isEmpty) return [];
+    // Filtered by the (bounded) time window in SQL and by channel in Dart:
+    // `isIn(channelIds)` with a whole catalog's worth of ids (tens of
+    // thousands) exceeds SQLite's bound-parameter limit, fails, and left
+    // the guide grid completely empty.
+    final wanted = channelIds.toSet();
     final rows = await (select(programmes)
           ..where((t) =>
-              t.channelId.isIn(channelIds) &
               t.start.isSmallerThanValue(rangeEnd) &
               t.end.isBiggerThanValue(rangeStart))
           ..orderBy([
@@ -621,7 +633,10 @@ class AppDatabase extends _$AppDatabase {
             (t) => OrderingTerm.asc(t.start),
           ]))
         .get();
-    return rows.map(_programmeFromRow).toList();
+    return [
+      for (final r in rows)
+        if (wanted.contains(r.channelId)) _programmeFromRow(r),
+    ];
   }
 
   Future<List<model.Programme>> searchProgrammes(String query) async {
@@ -674,14 +689,29 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<model.Movie?> watchMovieById(String id, {String? profileId}) {
-    return (select(movies)..where((t) => t.id.equals(id)))
-        .watchSingleOrNull()
-        .asyncMap((row) async {
+    return _watchWithProgress(movies, () async {
+      final row = await (select(movies)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       if (row == null) return null;
       final merged =
           await _withMovieProgress([_movieFromRow(row)], profileId);
       return merged.first;
     });
+  }
+
+  /// Re-runs [load] now and whenever [content] or the watch-progress table
+  /// changes. A plain `select(content).watch()` misses progress saves (a
+  /// separate table), leaving Resume / watched markers stale until the
+  /// screen is rebuilt. Only for small per-item queries: every channel
+  /// start also writes watch progress, so a whole-catalog list here would
+  /// re-query on every zap.
+  Stream<T> _watchWithProgress<T>(
+      TableInfo content, Future<T> Function() load) async* {
+    yield await load();
+    await for (final _ in tableUpdates(
+        TableUpdateQuery.onAllTables([content, watchProgress]))) {
+      yield await load();
+    }
   }
 
   /// Movies with in-progress playback for [profileId], most recently watched first.
@@ -872,15 +902,17 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<model.Episode>> watchEpisodesForSeries(String seriesId,
       {String? profileId}) {
-    return (select(episodes)
-          ..where((t) => t.seriesId.equals(seriesId))
-          ..orderBy([
-            (t) => OrderingTerm.asc(t.season),
-            (t) => OrderingTerm.asc(t.episode),
-          ]))
-        .watch()
-        .asyncMap((rows) =>
-            _withEpisodeProgress(rows.map(_episodeFromRow).toList(), profileId));
+    return _watchWithProgress(episodes, () async {
+      final rows = await (select(episodes)
+            ..where((t) => t.seriesId.equals(seriesId))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.season),
+              (t) => OrderingTerm.asc(t.episode),
+            ]))
+          .get();
+      return _withEpisodeProgress(
+          rows.map(_episodeFromRow).toList(), profileId);
+    });
   }
 
   Future<void> upsertEpisodes(List<model.Episode> episodeList) async {

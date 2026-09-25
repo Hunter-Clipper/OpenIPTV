@@ -44,6 +44,8 @@ class NativeVideoTrack {
     required this.label,
     required this.language,
     required this.selected,
+    this.mimeType,
+    this.channel = -1,
   });
 
   factory NativeVideoTrack.fromMap(Map<Object?, Object?> map) {
@@ -53,6 +55,8 @@ class NativeVideoTrack {
       label: map['label'] as String,
       language: map['language'] as String?,
       selected: map['selected'] as bool,
+      mimeType: map['mimeType'] as String?,
+      channel: map['channel'] as int? ?? -1,
     );
   }
 
@@ -62,6 +66,10 @@ class NativeVideoTrack {
   final String label;
   final String? language;
   final bool selected;
+  // e.g. 'application/cea-608'; null if unknown.
+  final String? mimeType;
+  // CEA-608/708 caption channel/service number, or -1.
+  final int channel;
 }
 
 /// Dart wrapper around the native ExoPlayer-based video engine
@@ -133,11 +141,13 @@ class NativeVideoPlayer {
   Future<void> clearTextTrack() =>
       _control.invokeMethod('clearTextTrack', {'id': _textureId});
 
-  Future<void> open(String url, {String? streamTypeHint}) {
+  Future<void> open(String url,
+      {String? streamTypeHint, Duration? startPosition}) {
     return _control.invokeMethod('open', {
       'id': _textureId,
       'url': url,
       'streamTypeHint': streamTypeHint,
+      'startPositionMs': startPosition?.inMilliseconds ?? 0,
     });
   }
 

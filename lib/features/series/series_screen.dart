@@ -197,6 +197,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                             unawaited(HapticFeedback.mediumImpact());
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
+                              useRootNavigator: true,
                               builder: (_) => SafeArea(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -413,6 +414,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -499,6 +501,7 @@ void _showSeriesOptions(
       false;
   showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     builder: (_) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -655,6 +658,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -682,12 +686,13 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    // Build a series-id → posterUrl map so each episode card can show the
-    // series poster rather than a still frame (which is often absent).
-    final seriesPosterMap = <String, String?>{};
-    ref.watch(_allSeriesProvider).valueOrNull?.forEach((s) {
-      seriesPosterMap[s.id] = s.posterUrl;
-    });
+    // Series lookup so each episode card can show the series poster (stills
+    // are often absent) and name — "S01E01 · Episode 1" alone doesn't say
+    // which show it is.
+    final seriesById = {
+      for (final s in ref.watch(_allSeriesProvider).valueOrNull ?? const [])
+        s.id: s,
+    };
 
     return SizedBox(
       height: 160,
@@ -698,13 +703,16 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final ep = episodes[i];
-          final posterUrl = seriesPosterMap[ep.seriesId] ?? ep.stillUrl;
+          final series = seriesById[ep.seriesId];
+          final posterUrl = series?.posterUrl ?? ep.stillUrl;
           return TvFocusable(
             onTap: () => context.push('/player', extra: {
               'streamUrl': ep.streamUrl,
-              'title': '${ep.episodeLabel} – ${ep.title}',
+              'title': '${ep.episodeLabel} – ${ep.displayTitle}',
               'contentId': ep.id,
               'contentType': 'episode',
+              // Needed for Up Next to find the following episode.
+              'seriesId': ep.seriesId,
               'resumePosition': ep.watchedDuration,
             }),
             onLongPress: () => _showRemoveSheet(context, ref, ep),
@@ -764,19 +772,21 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    ep.episodeLabel,
+                    series?.title ?? ep.displayTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall!
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    series == null
+                        ? ep.episodeLabel
+                        : '${ep.episodeLabel} · ${ep.displayTitle}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall!.copyWith(
                       color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                  Text(
-                    ep.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall,
                   ),
                 ],
               ),

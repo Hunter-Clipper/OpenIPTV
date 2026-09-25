@@ -143,7 +143,7 @@ class _MovieDetailBody extends ConsumerWidget {
                       ],
                       if (movie.rating != null) ...[
                         const SizedBox(height: 6),
-                        _MetaChip(label: '⭐ ${movie.rating}'),
+                        _MetaChip(label: '⭐ ${formatRating(movie.rating!)}'),
                       ],
                     ],
                   ),
@@ -246,6 +246,7 @@ class _ActionButtons extends ConsumerWidget {
               'contentId': movie.id,
               'contentType': 'movie',
               'resumePosition': movie.watchedDuration,
+              'confirmResume': false,
             }),
           ),
           const SizedBox(height: 10),

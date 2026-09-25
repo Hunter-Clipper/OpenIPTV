@@ -121,6 +121,33 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     await ref.read(playbackServiceProvider).seekRelative(delta);
   }
 
+  /// User-facing name for a subtitle/CC track: its own label, else its
+  /// language, else the caption channel ("CC1"), else a numbered fallback.
+  /// Numbered by position when several tracks would otherwise read the same.
+  static String _trackLabel(
+      NativeVideoTrack t, int index, List<NativeVideoTrack> all) {
+    String base(NativeVideoTrack t) {
+      if (t.label.isNotEmpty) return t.label;
+      if (t.language?.isNotEmpty == true && t.language != 'und') {
+        return t.language!.toUpperCase();
+      }
+      final mime = t.mimeType ?? '';
+      // Broadcast captions: CEA-608 channel 1 / CEA-708 service 1 are the
+      // primary (almost always English) track; higher numbers are extras.
+      if (mime.contains('608')) {
+        return t.channel > 1 ? 'Captions ${t.channel}' : 'Captions';
+      }
+      if (mime.contains('708')) {
+        return t.channel > 1 ? 'Digital captions ${t.channel}' : 'Digital captions';
+      }
+      return 'Subtitles';
+    }
+
+    final name = base(t);
+    final duplicated = all.where((o) => base(o) == name).length > 1;
+    return duplicated ? '$name ${index + 1}' : name;
+  }
+
   void _showCcPicker(BuildContext context) {
     final realTracks = _tracks.where((t) => t.type == 'text').toList();
     if (realTracks.isEmpty && widget.isLive) {
@@ -158,12 +185,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                   Navigator.of(ctx).pop();
                 },
               ),
-              ...realTracks.map((t) {
-                final label = t.label.isNotEmpty
-                    ? t.label
-                    : (t.language?.isNotEmpty == true
-                        ? t.language!.toUpperCase()
-                        : 'Track ${t.id}');
+              ...realTracks.indexed.map((e) {
+                final (i, t) = e;
+                final label = _trackLabel(t, i, realTracks);
                 return ListTile(
                   leading: const Icon(Icons.subtitles_outlined),
                   title: Text(label),
@@ -453,6 +477,7 @@ class _Transport extends ConsumerWidget {
           tooltip: 'Back 10 seconds',
           onTap: onRewind,
           size: m.skipSize,
+          filled: true,
         ),
         SizedBox(width: m.transportGap),
         StreamBuilder<NativeVideoPlayerState>(
@@ -476,6 +501,7 @@ class _Transport extends ConsumerWidget {
           tooltip: 'Forward 10 seconds',
           onTap: onForward,
           size: m.skipSize,
+          filled: true,
         ),
       ],
     );
@@ -512,9 +538,14 @@ List<Widget> _actionButtons({
       _PlayerButton(
         icon: isFav ? Icons.star : Icons.star_border,
         tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
-        onTap: () => ref
-            .read(profileServiceProvider)
-            .toggleFavoriteChannel(profile.id, favoriteChannelId),
+        onTap: () async {
+          await ref
+              .read(profileServiceProvider)
+              .toggleFavoriteChannel(profile.id, favoriteChannelId);
+          // The profile provider caches favorites; refresh so the star
+          // (and the channel lists behind the player) reflect the change.
+          if (context.mounted) ref.invalidate(activeProfileProvider);
+        },
         size: m.actionSize,
         active: isFav,
       ),
@@ -904,7 +935,8 @@ class _PlayerButton extends StatefulWidget {
   final VoidCallback onTap;
   final double size;
   final FocusNode? focusNode;
-  // Primary action (play/pause): translucent fill even when unfocused.
+  // Floats over the picture (the centred transport), where the scrim is
+  // clear: a dark translucent disc keeps it legible over bright video.
   final bool filled;
   // On-state (CC on, favourited): icon in the accent colour.
   final bool active;
@@ -930,9 +962,9 @@ class _PlayerButtonState extends State<_PlayerButton> {
     if (lit) {
       bg = Colors.white;
     } else if (_hovered) {
-      bg = Colors.white24;
+      bg = Colors.white.withValues(alpha: 0.24);
     } else if (widget.filled) {
-      bg = Colors.white.withValues(alpha: 0.16);
+      bg = Colors.black.withValues(alpha: 0.45);
     } else {
       bg = Colors.transparent;
     }

@@ -14,7 +14,6 @@ import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
-import 'package:open_iptv/features/onboarding/add_source_screen.dart';
 import 'package:open_iptv/features/onboarding/setup_wizard_screen.dart';
 import 'package:open_iptv/features/player/player_screen.dart';
 import 'package:open_iptv/features/search/search_screen.dart';
@@ -118,6 +117,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 
   GoRouter _buildRouter() {
     return GoRouter(
+      navigatorKey: _rootNavigatorKey,
       initialLocation: '/live',
       redirect: (context, state) async {
         final path = state.fullPath ?? '';
@@ -146,9 +146,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         ),
         GoRoute(
           path: '/onboarding',
-          builder: (_, __) => const AddSourceScreen(),
+          builder: (_, __) => const SetupWizardScreen(addPlaylistOnly: true),
         ),
         ShellRoute(
+          navigatorKey: _shellNavigatorKey,
           builder: (context, state, child) => _Shell(child: child),
           routes: [
             GoRoute(
@@ -227,6 +228,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               contentId: extra['contentId'] as String?,
               contentType: extra['contentType'] as String?,
               resumePosition: extra['resumePosition'] as Duration?,
+              confirmResume: extra['confirmResume'] as bool? ?? true,
               seriesId: extra['seriesId'] as String?,
             );
           },
@@ -292,6 +294,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   }
 }
 
+// Held so the native Back handler can see what's stacked above a root tab.
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
 class _Shell extends StatefulWidget {
   const _Shell({required this.child});
 
@@ -346,6 +352,18 @@ class _ShellState extends State<_Shell> {
 
   void _handleNativeBackPressed() {
     if (!mounted) return;
+    // Native blocks Back based on the shell's own location, which stays on
+    // the tab root while a page (/settings, /player, detail screens) or a
+    // dialog/bottom sheet sits above it. Anything stacked on top owns Back.
+    for (final nav in [
+      _rootNavigatorKey.currentState,
+      _shellNavigatorKey.currentState,
+    ]) {
+      if (nav != null && nav.canPop()) {
+        unawaited(nav.maybePop());
+        return;
+      }
+    }
     if (GoRouterState.of(context).uri.path != '/search') {
       // Live/Movies/Series root: absorb the press entirely — there's nowhere
       // for "back" to mean anything on a root tab.

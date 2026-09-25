@@ -76,8 +76,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final seen = <String>{};
     final cats = <String>[];
     for (final c in channels) {
-      final cat = c.groupTitle ?? 'Uncategorized';
-      if (!hidden.contains(cat) && seen.add(cat)) cats.add(cat);
+      for (final cat in c.categories) {
+        if (!hidden.contains(cat) && seen.add(cat)) cats.add(cat);
+      }
     }
     if (sort == 'az') cats.sort();
     return cats;
@@ -134,8 +135,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               ref.watch(_recentChannelsProvider).valueOrNull ?? [];
           final catCounts = <String, int>{};
           for (final c in all) {
-            final cat = c.groupTitle ?? 'Uncategorized';
-            catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+            for (final cat in c.categories) {
+              catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+            }
           }
           return RefreshIndicator(
             onRefresh: () => _refreshAllChannels(ref),
@@ -178,6 +180,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                             unawaited(HapticFeedback.mediumImpact());
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
+                              useRootNavigator: true,
                               builder: (_) =>
                                   _CategoryOptionsSheet(label: cat),
                             );
@@ -225,8 +228,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
       result = all.where((c) => favIds.contains(c.id)).toList();
     } else {
       result = all
-          .where(
-              (c) => (c.groupTitle ?? 'Uncategorized') == widget.category)
+          .where((c) => c.categories.contains(widget.category))
           .toList();
     }
     if (sort == 'az') {
@@ -345,6 +347,7 @@ void _showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
   HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     builder: (_) => _ChannelOptionsSheet(
       isFavorite: isFavorite,
       onToggle: () async {
@@ -472,9 +475,17 @@ class _ChannelRow extends ConsumerWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: _ChannelLogo(url: channel.logoUrl),
-        title:
+        // Name and now-playing line share the title slot: a ListTile given
+        // any `subtitle` (even an empty one, for channels without guide
+        // data) switches to two-line layout and pushes the name off-centre.
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Text(channel.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: _EpgSubtitle(channelId: channel.id),
+            _EpgSubtitle(channelId: channel.id),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -581,6 +592,7 @@ class _EpgSubtitle extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        const SizedBox(height: 2),
         Text(
           prog.title,
           maxLines: 1,
@@ -744,6 +756,7 @@ class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

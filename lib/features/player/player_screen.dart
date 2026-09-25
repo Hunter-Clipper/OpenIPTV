@@ -29,6 +29,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
     this.contentId,
     this.contentType,
     this.resumePosition,
+    this.confirmResume = true,
     this.seriesId,
   });
 
@@ -37,6 +38,11 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final String? contentId;
   final String? contentType;
   final Duration? resumePosition;
+  // False when the caller's own button already was the choice ("Resume
+  // from 0:18") — asking "Resume watching?" again would be redundant. True
+  // for implicit resumes (tapping an in-progress episode), where the dialog
+  // is the only way to start over.
+  final bool confirmResume;
   // Only set for episodes — used to load the next episode on completion.
   final String? seriesId;
 
@@ -55,10 +61,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Focus so channel-up/down and the reveal-on-select key handler keep
   // working while the overlay is gone).
   final FocusNode _controlsFocusNode = FocusNode(
-    debugLabel: 'PlayerControls',
-    canRequestFocus: false,
-    skipTraversal: true,
-  );
+      debugLabel: 'PlayerControls',
+      canRequestFocus: false,
+      skipTraversal: true);
   // Focus lands here whenever the controls are revealed, so the D-pad can
   // navigate the overlay immediately without an extra "warm-up" press.
   final FocusNode _playPauseFocusNode = FocusNode(debugLabel: 'PlayPause');
@@ -150,21 +155,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // drives that UI once _liveDvrActive can flip either way.
   bool get _isChannelPlayback => _isLive || widget.contentType == 'catchup';
 
-  // ref can throw "Bad state: Cannot use ref after the widget was disposed"
-  // when read from dispose() — observed after popping straight back out of
-  // catch-up playback. Best-effort like _updateNowPlayingMetadata(): a failed
-  // profile lookup must never block the teardown that follows it.
-  String? get _profileId {
-    try {
-      return ref.read(activeProfileProvider).valueOrNull?.id;
-    } catch (_) {
-      return null;
-    }
-  }
+  // Captured while mounted and kept current via listenManual, because
+  // reading ref from dispose() throws ("Cannot use ref after the widget was
+  // disposed") — which previously made the exit-time progress save silently
+  // skip, so leaving a movie/episode part-way never saved its position.
+  String? _profileId;
 
   @override
   void initState() {
     super.initState();
+    _profileId = ref.read(activeProfileIdProvider);
+    ref.listenManual<String?>(
+        activeProfileIdProvider, (_, next) => _profileId = next);
     // Lock to landscape for immersive playback.
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
@@ -211,8 +213,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (s.duration > Duration.zero) _lastKnownDuration = s.duration;
         if (!_completionHandled) {
           final remaining = _lastKnownDuration - s.position;
-          final nearEnd =
-              _lastKnownDuration > Duration.zero &&
+          final nearEnd = _lastKnownDuration > Duration.zero &&
               s.position > Duration.zero &&
               remaining.inSeconds <= 3;
           if (s.completed || nearEnd) {
@@ -259,8 +260,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _retryCount++;
     setState(() => _isRecovering = true);
     debugPrint(
-      '[OTV-recovery] stall detected — attempt $_retryCount/$_maxRetries',
-    );
+        '[OTV-recovery] stall detected — attempt $_retryCount/$_maxRetries');
     final position = _isPlainLive ? null : _lastKnownPosition;
     await _playbackService.play(_currentUrl, startPosition: position);
     if (_isPlainLive && _liveOffset > Duration.zero) {
@@ -320,7 +320,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
       await _playbackService.resume();
     }
-    if (mounted) setState(() => _isBehindLive = _liveOffset > Duration.zero);
+    // Paused counts as behind live too — the offset only accrues on resume,
+    // but "GO LIVE" should be available (and the badge say so) right away.
+    if (mounted) {
+      setState(() =>
+          _isBehindLive = _livePausedAt != null || _liveOffset > Duration.zero);
+    }
   }
 
   Future<void> _onLiveRewind() async {
@@ -378,9 +383,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       return;
     }
     final maxWindow = Duration(days: channel!.catchupDays);
-    final window = _dvrWindowDefault < maxWindow
-        ? _dvrWindowDefault
-        : maxWindow;
+    final window =
+        _dvrWindowDefault < maxWindow ? _dvrWindowDefault : maxWindow;
     if (window <= Duration.zero) return;
     final windowStart = DateTime.now().subtract(window);
     final client = XtreamClient.fromSource(source!);
@@ -439,21 +443,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (channels == null || channels.isEmpty) return;
     final index = channels.indexWhere((c) => c.id == channel.id);
     if (index == -1) return;
-    final next =
-        channels[((index + delta) % channels.length + channels.length) %
+    final next = channels[
+        ((index + delta) % channels.length + channels.length) %
             channels.length];
     if (next.id == channel.id) return;
 
     _playbackService.markTransitioning();
-    context.pushReplacement(
-      '/player',
-      extra: {
-        'streamUrl': next.streamUrl,
-        'title': next.name,
-        'contentType': 'live',
-        'contentId': next.id,
-      },
-    );
+    context.pushReplacement('/player', extra: {
+      'streamUrl': next.streamUrl,
+      'title': next.name,
+      'contentType': 'live',
+      'contentId': next.id,
+    });
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -479,11 +480,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // only double as channel-up/down when this screen's own surface holds
     // focus directly (not one of the on-screen control buttons) — otherwise
     // they're left alone for normal control-to-control D-pad navigation.
-    final isUp =
-        key == LogicalKeyboardKey.channelUp ||
+    final isUp = key == LogicalKeyboardKey.channelUp ||
         (key == LogicalKeyboardKey.arrowUp && node.hasPrimaryFocus);
-    final isDown =
-        key == LogicalKeyboardKey.channelDown ||
+    final isDown = key == LogicalKeyboardKey.channelDown ||
         (key == LogicalKeyboardKey.arrowDown && node.hasPrimaryFocus);
     if (isUp) {
       unawaited(_changeChannel(1));
@@ -556,12 +555,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // Stamp last-watched time for live channels so Recently Watched updates.
     final profileId = _profileId;
     if (_isLive && widget.contentId != null && profileId != null) {
-      unawaited(
-        _playbackService.db.updateChannelLastWatched(
-          profileId,
-          widget.contentId!,
-        ),
-      );
+      unawaited(_playbackService.db
+          .updateChannelLastWatched(profileId, widget.contentId!));
     }
 
     // Show resume dialog if there is a saved position and user didn't
@@ -569,6 +564,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!_isLive &&
         widget.resumePosition != null &&
         widget.resumePosition!.inSeconds > 0 &&
+        widget.confirmResume &&
         !_resumeDialogShown) {
       _resumeDialogShown = true;
       if (!mounted) return;
@@ -610,31 +606,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (id != null) {
         if (_isLive) {
           final channel = await _playbackService.db.getChannelById(id);
-          if (channel?.logoUrl != null)
+          if (channel?.logoUrl != null) {
             artUri = Uri.tryParse(channel!.logoUrl!);
-          final programme = await ref
-              .read(epgServiceProvider)
-              .getCurrentProgramme(id);
+          }
+          final programme =
+              await ref.read(epgServiceProvider).getCurrentProgramme(id);
           artist = programme?.title;
         } else if (widget.contentType == 'movie') {
           final movie = await _playbackService.db.watchMovieById(id).first;
-          if (movie?.posterUrl != null)
+          if (movie?.posterUrl != null) {
             artUri = Uri.tryParse(movie!.posterUrl!);
+          }
         } else if (widget.contentType == 'episode') {
           final episode = await _playbackService.db.getEpisodeById(id);
-          if (episode?.stillUrl != null)
+          if (episode?.stillUrl != null) {
             artUri = Uri.tryParse(episode!.stillUrl!);
+          }
         }
       }
     } catch (_) {
       // Ignore — fall back to bare title below.
     }
     if (!mounted) return;
-    nowPlayingHandler.setNowPlaying(
-      widget.title,
-      artist: artist,
-      artUri: artUri,
-    );
+    nowPlayingHandler.setNowPlaying(widget.title,
+        artist: artist, artUri: artUri);
   }
 
   // Returns true=resume, false=start over, null=dismissed (tap outside → exit).
@@ -674,8 +669,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ? _lastKnownDuration
         : _playbackService.lastState.duration;
     debugPrint(
-      '[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s',
-    );
+        '[OTV-save] type=${widget.contentType} id=$id pos=${position.inSeconds}s total=${total.inSeconds}s');
     final profileId = _profileId;
     if (profileId == null) return;
     _saveProgress(profileId, id, position, total);
@@ -684,20 +678,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Dispatches to the movie or episode progress store; other content types
   // (live, catch-up) have no saved progress.
   Future<void> _saveProgress(
-    String profileId,
-    String id,
-    Duration position,
-    Duration total,
-  ) async {
+      String profileId, String id, Duration position, Duration total) async {
     if (widget.contentType == 'movie') {
       await _playbackService.saveMovieProgress(profileId, id, position, total);
     } else if (widget.contentType == 'episode') {
       await _playbackService.saveEpisodeProgress(
-        profileId,
-        id,
-        position,
-        total,
-      );
+          profileId, id, position, total);
     }
   }
 
@@ -722,10 +708,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     // For episodes: look for the next episode in the series.
     if (widget.contentType == 'episode' && widget.seriesId != null) {
-      final episodes = await _playbackService.db.getEpisodesForSeries(
-        widget.seriesId!,
-        profileId: profileId,
-      );
+      final episodes = await _playbackService.db
+          .getEpisodesForSeries(widget.seriesId!, profileId: profileId);
       final idx = episodes.indexWhere((e) => e.id == id);
       if (idx >= 0 && idx + 1 < episodes.length) {
         if (mounted) {
@@ -746,23 +730,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final ep = _nextEpisode;
     if (ep == null || !mounted) return;
     _navigatingToNext = true;
-    context.pushReplacement(
-      '/player',
-      extra: {
-        'streamUrl': ep.streamUrl,
-        'title': '${ep.episodeLabel} – ${ep.title}',
-        'contentId': ep.id,
-        'contentType': 'episode',
-        'seriesId': ep.seriesId,
-        'resumePosition': ep.isInProgress ? ep.watchedDuration : null,
-      },
-    );
+    context.pushReplacement('/player', extra: {
+      'streamUrl': ep.streamUrl,
+      'title': '${ep.episodeLabel} – ${ep.displayTitle}',
+      'contentId': ep.id,
+      'contentType': 'episode',
+      'seriesId': ep.seriesId,
+      'resumePosition': ep.isInProgress ? ep.watchedDuration : null,
+    });
   }
 
   void _resetHideTimer() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) _hideControls();
+      if (!mounted) return;
+      // Like mainstream players, keep the controls up while paused (the
+      // user is likely about to act on them); re-check until playback
+      // resumes, then hide as normal.
+      if (!_playbackService.lastState.playing && !_isBuffering) {
+        _resetHideTimer();
+        return;
+      }
+      _hideControls();
     });
   }
 
@@ -882,8 +871,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const CircularProgressIndicator(
-                                  color: Colors.white,
-                                ),
+                                    color: Colors.white),
                                 const SizedBox(height: 16),
                                 Text(
                                   _isRecovering
@@ -910,36 +898,43 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ignoring: !_controlsVisible,
                   child: ExcludeFocus(
                     excluding: !_controlsVisible,
-                    child: Focus(
-                      focusNode: _controlsFocusNode,
-                      child: Actions(
-                        actions: {
-                          DirectionalFocusIntent:
-                              EdgeAwareDirectionalFocusAction(
-                                directions: {
-                                  TraversalDirection.up,
-                                  TraversalDirection.left,
-                                },
-                                onNoMove: () => _backFocusNode.requestFocus(),
-                              ),
-                        },
-                        child: PlayerControls(
-                          title: widget.title,
-                          contentType: _isChannelPlayback
-                              ? (_liveDvrActive ? 'catchup' : 'live')
-                              : widget.contentType,
-                          contentId: widget.contentId,
-                          isLive: _isChannelPlayback && !_liveDvrActive,
-                          isLiveDvr: _liveDvrActive,
-                          onLivePlayPause: _onLivePlayPause,
-                          onLiveRewind: _onLiveRewind,
-                          onLiveForward: _onLiveForward,
-                          onGoLive: _liveDvrActive
-                              ? _goLive
-                              : (_isBehindLive ? _goLiveLocal : null),
-                          isBehindLive: _isBehindLive,
-                          playPauseFocusNode: _playPauseFocusNode,
-                          backFocusNode: _backFocusNode,
+                    // Touch presses on the overlay restart the countdown, the
+                    // same as D-pad presses do via _onAnyKeyEvent.
+                    child: Listener(
+                      onPointerDown: (_) {
+                        if (_controlsVisible) _resetHideTimer();
+                      },
+                      child: Focus(
+                        focusNode: _controlsFocusNode,
+                        child: Actions(
+                          actions: {
+                            DirectionalFocusIntent:
+                                EdgeAwareDirectionalFocusAction(
+                              directions: {
+                                TraversalDirection.up,
+                                TraversalDirection.left,
+                              },
+                              onNoMove: () => _backFocusNode.requestFocus(),
+                            ),
+                          },
+                          child: PlayerControls(
+                            title: widget.title,
+                            contentType: _isChannelPlayback
+                                ? (_liveDvrActive ? 'catchup' : 'live')
+                                : widget.contentType,
+                            contentId: widget.contentId,
+                            isLive: _isChannelPlayback && !_liveDvrActive,
+                            isLiveDvr: _liveDvrActive,
+                            onLivePlayPause: _onLivePlayPause,
+                            onLiveRewind: _onLiveRewind,
+                            onLiveForward: _onLiveForward,
+                            onGoLive: _liveDvrActive
+                                ? _goLive
+                                : (_isBehindLive ? _goLiveLocal : null),
+                            isBehindLive: _isBehindLive,
+                            playPauseFocusNode: _playPauseFocusNode,
+                            backFocusNode: _backFocusNode,
+                          ),
                         ),
                       ),
                     ),
@@ -1036,7 +1031,7 @@ class _UpNextBannerState extends State<_UpNextBanner> {
             ),
             const SizedBox(height: 6),
             Text(
-              '${widget.episode.episodeLabel} – ${widget.episode.title}',
+              '${widget.episode.episodeLabel} – ${widget.episode.displayTitle}',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -1069,10 +1064,8 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                 TextButton(
                   onPressed: widget.onDismiss,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text(
@@ -1102,11 +1095,8 @@ class _ErrorOverlay extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.signal_wifi_connected_no_internet_4,
-          color: Colors.white54,
-          size: 48,
-        ),
+        const Icon(Icons.signal_wifi_connected_no_internet_4,
+            color: Colors.white54, size: 48),
         const SizedBox(height: 16),
         Text(
           title,

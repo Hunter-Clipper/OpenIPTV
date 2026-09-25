@@ -22,6 +22,20 @@ class Channel {
   final String? logoUrl;
   final String streamUrl;
   final String? groupTitle;
+
+  /// The categories this channel is listed under. Some playlists (notably
+  /// iptv-org) put several in one group-title, separated by ';'
+  /// ("Culture;Entertainment;News") — treating that as a single category
+  /// produced hundreds of one-channel folders.
+  List<String> get categories {
+    final parts = (groupTitle ?? '')
+        .split(';')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    return parts.isEmpty ? const ['Uncategorized'] : parts;
+  }
+
   final String? tvgId;
   final String? tvgName;
   final bool isFavorite;

@@ -100,7 +100,7 @@ class NativeVideoPlayer(
         mainHandler.post(positionUpdater)
     }
 
-    fun open(url: String, streamTypeHint: String?) {
+    fun open(url: String, streamTypeHint: String?, startPositionMs: Long = 0L) {
         val mediaItem = MediaItem.fromUri(url)
         val dataSourceFactory = DefaultDataSource.Factory(appContext)
         val mediaSource = when (streamTypeHint) {
@@ -121,7 +121,13 @@ class NativeVideoPlayer(
             // ExtractorsFactory auto-detects and handles these correctly.
             else -> ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
         }
-        exoPlayer.setMediaSource(mediaSource)
+        // Starting at the resume point directly (rather than seeking once the
+        // duration is known) avoids briefly playing from 0 and then jumping.
+        if (startPositionMs > 0) {
+            exoPlayer.setMediaSource(mediaSource, startPositionMs)
+        } else {
+            exoPlayer.setMediaSource(mediaSource)
+        }
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
     }
@@ -182,8 +188,12 @@ class NativeVideoPlayer(
                 result.add(mapOf(
                     "id" to "$groupIndex:$trackIndex",
                     "type" to typeStr,
-                    "label" to (format.label ?: format.language ?: "Track $trackIndex"),
+                    // Raw details only — Dart builds the user-facing label
+                    // (a bare per-group index isn't unique across groups).
+                    "label" to (format.label ?: ""),
                     "language" to format.language,
+                    "mimeType" to format.sampleMimeType,
+                    "channel" to format.accessibilityChannel,
                     "selected" to group.isTrackSelected(trackIndex),
                 ))
             }
@@ -294,6 +304,7 @@ class NativeVideoPlayerManager(
                 players[idArg(call)]?.open(
                     call.argument<String>("url") ?: "",
                     call.argument<String>("streamTypeHint"),
+                    call.argument<Number>("startPositionMs")?.toLong() ?: 0L,
                 )
                 result.success(null)
             }

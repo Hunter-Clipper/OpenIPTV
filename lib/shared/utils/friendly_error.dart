@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
+
 /// Maps a raw exception thrown while adding/refreshing an IPTV source into
 /// a single canonical user-friendly message. Used by both onboarding flows
 /// and the Settings source-refresh actions, which all hit the same class of
@@ -7,7 +12,11 @@ String friendlySourceErrorMessage(Object error) {
   final msg = error.toString();
   if (msg.contains('http_401') || msg.contains('http_403')) {
     return "Your username or password doesn't seem right. Check with your provider.";
-  } else if (msg.contains('timeout') || msg.contains('SocketException')) {
+  } else if (error is TimeoutException ||
+      error is SocketException ||
+      // package:http wraps socket failures (e.g. DNS lookup) in a
+      // ClientException whose message never mentions SocketException.
+      error is http.ClientException) {
     return "Couldn't reach this server. Check your internet connection and try again.";
   } else if (msg.contains('http_')) {
     return "This link doesn't look like a valid channel list. Check the URL with your provider.";

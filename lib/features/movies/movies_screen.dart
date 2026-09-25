@@ -199,6 +199,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                             unawaited(HapticFeedback.mediumImpact());
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
+                              useRootNavigator: true,
                               builder: (_) => SafeArea(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -421,6 +422,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -553,6 +555,7 @@ void _showMovieOptions(
       false;
   showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     builder: (_) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,

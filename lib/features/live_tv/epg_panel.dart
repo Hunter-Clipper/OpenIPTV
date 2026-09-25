@@ -46,8 +46,6 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
     super.initState();
     _scrollController = ScrollController();
     _programmesFuture = _loadProgrammes();
-    // Scroll to current programme after first frame.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
     _loadChannelInfo();
   }
 
@@ -105,9 +103,15 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
   bool get _canGoNext =>
       _selectedDate.isBefore(_dateOnly(_now.add(const Duration(days: 5))));
 
-  Future<List<Programme>> _loadProgrammes() => ref
-      .read(epgServiceProvider)
-      .getProgrammesForChannel(widget.channelId, _selectedDate);
+  Future<List<Programme>> _loadProgrammes() async {
+    final list = await ref
+        .read(epgServiceProvider)
+        .getProgrammesForChannel(widget.channelId, _selectedDate);
+    // Once the list has laid out, bring what's on now into view (today) or
+    // start from the beginning (any other day).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent(list));
+    return list;
+  }
 
   void _shiftDay(int delta) {
     setState(() {
@@ -116,16 +120,17 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
     });
   }
 
-  void _scrollToCurrent() {
-    if (!_scrollController.hasClients) return;
-    // Each programme card is approximately 180px wide with 8px gap.
-    // This is a best-effort scroll; exact position depends on programme count.
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+  void _scrollToCurrent(List<Programme> programmes) {
+    if (!mounted || !_scrollController.hasClients) return;
+    final i = _isToday ? programmes.indexWhere((p) => p.end.isAfter(_now)) : 0;
+    final position = _scrollController.position;
+    _scrollController.jumpTo(
+      ((i < 0 ? 0 : i) * (_ProgrammeCard.width + _cardGap))
+          .clamp(0.0, position.maxScrollExtent),
     );
   }
+
+  static const _cardGap = 8.0;
 
   /// A programme is catch-up-eligible once it has fully ended, the channel
   /// supports catch-up, and it falls within the provider's advertised
@@ -302,7 +307,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: programmes.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  separatorBuilder: (_, __) => const SizedBox(width: _cardGap),
                   itemBuilder: (context, i) {
                     final programme = programmes[i];
                     final catchupAvailable = _canCatchup(programme);
@@ -373,6 +378,9 @@ class _ProgrammeCard extends StatelessWidget {
     this.onTap,
   });
 
+  // Wide enough for a 12-hour time range beside the LIVE badge.
+  static const width = 200.0;
+
   final Programme programme;
   final DateTime now;
   final bool catchupAvailable;
@@ -397,7 +405,7 @@ class _ProgrammeCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          width: 180,
+          width: width,
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(12),
@@ -431,7 +439,8 @@ class _ProgrammeCard extends StatelessWidget {
                   ],
                   Expanded(
                     child: Text(
-                      '${_formatTime(programme.start)} – ${_formatTime(programme.end)}',
+                      '${_formatTime(context, programme.start)} – '
+                      '${_formatTime(context, programme.end)}',
                       style: theme.textTheme.bodySmall!.copyWith(
                         color: isDone
                             ? theme.colorScheme.onSurfaceVariant
@@ -488,9 +497,10 @@ class _ProgrammeCard extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
+  // Follows the device's 12/24-hour setting, matching the player overlay.
+  String _formatTime(BuildContext context, DateTime dt) =>
+      MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.fromDateTime(dt),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+      );
 }

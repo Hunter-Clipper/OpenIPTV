@@ -14,6 +14,7 @@ import 'package:open_iptv/features/live_tv/guide_preview_controller.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 
 // ---------------------------------------------------------------------------
@@ -82,8 +83,14 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _rangeStart = now.subtract(_windowBefore);
-    _rangeEnd = now.add(_windowAfter);
+    // Snap to the half hour so header ticks read 2:30 / 3:00 rather than
+    // 2:47 / 3:17, and open scrolled to the slot containing "now" so the
+    // programme already airing shows from its start (title visible) rather
+    // than clipped at the left edge.
+    final slotStart = DateTime(
+        now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
+    _rangeStart = slotStart.subtract(_windowBefore);
+    _rangeEnd = slotStart.add(_windowAfter);
     _nowTicker = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -216,19 +223,24 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
                             );
                           },
                         ),
-                        IgnorePointer(
-                          child: _NowLine(rangeStart: _rangeStart),
+                        _NowLine(
+                          rangeStart: _rangeStart,
+                          scrollController: _timeScrollController,
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: _PreviewPanel(preview: _preview),
-              ),
+              // The preview tunes to whichever row has D-pad focus, which
+              // only happens on TV; on touch it would just be an empty box
+              // covering the grid.
+              if (PlatformHelper.isTV(context))
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _PreviewPanel(preview: _preview),
+                ),
             ],
           );
         },
@@ -447,8 +459,11 @@ class _ProgrammeCell extends StatelessWidget {
 
   void _scrollIntoView() {
     if (!scrollController.hasClients) return;
-    final target =
-        left.clamp(0.0, scrollController.position.maxScrollExtent);
+    // The controller is shared by the header and every row, so
+    // `.position` (which requires exactly one attachment) would throw;
+    // they're all in sync, so any one of them gives the extent.
+    final target = left.clamp(
+        0.0, scrollController.positions.first.maxScrollExtent);
     scrollController.animateTo(
       target,
       duration: const Duration(milliseconds: 200),
@@ -531,20 +546,48 @@ class _ProgrammeCell extends StatelessWidget {
 // "Now" cursor line
 // ---------------------------------------------------------------------------
 
+/// Red "now" marker over the programme grid. Must be a direct Stack child
+/// (it's a Positioned — wrapping it, e.g. in IgnorePointer, throws and
+/// blanks the whole guide). Tracks the grid's horizontal scroll so it stays
+/// on the current time, and hides while that time is scrolled under the
+/// channel rail.
 class _NowLine extends StatelessWidget {
-  const _NowLine({required this.rangeStart});
+  const _NowLine({required this.rangeStart, required this.scrollController});
 
   final DateTime rangeStart;
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
     final minutesFromStart = DateTime.now().difference(rangeStart).inMinutes;
-    return Positioned(
-      left: _railWidth + minutesFromStart * _pxPerMinute,
-      top: 0,
-      bottom: 0,
-      width: 2,
-      child: Container(color: Theme.of(context).colorScheme.error),
+    final color = Theme.of(context).colorScheme.error;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: scrollController,
+          builder: (context, _) {
+            // Shared controller (header + every row) — `.offset` would
+            // throw with several attached; they're in sync, so use any.
+            final offset = scrollController.hasClients
+                ? scrollController.positions.first.pixels
+                : 0.0;
+            final left =
+                _railWidth + minutesFromStart * _pxPerMinute - offset;
+            if (left < _railWidth) return const SizedBox.shrink();
+            return Stack(
+              children: [
+                Positioned(
+                  left: left,
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  child: ColoredBox(color: color),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

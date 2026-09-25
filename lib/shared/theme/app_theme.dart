@@ -143,7 +143,14 @@ class AppTheme {
         tileColor: Colors.transparent,
       ),
       iconTheme: const IconThemeData(color: _onSurfaceVariant),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
+      // Explicit track: Material 3 draws it in secondaryContainer, which
+      // (unset here) falls back to secondary == primary — making every
+      // progress bar look 100% full regardless of its value.
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primary,
+        linearTrackColor: Colors.white.withValues(alpha: 0.15),
+        circularTrackColor: Colors.transparent,
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,

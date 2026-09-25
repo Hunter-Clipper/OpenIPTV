@@ -162,28 +162,41 @@ class SettingsScreen extends ConsumerWidget {
                 if (hours <= 0) return const SizedBox.shrink();
                 final notifyEnabled =
                     ref.watch(refreshNotificationsEnabledProvider);
-                return _ToggleTile(
-                  icon: Icons.notifications_outlined,
+                return InfoTooltip(
+                  id: 'settings_refresh_notifications',
                   title: 'Refresh Notifications',
-                  value: notifyEnabled,
-                  onChanged: (v) async {
-                    final prefs =
-                        await ref.read(appPreferencesProvider.future);
-                    await setRefreshNotificationsEnabled(ref, v, prefs);
-                  },
+                  body: 'Lets you know when a background refresh finishes, '
+                      'or if a playlist failed to refresh.',
+                  child: _ToggleTile(
+                    icon: Icons.notifications_outlined,
+                    title: 'Refresh Notifications',
+                    value: notifyEnabled,
+                    onChanged: (v) async {
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setRefreshNotificationsEnabled(ref, v, prefs);
+                    },
+                  ),
                 );
               }),
 
               // --------------- PARENTAL (admin only) ---------------
               const SectionHeader('Family'),
-              _NavTile(
-                leading: const Icon(Icons.family_restroom_outlined),
+              InfoTooltip(
+                id: 'settings_parental',
                 title: 'Parental Controls',
-                subtitle: Text(
-                  'PIN-protect adult and locked categories',
-                  style: theme.textTheme.bodySmall,
+                body: 'Hide adult categories and lock any category you '
+                    'choose behind an admin PIN. Locked categories stay '
+                    'unlocked until the app is restarted.',
+                child: _NavTile(
+                  leading: const Icon(Icons.family_restroom_outlined),
+                  title: 'Parental Controls',
+                  subtitle: Text(
+                    'PIN-protect adult and locked categories',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  onTap: () => context.push('/settings/parental'),
                 ),
-                onTap: () => context.push('/settings/parental'),
               ),
             ],
 
@@ -757,14 +770,18 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     }
   }
 
-  Future<void> _switchSource(BuildContext context, Source source) async {
+  /// [source] null = browse every playlist together.
+  Future<void> _switchSource(BuildContext context, Source? source) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Switch Playlist?'),
         content: Text(
-          'Switch to "${source.nickname}"?\n\n'
-          'The channel list, movies, and series will update to show only this playlist.',
+          source == null
+              ? 'Show all playlists together?\n\n'
+                  'The channel list, movies, and series will include every playlist.'
+              : 'Switch to "${source.nickname}"?\n\n'
+                  'The channel list, movies, and series will update to show only this playlist.',
         ),
         actions: [
           TvActivatable(
@@ -783,7 +800,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     );
     if (confirmed == true && mounted) {
       final prefs = await ref.read(appPreferencesProvider.future);
-      await setActiveSource(ref, source.id, prefs);
+      await setActiveSource(ref, source?.id, prefs);
     }
   }
 
@@ -856,8 +873,11 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                     style: Theme.of(context).textTheme.titleLarge),
                 TvActivatable(
                   onTap: () {
+                    // Grab the router before popping — this sheet's context
+                    // is torn down by the pop.
+                    final router = GoRouter.of(context);
                     Navigator.of(context).pop();
-                    context.push('/onboarding');
+                    router.push('/onboarding');
                   },
                   builder: (onTap) => FilledButton.icon(
                     icon: const Icon(Icons.add),
@@ -872,7 +892,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'Tap a playlist to make it active. Active playlist filters all content.',
+                'Choose which playlist to browse, or show them all together.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -887,11 +907,35 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                   return const Center(child: Text('No playlists yet.'));
                 }
                 final multiSource = sources.length > 1;
+                // With several playlists, a leading "All playlists" row makes
+                // the no-active-playlist state (everything merged) visible
+                // and selectable.
+                final allOffset = multiSource ? 1 : 0;
                 return ListView.builder(
                   controller: controller,
-                  itemCount: sources.length,
-                  itemBuilder: (context, i) {
-                    final s = sources[i];
+                  itemCount: sources.length + allOffset,
+                  itemBuilder: (context, index) {
+                    if (index < allOffset) {
+                      final allActive = activeSourceId == null;
+                      return TvActivatable(
+                        onTap: allActive
+                            ? null
+                            : () => _switchSource(context, null),
+                        builder: (onTap) => ListTile(
+                          leading: allActive
+                              ? Icon(Icons.check_circle,
+                                  color: Theme.of(context).colorScheme.primary)
+                              : const Icon(Icons.library_books_outlined),
+                          title: const Text('All playlists'),
+                          subtitle: Text(
+                            '${sources.length} playlists combined',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          onTap: onTap,
+                        ),
+                      );
+                    }
+                    final s = sources[index - allOffset];
                     final isActive = activeSourceId == s.id ||
                         (!multiSource && activeSourceId == null);
                     final isPlaylistRefreshing = _refreshingPlaylist.contains(s.id);
@@ -933,16 +977,13 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                               busy: isEpgRefreshing,
                               onTap: isBusy ? null : () => _refreshEpg(s.id),
                             ),
-                            TvActivatable(
+                            _SourceAction(
+                              icon: Icons.delete_outline,
+                              tooltip: 'Remove',
                               onTap: isBusy
                                   ? null
                                   : () =>
                                       _confirmDelete(context, s.id, s.nickname),
-                              builder: (onTap) => IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 20),
-                                tooltip: 'Remove',
-                                onPressed: onTap,
-                              ),
                             ),
                           ],
                         ),

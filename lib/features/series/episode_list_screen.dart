@@ -135,7 +135,7 @@ class _EpisodeRow extends StatelessWidget {
         total == null || total.inSeconds == 0 ? '' : formatRuntime(total);
     void onTap() => context.push('/player', extra: {
           'streamUrl': episode.streamUrl,
-          'title': '${episode.episodeLabel} – ${episode.title}',
+          'title': '${episode.episodeLabel} – ${episode.displayTitle}',
           'contentId': episode.id,
           'contentType': 'episode',
           'seriesId': episode.seriesId,
@@ -174,7 +174,7 @@ class _EpisodeRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    episode.title,
+                    episode.displayTitle,
                     style: theme.textTheme.bodyMedium,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

@@ -42,6 +42,17 @@ class Episode {
 
   String get episodeLabel => 'S${season.toString().padLeft(2, '0')}E${episode.toString().padLeft(2, '0')}';
 
+  /// The title to show users. Many providers set an episode's title to a
+  /// restatement like "EN - Friends - UNCUT (1994) - S01E01"; any title that
+  /// just embeds its own SxxEyy code is replaced with "Episode N", since the
+  /// label is already shown alongside it. Real titles pass through.
+  String get displayTitle {
+    final restatesCode = RegExp('S0*$season\\s*E0*$episode(?!\\d)',
+            caseSensitive: false)
+        .hasMatch(title);
+    return restatesCode || title.trim().isEmpty ? 'Episode $episode' : title;
+  }
+
   Episode copyWith({
     String? id,
     String? seriesId,

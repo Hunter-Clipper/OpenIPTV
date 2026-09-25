@@ -8,6 +8,7 @@ class SearchResults {
     required this.channels,
     required this.movies,
     required this.series,
+    this.nowPlaying = const {},
   });
 
   static const empty = SearchResults(
@@ -19,6 +20,9 @@ class SearchResults {
   final List<Channel> channels;
   final List<Movie> movies;
   final List<Series> series;
+  // Channel id → title of the matching programme airing now, so a channel
+  // surfaced by its programme (not its name) can say why it's there.
+  final Map<String, String> nowPlaying;
 
   bool get isEmpty =>
       channels.isEmpty && movies.isEmpty && series.isEmpty;
@@ -48,14 +52,20 @@ class SearchService {
     // Build set of channel IDs matched via EPG
     final epgMatchedIds = {for (final p in currentProgrammes) p.channelId};
 
-    final matchedChannels = channels
-        .where((c) =>
-            c.name.toLowerCase().contains(q) ||
-            epgMatchedIds.contains(c.id))
-        .toList();
+    // Name matches rank above channels found only via what's airing on them.
+    final nameMatches = <Channel>[];
+    final epgOnlyMatches = <Channel>[];
+    for (final c in channels) {
+      if (c.name.toLowerCase().contains(q)) {
+        nameMatches.add(c);
+      } else if (epgMatchedIds.contains(c.id)) {
+        epgOnlyMatches.add(c);
+      }
+    }
 
     return SearchResults(
-      channels: matchedChannels,
+      channels: [...nameMatches, ...epgOnlyMatches],
+      nowPlaying: {for (final p in currentProgrammes) p.channelId: p.title},
       movies: movies
           .where((m) => m.title.toLowerCase().contains(q))
           .toList(),

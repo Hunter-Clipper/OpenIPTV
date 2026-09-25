@@ -16,6 +16,9 @@ import 'package:open_iptv/shared/widgets/pin_keypad.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+String _firstName(String name) =>
+    name.trim().isNotEmpty ? name.trim().split(' ').first : 'there';
+
 /// A lighter tint of [color], used for the wizard's gradient accents.
 Color _lighten(Color color, [double amount = 0.3]) =>
     Color.lerp(color, Colors.white, amount)!;
@@ -24,8 +27,14 @@ Color _lighten(Color color, [double amount = 0.3]) =>
 // SetupWizardScreen
 // ---------------------------------------------------------------------------
 
+/// First-run setup (profile → PIN → playlist), or — with [addPlaylistOnly]
+/// — just the playlist steps, for adding another playlist to an existing
+/// install (Settings → Playlists → Add Playlist, or after every playlist has
+/// been deleted).
 class SetupWizardScreen extends ConsumerStatefulWidget {
-  const SetupWizardScreen({super.key});
+  const SetupWizardScreen({super.key, this.addPlaylistOnly = false});
+
+  final bool addPlaylistOnly;
 
   @override
   ConsumerState<SetupWizardScreen> createState() => _SetupWizardScreenState();
@@ -33,7 +42,11 @@ class SetupWizardScreen extends ConsumerStatefulWidget {
 
 class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     with TickerProviderStateMixin {
-  final _pageController = PageController();
+  // Playlist-only mode starts straight at the playlist-type page; the
+  // profile pages before it are never shown.
+  static const _playlistTypePage = 3;
+  late final _pageController = PageController(
+      initialPage: widget.addPlaylistOnly ? _playlistTypePage : 0);
 
   // Profile state
   final _nameCtrl = TextEditingController();
@@ -88,6 +101,15 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     )..repeat();
     _sparkleAngle = Tween(begin: 0.0, end: 2 * pi).animate(_sparkleCtrl);
 
+    if (widget.addPlaylistOnly) {
+      // Existing install — keep the user's accent, and give the D-pad its
+      // starting point on the first page shown.
+      _accentColor = ref.read(accentColorProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _xtreamCardFocusNode.requestFocus();
+      });
+    }
+
     // Autofocus on a TextField at page-transition time (rather than the
     // widget's own `autofocus: true`) is notoriously unreliable at getting
     // Android's soft keyboard to actually show — the IME often only shows
@@ -139,7 +161,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     super.dispose();
   }
 
-  void _goToPage(int page) {
+  void _goToPage(int page, {bool requestFocus = true}) {
     _pageController.animateToPage(
       page,
       duration: const Duration(milliseconds: 380),
@@ -156,7 +178,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       4 => _nicknameFocusNode,
       _ => null,
     };
-    if (focusNode != null) {
+    if (requestFocus && focusNode != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) focusNode.requestFocus();
       });
@@ -200,19 +222,21 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
       if (!mounted) return;
 
-      final prefs = await ref.read(appPreferencesProvider.future);
-      final db = ref.read(appDatabaseProvider);
-      final profileSvc = ProfileService(db: db, prefs: prefs);
-      await profileSvc.createProfile(
-        name: _nameCtrl.text.trim(),
-        avatarEmoji: _avatarEmoji,
-        pin: _pin.isEmpty ? null : _pin,
-        isAdmin: true,
-      );
+      if (!widget.addPlaylistOnly) {
+        final prefs = await ref.read(appPreferencesProvider.future);
+        final db = ref.read(appDatabaseProvider);
+        final profileSvc = ProfileService(db: db, prefs: prefs);
+        await profileSvc.createProfile(
+          name: _nameCtrl.text.trim(),
+          avatarEmoji: _avatarEmoji,
+          pin: _pin.isEmpty ? null : _pin,
+          isAdmin: true,
+        );
 
-      // Persist and apply the chosen accent colour immediately.
-      await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
-      ref.read(accentColorProvider.notifier).state = _accentColor;
+        // Persist and apply the chosen accent colour immediately.
+        await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
+        ref.read(accentColorProvider.notifier).state = _accentColor;
+      }
 
       if (!mounted) return;
       ref.invalidate(allSourcesProvider);
@@ -220,19 +244,36 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       _goToPage(6);
       unawaited(_checkCtrl.forward());
       await Future.delayed(const Duration(seconds: 3));
-      if (mounted) context.go('/live');
+      if (mounted) _finish();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = friendlySourceErrorMessage(e);
       });
-      _goToPage(4);
+      // On touch devices, refocusing the nickname field would pop the
+      // keyboard straight back up over the error; TV still needs a D-pad
+      // starting point.
+      _goToPage(4, requestFocus: PlatformHelper.isTV(context));
+    }
+  }
+
+  /// Back to wherever the wizard was opened from (Settings), or into the
+  /// app when it's the root route (first run, or no playlists left).
+  void _finish() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/live');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final addOnly = widget.addPlaylistOnly;
+    // Step dots count only the pages this mode actually shows.
+    final stepOffset = addOnly ? _playlistTypePage - 1 : 0;
+    final totalSteps = addOnly ? 2 : 4;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       resizeToAvoidBottomInset: true,
@@ -240,6 +281,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
+          // Placeholders keep page indices stable in playlist-only mode
+          // without building (and autofocusing) the profile pages.
+          if (addOnly) ...[
+            const SizedBox.shrink(),
+            const SizedBox.shrink(),
+            const SizedBox.shrink(),
+          ] else ...[
           _WelcomePage(onStart: () => _goToPage(1)),
           _NamePage(
             nameCtrl: _nameCtrl,
@@ -265,9 +313,14 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
               _goToPage(3);
             },
           ),
+          ],
           _PlaylistTypePage(
             accentColor: _accentColor,
             firstCardFocusNode: _xtreamCardFocusNode,
+            step: 2 - stepOffset,
+            totalSteps: totalSteps,
+            addingPlaylist: addOnly,
+            onBack: addOnly && context.canPop() ? () => context.pop() : null,
             onSelected: (type) {
               setState(() => _playlistType = type);
               _goToPage(4);
@@ -286,12 +339,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             m3uUrlCtrl: _m3uUrlCtrl,
             epgUrlCtrl: _epgUrlCtrl,
             errorMessage: _errorMessage,
+            step: 3 - stepOffset,
+            totalSteps: totalSteps,
             onBack: () => _goToPage(3),
             onSubmit: _isLoading ? null : _submitSource,
           ),
           _LoadingPage(message: _progressMessage, accentColor: _accentColor),
           _AllSetPage(
-            name: _nameCtrl.text.trim(),
+            headline: addOnly
+                ? 'Playlist added!'
+                : "You're all set, ${_firstName(_nameCtrl.text)}!",
             accentColor: _accentColor,
             checkScale: _checkScale,
             sparkleAngle: _sparkleAngle,
@@ -825,10 +882,20 @@ class _PlaylistTypePage extends StatelessWidget {
     required this.accentColor,
     required this.onSelected,
     required this.firstCardFocusNode,
+    required this.step,
+    required this.totalSteps,
+    this.addingPlaylist = false,
+    this.onBack,
   });
   final Color accentColor;
   final ValueChanged<SourceType> onSelected;
   final FocusNode firstCardFocusNode;
+  final int step;
+  final int totalSteps;
+  final bool addingPlaylist;
+  // Set when there's somewhere to go back to (playlist-only mode opened
+  // from Settings) — the first-run flow has no way back from here.
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -847,11 +914,36 @@ class _PlaylistTypePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: v(24)),
-                _StepIndicator(current: 2, total: 4, accentColor: accentColor),
+                // With a back arrow, the header is pulled left 12px to sit
+                // exactly where the credentials page's header does (that
+                // page has 12px less side padding), so it doesn't jump
+                // between steps.
+                Transform.translate(
+                  offset: Offset(onBack != null ? -12 : 0, 0),
+                  child: Row(
+                    children: [
+                      if (onBack != null) ...[
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back,
+                              color: Colors.white70),
+                          tooltip: 'Back',
+                          onPressed: onBack,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      _StepIndicator(
+                          current: step,
+                          total: totalSteps,
+                          accentColor: accentColor),
+                    ],
+                  ),
+                ),
                 SizedBox(height: v(36)),
-                const Text(
-                  'What kind of playlist\ndo you have?',
-                  style: TextStyle(
+                Text(
+                  addingPlaylist
+                      ? 'What kind of playlist\nare you adding?'
+                      : 'What kind of playlist\ndo you have?',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
@@ -1031,6 +1123,8 @@ class _CredentialsPage extends StatelessWidget {
     required this.m3uUrlCtrl,
     required this.epgUrlCtrl,
     required this.errorMessage,
+    required this.step,
+    required this.totalSteps,
     required this.onBack,
     required this.onSubmit,
     required this.nicknameFocusNode,
@@ -1048,6 +1142,8 @@ class _CredentialsPage extends StatelessWidget {
   final TextEditingController m3uUrlCtrl;
   final TextEditingController epgUrlCtrl;
   final String? errorMessage;
+  final int step;
+  final int totalSteps;
   final VoidCallback onBack;
   final VoidCallback? onSubmit;
 
@@ -1074,7 +1170,9 @@ class _CredentialsPage extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       _StepIndicator(
-                          current: 3, total: 4, accentColor: accentColor),
+                          current: step,
+                          total: totalSteps,
+                          accentColor: accentColor),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1396,21 +1494,19 @@ class _LoadingPageState extends State<_LoadingPage>
 
 class _AllSetPage extends StatelessWidget {
   const _AllSetPage({
-    required this.name,
+    required this.headline,
     required this.accentColor,
     required this.checkScale,
     required this.sparkleAngle,
   });
 
-  final String name;
+  final String headline;
   final Color accentColor;
   final Animation<double> checkScale;
   final Animation<double> sparkleAngle;
 
   @override
   Widget build(BuildContext context) {
-    final firstName =
-        name.isNotEmpty ? name.trim().split(' ').first : 'there';
     return _WizardBackground(
       child: Center(
         child: Padding(
@@ -1511,7 +1607,7 @@ class _AllSetPage extends StatelessWidget {
                   end: Alignment.bottomRight,
                 ).createShader(bounds),
                 child: Text(
-                  "You're all set, $firstName!",
+                  headline,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,

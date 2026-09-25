@@ -108,23 +108,14 @@ class PlaybackService {
     await ensureTexture();
     debugPrint('[OTV-play] opening url=${streamUrl.split('?').first}, '
         'startPosition=${startPosition?.inSeconds}s');
-    await _player.open(streamUrl, streamTypeHint: _streamTypeHint(streamUrl));
+    // ExoPlayer starts at startPosition itself — no need to wait for the
+    // duration and seek afterwards (an mpv-era workaround that briefly
+    // played from 0 before jumping).
+    await _player.open(streamUrl,
+        streamTypeHint: _streamTypeHint(streamUrl),
+        startPosition: startPosition);
     await _player.play();
     debugPrint('[OTV-play] open()/play() done');
-    if (startPosition != null && startPosition.inSeconds > 0) {
-      // Wait for ExoPlayer to parse the container and populate duration
-      // before seeking — a seek attempted before that silently no-ops.
-      final durationReady = _player.stateStream
-          .firstWhere((s) => s.duration > Duration.zero)
-          .timeout(const Duration(seconds: 20),
-              onTimeout: () => _lastState);
-      if (_lastState.duration == Duration.zero) {
-        debugPrint('[OTV-play] waiting for duration...');
-        await durationReady;
-      }
-      debugPrint('[OTV-play] seeking to ${startPosition.inSeconds}s');
-      await _player.seekTo(startPosition);
-    }
   }
 
   Future<void> pause() => _player.pause();

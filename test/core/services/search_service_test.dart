@@ -180,5 +180,17 @@ void main() {
       expect(result.movies.any((m) => m.title == 'Avatar'), isTrue);
       expect(result.channels.any((c) => c.name == 'FX'), isTrue);
     });
+
+    test('name matches rank above EPG-only matches, with now-playing', () {
+      final result = service.search(
+        query: 'avatar',
+        channels: [_ch('fx', 'FX'), _ch('av', 'Avatar Channel')],
+        currentProgrammes: [_pr('fx', 'Avatar: The Way of Water')],
+        movies: const [],
+        series: const [],
+      );
+      expect(result.channels.map((c) => c.name), ['Avatar Channel', 'FX']);
+      expect(result.nowPlaying['fx'], 'Avatar: The Way of Water');
+    });
   });
 }

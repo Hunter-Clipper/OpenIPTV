@@ -324,7 +324,7 @@ class _NextEpisodeCard extends StatelessWidget {
 
     void onTap() => context.push('/player', extra: {
           'streamUrl': episode.streamUrl,
-          'title': '${episode.episodeLabel} – ${episode.title}',
+          'title': '${episode.episodeLabel} – ${episode.displayTitle}',
           'contentId': episode.id,
           'contentType': 'episode',
           'seriesId': seriesId,
@@ -371,7 +371,7 @@ class _NextEpisodeCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${episode.episodeLabel} – ${episode.title}',
+                          '${episode.episodeLabel} – ${episode.displayTitle}',
                           style: theme.textTheme.bodyMedium!
                               .copyWith(fontWeight: FontWeight.w600),
                           maxLines: 1,
@@ -493,7 +493,7 @@ class _EpisodeRow extends ConsumerWidget {
     final theme = Theme.of(context);
     void onTap() => context.push('/player', extra: {
           'streamUrl': episode.streamUrl,
-          'title': '${episode.episodeLabel} – ${episode.title}',
+          'title': '${episode.episodeLabel} – ${episode.displayTitle}',
           'contentId': episode.id,
           'contentType': 'episode',
           'seriesId': episode.seriesId,
@@ -518,7 +518,7 @@ class _EpisodeRow extends ConsumerWidget {
             ),
           ),
         ),
-        title: Text(episode.title,
+        title: Text(episode.displayTitle,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: episode.isInProgress
             ? Padding(

@@ -32,27 +32,46 @@ final ValueNotifier<bool> searchFieldFocused = ValueNotifier<bool>(false);
 
 final _searchQueryProvider = StateProvider<String>((ref) => '');
 
+/// The full searchable catalog, loaded once while the Search tab is open
+/// (autoDispose) rather than on every debounced keystroke — reloading tens
+/// of thousands of rows per query made results take several seconds.
+final _searchCatalogProvider = FutureProvider.autoDispose<
+    ({List<Channel> channels, List<Movie> movies, List<Series> series})>(
+  (ref) async {
+    final db = ref.watch(appDatabaseProvider);
+    final (channels, movies, series) = await (
+      db.getAllChannels(),
+      db.getAllMovies(),
+      db.getAllSeries(),
+    ).wait;
+    return (channels: channels, movies: movies, series: series);
+  },
+);
+
 final _searchResultsProvider =
-    FutureProvider<SearchResults>((ref) async {
+    FutureProvider.autoDispose<SearchResults>((ref) async {
+  // Watched before the short-query early return so the catalog stays
+  // loaded (and starts preloading as soon as the tab opens) between queries.
+  final catalogFuture = ref.watch(_searchCatalogProvider.future);
   final query = ref.watch(_searchQueryProvider);
   if (query.trim().length < SearchService.minQueryLength) {
     return SearchResults.empty;
   }
 
-  final db = ref.watch(appDatabaseProvider);
   final epg = ref.watch(epgServiceProvider);
-
-  final channels = await db.getAllChannels();
-  final movies = await db.getAllMovies();
-  final series = await db.getAllSeries();
-  final currentProgrammes = await epg.searchCurrentProgrammes(query);
+  // Only what's airing right now changes between queries, so only the
+  // programme search runs per query.
+  final (catalog, currentProgrammes) = await (
+    catalogFuture,
+    epg.searchCurrentProgrammes(query),
+  ).wait;
 
   final results = const SearchService().search(
     query: query,
-    channels: channels,
+    channels: catalog.channels,
     currentProgrammes: currentProgrammes,
-    movies: movies,
-    series: series,
+    movies: catalog.movies,
+    series: catalog.series,
   );
 
   // Kid profiles never see adult content in search results at all —
@@ -62,10 +81,11 @@ final _searchResultsProvider =
 
   return SearchResults(
     channels: results.channels
-        .where((c) => !isAdultCategory(c.groupTitle ?? 'Uncategorized'))
+        .where((c) => !c.categories.any(isAdultCategory))
         .toList(),
     movies: results.movies.where((m) => !isAdultGenre(m.genre)).toList(),
     series: results.series.where((s) => !isAdultGenre(s.genre)).toList(),
+    nowPlaying: results.nowPlaying,
   );
 });
 
@@ -227,8 +247,8 @@ class _ResultsList extends ConsumerWidget {
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
 
     bool channelLocked(Channel c) => prefs != null &&
-        isCategoryLocked(
-            c.groupTitle ?? 'Uncategorized', prefs, sessionUnlocked);
+        c.categories
+            .any((cat) => isCategoryLocked(cat, prefs, sessionUnlocked));
     bool genreLocked(String? genre) =>
         prefs != null && isGenreLocked(genre, prefs, sessionUnlocked);
 
@@ -247,7 +267,10 @@ class _ResultsList extends ConsumerWidget {
             items: results.channels,
             icon: Icons.live_tv,
             labelOf: (c) => c.name,
-            subtitleOf: (_) => null,
+            subtitleOf: (c) {
+              final now = results.nowPlaying[c.id];
+              return now == null ? null : 'Now: $now';
+            },
             isLockedOf: channelLocked,
             firstItemFocusNode: firstGroupIsChannels ? firstItemFocusNode : null,
             onTap: (c) {
@@ -309,7 +332,7 @@ class _ResultsList extends ConsumerWidget {
 // Generic result group
 // ---------------------------------------------------------------------------
 
-class _ResultGroup<T> extends StatelessWidget {
+class _ResultGroup<T> extends StatefulWidget {
   const _ResultGroup({
     required this.title,
     required this.items,
@@ -333,8 +356,30 @@ class _ResultGroup<T> extends StatelessWidget {
   final FocusNode? firstItemFocusNode;
 
   @override
+  State<_ResultGroup<T>> createState() => _ResultGroupState<T>();
+}
+
+class _ResultGroupState<T> extends State<_ResultGroup<T>> {
+  // A broad query can match dozens of channels; showing them all would push
+  // the Movies/Series groups (often what the user wanted) far off screen.
+  static const _collapsedCount = 5;
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant _ResultGroup<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // New query → start collapsed again.
+    if (!identical(oldWidget.items, widget.items)) _expanded = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final items = widget.items;
+    final shown = _expanded || items.length <= _collapsedCount
+        ? items
+        : items.take(_collapsedCount).toList();
+    final hidden = items.length - shown.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -342,34 +387,40 @@ class _ResultGroup<T> extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(
             children: [
-              Icon(icon, size: 16,
+              Icon(widget.icon, size: 16,
                   color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(
-                title,
+                widget.title,
                 style: theme.textTheme.titleSmall ??
                     theme.textTheme.bodyMedium!
                         .copyWith(fontWeight: FontWeight.w600),
               ),
+              const SizedBox(width: 6),
+              Text(
+                '${items.length}',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
             ],
           ),
         ),
-        ...items.asMap().entries.map((entry) {
+        ...shown.asMap().entries.map((entry) {
           final item = entry.value;
-          final subtitle = subtitleOf(item);
+          final subtitle = widget.subtitleOf(item);
           return TvActivatable(
-            focusNode: entry.key == 0 ? firstItemFocusNode : null,
-            onTap: () => onTap(item),
+            focusNode: entry.key == 0 ? widget.firstItemFocusNode : null,
+            onTap: () => widget.onTap(item),
             builder: (onTap) => ListTile(
               title: Text(
-                labelOf(item),
+                widget.labelOf(item),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: subtitle != null
                   ? Text(subtitle, style: theme.textTheme.bodySmall)
                   : null,
-              trailing: (isLockedOf?.call(item) ?? false)
+              trailing: (widget.isLockedOf?.call(item) ?? false)
                   ? Icon(Icons.lock_outline,
                       size: 16, color: theme.colorScheme.onSurfaceVariant)
                   : null,
@@ -377,6 +428,19 @@ class _ResultGroup<T> extends StatelessWidget {
             ),
           );
         }),
+        if (hidden > 0)
+          TvActivatable(
+            onTap: () => setState(() => _expanded = true),
+            builder: (onTap) => ListTile(
+              leading: Icon(Icons.expand_more,
+                  color: theme.colorScheme.primary),
+              title: Text(
+                'Show all ${items.length}',
+                style: TextStyle(color: theme.colorScheme.primary),
+              ),
+              onTap: onTap,
+            ),
+          ),
         const Divider(height: 1),
       ],
     );
