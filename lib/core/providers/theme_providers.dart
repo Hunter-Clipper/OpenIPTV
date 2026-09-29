@@ -71,6 +71,7 @@ Future<void> setActiveSource(
     WidgetRef ref, String? id, AppPreferences prefs) async {
   ref.read(activeSourceIdProvider.notifier).state = id;
   await prefs.setActiveSourceId(id);
+  debugPrint('[OTV-source] set active=$id');
 }
 
 Future<void> setRefreshIntervalHours(

@@ -78,6 +78,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     // Initialise accent + sort state from persisted preferences.
     syncSettingsProviders(ref, prefs);
     ref.read(activeSourceIdProvider.notifier).state = prefs.activeSourceId;
+    // Diagnostics: the active playlist has twice been seen reset to another
+    // playlist across app updates, with no code path found that writes it.
+    debugPrint('[OTV-source] startup active=${prefs.activeSourceId}');
 
     initPipChannel(
       onPipModeChanged: (isInPip) =>
