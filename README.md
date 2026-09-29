@@ -8,6 +8,10 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 [![Platform](https://img.shields.io/badge/platform-Android-lightgrey)]()
 [![Latest Release](https://img.shields.io/github/v/release/Hunter-Clipper/OpenIPTV)](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest)
 
+> **📺 Quick install on Fire TV / Android TV:** open the **Downloader** app and enter code **`2687835`**
+> (or go to **[aftv.news/2687835](http://aftv.news/2687835)**).
+> Direct APK: [app-release.apk](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk) · [All install options](#install)
+
 ---
 
 ## What it does
@@ -37,7 +41,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 OpenIPTV is distributed as an APK from [GitHub Releases](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest).
 
-- **Fire TV / Android TV:** install the free **Downloader** app, enter code **`2687835`**, and install. (It points at `https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk`.) Allow Downloader to install unknown apps when asked.
+- **Fire TV / Android TV:** install the free **Downloader** app, enter code **`2687835`** (short link: [aftv.news/2687835](http://aftv.news/2687835)), and install. It points at the [latest APK](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk), so the code always installs the newest version. Allow Downloader to install unknown apps when asked.
 - **Android phone / tablet:** download `app-release.apk` from the latest release and open it, allowing installs from your browser or file manager.
 - **Updates:** from v0.10.48 on, the app offers new versions itself (Settings → About → Check for Updates, or automatically about once a day).
 
