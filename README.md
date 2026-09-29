@@ -52,7 +52,23 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 ## Screenshots
 
-_Coming soon._
+<p align="center">
+  <img src="docs/screenshots/player.jpg" alt="Player with YouTube TV-style controls" width="820">
+</p>
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/live_tv.png" alt="Live TV categories and recently watched" width="240"><br><sub>Live TV</sub></td>
+    <td align="center"><img src="docs/screenshots/channels.png" alt="Channel list with logos and favorites" width="240"><br><sub>Channels</sub></td>
+    <td align="center"><img src="docs/screenshots/search.png" alt="Global search across channels and series" width="240"><br><sub>Search</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/setup_wizard.png" alt="Setup wizard — choosing a playlist type" width="240"><br><sub>Setup wizard</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/playlists.png" alt="Managing multiple playlists" width="420"><br><sub>Multiple playlists</sub></td>
+  </tr>
+</table>
+
+<sub>Shown with the public <a href="https://github.com/iptv-org/iptv">iptv-org</a> playlist. OpenIPTV does not provide any content — bring your own playlist.</sub>
 
 ---
 
