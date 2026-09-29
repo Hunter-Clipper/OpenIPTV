@@ -202,7 +202,7 @@ class _SeriesBody extends ConsumerWidget {
                       Text(series.title,
                           style: theme.textTheme.titleLarge),
                       const SizedBox(height: 8),
-                      if (series.year != null)
+                      if (series.year?.trim().isNotEmpty ?? false)
                         _MetaRow(label: series.year!),
                       if (series.genre != null) ...[
                         const SizedBox(height: 4),

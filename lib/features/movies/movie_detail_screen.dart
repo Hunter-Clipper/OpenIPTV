@@ -140,7 +140,7 @@ class _MovieDetailBody extends ConsumerWidget {
                       Text(movie.title,
                           style: theme.textTheme.titleLarge),
                       const SizedBox(height: 8),
-                      if (movie.year != null)
+                      if (movie.year?.trim().isNotEmpty ?? false)
                         _MetaChip(label: movie.year!),
                       if (movie.genre != null) ...[
                         const SizedBox(height: 6),

@@ -7,14 +7,17 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.ParserException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.TimestampAdjuster
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.extractor.Extractor
 import androidx.media3.extractor.ExtractorsFactory
@@ -73,6 +76,21 @@ class NativeVideoPlayer(
             }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 android.util.Log.e("OTV-exo", "playback error: ${error.errorCodeName}", error)
+                if (retryAsHls(error)) return
+                // Tell Dart, so the player can show a message or reconnect
+                // instead of sitting idle on the last frame.
+                var cause: Throwable? = error
+                while (cause != null &&
+                    cause !is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+                    cause = cause.cause
+                }
+                val http = (cause as? androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)
+                    ?.responseCode
+                eventSink?.success(mapOf(
+                    "type" to "error",
+                    "code" to error.errorCodeName,
+                    "httpStatus" to http,
+                ))
             }
             // Fires once the first real decoded video frame's size is known —
             // the same signal media_kit's videoParams.w>0 gave the buffering
@@ -100,10 +118,78 @@ class NativeVideoPlayer(
         mainHandler.post(positionUpdater)
     }
 
+    // What the current open() asked for — kept so a format-mismatch failure
+    // can be retried as HLS (see retryAsHls).
+    private var currentUrl: String? = null
+    private var currentHint: String? = null
+    private var hlsRetried = false
+
+    // Follows redirects that switch between http and https, which
+    // ExoPlayer refuses by default. Xtream panels commonly answer a stream
+    // request with a 302 to an https CDN (e.g. an http://…/live/….ts link
+    // redirecting to an https HLS URL); without this the player fails with
+    // "Response code: 302" and shows a black screen.
+    private val dataSourceFactory = DefaultDataSource.Factory(
+        appContext,
+        DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true),
+    )
+
     fun open(url: String, streamTypeHint: String?, startPositionMs: Long = 0L) {
+        currentUrl = url
+        currentHint = streamTypeHint
+        hlsRetried = false
+        // A new stream has no frames yet — reset so Dart's "has video" check
+        // doesn't mistake the previous stream's last frame for playback.
+        videoWidth = 0
+        videoHeight = 0
+        pixelRatio = 1f
+        // Captions start off for every stream (the app's default). Without
+        // this, ExoPlayer auto-selects any text track matching the device
+        // language — e.g. HLS streams declaring an English CC rendition.
+        clearTextTrack()
+        startSource(buildMediaSource(url, streamTypeHint), startPositionMs)
+    }
+
+    private fun startSource(mediaSource: MediaSource, startPositionMs: Long) {
+        // Starting at the resume point directly (rather than seeking once the
+        // duration is known) avoids briefly playing from 0 and then jumping.
+        if (startPositionMs > 0) {
+            exoPlayer.setMediaSource(mediaSource, startPositionMs)
+        } else {
+            exoPlayer.setMediaSource(mediaSource)
+        }
+        exoPlayer.prepare()
+        exoPlayer.playWhenReady = true
+    }
+
+    /**
+     * A stream's URL doesn't always say what it serves: Xtream panels that
+     * front other services hand out `….ts` / `….mp4` links that redirect to
+     * an HLS playlist. The progressive extractors then can't recognise the
+     * data — the TS-only path fails with a malformed-content ParserException,
+     * the default extractors with UnrecognizedInputFormatException (also a
+     * ParserException). Rather than probing every stream up front (an extra
+     * connection, which single-connection accounts may reject), retry once
+     * as HLS when a parse failure happens. Returns true if a retry started.
+     */
+    private fun retryAsHls(error: androidx.media3.common.PlaybackException): Boolean {
+        val url = currentUrl ?: return false
+        if (hlsRetried || currentHint == "hls") return false
+        var cause: Throwable? = error
+        while (cause != null && cause !is ParserException) {
+            cause = cause.cause
+        }
+        if (cause == null) return false
+        hlsRetried = true
+        android.util.Log.w("OTV-exo", "unrecognised format; retrying as HLS")
+        val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+        startSource(buildMediaSource(url, "hls"), position)
+        return true
+    }
+
+    private fun buildMediaSource(url: String, streamTypeHint: String?): MediaSource {
         val mediaItem = MediaItem.fromUri(url)
-        val dataSourceFactory = DefaultDataSource.Factory(appContext)
-        val mediaSource = when (streamTypeHint) {
+        return when (streamTypeHint) {
             "hls" -> HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
             // Raw MPEG-TS (live/catch-up): ExoPlayer no longer auto-generates
             // a CEA-608/708 track for standalone .ts files unless TsExtractor
@@ -121,15 +207,6 @@ class NativeVideoPlayer(
             // ExtractorsFactory auto-detects and handles these correctly.
             else -> ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
         }
-        // Starting at the resume point directly (rather than seeking once the
-        // duration is known) avoids briefly playing from 0 and then jumping.
-        if (startPositionMs > 0) {
-            exoPlayer.setMediaSource(mediaSource, startPositionMs)
-        } else {
-            exoPlayer.setMediaSource(mediaSource)
-        }
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
     }
 
     private fun ccAwareExtractorsFactory(): ExtractorsFactory {

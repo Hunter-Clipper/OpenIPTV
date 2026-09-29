@@ -48,6 +48,7 @@ class PlaybackService {
   NativeVideoPlayerState get lastState => _lastState;
   Stream<NativeVideoPlayerState> get stateStream => _player.stateStream;
   Stream<String> get cueStream => _player.cueStream;
+  Stream<NativePlaybackError> get errorStream => _player.errorStream;
   Stream<List<NativeVideoTrack>> get tracksStream => _player.tracksStream;
 
   // Set by a caller (e.g. the EPG panel) right before it replaces the

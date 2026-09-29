@@ -84,6 +84,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Start true so the overlay covers corrupt decoder warmup frames.
   bool _isBuffering = true;
   StreamSubscription<NativeVideoPlayerState>? _stateSub;
+  StreamSubscription<NativePlaybackError>? _errorSub;
+  // Set when the provider says a stream doesn't exist / isn't allowed —
+  // shown instead of the generic "Stream unavailable".
+  String? _errorMessage;
+  // True once the provider has refused this stream (see _errorSub). The
+  // engine keeps emitting idle, non-buffering state afterwards, which would
+  // otherwise read as "recovered" and hide the error overlay immediately.
+  bool _playbackFailed = false;
   // Decoded CC/subtitle cue text — the native engine forwards this (Flutter,
   // not ExoPlayer, owns rendering, matching the previous mpv-based setup's
   // subtitle overlay). Empty string means "nothing showing right now".
@@ -190,12 +198,38 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // Buffering overlay stays up until the first real frame arrives
     // (state.hasVideo), hiding blocky decoder-warmup artifacts. Also tracks
     // last real position/duration and drives completion + stall detection.
+    // A failed stream goes idle rather than buffering, so without this the
+    // overlay would hide and leave the last frame on screen with nothing
+    // retrying. Permanent HTTP failures show a message right away; anything
+    // else reconnects now instead of waiting for the stall timer.
+    _errorSub = _playbackService.errorStream.listen((e) {
+      if (!mounted) return;
+      _cancelStallTimer();
+      if (e.isPermanent) {
+        setState(() {
+          _playbackFailed = true;
+          _retryCount = _maxRetries;
+          _isRecovering = false;
+          _isBuffering = true;
+          _errorMessage = e.httpStatus == 401 || e.httpStatus == 403
+              ? "Your provider didn't allow this stream."
+              : 'This title isn\'t available from your provider right now.';
+        });
+      } else {
+        setState(() => _isBuffering = true);
+        unawaited(_onStall());
+      }
+    });
     _stateSub = _playbackService.stateStream.listen((s) {
       if (!mounted) return;
+      if (_playbackFailed) return;
       if (s.buffering && !s.hasVideo) {
         if (!_isBuffering) setState(() => _isBuffering = true);
         _startStallTimer();
-      } else if (_isBuffering) {
+      } else if (_isBuffering && (s.playing || s.hasVideo)) {
+        // Only real playback clears the overlay and the retry count — an
+        // idle engine after a failed attempt isn't "recovered", and treating
+        // it as such reset _retryCount every time, so retries never ended.
         _cancelStallTimer();
         _retryCount = 0;
         setState(() {
@@ -513,6 +547,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _hideTimer?.cancel();
     _stallTimer?.cancel();
     _stateSub?.cancel();
+    _errorSub?.cancel();
     _cueSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onAnyKeyEvent);
     _controlsFocusNode.dispose();
@@ -859,10 +894,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       child: _retryCount >= _maxRetries
                           ? _ErrorOverlay(
                               title: widget.title,
+                              message: _errorMessage,
                               onRetry: () {
                                 setState(() {
                                   _retryCount = 0;
                                   _isRecovering = false;
+                                  _errorMessage = null;
+                                  _playbackFailed = false;
                                 });
                                 _startPlayback();
                               },
@@ -1085,10 +1123,13 @@ class _UpNextBannerState extends State<_UpNextBanner> {
 // ---------------------------------------------------------------------------
 
 class _ErrorOverlay extends StatelessWidget {
-  const _ErrorOverlay({required this.title, required this.onRetry});
+  const _ErrorOverlay(
+      {required this.title, required this.onRetry, this.message});
 
   final String title;
   final VoidCallback onRetry;
+  // Specific reason when known; otherwise a generic "Stream unavailable".
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -1105,9 +1146,10 @@ class _ErrorOverlay extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Stream unavailable',
-          style: TextStyle(color: Colors.white38, fontSize: 12),
+        Text(
+          message ?? 'Stream unavailable',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
         ),
         const SizedBox(height: 24),
         FilledButton.icon(

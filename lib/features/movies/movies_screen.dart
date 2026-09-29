@@ -259,11 +259,14 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
   // mutate the provider's cached list.
   List<Movie> _filtered(List<Movie> all) {
     if (widget.genre == 'All') return List.of(all);
+    // Exact match on the split genre names — the same split that built the
+    // genre list. A substring match put "XXX - Movies" titles under
+    // "Movies", slipping adult titles past the category's parental lock.
     final genre = widget.genre.toLowerCase();
-    return all.where((m) {
-      final g = m.genre ?? '';
-      return g.toLowerCase().contains(genre);
-    }).toList();
+    return all
+        .where((m) =>
+            splitGenres(m.genre).any((g) => g.toLowerCase() == genre))
+        .toList();
   }
 
   @override

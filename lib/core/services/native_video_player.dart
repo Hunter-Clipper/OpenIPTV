@@ -36,6 +36,24 @@ class NativeVideoPlayerState {
       : null;
 }
 
+/// A playback failure reported by the native engine.
+class NativePlaybackError {
+  const NativePlaybackError({required this.code, this.httpStatus});
+
+  // ExoPlayer PlaybackException error-code name, e.g. ERROR_CODE_IO_BAD_HTTP_STATUS.
+  final String code;
+  // Set when the server answered with an HTTP error status.
+  final int? httpStatus;
+
+  /// The server says this stream doesn't exist or isn't allowed — retrying
+  /// won't help.
+  bool get isPermanent =>
+      httpStatus == 401 ||
+      httpStatus == 403 ||
+      httpStatus == 404 ||
+      httpStatus == 410;
+}
+
 /// One audio or subtitle/CC track, as reported by ExoPlayer's track model.
 class NativeVideoTrack {
   const NativeVideoTrack({
@@ -85,6 +103,7 @@ class NativeVideoPlayer {
   final _stateController =
       StreamController<NativeVideoPlayerState>.broadcast();
   final _cueController = StreamController<String>.broadcast();
+  final _errorController = StreamController<NativePlaybackError>.broadcast();
   final _tracksController = StreamController<List<NativeVideoTrack>>.broadcast();
 
   /// The Flutter `Texture` widget's `textureId` once [create] resolves.
@@ -94,6 +113,7 @@ class NativeVideoPlayer {
   Stream<NativeVideoPlayerState> get stateStream => _stateController.stream;
   // Current subtitle/CC cue text — empty string means "nothing showing".
   Stream<String> get cueStream => _cueController.stream;
+  Stream<NativePlaybackError> get errorStream => _errorController.stream;
   Stream<List<NativeVideoTrack>> get tracksStream => _tracksController.stream;
 
   Future<int> create() async {
@@ -111,6 +131,11 @@ class NativeVideoPlayer {
                   Map<Object?, Object?>.from(t as Map)))
               .toList();
           _tracksController.add(list);
+        case 'error':
+          _errorController.add(NativePlaybackError(
+            code: map['code'] as String? ?? 'unknown',
+            httpStatus: map['httpStatus'] as int?,
+          ));
         default:
           _stateController.add(NativeVideoPlayerState(
             position: Duration(milliseconds: map['position'] as int),
@@ -172,6 +197,7 @@ class NativeVideoPlayer {
     }
     await _stateController.close();
     await _cueController.close();
+    await _errorController.close();
     await _tracksController.close();
   }
 }
