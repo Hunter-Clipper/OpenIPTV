@@ -5,9 +5,18 @@ const List<String> _adultKeywords = [
   'xxx', 'adult', 'porn', 'erotic', '18+', 'x-rated', 'hentai',
 ];
 
+// Names that contain an adult keyword but aren't adult content — e.g.
+// "Adult Swim" is a cartoon network. Stripped before matching.
+const List<String> _notAdultPhrases = [
+  'adult swim', 'young adult', 'adult education', 'adult contemporary',
+];
+
 /// Returns true if [name] matches known adult-content keywords.
 bool isAdultCategory(String name) {
-  final lower = name.toLowerCase();
+  var lower = name.toLowerCase();
+  for (final phrase in _notAdultPhrases) {
+    lower = lower.replaceAll(phrase, ' ');
+  }
   return _adultKeywords.any((kw) => lower.contains(kw));
 }
 
