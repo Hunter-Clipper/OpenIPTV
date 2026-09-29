@@ -67,6 +67,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
   late final DateTime _rangeStart;
   late final DateTime _rangeEnd;
   final _timeScrollController = ScrollController();
+  // Wraps the grid so the D-pad handler can tell whether focus is still
+  // inside the guide (vs. moved out to the nav rail).
+  final _guideFocusNode =
+      FocusNode(debugLabel: 'Guide', canRequestFocus: false, skipTraversal: true);
   Timer? _nowTicker;
   Timer? _previewDebounce;
   GuidePreviewController? _preview;
@@ -107,6 +111,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
     _previewDebounce?.cancel();
     _preview?.dispose();
     _timeScrollController.dispose();
+    _guideFocusNode.dispose();
     super.dispose();
   }
 
@@ -156,6 +161,58 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
     );
   }
 
+  // ---- Timeline scrolling (shared by header + all rows) ---------------
+
+  double get _timelineMax => _timeScrollController.hasClients
+      ? _timeScrollController.positions.first.maxScrollExtent
+      : 0;
+
+  double get _timelineOffset => _timeScrollController.hasClients
+      ? _timeScrollController.positions.first.pixels
+      : 0;
+
+  void _stopTimelineScroll() {
+    if (_timeScrollController.hasClients) {
+      _timeScrollController.jumpTo(_timelineOffset);
+    }
+  }
+
+  void _scrollTimelineBy(double dx) {
+    if (!_timeScrollController.hasClients) return;
+    _timeScrollController
+        .jumpTo((_timelineOffset + dx).clamp(0.0, _timelineMax));
+  }
+
+  // A flick keeps gliding, like a normal scroll view: travel proportional
+  // to release speed, easing out.
+  void _flingTimeline(double velocity) {
+    if (!_timeScrollController.hasClients || velocity.abs() < 100) return;
+    final target =
+        (_timelineOffset - velocity * 0.35).clamp(0.0, _timelineMax);
+    _timeScrollController.animateTo(target,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.decelerate);
+  }
+
+  void _animateTimelineBy(double dx) {
+    if (!_timeScrollController.hasClients) return;
+    _timeScrollController.animateTo(
+        (_timelineOffset + dx).clamp(0.0, _timelineMax),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut);
+  }
+
+  void _jumpToNow() {
+    if (!_timeScrollController.hasClients) return;
+    // Current half hour at the left edge, matching where the guide opens.
+    final now = DateTime.now();
+    final slot = DateTime(
+        now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
+    final x = slot.difference(_rangeStart).inMinutes * _pxPerMinute;
+    _timeScrollController.animateTo(x.clamp(0.0, _timelineMax),
+        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
   _GuideWindow _windowFor(List<Channel> channels) {
     final ids = [for (final c in channels) c.id];
     final current = _window;
@@ -178,7 +235,22 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(allChannelsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('TV Guide')),
+      appBar: AppBar(
+        title: const Text('TV Guide'),
+        actions: [
+          // After scrolling through the timeline, one tap gets back to what's
+          // on now.
+          TvActivatable(
+            onTap: _jumpToNow,
+            builder: (onTap) => TextButton.icon(
+              onPressed: onTap,
+              icon: const Icon(Icons.schedule),
+              label: const Text('Now'),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: channelsAsync.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorStateView(
@@ -197,7 +269,30 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
 
           return Stack(
             children: [
-              Column(
+              // Sideways drag anywhere on the guide scrolls the timeline for
+              // the header and every row together. The rows' own scroll views
+              // stay non-draggable (dragging one would pull it out of line
+              // with the others); vertical drags still reach the channel list.
+              Focus(
+                focusNode: _guideFocusNode,
+                canRequestFocus: false,
+                skipTraversal: true,
+                child: Actions(
+                  actions: {
+                    DirectionalFocusIntent: _GuideDirectionalAction(
+                      guideFocusNode: _guideFocusNode,
+                      scrollTimelineBy: (dx) => _animateTimelineBy(dx),
+                      canScrollBack: () => _timelineOffset > 0.5,
+                      parentContext: context,
+                    ),
+                  },
+                  child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onHorizontalDragStart: (_) => _stopTimelineScroll(),
+                onHorizontalDragUpdate: (d) => _scrollTimelineBy(-d.delta.dx),
+                onHorizontalDragEnd: (d) =>
+                    _flingTimeline(d.primaryVelocity ?? 0),
+                child: Column(
                 children: [
                   _TimeHeader(
                     rangeStart: _rangeStart,
@@ -213,6 +308,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
                           itemBuilder: (context, i) {
                             final channel = channels[i];
                             return _GuideRow(
+                              // The remote starts on the first channel.
+                              autofocus: i == 0,
                               channel: channel,
                               programmes: byChannel[channel.id] ?? const [],
                               rangeStart: _rangeStart,
@@ -231,6 +328,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
                     ),
                   ),
                 ],
+              ),
+              ),
+                ),
               ),
               // The preview tunes to whichever row has D-pad focus, which
               // only happens on TV; on touch it would just be an empty box
@@ -319,8 +419,10 @@ class _GuideRow extends StatelessWidget {
     required this.scrollController,
     required this.onFocus,
     required this.onSelect,
+    this.autofocus = false,
   });
 
+  final bool autofocus;
   final Channel channel;
   final List<Programme> programmes;
   final DateTime rangeStart;
@@ -346,6 +448,7 @@ class _GuideRow extends StatelessWidget {
           SizedBox(
             width: _railWidth,
             child: TvFocusable(
+              autofocus: autofocus,
               ensureVisibleOnFocus: true,
               onTap: () {
                 onFocus();
@@ -620,5 +723,86 @@ class _PreviewPanel extends StatelessWidget {
               stateStream: preview!.stateStream,
             ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// D-pad handling
+// ---------------------------------------------------------------------------
+
+/// Left/Right in the guide move along the current row. Flutter's default
+/// directional focus falls back to the *closest* candidate, which in a grid
+/// is often a diagonal jump into another row — and a channel with no guide
+/// data has no cells at all. In both cases this keeps focus in its row and
+/// scrolls the timeline by half an hour instead, so the remote can always
+/// move through time. Up/Down, and Left out to the nav rail, are unchanged.
+class _GuideDirectionalAction extends Action<DirectionalFocusIntent> {
+  _GuideDirectionalAction({
+    required this.guideFocusNode,
+    required this.scrollTimelineBy,
+    required this.canScrollBack,
+    required this.parentContext,
+  });
+
+  final FocusNode guideFocusNode;
+  final void Function(double dx) scrollTimelineBy;
+  // Whether the timeline is scrolled forward at all — Left goes back in time
+  // first and only leaves the guide once at the start.
+  final bool Function() canScrollBack;
+  // Above this Action, so Up/Down reach the shell's own handler.
+  final BuildContext parentContext;
+
+  static const _step = 30 * _pxPerMinute;
+
+  @override
+  Object? invoke(DirectionalFocusIntent intent) {
+    final dir = intent.direction;
+    final before = primaryFocus;
+    final horizontal =
+        dir == TraversalDirection.left || dir == TraversalDirection.right;
+    if (before == null || !horizontal) {
+      return Actions.maybeInvoke(parentContext, intent);
+    }
+    final from = before.rect;
+    final scroll = dir == TraversalDirection.right ? _step : -_step;
+    // Nothing more to move through: Left at the start of the timeline goes
+    // to the shell (which moves focus to the nav rail); otherwise scroll.
+    void cannotMove() {
+      if (dir == TraversalDirection.left && !canScrollBack()) {
+        Actions.maybeInvoke(parentContext, intent);
+      } else {
+        scrollTimelineBy(scroll);
+      }
+    }
+
+    if (!before.focusInDirection(dir)) {
+      cannotMove();
+      return true;
+    }
+    // Focus changes apply a moment later — judge where it actually landed.
+    scheduleMicrotask(() {
+      final after = primaryFocus;
+      if (after == null) return;
+      // focusInDirection can report success yet leave focus where it was
+      // (nothing further that way) — treat that as "couldn't move".
+      if (identical(after, before)) {
+        cannotMove();
+        return;
+      }
+      final sameRow =
+          (after.rect.center.dy - from.center.dy).abs() < from.height / 2;
+      if (sameRow && guideFocusNode.hasFocus) return; // along the row
+      // Left out of the guide (to the nav rail or Back) is a real exit —
+      // once the timeline is back at its start.
+      final exitedLeft = dir == TraversalDirection.left &&
+          !guideFocusNode.hasFocus &&
+          after.rect.center.dx < from.left;
+      if (exitedLeft && !canScrollBack()) return;
+      // A diagonal jump into another row, or up to the app bar: stay put
+      // and move through time instead.
+      before.requestFocus();
+      scrollTimelineBy(scroll);
+    });
+    return true;
   }
 }
