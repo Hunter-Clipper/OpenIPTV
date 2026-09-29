@@ -48,3 +48,6 @@ coverage/
 
 # macOS
 *.xcworkspace
+
+# Claude Code local settings
+.claude/
