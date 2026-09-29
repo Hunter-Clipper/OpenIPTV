@@ -12,15 +12,21 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 ## What it does
 
-- Add an IPTV source via M3U URL or Xtream Codes credentials — no account required
-- Live TV with EPG (what's on now / next), channel categories, and favorites
-- Movies and Series with VOD playback, per-profile continue-watching, and per-genre browsing
+- Add an IPTV playlist via M3U URL or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
+- **Live TV** with channel categories, favorites, recently watched, and "what's on now" from the EPG (XMLTV)
+- **Full-screen TV guide** — TiviMate-style grid with a live "now" line, plus a per-channel guide panel inside the player
+- **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
+- **Movies and Series** with per-genre browsing, Continue Watching, and resume from where you left off
+- **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
+- Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
+- Fast global search across channels, movies, series, and what's airing now
 - Multiple profiles per device — emoji avatars, PIN lock, admin vs restricted roles
 - **Parental controls**: auto-detects adult/XXX categories and PIN-protects them across Live TV, Movies, Series, and Search. Kid profiles hide adult content entirely instead of just locking it
-- **Role-based permissions**: only admin profiles can manage sources, backup/restore, parental settings, and other profiles
-- Dark theme with 6 accent color choices
-- Content sort toggle — provider order or A-Z, applied to both category lists and content within
-- Backup and restore your full setup via a single `.iptvprofile` file
+- **Role-based permissions**: only admin profiles can manage playlists, backup/restore, parental settings, and other profiles
+- Background auto-refresh of playlists and EPG on a schedule you choose, with optional notifications
+- Backup and restore your full setup (profiles, playlists, settings) as a single `.zip`, optionally password-protected
+- Dark theme with 6 accent color choices; content sort toggle (provider order or A-Z)
+- Works with a TV remote — full D-pad navigation and Android TV launcher support
 - No ads, no telemetry, no accounts
 
 ---
@@ -30,21 +36,17 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 | Phase | Target | Status |
 |---|---|---|
 | 1 | Android phone + tablet | ✅ Active development — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
-| 2 | Android TV | Not started |
+| 2 | Android TV | 🚧 In progress — D-pad navigation, TV nav rail, full-screen guide, Leanback launcher |
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
 
 ### Roadmap — what's next
 
-- Backup & restore rewrite — simple ZIP export/import (profiles, playlists, settings), no custom file extension
-- Background auto-refresh of playlists and EPG on a configurable interval, with notification alerts on success/failure
-- Picture-in-Picture support during playback
-- Media notification / "now playing" entry in the Android notification shade
-- Custom libmpv build to properly extract embedded CEA-608/708 closed captions from MPEG-TS streams (the current bundled libmpv can't surface these tracks at all)
 - UI to promote an existing profile to admin (currently the only admin account is the one created during first-run setup)
 - Deep link support for advanced users (launch directly into a channel/movie/series or search from an external URL)
-- Full-screen live TV guide for the Android TV / Apple TV phase — cable-box or TiviMate-style grid with a mini live-preview player, distinct from the phone/tablet category-browsing UI
+- Android TV polish — remote-first focus handling across every screen and text field
+- iOS / iPadOS port (Phase 3)
 
 ---
 
@@ -60,9 +62,9 @@ _Coming soon._
 
 | Tool | Version |
 |---|---|
-| Flutter | 3.22+ (stable channel) |
+| Flutter | 3.22+ (stable channel; developed on 3.44) |
 | Dart | 3.4+ |
-| Android SDK | API 21+ (target API 34) |
+| Android SDK | minSdk 24 (Android 7.0), compile/target SDK 36 |
 | Java | 17 (for Android Gradle) |
 
 ```bash
@@ -95,26 +97,32 @@ flutter analyze
 ```
 lib/
 ├── core/
-│   ├── models/         # Channel, Movie, Series, Episode, Profile, Source
-│   ├── providers/      # theme_providers (accent color, sort order, view modes)
+│   ├── models/         # Channel, Movie, Series, Episode, Programme, Profile, Source
+│   ├── parsers/        # M3U, XMLTV, and Xtream Codes clients (no third-party parsers)
+│   ├── providers/      # theme_providers (accent color, sort order, view modes), channel providers
 │   ├── services/       # SourceManager, ProfileService, EpgService, PlaybackService,
-│   │                   # ParentalService, SearchService
-│   └── storage/        # database.dart (Drift/SQLite), preferences.dart (SharedPreferences)
+│   │                   # NativeVideoPlayer, ParentalService, SearchService,
+│   │                   # AutoRefreshService, NowPlayingService, PipService
+│   └── storage/        # database.dart (Drift/SQLite), preferences.dart, backup_manager.dart
 │
 ├── features/
-│   ├── live_tv/        # Channel list, category grid, EPG panel
+│   ├── live_tv/        # Channel list, categories, TV guide grid, EPG panel, catch-up
 │   ├── movies/         # Movie genre grid, movie detail
 │   ├── series/         # Series genre grid, series detail, episode list
-│   ├── player/         # Full-screen player (media_kit)
+│   ├── player/         # Full-screen player and controls overlay
 │   ├── search/         # Global search (parental-filtered)
-│   ├── onboarding/     # First-run setup wizard, add-source flow
-│   └── settings/       # Settings, profile overview, profile picker, parental controls, backup
+│   ├── onboarding/     # Setup wizard (first run, or add-playlist mode)
+│   └── settings/       # Settings, profiles, profile picker, parental controls, backup
 │
 ├── shared/
 │   ├── theme/          # AppTheme (dark theme, accent swatches)
-│   └── widgets/        # AppLogo, InfoTooltip, parental PIN dialog
+│   ├── utils/          # Formatting helpers, friendly error messages
+│   └── widgets/        # TV-focusable controls, video surface, PIN dialog, tooltips, …
 │
-└── app.dart            # App entry, routing, profile picker bootstrap
+└── app.dart            # App entry, routing, tab shell, native back handling
+
+android/app/src/main/kotlin/com/openiptv/app/
+                        # NativeVideoPlayer (ExoPlayer), MainActivity (PiP, back, keep-awake)
 ```
 
 ---
@@ -127,11 +135,13 @@ lib/
 
 **Navigation:** `go_router` with path-based deep linking.
 
-**Video:** `media_kit` + `media_kit_video` (libmpv core). Supports HLS, MPEG-TS, MP4, hardware decode, subtitle tracks, and resume from last position.
+**Video:** A custom native player built on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` and driven over a method/event channel (`NativeVideoPlayer.kt` ↔ `native_video_player.dart`). Supports HLS, MPEG-TS, MP4/MKV, hardware decode, CEA-608/708 closed captions (multi-PMT TS extraction), audio/subtitle track selection, and resuming directly at a saved position. It replaced `media_kit`/libmpv in v0.10.3 for reliability on low-end Android TV hardware.
 
-**Parsing:** Custom Dart M3U and Xtream Codes parsers. No third-party parser dependencies.
+**Parsing:** Custom Dart M3U, XMLTV, and Xtream Codes parsers. No third-party parser dependencies. Large payloads are decoded off the UI thread.
 
-**Responsive layout:** Grid column count is derived from screen width at runtime; TV leanback layout planned for Phase 2.
+**Background work:** `workmanager` schedules periodic playlist/EPG refresh; `flutter_local_notifications` reports results. `audio_service` provides the media notification.
+
+**Responsive layout:** Grid column count is derived from screen width at runtime. On Android TV (detected natively via `UiModeManager`) the app switches to a side nav rail and remote-first focus handling.
 
 ---
 
