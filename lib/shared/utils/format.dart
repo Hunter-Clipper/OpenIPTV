@@ -7,13 +7,13 @@ String formatClock(Duration d) {
   return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
 }
 
-/// `1h 5m`, or `45m` under an hour — for runtimes.
+/// `1h 5m` (`1h` on the hour), or `45m` under an hour — for runtimes.
 /// [padMinutes] renders `1h 05m` / `05m` instead.
 String formatRuntime(Duration d, {bool padMinutes = false}) {
   final h = d.inHours;
   final m = d.inMinutes % 60;
   final mm = padMinutes ? m.toString().padLeft(2, '0') : '$m';
-  if (h > 0) return '${h}h ${mm}m';
+  if (h > 0) return m == 0 && !padMinutes ? '${h}h' : '${h}h ${mm}m';
   return padMinutes ? '${mm}m' : '${d.inMinutes}m';
 }
 

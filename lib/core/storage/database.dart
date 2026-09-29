@@ -699,6 +699,27 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Up to [limit] movies from [sourceId] whose genre text contains [genre]
+  /// (callers match the split genre names exactly), excluding [excludeId] —
+  /// the "More like this" row. Bounded by [limit] so it stays cheap on
+  /// huge catalogs.
+  Future<List<model.Movie>> getMoviesInGenre(
+    String sourceId,
+    String genre, {
+    required String excludeId,
+    int limit = 60,
+    String? profileId,
+  }) async {
+    final rows = await (select(movies)
+          ..where((t) =>
+              t.sourceId.equals(sourceId) &
+              t.genre.like('%$genre%') &
+              t.id.equals(excludeId).not())
+          ..limit(limit))
+        .get();
+    return _withMovieProgress(rows.map(_movieFromRow).toList(), profileId);
+  }
+
   /// Re-runs [load] now and whenever [content] or the watch-progress table
   /// changes. A plain `select(content).watch()` misses progress saves (a
   /// separate table), leaving Resume / watched markers stale until the
@@ -863,6 +884,29 @@ class AppDatabase extends _$AppDatabase {
     return select(seriesEntries)
         .watch()
         .map((rows) => rows.map(_seriesFromRow).toList());
+  }
+
+  Future<model.Series?> getSeriesById(String id) async {
+    final row = await (select(seriesEntries)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return row == null ? null : _seriesFromRow(row);
+  }
+
+  /// Series counterpart of [getMoviesInGenre].
+  Future<List<model.Series>> getSeriesInGenre(
+    String sourceId,
+    String genre, {
+    required String excludeId,
+    int limit = 60,
+  }) async {
+    final rows = await (select(seriesEntries)
+          ..where((t) =>
+              t.sourceId.equals(sourceId) &
+              t.genre.like('%$genre%') &
+              t.id.equals(excludeId).not())
+          ..limit(limit))
+        .get();
+    return rows.map(_seriesFromRow).toList();
   }
 
   Stream<List<model.Series>> watchSeriesForSource(String sourceId) {

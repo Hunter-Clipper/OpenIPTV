@@ -13,6 +13,7 @@ class RailItem {
     this.progress,
     this.watched = false,
     this.onLongPress,
+    this.heroTag,
   });
 
   final String title;
@@ -23,6 +24,8 @@ class RailItem {
   final bool watched;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  // Poster flies to the detail page's poster with the same tag.
+  final Object? heroTag;
 }
 
 /// Poster sizes for rails: larger on TV (viewed from the sofa).
@@ -216,42 +219,45 @@ class _PosterCardState extends State<_PosterCard> {
                     ),
                   ],
                 ),
-                child: ClipRRect(
-                  borderRadius: radius,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      PosterImage(
-                        posterUrl: item.imageUrl,
-                        iconSize: 30,
-                        fallbackIcon: widget.fallbackIcon,
-                      ),
-                      if (item.watched)
-                        Positioned(
-                          top: 6,
-                          right: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                child: _maybeHero(
+                  item.heroTag,
+                  ClipRRect(
+                    borderRadius: radius,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        PosterImage(
+                          posterUrl: item.imageUrl,
+                          iconSize: 30,
+                          fallbackIcon: widget.fallbackIcon,
+                        ),
+                        if (item.watched)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check_circle,
+                                  color: Colors.white, size: 15),
                             ),
-                            child: const Icon(Icons.check_circle,
-                                color: Colors.white, size: 15),
                           ),
-                        ),
-                      if (item.progress != null)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: LinearProgressIndicator(
-                            value: item.progress!.clamp(0.0, 1.0),
-                            minHeight: 4,
-                            backgroundColor: Colors.black54,
+                        if (item.progress != null)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: LinearProgressIndicator(
+                              value: item.progress!.clamp(0.0, 1.0),
+                              minHeight: 4,
+                              backgroundColor: Colors.black54,
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -307,3 +313,6 @@ class LockedRail extends StatelessWidget {
     );
   }
 }
+
+Widget _maybeHero(Object? tag, Widget child) =>
+    tag == null ? child : Hero(tag: tag, child: child);

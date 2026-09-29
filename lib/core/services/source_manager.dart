@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:open_iptv/core/models/content_details.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/m3u_parser.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
@@ -298,6 +299,35 @@ class SourceManager {
       final episodes = await client.getSeriesEpisodes(xtreamId);
       if (episodes.isNotEmpty) await db.upsertEpisodes(episodes);
     });
+  }
+
+  /// Artwork and metadata for a movie's detail page, or null for sources
+  /// that don't provide it (M3U) or when the provider can't be reached.
+  Future<ContentDetails?> fetchMovieDetails(
+      String movieId, String sourceId) async {
+    final source = await db.getSourceById(sourceId);
+    if (source == null || source.type != SourceType.xtream) return null;
+    final xtreamId = movieId.replaceFirst('${sourceId}_mov_', '');
+    try {
+      return await _withXtream(source, (client) async =>
+          ContentDetails.fromXtream(await client.getVodInfo(xtreamId)));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Like [fetchMovieDetails], for a series (with per-episode details).
+  Future<ContentDetails?> fetchSeriesDetails(
+      String seriesId, String sourceId) async {
+    final source = await db.getSourceById(sourceId);
+    if (source == null || source.type != SourceType.xtream) return null;
+    final xtreamId = seriesId.replaceFirst('${sourceId}_ser_', '');
+    try {
+      return await _withXtream(source, (client) async =>
+          ContentDetails.fromXtream(await client.getSeriesInfo(xtreamId)));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> deleteSource(String sourceId) async {

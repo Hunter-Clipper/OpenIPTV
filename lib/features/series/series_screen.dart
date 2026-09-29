@@ -17,6 +17,7 @@ import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
+import 'package:open_iptv/shared/widgets/detail_header.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
@@ -551,7 +552,9 @@ class _HorizontalPosterRow extends ConsumerWidget {
           RailItem(
             title: context.displayName(s.title),
             imageUrl: s.posterUrl,
-            onTap: () => context.push('/series/${s.id}'),
+            heroTag: posterHeroTag(title, s.id),
+            onTap: () => context.push('/series/${s.id}',
+                extra: posterHeroTag(title, s.id)),
             onLongPress: profileId == null
                 ? null
                 : () => _showSeriesOptions(context, ref, s, profileId!),
@@ -685,7 +688,8 @@ class _PosterCard extends ConsumerWidget {
         (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
 
     return TvFocusable(
-      onTap: () => context.push('/series/${series.id}'),
+      onTap: () => context.push('/series/${series.id}',
+          extra: posterHeroTag('grid', series.id)),
       onLongPress: profileId == null ? null : () => _showSeriesOptions(context, ref, series, profileId!),
       autofocus: autofocus,
       ensureVisibleOnFocus: true,
@@ -693,9 +697,12 @@ class _PosterCard extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-            child: PosterImage(posterUrl: series.posterUrl),
+          Hero(
+            tag: posterHeroTag('grid', series.id),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+              child: PosterImage(posterUrl: series.posterUrl),
+            ),
           ),
           Positioned(
             top: 4,

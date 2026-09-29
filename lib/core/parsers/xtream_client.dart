@@ -161,6 +161,10 @@ class XtreamClient {
     return _parseSeries(results[1], catMap);
   }
 
+  Future<Map<String, dynamic>> getSeriesInfo(String seriesId) async {
+    return _get({'action': 'get_series_info', 'series_id': seriesId});
+  }
+
   Future<List<Episode>> getSeriesEpisodes(String seriesId) async {
     final info = await _get({'action': 'get_series_info', 'series_id': seriesId});
     return _parseEpisodes(info, seriesId);

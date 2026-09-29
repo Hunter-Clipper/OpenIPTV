@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/models/content_details.dart';
 import 'package:open_iptv/core/models/movie.dart';
+import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
+import 'package:open_iptv/shared/widgets/detail_header.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
-import 'package:open_iptv/shared/widgets/poster_image.dart';
-import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/media_rail.dart';
 
 // ---------------------------------------------------------------------------
-// Provider
+// Providers
 // ---------------------------------------------------------------------------
 
 final _movieDetailProvider =
@@ -21,14 +24,39 @@ final _movieDetailProvider =
   return ref.watch(appDatabaseProvider).watchMovieById(id, profileId: profileId);
 });
 
+/// Backdrop, cast, runtime… fetched from the provider on first open and kept
+/// for the session. Keyed by (movie id, source id).
+final _movieExtrasProvider =
+    FutureProvider.family<ContentDetails?, (String, String)>((ref, key) {
+  return ref.read(sourceManagerProvider).fetchMovieDetails(key.$1, key.$2);
+});
+
+/// Titles sharing the movie's first genre — the "More Like This" row.
+/// Keyed by (movie id, source id, genre).
+final _moreLikeThisProvider = FutureProvider.autoDispose
+    .family<List<Movie>, (String, String, String)>((ref, key) async {
+  final (id, sourceId, genre) = key;
+  final candidates = await ref.read(appDatabaseProvider).getMoviesInGenre(
+      sourceId, genre,
+      excludeId: id, profileId: ref.read(activeProfileIdProvider));
+  final lower = genre.toLowerCase();
+  // The SQL match is a substring one; keep exact genre-name matches only.
+  return candidates
+      .where((m) => splitGenres(m.genre).any((g) => g.toLowerCase() == lower))
+      .take(20)
+      .toList();
+});
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
 class MovieDetailScreen extends ConsumerWidget {
-  const MovieDetailScreen({super.key, required this.movieId});
+  const MovieDetailScreen({super.key, required this.movieId, this.heroTag});
 
   final String movieId;
+  // Tag of the poster that was tapped, so it flies into place.
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,6 +73,7 @@ class MovieDetailScreen extends ConsumerWidget {
           if (movie == null) return _buildError(context);
           return _MovieDetailBody(
             movie: movie,
+            heroTag: heroTag,
             isFavourite: isFavourite,
             profileId: profile?.id,
           );
@@ -68,153 +97,130 @@ class MovieDetailScreen extends ConsumerWidget {
 class _MovieDetailBody extends ConsumerWidget {
   const _MovieDetailBody({
     required this.movie,
+    required this.heroTag,
     required this.isFavourite,
     required this.profileId,
   });
 
   final Movie movie;
+  final String? heroTag;
   final bool isFavourite;
   final String? profileId;
 
+  void _play(BuildContext context, {Duration? from, bool confirm = true}) {
+    context.push('/player', extra: {
+      'streamUrl': movie.streamUrl,
+      'title': movie.title,
+      'contentId': movie.id,
+      'contentType': 'movie',
+      if (from != null) 'resumePosition': from,
+      if (!confirm) 'confirmResume': false,
+    });
+  }
+
+  Future<void> _toggleFavourite(WidgetRef ref) async {
+    await ref
+        .read(profileServiceProvider)
+        .toggleFavoriteMovie(profileId!, movie.id);
+    // Favorites are cached on the profile; refresh so the star updates.
+    ref.invalidate(activeProfileProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final posterWidth = (screenWidth * 0.35).clamp(120.0, 200.0);
+    final extras =
+        ref.watch(_movieExtrasProvider((movie.id, movie.sourceId))).valueOrNull;
+    final genre = splitGenres(movie.genre).first;
+    final more = movie.genre == null
+        ? const <Movie>[]
+        : _visible(
+            ref,
+            ref
+                    .watch(_moreLikeThisProvider((movie.id, movie.sourceId, genre)))
+                    .valueOrNull ??
+                const []);
 
+    final runtime = extras?.runtime ?? movie.totalDuration;
+    final rating = extras?.rating ??
+        (movie.rating == null ? null : formatRating(movie.rating!));
+    final year = movie.year?.trim();
+    final meta = [
+      if (year != null && year.isNotEmpty) year,
+      if (runtime != null && runtime > Duration.zero) formatRuntime(runtime),
+      if (rating != null && rating != '0.0') '★ $rating',
+      if (movie.genre != null) context.displayName(genre),
+    ];
+
+    final inProgress = movie.isInProgress;
+    final watched = movie.watchedDuration;
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          expandedHeight: 0,
-          pinned: true,
-          title: Text(
-            context.displayName(movie.title),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          actions: [
-            TvActivatable(
-              onTap: profileId == null
-                  ? null
-                  : () async {
-                      await ref
-                          .read(profileServiceProvider)
-                          .toggleFavoriteMovie(profileId!, movie.id);
-                      // Favorites are cached on the profile; refresh so
-                      // the star reflects the change.
-                      ref.invalidate(activeProfileProvider);
-                    },
-              builder: (onTap) => IconButton(
-                icon: Icon(
-                  isFavourite ? Icons.star : Icons.star_border,
-                  color: isFavourite ? theme.colorScheme.primary : null,
-                ),
-                tooltip:
-                    isFavourite ? 'Remove from Favorites' : 'Add to Favorites',
-                onPressed: onTap,
-              ),
-            ),
-          ],
+        DetailHeader(
+          title: context.displayName(movie.title),
+          posterUrl: movie.posterUrl,
+          backdropUrl: extras?.backdropUrl,
+          heroTag: heroTag,
+          meta: meta,
         ),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Poster
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                  child: SizedBox(
-                    width: posterWidth,
-                    height: posterWidth / AppTheme.posterAspectRatio,
-                    child: PosterImage(
-                        posterUrl: movie.posterUrl, iconSize: 40),
-                  ),
+          child: DetailActions(
+            primaryLabel: inProgress
+                ? 'Resume from ${formatClock(watched ?? Duration.zero)}'
+                : 'Play',
+            progress: inProgress ? movie.watchProgress : null,
+            onPrimary: () => inProgress
+                ? _play(context, from: watched, confirm: false)
+                : _play(context),
+            secondary: [
+              if (inProgress)
+                RoundAction(
+                  icon: Icons.replay_rounded,
+                  label: 'Start Over',
+                  onTap: () => _play(context, from: Duration.zero),
                 ),
-                const SizedBox(width: 16),
-                // Metadata
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(context.displayName(movie.title),
-                          style: theme.textTheme.titleLarge),
-                      const SizedBox(height: 8),
-                      if (movie.year?.trim().isNotEmpty ?? false)
-                        _MetaChip(label: movie.year!),
-                      if (movie.genre != null) ...[
-                        const SizedBox(height: 6),
-                        _MetaChip(label: context.displayName(movie.genre!)),
-                      ],
-                      if (movie.rating != null) ...[
-                        const SizedBox(height: 6),
-                        _MetaChip(label: '⭐ ${formatRating(movie.rating!)}'),
-                      ],
-                    ],
-                  ),
+              RoundAction(
+                icon: isFavourite ? Icons.star_rounded : Icons.star_border_rounded,
+                label: isFavourite ? 'Favorited' : 'Favorite',
+                active: isFavourite,
+                onTap: profileId == null ? null : () => _toggleFavourite(ref),
+              ),
+              if (inProgress)
+                RoundAction(
+                  icon: Icons.remove_done_rounded,
+                  label: 'Clear Progress',
+                  onTap: profileId == null
+                      ? null
+                      : () => ref
+                          .read(appDatabaseProvider)
+                          .clearMovieProgress(profileId!, movie.id),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
-        // Progress bar if in progress
-        if (movie.isInProgress)
+        SliverToBoxAdapter(
+          child: DetailSynopsis(
+            text: extras?.plot ?? _nonEmpty(movie.description),
+            cast: extras?.cast,
+            director: extras?.director,
+          ),
+        ),
+        if (more.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        movie.watchedDuration == null
-                            ? '0:00'
-                            : formatClock(movie.watchedDuration!),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      Text(
-                        movie.totalDuration == null
-                            ? ''
-                            : formatRuntime(movie.totalDuration!),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: movie.watchProgress,
-                      minHeight: 4,
+              padding: const EdgeInsets.only(top: 12),
+              child: MediaRail(
+                title: 'More Like This',
+                items: [
+                  for (final m in more)
+                    RailItem(
+                      title: context.displayName(m.title),
+                      imageUrl: m.posterUrl,
+                      watched: m.isWatched,
+                      progress: m.isInProgress ? m.watchProgress : null,
+                      heroTag: posterHeroTag('more', m.id),
+                      onTap: () => context.push('/movies/${m.id}',
+                          extra: posterHeroTag('more', m.id)),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ),
-        // Action buttons
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _ActionButtons(movie: movie),
-          ),
-        ),
-        // Description
-        if (movie.description != null && movie.description!.isNotEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('About', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Text(movie.description!,
-                      style: theme.textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -223,109 +229,18 @@ class _MovieDetailBody extends ConsumerWidget {
       ],
     );
   }
-}
 
-// ---------------------------------------------------------------------------
-// Action buttons
-// ---------------------------------------------------------------------------
-
-class _ActionButtons extends ConsumerWidget {
-  const _ActionButtons({required this.movie});
-
-  final Movie movie;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (movie.isInProgress) {
-      final watched = movie.watchedDuration;
-      final resumeLabel = watched == null ? '0:00' : formatClock(watched);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          FilledButton.icon(
-            autofocus: true,
-            icon: const Icon(Icons.play_arrow),
-            label: Text('Resume from $resumeLabel'),
-            onPressed: () => context.push('/player', extra: {
-              'streamUrl': movie.streamUrl,
-              'title': movie.title,
-              'contentId': movie.id,
-              'contentType': 'movie',
-              'resumePosition': movie.watchedDuration,
-              'confirmResume': false,
-            }),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.replay),
-            label: const Text('Start Over'),
-            onPressed: () => context.push('/player', extra: {
-              'streamUrl': movie.streamUrl,
-              'title': movie.title,
-              'contentId': movie.id,
-              'contentType': 'movie',
-              'resumePosition': Duration.zero,
-            }),
-          ),
-          const SizedBox(height: 4),
-          TextButton.icon(
-            icon: Icon(Icons.delete_outline,
-                size: 16, color: Theme.of(context).colorScheme.error),
-            label: const Text('Clear Progress'),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            onPressed: () async {
-              final profileId =
-                  ref.read(activeProfileProvider).valueOrNull?.id;
-              if (profileId == null) return;
-              await ref
-                  .read(appDatabaseProvider)
-                  .clearMovieProgress(profileId, movie.id);
-            },
-          ),
-        ],
-      );
-    }
-
-    return FilledButton.icon(
-      autofocus: true,
-      icon: const Icon(Icons.play_arrow),
-      label: const Text('Play'),
-      onPressed: () => context.push('/player', extra: {
-        'streamUrl': movie.streamUrl,
-        'title': movie.title,
-        'contentId': movie.id,
-        'contentType': 'movie',
-      }),
-    );
+  /// Drops titles a kids profile mustn't see or that sit in a locked genre.
+  List<Movie> _visible(WidgetRef ref, List<Movie> movies) {
+    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final unlocked = ref.watch(parentalSessionUnlockedProvider);
+    final isKid = profile?.isKidsProfile ?? false;
+    return movies
+        .where((m) => !isKid || !isAdultGenre(m.genre))
+        .where((m) => prefs == null || !isGenreLocked(m.genre, prefs, unlocked))
+        .toList();
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color:
-            Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-}
+String? _nonEmpty(String? s) => s == null || s.trim().isEmpty ? null : s;

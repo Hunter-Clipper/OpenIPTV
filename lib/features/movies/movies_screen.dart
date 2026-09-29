@@ -16,6 +16,7 @@ import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
+import 'package:open_iptv/shared/widgets/detail_header.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
@@ -606,7 +607,9 @@ class _HorizontalPosterRow extends ConsumerWidget {
             progress: showProgress && movie.isInProgress
                 ? movie.watchProgress
                 : null,
-            onTap: () => context.push('/movies/${movie.id}'),
+            heroTag: posterHeroTag(title, movie.id),
+            onTap: () => context.push('/movies/${movie.id}',
+                extra: posterHeroTag(title, movie.id)),
             onLongPress: hasRowOptions
                 ? () => _showRowOptions(context, ref, movie)
                 : profileId == null
@@ -741,16 +744,20 @@ class _PosterCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return TvFocusable(
-      onTap: () => context.push('/movies/${movie.id}'),
+      onTap: () => context.push('/movies/${movie.id}',
+          extra: posterHeroTag('grid', movie.id)),
       onLongPress: profileId == null ? null : () => _showMovieOptions(context, ref, movie, profileId!),
       autofocus: autofocus,
       ensureVisibleOnFocus: true,
       borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       child: Stack(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-            child: PosterImage(posterUrl: movie.posterUrl),
+          Hero(
+            tag: posterHeroTag('grid', movie.id),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+              child: PosterImage(posterUrl: movie.posterUrl),
+            ),
           ),
           if (movie.isInProgress)
             Positioned(

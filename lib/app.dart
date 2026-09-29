@@ -17,7 +17,6 @@ import 'package:open_iptv/features/movies/movies_screen.dart';
 import 'package:open_iptv/features/onboarding/setup_wizard_screen.dart';
 import 'package:open_iptv/features/player/player_screen.dart';
 import 'package:open_iptv/features/search/search_screen.dart';
-import 'package:open_iptv/features/series/episode_list_screen.dart';
 import 'package:open_iptv/features/series/series_detail_screen.dart';
 import 'package:open_iptv/features/series/series_screen.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
@@ -207,21 +206,18 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         // Settings/Player).
         GoRoute(
           path: '/movies/:id',
-          builder: (_, state) =>
-              MovieDetailScreen(movieId: state.pathParameters['id']!),
+          builder: (_, state) => MovieDetailScreen(
+            movieId: state.pathParameters['id']!,
+            // The tapped poster's Hero tag, when opened from a poster.
+            heroTag: state.extra is String ? state.extra as String : null,
+          ),
         ),
         GoRoute(
           path: '/series/:id',
-          builder: (_, state) =>
-              SeriesDetailScreen(seriesId: state.pathParameters['id']!),
-          routes: [
-            GoRoute(
-              path: 'episodes',
-              builder: (_, state) => EpisodeListScreen(
-                seriesId: state.pathParameters['id']!,
-              ),
-            ),
-          ],
+          builder: (_, state) => SeriesDetailScreen(
+            seriesId: state.pathParameters['id']!,
+            heroTag: state.extra is String ? state.extra as String : null,
+          ),
         ),
         GoRoute(
           path: '/player',

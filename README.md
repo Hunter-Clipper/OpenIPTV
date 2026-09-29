@@ -22,7 +22,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
 - **Full-screen TV guide** — Cable box-style grid with a live "now" line: swipe or use the remote's left/right to move through time, jump back with **Now**, and open it from the **TV Guide** card at the top of Live TV. Plus a per-channel guide panel inside the player
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
-- **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Resume from where you left off
+- **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress. Resume from where you left off
 - **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
 - Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
 - Fast global search across channels, movies, series, and what's airing now
@@ -145,7 +145,7 @@ lib/
 │   ├── updates/        # In-app update prompt and release-notes view
 │   ├── live_tv/        # Channel list, categories, TV guide grid, EPG panel, catch-up
 │   ├── movies/         # Movie genre grid, movie detail
-│   ├── series/         # Series genre grid, series detail, episode list
+│   ├── series/         # Series genre grid, series detail (seasons, episodes)
 │   ├── player/         # Full-screen player and controls overlay
 │   ├── search/         # Global search (parental-filtered)
 │   ├── onboarding/     # Setup wizard (first run, or add-playlist mode)
