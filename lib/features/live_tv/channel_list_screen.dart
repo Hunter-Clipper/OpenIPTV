@@ -110,17 +110,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
       appBar: AppBar(
         leading: const AppLogo(),
         title: const Text('Live TV'),
-        actions: [
-          TvActivatable(
-            onTap: () => context.push('/live/guide'),
-            builder: (onTap) => IconButton(
-              icon: const Icon(Icons.grid_view),
-              tooltip: 'TV Guide',
-              onPressed: onTap,
-            ),
-          ),
-          const SortToggleAction(),
-          const SettingsAction(),
+        actions: const [
+          SortToggleAction(),
+          SettingsAction(),
         ],
       ),
       body: channelsAsync.when(
@@ -146,6 +138,10 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
+                // Labelled entry point rather than an icon-only app-bar
+                // button — the old grid icon looked like the list/grid view
+                // switch used elsewhere.
+                const _TvGuideTile(),
                 if (recent.isNotEmpty) ...[
                   const SectionHeader('Recently Watched'),
                   _RecentChannelsRow(channels: recent),
@@ -846,6 +842,67 @@ class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// "TV Guide" entry at the top of Live TV: full-width, labelled and
+/// explained, so it can't be mistaken for anything else.
+class _TvGuideTile extends StatelessWidget {
+  const _TvGuideTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: TvFocusable(
+        autofocus: true,
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.push('/live/guide'),
+        child: Material(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => context.push('/live/guide'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.view_timeline_outlined,
+                        color: theme.colorScheme.primary),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('TV Guide',
+                            style: theme.textTheme.titleMedium!
+                                .copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text("See what's on now and next",
+                            style: theme.textTheme.bodySmall!.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

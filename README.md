@@ -19,7 +19,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - Add an IPTV playlist via M3U URL or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
 - **Live TV** with channel categories, favorites, recently watched, and "what's on now" from the EPG (XMLTV)
 - **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
-- **Full-screen TV guide** — Cable box-style grid with a live "now" line, plus a per-channel guide panel inside the player
+- **Full-screen TV guide** — Cable box-style grid with a live "now" line: swipe or use the remote's left/right to move through time, jump back with **Now**, and open it from the **TV Guide** card at the top of Live TV. Plus a per-channel guide panel inside the player
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
 - **Movies and Series** with per-genre browsing, Continue Watching, and resume from where you left off
 - **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
