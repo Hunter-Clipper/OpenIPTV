@@ -200,7 +200,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
                               useRootNavigator: true,
-                              builder: (_) => SafeArea(
+                              builder: (sheetContext) => SafeArea(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -213,7 +213,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                                               .textTheme
                                               .bodySmall),
                                       onTap: () =>
-                                          Navigator.of(context).pop(true),
+                                          Navigator.of(sheetContext).pop(true),
                                     ),
                                   ],
                                 ),
@@ -423,7 +423,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -432,7 +432,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                 leading: const Icon(Icons.star_border),
                 title: const Text('Remove from Favorites'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   if (profileId != null) {
                     await ref
                         .read(profileServiceProvider)
@@ -447,7 +447,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.error),
                 title: const Text('Remove from Continue Watching'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   final profileId =
                       ref.read(activeProfileProvider).valueOrNull?.id;
                   if (profileId == null) return;
@@ -556,7 +556,7 @@ void _showMovieOptions(
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
-    builder: (_) => SafeArea(
+    builder: (sheetContext) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -564,7 +564,7 @@ void _showMovieOptions(
             leading: Icon(isFav ? Icons.star_border : Icons.star),
             title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
             onTap: () async {
-              Navigator.pop(context);
+              Navigator.pop(sheetContext);
               await ref
                   .read(profileServiceProvider)
                   .toggleFavoriteMovie(profileId, movie.id);

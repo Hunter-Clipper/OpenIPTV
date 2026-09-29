@@ -181,7 +181,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
                               useRootNavigator: true,
-                              builder: (_) =>
+                              builder: (sheetContext) =>
                                   _CategoryOptionsSheet(label: cat),
                             );
                             if (hide == true && mounted) {
@@ -348,7 +348,7 @@ void _showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _ChannelOptionsSheet(
+    builder: (sheetContext) => _ChannelOptionsSheet(
       isFavorite: isFavorite,
       onToggle: () async {
         await ref
@@ -766,7 +766,7 @@ class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
                   color: Theme.of(sheetContext).colorScheme.error),
               title: const Text('Remove from Recently Watched'),
               onTap: () async {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 final profileId =
                     ref.read(activeProfileProvider).valueOrNull?.id;
                 if (profileId == null) return;

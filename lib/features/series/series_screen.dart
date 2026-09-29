@@ -198,7 +198,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                             final hide = await showModalBottomSheet<bool>(
                               context: context,
                               useRootNavigator: true,
-                              builder: (_) => SafeArea(
+                              builder: (sheetContext) => SafeArea(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -211,7 +211,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                                               .textTheme
                                               .bodySmall),
                                       onTap: () =>
-                                          Navigator.of(context).pop(true),
+                                          Navigator.of(sheetContext).pop(true),
                                     ),
                                   ],
                                 ),
@@ -415,7 +415,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -423,7 +423,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
               leading: const Icon(Icons.star_border),
               title: const Text('Remove from Favorites'),
               onTap: () async {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 if (profileId != null) {
                   await ref
                       .read(profileServiceProvider)
@@ -502,7 +502,7 @@ void _showSeriesOptions(
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
-    builder: (_) => SafeArea(
+    builder: (sheetContext) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -510,7 +510,7 @@ void _showSeriesOptions(
             leading: Icon(isFav ? Icons.star_border : Icons.star),
             title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
             onTap: () async {
-              Navigator.pop(context);
+              Navigator.pop(sheetContext);
               await ref
                   .read(profileServiceProvider)
                   .toggleFavoriteSeries(profileId, series.id);
@@ -659,7 +659,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -668,7 +668,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.error),
               title: const Text('Remove from Continue Watching'),
               onTap: () async {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 final profileId =
                     ref.read(activeProfileProvider).valueOrNull?.id;
                 if (profileId == null) return;

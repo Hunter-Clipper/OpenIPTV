@@ -95,9 +95,14 @@ class _MovieDetailBody extends ConsumerWidget {
             TvActivatable(
               onTap: profileId == null
                   ? null
-                  : () => ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteMovie(profileId!, movie.id),
+                  : () async {
+                      await ref
+                          .read(profileServiceProvider)
+                          .toggleFavoriteMovie(profileId!, movie.id);
+                      // Favorites are cached on the profile; refresh so
+                      // the star reflects the change.
+                      ref.invalidate(activeProfileProvider);
+                    },
               builder: (onTap) => IconButton(
                 icon: Icon(
                   isFavourite ? Icons.star : Icons.star_border,

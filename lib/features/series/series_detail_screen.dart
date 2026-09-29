@@ -158,9 +158,14 @@ class _SeriesBody extends ConsumerWidget {
             TvActivatable(
               onTap: profileId == null
                   ? null
-                  : () => ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteSeries(profileId!, series.id),
+                  : () async {
+                      await ref
+                          .read(profileServiceProvider)
+                          .toggleFavoriteSeries(profileId!, series.id);
+                      // Favorites are cached on the profile; refresh so
+                      // the star reflects the change.
+                      ref.invalidate(activeProfileProvider);
+                    },
               builder: (onTap) => IconButton(
                 icon: Icon(
                   isFav ? Icons.star : Icons.star_border,
