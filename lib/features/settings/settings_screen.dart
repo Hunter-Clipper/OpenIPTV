@@ -300,6 +300,26 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               );
             }),
+            InfoTooltip(
+              id: 'settings_clean_names',
+              title: 'Clean Up Names',
+              body: 'Tidies the names your provider sends — removes tags like '
+                  '"|EN|", "US|" or "A+ -" and turns ALL-CAPS names into '
+                  'normal capitalization. Turn off to see names exactly as '
+                  'your provider sends them.',
+              child: Consumer(builder: (context, ref, _) {
+                return _ToggleTile(
+                  icon: Icons.auto_fix_high_outlined,
+                  title: 'Clean Up Names',
+                  value: ref.watch(cleanNamesProvider),
+                  onChanged: (v) async {
+                    final prefs =
+                        await ref.read(appPreferencesProvider.future);
+                    await setCleanNames(ref, v, prefs);
+                  },
+                );
+              }),
+            ),
             if (isAdmin)
               InfoTooltip(
                 id: 'settings_hidden_cats',

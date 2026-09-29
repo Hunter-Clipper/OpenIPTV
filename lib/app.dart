@@ -26,6 +26,7 @@ import 'package:open_iptv/features/settings/parental_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -293,6 +294,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         themeMode: ThemeMode.dark,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
+        builder: (context, child) => DisplayNames(
+          enabled: ref.watch(cleanNamesProvider),
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }
@@ -447,17 +452,22 @@ class _ShellState extends State<_Shell> {
 // ---------------------------------------------------------------------------
 
 class _NavDestination {
-  const _NavDestination(this.icon, this.label, this.path);
+  const _NavDestination(this.icon, this.label, this.path, {this.selectedIcon});
   final IconData icon;
+  final IconData? selectedIcon;
   final String label;
   final String path;
 }
 
 const _kNavDestinations = [
-  _NavDestination(Icons.tv, 'Live TV', '/live'),
-  _NavDestination(Icons.movie_outlined, 'Movies', '/movies'),
-  _NavDestination(Icons.video_library_outlined, 'Series', '/series'),
-  _NavDestination(Icons.search, 'Search', '/search'),
+  _NavDestination(Icons.live_tv_outlined, 'Live TV', '/live',
+      selectedIcon: Icons.live_tv),
+  _NavDestination(Icons.movie_outlined, 'Movies', '/movies',
+      selectedIcon: Icons.movie),
+  _NavDestination(Icons.video_library_outlined, 'Series', '/series',
+      selectedIcon: Icons.video_library),
+  _NavDestination(Icons.search, 'Search', '/search',
+      selectedIcon: Icons.search),
 ];
 
 int _navIndexForLocation(BuildContext context) {
@@ -477,15 +487,21 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final index = _navIndexForLocation(context);
 
-    return BottomNavigationBar(
-      currentIndex: index,
-      onTap: (i) {
+    // Material 3 navigation bar: pill indicator behind the active tab,
+    // filled icon when selected.
+    return NavigationBar(
+      selectedIndex: index,
+      onDestinationSelected: (i) {
         onBeforeNavigate(index, i);
         context.go(_kNavDestinations[i].path);
       },
-      items: [
+      destinations: [
         for (final d in _kNavDestinations)
-          BottomNavigationBarItem(icon: Icon(d.icon), label: d.label),
+          NavigationDestination(
+            icon: Icon(d.icon),
+            selectedIcon: Icon(d.selectedIcon ?? d.icon),
+            label: d.label,
+          ),
       ],
     );
   }

@@ -46,6 +46,9 @@ class AppTheme {
     }
   }
 
+  /// Bundled Google Sans (see pubspec.yaml).
+  static const fontFamily = 'GoogleSans';
+
   static String hexFromAccent(Color c) =>
       c.toARGB32().toRadixString(16).toUpperCase().substring(2);
 
@@ -58,7 +61,15 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamily: fontFamily,
       scaffoldBackgroundColor: _background,
+      // Android's modern "fade forwards" route transition (the one Google's
+      // own apps use) instead of the default zoom.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       colorScheme: ColorScheme.dark(
         primary: primary,
         onPrimary: _onPrimary,
@@ -81,6 +92,31 @@ class AppTheme {
         foregroundColor: _onBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: _surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        height: 72,
+        indicatorColor: primary.withValues(alpha: 0.24),
+        indicatorShape: const StadiumBorder(),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
+              color: states.contains(WidgetState.selected)
+                  ? primary
+                  : _onSurfaceVariant,
+              size: 24,
+            )),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+              fontFamily: fontFamily,
+              fontSize: 12,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w600
+                  : FontWeight.w500,
+              color: states.contains(WidgetState.selected)
+                  ? _onBackground
+                  : _onSurfaceVariant,
+            )),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: _surface,
@@ -118,20 +154,52 @@ class AppTheme {
         ),
         hintStyle: const TextStyle(color: _onSurfaceVariant),
       ),
+      // Google Sans type scale: tighter, heavier headings; relaxed body.
       textTheme: TextTheme(
+        displaySmall: const TextStyle(
+            color: _onBackground,
+            fontSize: 34,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+            height: 1.15),
         headlineLarge: const TextStyle(
-            color: _onBackground, fontSize: 28, fontWeight: FontWeight.bold),
+            color: _onBackground,
+            fontSize: 30,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.4,
+            height: 1.2),
         headlineMedium: const TextStyle(
-            color: _onBackground, fontSize: 22, fontWeight: FontWeight.w600),
+            color: _onBackground,
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+            height: 1.25),
+        headlineSmall: const TextStyle(
+            color: _onBackground, fontSize: 21, fontWeight: FontWeight.w600),
         titleLarge: const TextStyle(
-            color: _onBackground, fontSize: 18, fontWeight: FontWeight.w600),
+            color: _onBackground, fontSize: 19, fontWeight: FontWeight.w600),
         titleMedium: const TextStyle(
             color: _onBackground, fontSize: 16, fontWeight: FontWeight.w500),
-        bodyLarge: const TextStyle(color: _onSurface, fontSize: 16),
-        bodyMedium: const TextStyle(color: _onSurface, fontSize: 14),
-        bodySmall: const TextStyle(color: _onSurfaceVariant, fontSize: 12),
+        titleSmall: const TextStyle(
+            color: _onBackground, fontSize: 14, fontWeight: FontWeight.w600),
+        bodyLarge:
+            const TextStyle(color: _onSurface, fontSize: 16, height: 1.45),
+        bodyMedium:
+            const TextStyle(color: _onSurface, fontSize: 14, height: 1.4),
+        bodySmall: const TextStyle(
+            color: _onSurfaceVariant, fontSize: 12.5, height: 1.35),
         labelLarge: TextStyle(
             color: primary, fontSize: 14, fontWeight: FontWeight.w600),
+        labelMedium: const TextStyle(
+            color: _onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.2),
+        labelSmall: const TextStyle(
+            color: _onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6),
       ),
       dividerTheme: const DividerThemeData(
         color: _surfaceVariant,

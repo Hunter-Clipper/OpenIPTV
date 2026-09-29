@@ -13,9 +13,10 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
-import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 
@@ -208,7 +209,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: query.length < SearchService.minQueryLength
           ? const _SearchPrompt()
           : resultsAsync.when(
-              loading: () => const LoadingView(),
+              loading: () => const SkeletonList(itemCount: 6, leadingSize: 0),
               error: (_, __) => ErrorStateView(
                 message: "Couldn't load search results. Try again.",
                 onRetry: () => ref.invalidate(_searchResultsProvider),
@@ -277,7 +278,7 @@ class _ResultsList extends ConsumerWidget {
             title: 'Live TV',
             items: results.channels,
             icon: Icons.live_tv,
-            labelOf: (c) => c.name,
+            labelOf: (c) => context.displayName(c.name),
             subtitleOf: (c) {
               final now = results.nowPlaying[c.id];
               return now == null ? null : 'Now: $now';
@@ -303,7 +304,7 @@ class _ResultsList extends ConsumerWidget {
             title: 'Movies',
             items: results.movies,
             icon: Icons.movie_outlined,
-            labelOf: (m) => m.title,
+            labelOf: (m) => context.displayName(m.title),
             subtitleOf: (m) => m.year,
             isLockedOf: (m) => genreLocked(m.genre),
             firstItemFocusNode: firstGroupIsMovies ? firstItemFocusNode : null,
@@ -321,7 +322,7 @@ class _ResultsList extends ConsumerWidget {
             title: 'Series',
             items: results.series,
             icon: Icons.video_library_outlined,
-            labelOf: (s) => s.title,
+            labelOf: (s) => context.displayName(s.title),
             subtitleOf: (s) => s.year,
             isLockedOf: (s) => genreLocked(s.genre),
             firstItemFocusNode: firstGroupIsSeries ? firstItemFocusNode : null,

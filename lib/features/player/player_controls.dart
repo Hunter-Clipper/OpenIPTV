@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/epg_panel.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -411,7 +412,7 @@ class _BottomPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          title,
+          context.displayName(title),
           style: TextStyle(
             color: Colors.white,
             fontSize: m.titleSize,
@@ -424,7 +425,7 @@ class _BottomPanel extends StatelessWidget {
         if (subtitle != null) ...[
           SizedBox(height: 4 * m.scale),
           Text(
-            subtitle!,
+            context.displayName(subtitle!),
             style: TextStyle(
               color: Colors.white70,
               fontSize: m.bodySize + 1,

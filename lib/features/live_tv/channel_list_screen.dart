@@ -14,15 +14,16 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
-import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -116,7 +117,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         ],
       ),
       body: channelsAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 28),
         error: (e, _) => ErrorStateView(
             message: "Couldn't load channels. Check your internet connection.",
             onRetry: () => ref.invalidate(allChannelsProvider)),
@@ -255,7 +256,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.category),
+        title: Text(context.displayName(widget.category)),
         actions: [
           ViewModeToggleAction(
             provider: viewModeLiveProvider,
@@ -266,7 +267,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
         ],
       ),
       body: channelsAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 44),
         error: (e, _) => ErrorStateView(
             message: "Couldn't load channels. Check your internet connection.",
             onRetry: () => ref.invalidate(allChannelsProvider)),
@@ -403,7 +404,7 @@ class _ChannelGridCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    channel.name,
+                    context.displayName(channel.name),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
@@ -480,7 +481,7 @@ class _ChannelRow extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(channel.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(context.displayName(channel.name), maxLines: 1, overflow: TextOverflow.ellipsis),
             _EpgSubtitle(channelId: channel.id),
           ],
         ),
@@ -831,7 +832,7 @@ class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      ch.name,
+                      context.displayName(ch.name),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,

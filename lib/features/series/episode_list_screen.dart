@@ -6,7 +6,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
-import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ class EpisodeListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('All Episodes')),
       body: episodesAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 56),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load episodes. Try again.",
           onRetry: () => ref.invalidate(_episodeListProvider(seriesId)),

@@ -7,6 +7,7 @@ import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
@@ -152,7 +153,7 @@ class _SeriesBody extends ConsumerWidget {
         SliverAppBar(
           expandedHeight: 0,
           pinned: true,
-          title: Text(series.title,
+          title: Text(context.displayName(series.title),
               maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             TvActivatable(
@@ -199,14 +200,14 @@ class _SeriesBody extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(series.title,
+                      Text(context.displayName(series.title),
                           style: theme.textTheme.titleLarge),
                       const SizedBox(height: 8),
                       if (series.year?.trim().isNotEmpty ?? false)
                         _MetaRow(label: series.year!),
                       if (series.genre != null) ...[
                         const SizedBox(height: 4),
-                        _MetaRow(label: series.genre!),
+                        _MetaRow(label: context.displayName(series.genre!)),
                       ],
                       const SizedBox(height: 12),
                       if (seasons.isNotEmpty) ...[

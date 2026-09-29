@@ -6,6 +6,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
@@ -232,7 +233,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.channelName,
+                      Text(context.displayName(widget.channelName),
                           style: theme.textTheme.titleLarge),
                       const SizedBox(height: 4),
                       Row(

@@ -11,16 +11,17 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
-import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -118,7 +119,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         ],
       ),
       body: moviesAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 28),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load movies. Try again.",
           onRetry: () => _refreshMovies(ref),
@@ -281,7 +282,9 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.genre == 'All' ? 'All Movies' : widget.genre),
+        title: Text(widget.genre == 'All'
+            ? 'All Movies'
+            : context.displayName(widget.genre)),
         actions: [
           ViewModeToggleAction(
             provider: viewModeMoviesProvider,
@@ -292,7 +295,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
         ],
       ),
       body: moviesAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 48),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load movies. Try again.",
           onRetry: () => _refreshMovies(ref),
@@ -532,7 +535,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                     ),
                   const SizedBox(height: 4),
                   Text(
-                    movie.title,
+                    context.displayName(movie.title),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -615,10 +618,10 @@ class _MovieListTile extends ConsumerWidget {
           child: PosterImage(posterUrl: movie.posterUrl,
               width: 40, height: 56),
         ),
-        title: Text(movie.title,
+        title: Text(context.displayName(movie.title),
             maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: movie.genre != null && movie.genre!.isNotEmpty
-            ? Text(splitGenres(movie.genre).first,
+            ? Text(context.displayName(splitGenres(movie.genre).first),
                 maxLines: 1, overflow: TextOverflow.ellipsis)
             : null,
         // A tappable IconButton, not a static status Icon — Live TV's channel

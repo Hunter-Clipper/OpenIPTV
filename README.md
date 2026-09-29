@@ -18,6 +18,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 - Add an IPTV playlist via M3U URL or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
 - **Live TV** with channel categories, favorites, recently watched, and "what's on now" from the EPG (XMLTV)
+- **Clean names** — provider clutter like `|EN|`, `US|`, `A+ -` and ALL-CAPS is tidied for display ("|EN| HORROR/THRILLER" → "Horror / Thriller"); switch off in Settings → Appearance to see raw names
 - **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
 - **Full-screen TV guide** — Cable box-style grid with a live "now" line: swipe or use the remote's left/right to move through time, jump back with **Now**, and open it from the **TV Guide** card at the top of Live TV. Plus a per-channel guide panel inside the player
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
@@ -31,7 +32,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - Background auto-refresh of playlists and EPG on a schedule you choose, with optional notifications
 - Backup and restore your full setup (profiles, playlists, settings) as a single `.zip`, optionally password-protected — save it straight to Downloads (works on TVs), and restore it from the welcome screen on a fresh install
 - **In-app updates** for sideloaded installs (Fire TV, Android TV boxes, phones without Google Play): OpenIPTV checks GitHub for new releases, shows what changed, and installs the update for you
-- Dark theme with 6 accent color choices; content sort toggle (provider order or A-Z)
+- Material 3 design with Google Sans typography, a dark theme with 6 accent colors, and smooth transitions; content sort toggle (provider order or A-Z)
 - Works with a TV remote — full D-pad navigation and Android TV launcher support
 - No ads, no telemetry, no accounts
 

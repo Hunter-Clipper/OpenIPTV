@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Standardized category/genre row: icon, label, item count, optional lock
@@ -35,7 +36,7 @@ class CategoryTile extends StatelessWidget {
       ensureVisibleOnFocus: true,
       child: ListTile(
         leading: Icon(icon, color: theme.colorScheme.primary),
-        title: Text(label),
+        title: Text(context.displayName(label)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

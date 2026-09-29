@@ -16,6 +16,7 @@ import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
@@ -914,7 +915,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 Text(
                                   _isRecovering
                                       ? 'Reconnecting… ($_retryCount/$_maxRetries)'
-                                      : widget.title,
+                                      : context.displayName(widget.title),
                                   style: const TextStyle(
                                     color: Colors.white70,
                                     fontSize: 14,
@@ -1140,7 +1141,7 @@ class _ErrorOverlay extends StatelessWidget {
             color: Colors.white54, size: 48),
         const SizedBox(height: 16),
         Text(
-          title,
+          context.displayName(title),
           style: const TextStyle(color: Colors.white70, fontSize: 14),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

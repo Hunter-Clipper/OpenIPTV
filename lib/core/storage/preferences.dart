@@ -20,6 +20,7 @@ const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
 const _kPipEnabled = 'pip_enabled';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
 const _kAutoUpdateCheck = 'auto_update_check';
+const _kCleanNames = 'clean_names';
 const _kLastUpdateCheckMs = 'last_update_check_ms';
 const _kSkippedUpdateVersion = 'skipped_update_version';
 
@@ -110,6 +111,10 @@ class AppPreferences {
       _prefs.getBool(_kMediaNotificationEnabled) ?? true;
   Future<void> setMediaNotificationEnabled(bool v) =>
       _prefs.setBool(_kMediaNotificationEnabled, v);
+
+  // Tidy provider names for display (display_name.dart).
+  bool get cleanNames => _prefs.getBool(_kCleanNames) ?? true;
+  Future<void> setCleanNames(bool v) => _prefs.setBool(_kCleanNames, v);
 
   // Sideload self-updater (see update_service.dart)
   bool get autoUpdateCheck => _prefs.getBool(_kAutoUpdateCheck) ?? true;

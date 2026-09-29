@@ -13,16 +13,17 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
-import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -118,7 +119,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         ],
       ),
       body: allAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 28),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load series. Try again.",
           onRetry: () => _refreshSeries(ref),
@@ -279,7 +280,9 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.genre == 'All' ? 'All Series' : widget.genre),
+        title: Text(widget.genre == 'All'
+            ? 'All Series'
+            : context.displayName(widget.genre)),
         actions: [
           ViewModeToggleAction(
             provider: viewModeSeriesProvider,
@@ -290,7 +293,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
         ],
       ),
       body: allAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 48),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load series. Try again.",
           onRetry: () => _refreshSeries(ref),
@@ -478,7 +481,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    s.title,
+                    context.displayName(s.title),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -561,10 +564,10 @@ class _SeriesListTile extends ConsumerWidget {
           child: PosterImage(
               posterUrl: series.posterUrl, width: 40, height: 56),
         ),
-        title: Text(series.title,
+        title: Text(context.displayName(series.title),
             maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: series.genre != null && series.genre!.isNotEmpty
-            ? Text(splitGenres(series.genre).first,
+            ? Text(context.displayName(splitGenres(series.genre).first),
                 maxLines: 1, overflow: TextOverflow.ellipsis)
             : null,
         // A tappable IconButton, not a static status Icon — favoriting stays
@@ -780,7 +783,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    series?.title ?? ep.displayTitle,
+                    context.displayName(series?.title ?? ep.displayTitle),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall!

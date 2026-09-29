@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
@@ -87,7 +88,7 @@ class _MovieDetailBody extends ConsumerWidget {
           expandedHeight: 0,
           pinned: true,
           title: Text(
-            movie.title,
+            context.displayName(movie.title),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -137,14 +138,14 @@ class _MovieDetailBody extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(movie.title,
+                      Text(context.displayName(movie.title),
                           style: theme.textTheme.titleLarge),
                       const SizedBox(height: 8),
                       if (movie.year?.trim().isNotEmpty ?? false)
                         _MetaChip(label: movie.year!),
                       if (movie.genre != null) ...[
                         const SizedBox(height: 6),
-                        _MetaChip(label: movie.genre!),
+                        _MetaChip(label: context.displayName(movie.genre!)),
                       ],
                       if (movie.rating != null) ...[
                         const SizedBox(height: 6),

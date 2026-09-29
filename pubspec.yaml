@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.10.56+1
+version: 0.10.58+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -92,6 +92,20 @@ flutter_native_splash:
 
 flutter:
   uses-material-design: true
+
+  # Google Sans (SIL OFL 1.1 — assets/fonts/google_sans/OFL.txt), subset to
+  # Latin, Greek and Cyrillic; other scripts fall back to the system font.
+  fonts:
+    - family: GoogleSans
+      fonts:
+        - asset: assets/fonts/google_sans/GoogleSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/google_sans/GoogleSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/google_sans/GoogleSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/google_sans/GoogleSans-Bold.ttf
+          weight: 700
 
   assets:
     - assets/images/

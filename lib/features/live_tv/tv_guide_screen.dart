@@ -11,8 +11,9 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/features/live_tv/guide_preview_controller.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
-import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
@@ -252,7 +253,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
         ],
       ),
       body: channelsAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(leadingSize: 24),
         error: (e, _) => ErrorStateView(
           message: "Couldn't load the TV guide.",
           onRetry: () => ref.invalidate(allChannelsProvider),
@@ -463,7 +464,7 @@ class _GuideRow extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        channel.name,
+                        context.displayName(channel.name),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium,

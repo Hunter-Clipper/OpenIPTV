@@ -36,6 +36,15 @@ final pipActiveProvider = StateProvider<bool>((ref) => false);
 // Now Playing / media notification.
 final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 
+// Tidy provider names for display (see display_name.dart).
+final cleanNamesProvider = StateProvider<bool>((ref) => true);
+
+Future<void> setCleanNames(
+    WidgetRef ref, bool enabled, AppPreferences prefs) async {
+  ref.read(cleanNamesProvider.notifier).state = enabled;
+  await prefs.setCleanNames(enabled);
+}
+
 // Helpers called from Settings to update prefs + provider in one shot.
 Future<void> setAccentColor(
     WidgetRef ref, Color color, AppPreferences prefs) async {
@@ -122,4 +131,5 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(mediaNotificationEnabledProvider.notifier).state =
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
+  ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
 }
