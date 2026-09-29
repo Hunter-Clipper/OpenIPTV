@@ -19,6 +19,7 @@ class MainActivity : AudioServiceActivity() {
     private var pipChannel: MethodChannel? = null
     private var deviceChannel: MethodChannel? = null
     private var backChannel: MethodChannel? = null
+    private var updatesChannel: MethodChannel? = null
     private var videoPlayerManager: NativeVideoPlayerManager? = null
 
     // Updated proactively by Dart via pip_service.dart's updatePipAvailability()
@@ -74,6 +75,11 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        updatesChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/updates")
+        updatesChannel?.setMethodCallHandler(AppUpdater(this))
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/files")
+            .setMethodCallHandler(FileSaver(this))
 
         videoPlayerManager = NativeVideoPlayerManager(
             applicationContext,

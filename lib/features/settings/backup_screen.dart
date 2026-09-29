@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
@@ -15,8 +15,18 @@ import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+
+/// Lets the user pick a backup file and restores it — shared by Settings →
+/// Backup & Restore and the setup wizard's "Restore from a backup" (fresh
+/// installs). Shows its own error messages; returns what was restored, or
+/// null if cancelled / failed.
+Future<BackupSummary?> restoreBackupFromFile(
+        BuildContext context, WidgetRef ref) =>
+    const BackupScreen()._pickAndRestore(context, ref);
 
 class BackupScreen extends ConsumerWidget {
   const BackupScreen({super.key});
@@ -111,13 +121,30 @@ class BackupScreen extends ConsumerWidget {
       final bytes =
           await manager.exportAll(password: password.isEmpty ? null : password);
 
-      final tempDir = await getTemporaryDirectory();
       final stamp = formatYmd(DateTime.now());
-      final file = File('${tempDir.path}/OpenIPTV_Backup_$stamp.zip');
-      await file.writeAsBytes(bytes);
+      final name = 'OpenIPTV_Backup_$stamp.zip';
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      // TVs usually have no share targets at all, so saving to the device
+      // is the only option there.
+      final destination = PlatformHelper.isTV(context)
+          ? _ExportDestination.downloads
+          : await _chooseDestination(context);
+      if (destination == null || !context.mounted) return;
+
+      if (destination == _ExportDestination.downloads) {
+        final location = await _saveToDownloads(name, bytes);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backup saved to $location')),
+        );
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$name');
+      await file.writeAsBytes(bytes);
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/zip')],
@@ -132,11 +159,69 @@ class BackupScreen extends ConsumerWidget {
     }
   }
 
+  Future<_ExportDestination?> _chooseDestination(BuildContext context) {
+    return showDialog<_ExportDestination>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Save Backup'),
+        content: const Text(
+            'Save the backup file to this device, or share it to another '
+            'app (email, cloud storage, …).'),
+        actions: [
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(_ExportDestination.share),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Share…')),
+          ),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(_ExportDestination.downloads),
+            builder: (onTap) => FilledButton(
+                onPressed: onTap, child: const Text('Save to Downloads')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Writes to the public Downloads folder via the native side (MediaStore
+  /// on Android 10+; older versions need the storage permission first).
+  Future<String> _saveToDownloads(String name, Uint8List bytes) async {
+    const channel = MethodChannel('openiptv/files');
+    Future<String> save() async =>
+        await channel.invokeMethod<String>('saveToDownloads', {
+          'name': name,
+          'bytes': bytes,
+          'mimeType': 'application/zip',
+        }) ??
+        'Downloads/$name';
+    try {
+      return await save();
+    } on PlatformException {
+      // Android 9 and below: ask for storage access, then retry once.
+      if (await Permission.storage.request().isGranted) return save();
+      rethrow;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Import
   // ---------------------------------------------------------------------------
 
   Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
+    final summary = await _pickAndRestore(context, ref);
+    if (summary == null || !context.mounted) return;
+    _showSuccess(
+      context,
+      'Restored ${summary.profileCount} '
+      'profile${summary.profileCount == 1 ? '' : 's'} and '
+      '${summary.sourceCount} '
+      'source${summary.sourceCount == 1 ? '' : 's'}.',
+    );
+  }
+
+  Future<BackupSummary?> _pickAndRestore(
+      BuildContext context, WidgetRef ref) async {
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
@@ -144,24 +229,24 @@ class BackupScreen extends ConsumerWidget {
         withData: true,
       );
     } catch (_) {
-      if (!context.mounted) return;
+      if (!context.mounted) return null;
       _showError(context,
           "Couldn't open the file picker. Check that the app has file "
           'access permission and try again.');
-      return;
+      return null;
     }
 
     if (result == null ||
         result.files.isEmpty ||
         result.files.first.bytes == null) {
-      return;
+      return null;
     }
 
-    if (!context.mounted) return;
-    await _doImport(context, ref, result.files.first.bytes!);
+    if (!context.mounted) return null;
+    return _doImport(context, ref, result.files.first.bytes!);
   }
 
-  Future<void> _doImport(
+  Future<BackupSummary?> _doImport(
     BuildContext context,
     WidgetRef ref,
     Uint8List bytes, {
@@ -174,29 +259,22 @@ class BackupScreen extends ConsumerWidget {
     try {
       final summary = await manager.importAll(bytes, password: password);
       await _afterImport(ref);
-      if (!context.mounted) return;
-      _showSuccess(
-        context,
-        'Restored ${summary.profileCount} '
-        'profile${summary.profileCount == 1 ? '' : 's'} and '
-        '${summary.sourceCount} '
-        'source${summary.sourceCount == 1 ? '' : 's'}.',
-      );
+      return summary;
     } on BackupException catch (e) {
       if (e.message == 'password_required') {
-        if (!context.mounted) return;
+        if (!context.mounted) return null;
         final pw = await _promptEnterPassword(context);
-        if (pw == null || !context.mounted) return;
-        await _doImport(context, ref, bytes, password: pw);
-      } else {
-        if (!context.mounted) return;
-        _showError(context, e.message);
+        if (pw == null || !context.mounted) return null;
+        return _doImport(context, ref, bytes, password: pw);
       }
+      if (context.mounted) _showError(context, e.message);
+      return null;
     } catch (_) {
-      if (!context.mounted) return;
+      if (!context.mounted) return null;
       _showError(context,
           "Couldn't open this backup file. "
           "Make sure it's a valid OpenIPTV backup.");
+      return null;
     }
   }
 
@@ -370,3 +448,5 @@ class BackupScreen extends ConsumerWidget {
       );
   }
 }
+
+enum _ExportDestination { downloads, share }

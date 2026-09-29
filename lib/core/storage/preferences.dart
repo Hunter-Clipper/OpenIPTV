@@ -19,6 +19,9 @@ const _kLastRegisteredRefreshIntervalHours = 'last_registered_refresh_interval_h
 const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
 const _kPipEnabled = 'pip_enabled';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
+const _kAutoUpdateCheck = 'auto_update_check';
+const _kLastUpdateCheckMs = 'last_update_check_ms';
+const _kSkippedUpdateVersion = 'skipped_update_version';
 
 @Riverpod(keepAlive: true)
 Future<AppPreferences> appPreferences(AppPreferencesRef ref) async {
@@ -107,4 +110,24 @@ class AppPreferences {
       _prefs.getBool(_kMediaNotificationEnabled) ?? true;
   Future<void> setMediaNotificationEnabled(bool v) =>
       _prefs.setBool(_kMediaNotificationEnabled, v);
+
+  // Sideload self-updater (see update_service.dart)
+  bool get autoUpdateCheck => _prefs.getBool(_kAutoUpdateCheck) ?? true;
+  Future<void> setAutoUpdateCheck(bool v) =>
+      _prefs.setBool(_kAutoUpdateCheck, v);
+
+  DateTime? get lastUpdateCheck {
+    final ms = _prefs.getInt(_kLastUpdateCheckMs);
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  Future<void> setLastUpdateCheck(DateTime t) =>
+      _prefs.setInt(_kLastUpdateCheckMs, t.millisecondsSinceEpoch);
+
+  /// A release the user chose "Skip this version" for — not offered again
+  /// automatically (a manual check still shows it).
+  String? get skippedUpdateVersion => _prefs.getString(_kSkippedUpdateVersion);
+  Future<void> setSkippedUpdateVersion(String? v) => v == null
+      ? _prefs.remove(_kSkippedUpdateVersion)
+      : _prefs.setString(_kSkippedUpdateVersion, v);
 }

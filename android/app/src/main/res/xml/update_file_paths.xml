@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Downloaded update APKs live in the app cache (lib/core/services/update_service.dart)
+     and are shared with the system package installer via FileProvider. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

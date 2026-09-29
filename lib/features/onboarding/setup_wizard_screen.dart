@@ -10,6 +10,7 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/pin_keypad.dart';
@@ -76,6 +77,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
   // Loading / all-set state
   bool _isLoading = false;
+  bool _restoring = false;
   String? _errorMessage;
   String _progressMessage = 'Connecting…';
 
@@ -258,6 +260,65 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     }
   }
 
+  /// Welcome page → "Restore from a backup": brings back profiles, playlists
+  /// and settings, then downloads each playlist's channels (a backup holds
+  /// playlist logins, not their contents) on the loading page.
+  Future<void> _restoreFromBackup() async {
+    final summary = await restoreBackupFromFile(context, ref);
+    if (summary == null || !mounted) return;
+
+    final db = ref.read(appDatabaseProvider);
+    final prefs = await ref.read(appPreferencesProvider.future);
+    final profiles = await db.getAllProfiles();
+    final sources = await db.getAllSources();
+    if (profiles.isEmpty || sources.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              "That backup doesn't include a profile and a playlist, so "
+              "there's nothing to restore yet. Tap Get Started instead.")));
+      return;
+    }
+    // One profile: use it. Several: start on an admin one (the person
+    // restoring holds the whole backup anyway); the picker is available
+    // from Settings afterwards.
+    final active = profiles.length == 1
+        ? profiles.first
+        : profiles.firstWhere((p) => p.isAdmin, orElse: () => profiles.first);
+    await prefs.setActiveProfileId(active.id);
+    ref.invalidate(activeProfileProvider);
+    ref.read(accentColorProvider.notifier).state =
+        AppTheme.accentFromHex(prefs.accentColor);
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _restoring = true;
+      // Show the restored accent, not the wizard's default.
+      _accentColor = AppTheme.accentFromHex(prefs.accentColor);
+      _progressMessage = 'Connecting…';
+    });
+    _goToPage(5);
+    final manager = ref.read(sourceManagerProvider);
+    for (final (i, source) in sources.indexed) {
+      final label = sources.length > 1
+          ? '${source.nickname} (${i + 1} of ${sources.length})'
+          : source.nickname;
+      try {
+        await manager.refreshSource(source, onProgress: (msg) {
+          if (mounted) setState(() => _progressMessage = '$label — $msg');
+        });
+      } catch (e) {
+        // One unreachable playlist mustn't block the rest; it can be
+        // refreshed from Settings later.
+        debugPrint('[OTV-restore] refresh failed for ${source.nickname}: $e');
+      }
+    }
+    if (!mounted) return;
+    ref.invalidate(allSourcesProvider);
+    context.go('/live');
+  }
+
   /// Back to wherever the wizard was opened from (Settings), or into the
   /// app when it's the root route (first run, or no playlists left).
   void _finish() {
@@ -288,7 +349,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             const SizedBox.shrink(),
             const SizedBox.shrink(),
           ] else ...[
-          _WelcomePage(onStart: () => _goToPage(1)),
+          _WelcomePage(
+            onStart: () => _goToPage(1),
+            onRestore: _restoreFromBackup,
+          ),
           _NamePage(
             nameCtrl: _nameCtrl,
             nameFocusNode: _nameFocusNode,
@@ -344,7 +408,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             onBack: () => _goToPage(3),
             onSubmit: _isLoading ? null : _submitSource,
           ),
-          _LoadingPage(message: _progressMessage, accentColor: _accentColor),
+          _LoadingPage(
+            message: _progressMessage,
+            accentColor: _accentColor,
+            title: _restoring
+                ? 'Restoring your playlists…'
+                : 'Setting up your playlist…',
+          ),
           _AllSetPage(
             headline: addOnly
                 ? 'Playlist added!'
@@ -364,8 +434,11 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 // ---------------------------------------------------------------------------
 
 class _WelcomePage extends StatefulWidget {
-  const _WelcomePage({required this.onStart});
+  const _WelcomePage({required this.onStart, required this.onRestore});
   final VoidCallback onStart;
+  // Fresh install from an existing backup (reinstall, new Fire Stick) —
+  // skips creating a profile and playlist by hand.
+  final VoidCallback onRestore;
 
   @override
   State<_WelcomePage> createState() => _WelcomePageState();
@@ -532,7 +605,24 @@ class _WelcomePageState extends State<_WelcomePage>
                   onTap: widget.onStart,
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 12),
+              FadeTransition(
+                opacity: _fade,
+                child: TvActivatable(
+                  onTap: widget.onRestore,
+                  builder: (onTap) => TextButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.settings_backup_restore,
+                        color: AppTheme.mutedTextColor),
+                    label: const Text(
+                      'Restore from a backup',
+                      style: TextStyle(
+                          color: AppTheme.mutedTextColor, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
             ],
           ),
         ),
@@ -1388,9 +1478,14 @@ class _WizardField extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _LoadingPage extends StatefulWidget {
-  const _LoadingPage({required this.message, required this.accentColor});
+  const _LoadingPage({
+    required this.message,
+    required this.accentColor,
+    this.title = 'Setting up your playlist…',
+  });
   final String message;
   final Color accentColor;
+  final String title;
 
   @override
   State<_LoadingPage> createState() => _LoadingPageState();
@@ -1459,10 +1554,10 @@ class _LoadingPageState extends State<_LoadingPage>
                 ),
               ),
               const SizedBox(height: 40),
-              const Text(
-                'Setting up your playlist…',
+              Text(
+                widget.title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,

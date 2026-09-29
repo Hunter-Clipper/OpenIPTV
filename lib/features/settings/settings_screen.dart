@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
+import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
@@ -337,6 +338,42 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+            ),
+            InfoTooltip(
+              id: 'settings_check_updates',
+              title: 'Check for Updates',
+              body: 'Looks for a newer version of OpenIPTV on GitHub and, if '
+                  'there is one, shows what changed and installs it. Only '
+                  'the public release page is contacted — nothing about you '
+                  'or your device is sent.',
+              child: _NavTile(
+                leading: const Icon(Icons.system_update_outlined),
+                title: 'Check for Updates',
+                subtitle: Text('See if a newer version is available',
+                    style: theme.textTheme.bodySmall),
+                onTap: () => checkForUpdateManually(context),
+              ),
+            ),
+            InfoTooltip(
+              id: 'settings_auto_update',
+              title: 'Check Automatically',
+              body: 'When on, OpenIPTV checks for a new version about once a '
+                  'day when it starts, and lets admin profiles know. Turn '
+                  'off to only check from this menu.',
+              child: Consumer(builder: (context, ref, _) {
+                final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+                return StatefulBuilder(
+                  builder: (context, setLocal) => _ToggleTile(
+                    icon: Icons.update,
+                    title: 'Check Automatically',
+                    value: prefs?.autoUpdateCheck ?? true,
+                    onChanged: (v) async {
+                      await prefs?.setAutoUpdateCheck(v);
+                      setLocal(() {});
+                    },
+                  ),
+                );
+              }),
             ),
             const SizedBox(height: 32),
           ],

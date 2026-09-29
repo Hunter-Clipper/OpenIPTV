@@ -20,6 +20,7 @@ import 'package:open_iptv/features/search/search_screen.dart';
 import 'package:open_iptv/features/series/episode_list_screen.dart';
 import 'package:open_iptv/features/series/series_detail_screen.dart';
 import 'package:open_iptv/features/series/series_screen.dart';
+import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/features/settings/parental_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
@@ -338,6 +339,12 @@ class _ShellState extends State<_Shell> {
   @override
   void initState() {
     super.initState();
+    // Sideloaded installs have no store to update them — offer new GitHub
+    // releases. Runs once the main UI is up (i.e. after setup and the
+    // profile picker); throttled and admin-only inside.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(maybePromptForUpdate(context));
+    });
     _backChannel.setMethodCallHandler((call) async {
       if (call.method == 'backPressed') _handleNativeBackPressed();
     });
