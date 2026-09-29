@@ -46,6 +46,15 @@ final _nowProgrammeProvider =
   return ref.read(epgServiceProvider).getCurrentProgramme(channelId);
 });
 
+// What's on now and next, per channel, for the category list rows.
+final _nowNextProvider = FutureProvider.autoDispose
+    .family<(Programme?, Programme?), String>((ref, channelId) async {
+  final epg = ref.read(epgServiceProvider);
+  final now = await epg.getCurrentProgramme(channelId);
+  final next = await epg.getNextProgramme(channelId);
+  return (now, next);
+});
+
 /// Re-fetches channels for every source, then reloads [allChannelsProvider].
 /// Shared pull-to-refresh handler for the category list and category screens.
 Future<void> _refreshAllChannels(WidgetRef ref) async {
@@ -322,28 +331,52 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
             );
           }
           if (viewMode == 'grid') {
-            final cols = PlatformHelper.posterColumns(context);
+            final cols = switch (PlatformHelper.getLayout(context)) {
+              AppLayout.phone => 2,
+              AppLayout.tablet => 3,
+              AppLayout.tv => 4,
+            };
             return RefreshIndicator(
               onRefresh: () => _refreshAllChannels(ref),
-              child: GridView.builder(
-                key: ValueKey('${widget.category}_grid'),
-                padding: const EdgeInsets.all(12),
-                itemCount: channels.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1.0,
-                ),
-                itemBuilder: (context, i) {
-                  final ch = channels[i];
-                  return _ChannelGridCard(
-                    channel: ch,
-                    profileId: profileId,
-                    isFavorite: favIds.contains(ch.id),
-                  );
-                },
-              ),
+              child: LayoutBuilder(builder: (context, c) {
+                const pad = 16.0, gap = 12.0;
+                final w = (c.maxWidth - pad * 2 - gap * (cols - 1)) / cols;
+                return GridView.builder(
+                  key: ValueKey('${widget.category}_grid'),
+                  padding: const EdgeInsets.fromLTRB(pad, 12, pad, 24),
+                  itemCount: channels.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: gap,
+                    mainAxisExtent: w * 9 / 16 + 50,
+                  ),
+                  itemBuilder: (context, i) {
+                    final ch = channels[i];
+                    final fav = favIds.contains(ch.id);
+                    return _LiveChannelCard(
+                      channel: ch,
+                      width: w,
+                      autofocus: i == 0,
+                      onLongPress: profileId == null
+                          ? null
+                          : () => _showChannelOptions(
+                              context, ref, ch, profileId, fav),
+                      favoriteButton: StarButton(
+                        isFavorite: fav,
+                        onTap: profileId == null
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(profileServiceProvider)
+                                    .toggleFavoriteChannel(profileId, ch.id);
+                                ref.invalidate(activeProfileProvider);
+                              },
+                      ),
+                    );
+                  },
+                );
+              }),
             );
           }
           return RefreshIndicator(
@@ -357,6 +390,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
                   channel: ch,
                   profileId: profileId,
                   isFavorite: favIds.contains(ch.id),
+                  autofocus: i == 0,
                 );
               },
             ),
@@ -402,65 +436,133 @@ void _showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
 // Channel grid card
 // ---------------------------------------------------------------------------
 
-class _ChannelGridCard extends ConsumerWidget {
-  const _ChannelGridCard({
+// ---------------------------------------------------------------------------
+// Channel row — logo tile, name, what's on now (time + progress) and next
+// ---------------------------------------------------------------------------
+
+class _ChannelRow extends ConsumerWidget {
+  const _ChannelRow({
     required this.channel,
     required this.profileId,
     required this.isFavorite,
+    this.autofocus = false,
   });
 
   final Channel channel;
   final String? profileId;
   final bool isFavorite;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final guide = ref.watch(_nowNextProvider(channel.id)).valueOrNull;
+    final now = guide?.$1;
+    final next = guide?.$2;
+    void onTap() => _playChannel(context, channel);
+    final onLongPress = profileId == null
+        ? null
+        : () => _showChannelOptions(
+            context, ref, channel, profileId!, isFavorite);
+
     return TvFocusable(
-      borderRadius: BorderRadius.circular(10),
+      wrapsGesture: false,
+      autofocus: autofocus,
       ensureVisibleOnFocus: true,
-      onTap: () => _playChannel(context, channel),
-      onLongPress: profileId == null
-          ? null
-          : () => _showChannelOptions(
-              context, ref, channel, profileId!, isFavorite),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: _ChannelLogo(url: channel.logoUrl, size: 48),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.displayName(channel.name),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall!
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  _EpgGridLine(channelId: channel.id),
-                ],
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+          child: Row(
+            children: [
+              _LogoTile(
+                url: channel.logoUrl,
+                width: PlatformHelper.isTV(context) ? 120 : 96,
               ),
-            ),
-            Positioned(
-              top: 4,
-              right: 4,
-              child: StarButton(
-                isFavorite: isFavorite,
-                onTap: profileId == null
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            context.displayName(channel.name),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall,
+                          ),
+                        ),
+                        if (channel.hasCatchup) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: 'Catch-up available',
+                            child: Icon(Icons.history_rounded,
+                                size: 15, color: muted),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (now != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        now.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                            color: theme.colorScheme.primary, fontSize: 13.5),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Text(
+                            '${_hm(context, now.start)} – ${_hm(context, now.end)}',
+                            style: theme.textTheme.bodySmall!
+                                .copyWith(color: muted, fontSize: 11.5),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: LinearProgressIndicator(
+                                value: now
+                                    .progressAt(DateTime.now())
+                                    .clamp(0.0, 1.0),
+                                minHeight: 3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (next != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Next  ${_hm(context, next.start)}  ${next.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall!
+                            .copyWith(color: muted, fontSize: 11.5),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: isFavorite ? theme.colorScheme.primary : muted,
+                ),
+                tooltip:
+                    isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                onPressed: profileId == null
                     ? null
                     : () async {
                         await ref
@@ -469,229 +571,60 @@ class _ChannelGridCard extends ConsumerWidget {
                         ref.invalidate(activeProfileProvider);
                       },
               ),
-            ),
-            if (channel.hasCatchup)
-              Positioned(
-                top: 4,
-                left: 4,
-                child: Icon(Icons.replay_circle_filled_outlined,
-                    size: 12, color: theme.colorScheme.onSurfaceVariant),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Channel row
-// ---------------------------------------------------------------------------
-
-class _ChannelRow extends ConsumerWidget {
-  const _ChannelRow({
-    required this.channel,
-    required this.profileId,
-    required this.isFavorite,
-  });
-
-  final Channel channel;
-  final String? profileId;
-  final bool isFavorite;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    return TvFocusable(
-      ensureVisibleOnFocus: true,
-      onTap: () => _playChannel(context, channel),
-      onLongPress: profileId == null
-          ? null
-          : () => _showChannelOptions(
-              context, ref, channel, profileId!, isFavorite),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: _ChannelLogo(url: channel.logoUrl),
-        // Name and now-playing line share the title slot: a ListTile given
-        // any `subtitle` (even an empty one, for channels without guide
-        // data) switches to two-line layout and pushes the name off-centre.
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(context.displayName(channel.name), maxLines: 1, overflow: TextOverflow.ellipsis),
-            _EpgSubtitle(channelId: channel.id),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (channel.hasCatchup)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Icon(
-                  Icons.replay_circle_filled_outlined,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            IconButton(
-              icon: Icon(
-                isFavorite ? Icons.star : Icons.star_border,
-                color: isFavorite
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              tooltip:
-                  isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
-              onPressed: profileId == null
-                  ? null
-                  : () async {
-                      await ref
-                          .read(profileServiceProvider)
-                          .toggleFavoriteChannel(profileId!, channel.id);
-                      ref.invalidate(activeProfileProvider);
-                    },
-            ),
-          ],
-        ),
-        enableFeedback: false,
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Channel logo
-// ---------------------------------------------------------------------------
-
-class _ChannelLogo extends StatelessWidget {
-  const _ChannelLogo({required this.url, this.size = 48});
+/// A channel logo on a soft 16:10 tile — logos come in every shape and
+/// colour, and a uniform tile keeps the list tidy.
+class _LogoTile extends StatelessWidget {
+  const _LogoTile({required this.url, required this.width});
 
   final String? url;
-  final double size;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (url == null || url!.isEmpty) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.tv, color: theme.colorScheme.onSurfaceVariant),
-      );
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: CachedNetworkImage(
-        imageUrl: url!,
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        memCacheWidth: size.toInt(),
-        memCacheHeight: size.toInt(),
-        placeholder: (_, __) => Container(
-          width: size,
-          height: size,
-          color: theme.colorScheme.surfaceContainerHighest,
-        ),
-        errorWidget: (_, __, ___) => Container(
-          width: size,
-          height: size,
-          color: theme.colorScheme.surfaceContainerHighest,
-          child: Icon(Icons.tv, color: theme.colorScheme.onSurfaceVariant),
+    final icon = Icon(Icons.tv_rounded,
+        size: width * 0.3, color: theme.colorScheme.onSurfaceVariant);
+    return Container(
+      width: width,
+      height: width * 10 / 16,
+      padding: EdgeInsets.all(width * 0.1),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _logoTileColors,
         ),
       ),
+      child: url == null || url!.isEmpty
+          ? icon
+          : CachedNetworkImage(
+              imageUrl: url!,
+              fit: BoxFit.contain,
+              memCacheWidth: (width * 2).toInt(),
+              errorWidget: (_, __, ___) => icon,
+            ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// EPG subtitle — programme title + thin progress bar
-// ---------------------------------------------------------------------------
+// Mid-grey, lighter than the page: dark logos (A&E, Adult Swim) vanish on
+// the usual surface colours, and white ones would on anything paler.
+const _logoTileColors = [Color(0xFF4A4A50), Color(0xFF36363B)];
 
-class _EpgSubtitle extends ConsumerWidget {
-  const _EpgSubtitle({required this.channelId});
-
-  final String channelId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final prog = ref.watch(_nowProgrammeProvider(channelId)).valueOrNull;
-    if (prog == null) return const SizedBox.shrink();
-    final progress = prog.progressAt(DateTime.now()).clamp(0.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(height: 2),
-        Text(
-          prog.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall,
-        ),
-        const SizedBox(height: 4),
-        LinearProgressIndicator(
-          value: progress,
-          minHeight: 2,
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
-        ),
-      ],
+String _hm(BuildContext context, DateTime t) =>
+    MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(t),
+      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
     );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// EPG grid line — compact single-line programme + progress for grid cards
-// ---------------------------------------------------------------------------
-
-class _EpgGridLine extends ConsumerWidget {
-  const _EpgGridLine({required this.channelId});
-
-  final String channelId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final prog = ref.watch(_nowProgrammeProvider(channelId)).valueOrNull;
-    if (prog == null) return const SizedBox.shrink();
-    final progress = prog.progressAt(DateTime.now()).clamp(0.0, 1.0);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          prog.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall!.copyWith(
-            fontSize: 10,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 3),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 2,
-            backgroundColor: theme.colorScheme.surface,
-            valueColor:
-                AlwaysStoppedAnimation(theme.colorScheme.primary),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Category long-press options sheet
@@ -843,12 +776,17 @@ class _LiveChannelCard extends ConsumerStatefulWidget {
     required this.width,
     this.focusNode,
     this.onLongPress,
+    this.autofocus = false,
+    this.favoriteButton,
   });
 
   final Channel channel;
   final double width;
   final FocusNode? focusNode;
   final VoidCallback? onLongPress;
+  final bool autofocus;
+  // Overlaid top-right (the grid's favorite star).
+  final Widget? favoriteButton;
 
   @override
   ConsumerState<_LiveChannelCard> createState() => _LiveChannelCardState();
@@ -867,6 +805,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
     final logo = ch.logoUrl;
     return TvFocusable(
       focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
       ensureVisibleOnFocus: true,
       showFocusRing: false,
       onFocusChange: (f) => setState(() => _focused = f),
@@ -887,13 +826,10 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                 height: widget.width * 9 / 16,
                 decoration: BoxDecoration(
                   borderRadius: radius,
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      theme.colorScheme.surfaceContainerHighest,
-                      theme.colorScheme.surfaceContainer,
-                    ],
+                    colors: _logoTileColors,
                   ),
                   border: Border.all(
                     color: lit ? theme.colorScheme.primary : Colors.transparent,
@@ -929,6 +865,12 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                                 size: 36,
                                 color: theme.colorScheme.onSurfaceVariant),
                       ),
+                      if (widget.favoriteButton != null)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: widget.favoriteButton!,
+                        ),
                       if (prog != null)
                         Positioned(
                           left: 0,
