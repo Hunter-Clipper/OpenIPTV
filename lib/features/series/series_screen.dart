@@ -13,6 +13,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
@@ -389,7 +390,7 @@ class _GenreTileList extends StatelessWidget {
             count: seriesCounts[genres[i]] ?? 0,
             icon: genres[i] == 'All'
                 ? Icons.video_library_outlined
-                : Icons.category_outlined,
+                : genreIcon(genres[i], fallback: Icons.category_outlined),
             isLocked: lockedGenres.contains(genres[i]),
             onTap: () => onTap(genres[i]),
             onLongPress: genres[i] == 'All' || onHideGenre == null

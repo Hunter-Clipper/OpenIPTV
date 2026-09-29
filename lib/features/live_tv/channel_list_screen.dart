@@ -14,6 +14,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
@@ -172,7 +173,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   return CategoryTile(
                     label: cat,
                     count: count,
-                    icon: Icons.folder_outlined,
+                    icon: genreIcon(cat, fallback: Icons.folder_outlined),
                     isLocked: locked,
                     onTap: () => _tapCategory(cat),
                     onLongPress: profileId == null
