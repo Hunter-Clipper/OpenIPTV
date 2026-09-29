@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/series.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -39,12 +40,22 @@ final _searchCatalogProvider = FutureProvider.autoDispose<
     ({List<Channel> channels, List<Movie> movies, List<Series> series})>(
   (ref) async {
     final db = ref.watch(appDatabaseProvider);
+    // Search follows the active playlist, like the browse tabs; null means
+    // "All playlists".
+    final sourceId = ref.watch(activeSourceIdProvider);
     final (channels, movies, series) = await (
       db.getAllChannels(),
       db.getAllMovies(),
       db.getAllSeries(),
     ).wait;
-    return (channels: channels, movies: movies, series: series);
+    if (sourceId == null) {
+      return (channels: channels, movies: movies, series: series);
+    }
+    return (
+      channels: channels.where((c) => c.sourceId == sourceId).toList(),
+      movies: movies.where((m) => m.sourceId == sourceId).toList(),
+      series: series.where((s) => s.sourceId == sourceId).toList(),
+    );
   },
 );
 

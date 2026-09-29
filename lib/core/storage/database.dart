@@ -761,15 +761,19 @@ class AppDatabase extends _$AppDatabase {
   Future<void> clearChannelLastWatched(String profileId, String id) =>
       _clearProgress(profileId, 'channel', id);
 
+  /// Most recently watched channels, newest first. With [sourceId], only
+  /// that playlist's channels — the history row should follow the active
+  /// playlist like every other list.
   Stream<List<model.Channel>> watchRecentChannels(String profileId,
-      {int limit = 20}) {
+      {int limit = 20, String? sourceId}) {
     return (select(watchProgress)
           ..where((w) =>
               w.profileId.equals(profileId) &
               w.contentType.equals('channel') &
               w.lastWatchedAt.isNotNull())
           ..orderBy([(w) => OrderingTerm.desc(w.lastWatchedAt)])
-          ..limit(limit))
+          // Headroom so filtering to one playlist can still fill [limit].
+          ..limit(sourceId == null ? limit : limit * 5))
         .watch()
         .asyncMap((progressRows) async {
       final ids = progressRows.map((p) => p.contentId).toList();
@@ -780,6 +784,8 @@ class AppDatabase extends _$AppDatabase {
       return ids
           .map((id) => byId[id])
           .whereType<ChannelRow>()
+          .where((r) => sourceId == null || r.sourceId == sourceId)
+          .take(limit)
           .map(_channelFromRow)
           .toList();
     });

@@ -69,7 +69,7 @@ class M3uParser {
 
       final groupLower = group.toLowerCase();
 
-      if (_isVod(groupLower)) {
+      if (_isVod(groupLower, streamUrl)) {
         if (_isSeries(groupLower, name)) {
           final seriesTitle = _extractSeriesTitle(name);
           final seriesId = _generateId(sourceId, seriesTitle);
@@ -165,8 +165,22 @@ class M3uParser {
     'vod', 'movie', 'movies', 'film', 'films', 'series', 'shows',
   ];
 
+  static final _vodFileExt =
+      RegExp(r'\.(mp4|mkv|avi|mov|m4v|webm|flv|wmv|mpg|mpeg)$');
+  static final _liveFileExt = RegExp(r'\.(m3u8|ts)$');
+
+  /// Whether an entry is on-demand (movie/episode) rather than a live
+  /// channel. The stream URL is the strongest signal: a media file, or an
+  /// Xtream-style /movie/ or /series/ path, is VOD; HLS/MPEG-TS or a /live/
+  /// path is live. Only when the URL says nothing does the group name
+  /// decide — group keywords alone misfiled live channels in playlists
+  /// like iptv-org, whose groups read "Movies;Series" for 24/7 channels.
   /// [groupLower] is the already-lowercased group title.
-  static bool _isVod(String groupLower) {
+  static bool _isVod(String groupLower, String streamUrl) {
+    final path = (Uri.tryParse(streamUrl)?.path ?? streamUrl).toLowerCase();
+    if (path.contains('/movie/') || path.contains('/series/')) return true;
+    if (_vodFileExt.hasMatch(path)) return true;
+    if (path.contains('/live/') || _liveFileExt.hasMatch(path)) return false;
     return _vodKeywords.any((kw) => groupLower.contains(kw));
   }
 

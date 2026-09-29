@@ -34,7 +34,8 @@ final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
-  return db.watchRecentChannels(profileId);
+  return db.watchRecentChannels(profileId,
+      sourceId: ref.watch(activeSourceIdProvider));
 });
 
 // Caches EPG programme per channel so scrolling doesn't re-fire DB queries.

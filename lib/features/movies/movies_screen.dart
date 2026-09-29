@@ -47,7 +47,11 @@ final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
   final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
-  return db.watchMoviesInProgress(profileId);
+  // Follow the active playlist, like the rest of the Movies tab.
+  final sourceId = ref.watch(activeSourceIdProvider);
+  return db.watchMoviesInProgress(profileId).map((movies) => sourceId == null
+      ? movies
+      : movies.where((m) => m.sourceId == sourceId).toList());
 });
 
 Future<void> _refreshMovies(WidgetRef ref) async {
@@ -610,7 +614,7 @@ class _MovieListTile extends ConsumerWidget {
         title: Text(movie.title,
             maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: movie.genre != null && movie.genre!.isNotEmpty
-            ? Text(movie.genre!.split(',').first.trim(),
+            ? Text(splitGenres(movie.genre).first,
                 maxLines: 1, overflow: TextOverflow.ellipsis)
             : null,
         // A tappable IconButton, not a static status Icon — Live TV's channel

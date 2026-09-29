@@ -156,5 +156,40 @@ http://example.com/ep.mp4
       expect(result.episodes.first.season, 2);
       expect(result.episodes.first.episode, 5);
     });
+
+    test('live HLS streams stay channels even in Movies/Series groups',
+        () async {
+      // iptv-org labels 24/7 live channels with groups like this.
+      const content = '''
+#EXTM3U
+#EXTINF:-1 group-title="Movies;Series",Pluto TV Classics
+https://example.com/pluto/classics/master.m3u8
+''';
+      final result = await M3uParser.parse(content, sourceId);
+      expect(result.channels.map((c) => c.name), ['Pluto TV Classics']);
+      expect(result.movies, isEmpty);
+      expect(result.series, isEmpty);
+    });
+
+    test('Xtream-style /series/ path is VOD regardless of group', () async {
+      const content = '''
+#EXTM3U
+#EXTINF:-1 group-title="Drama",Some Show S01E02
+http://host/series/user/pass/12345.mkv
+''';
+      final result = await M3uParser.parse(content, sourceId);
+      expect(result.channels, isEmpty);
+      expect(result.episodes.single.episode, 2);
+    });
+
+    test('falls back to group keywords when the URL has no hint', () async {
+      const content = '''
+#EXTM3U
+#EXTINF:-1 group-title="Movies",Some Film
+http://host/stream/98765
+''';
+      final result = await M3uParser.parse(content, sourceId);
+      expect(result.movies.map((m) => m.title), ['Some Film']);
+    });
   });
 }

@@ -46,7 +46,11 @@ final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
   final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
-  return db.watchEpisodesInProgress(profileId);
+  // Follow the active playlist, like the rest of the Series tab.
+  final sourceId = ref.watch(activeSourceIdProvider);
+  return db.watchEpisodesInProgress(profileId).map((eps) => sourceId == null
+      ? eps
+      : eps.where((e) => e.sourceId == sourceId).toList());
 });
 
 Future<void> _refreshSeries(WidgetRef ref) async {
@@ -556,7 +560,7 @@ class _SeriesListTile extends ConsumerWidget {
         title: Text(series.title,
             maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: series.genre != null && series.genre!.isNotEmpty
-            ? Text(series.genre!.split(',').first.trim(),
+            ? Text(splitGenres(series.genre).first,
                 maxLines: 1, overflow: TextOverflow.ellipsis)
             : null,
         // A tappable IconButton, not a static status Icon — favoriting stays

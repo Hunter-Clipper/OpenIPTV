@@ -27,9 +27,10 @@ bool isCategoryLocked(
 final parentalSessionUnlockedProvider =
     StateProvider<Set<String>>((ref) => const {});
 
-/// Splits a comma-separated genre string into trimmed names; null → 'Other'.
+/// Splits a genre string into trimmed names; null → 'Other'. Providers
+/// separate multiple genres with ',' (Xtream) or ';' (iptv-org-style M3U).
 Iterable<String> splitGenres(String? genre) =>
-    (genre ?? 'Other').split(',').map((g) => g.trim());
+    (genre ?? 'Other').split(RegExp('[,;]')).map((g) => g.trim());
 
 /// True if any genre in [genre] matches adult keywords.
 bool isAdultGenre(String? genre) => splitGenres(genre).any(isAdultCategory);

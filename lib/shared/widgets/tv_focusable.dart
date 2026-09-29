@@ -166,9 +166,13 @@ class _TvFocusableState extends State<TvFocusable> {
     var content = widget.child;
     if (widget.showFocusRing) {
       final lit = _focused && PlatformHelper.isTV(context);
+      // Painted as a foreground ring so it takes no layout space: as a
+      // regular (transparent-until-focused) border it inset every focusable
+      // widget by 3px, misaligning it against non-focusable siblings (e.g.
+      // the active, non-tappable row in a list of tappable ones).
       content = AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        decoration: BoxDecoration(
+        foregroundDecoration: BoxDecoration(
           border: Border.all(
             color: lit
                 ? Theme.of(context).colorScheme.primary
