@@ -14,6 +14,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 - Add an IPTV playlist via M3U URL or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
 - **Live TV** with channel categories, favorites, recently watched, and "what's on now" from the EPG (XMLTV)
+- **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
 - **Full-screen TV guide** — Cable box-style grid with a live "now" line, plus a per-channel guide panel inside the player
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
 - **Movies and Series** with per-genre browsing, Continue Watching, and resume from where you left off
@@ -21,13 +22,26 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
 - Fast global search across channels, movies, series, and what's airing now
 - Multiple profiles per device — emoji avatars, PIN lock, admin vs restricted roles
-- **Parental controls**: auto-detects adult/XXX categories and PIN-protects them across Live TV, Movies, Series, and Search. Kid profiles hide adult content entirely instead of just locking it
+- **Parental controls**: auto-detects adult/XXX categories and PIN-protects them across Live TV, Movies, Series, and Search (without false alarms like "Adult Swim"). Kid profiles hide adult content entirely instead of just locking it
 - **Role-based permissions**: only admin profiles can manage playlists, backup/restore, parental settings, and other profiles
 - Background auto-refresh of playlists and EPG on a schedule you choose, with optional notifications
-- Backup and restore your full setup (profiles, playlists, settings) as a single `.zip`, optionally password-protected
+- Backup and restore your full setup (profiles, playlists, settings) as a single `.zip`, optionally password-protected — save it straight to Downloads (works on TVs), and restore it from the welcome screen on a fresh install
+- **In-app updates** for sideloaded installs (Fire TV, Android TV boxes, phones without Google Play): OpenIPTV checks GitHub for new releases, shows what changed, and installs the update for you
 - Dark theme with 6 accent color choices; content sort toggle (provider order or A-Z)
 - Works with a TV remote — full D-pad navigation and Android TV launcher support
 - No ads, no telemetry, no accounts
+
+---
+
+## Install
+
+OpenIPTV is distributed as an APK from [GitHub Releases](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest).
+
+- **Fire TV / Android TV:** install the free **Downloader** app, enter code **`2687835`**, and install. (It points at `https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk`.) Allow Downloader to install unknown apps when asked.
+- **Android phone / tablet:** download `app-release.apk` from the latest release and open it, allowing installs from your browser or file manager.
+- **Updates:** from v0.10.48 on, the app offers new versions itself (Settings → About → Check for Updates, or automatically about once a day).
+
+> Upgrading from **v0.10.45 or older**? Those builds were signed with a different key, so uninstall first: export a backup (Settings → Backup & Restore), uninstall, install the new version, then tap **Restore from a backup** on the welcome screen.
 
 ---
 
@@ -118,10 +132,12 @@ lib/
 │   ├── providers/      # theme_providers (accent color, sort order, view modes), channel providers
 │   ├── services/       # SourceManager, ProfileService, EpgService, PlaybackService,
 │   │                   # NativeVideoPlayer, ParentalService, SearchService,
-│   │                   # AutoRefreshService, NowPlayingService, PipService
+│   │                   # AutoRefreshService, NowPlayingService, PipService,
+│   │                   # UpdateService
 │   └── storage/        # database.dart (Drift/SQLite), preferences.dart, backup_manager.dart
 │
 ├── features/
+│   ├── updates/        # In-app update prompt and release-notes view
 │   ├── live_tv/        # Channel list, categories, TV guide grid, EPG panel, catch-up
 │   ├── movies/         # Movie genre grid, movie detail
 │   ├── series/         # Series genre grid, series detail, episode list
@@ -132,13 +148,14 @@ lib/
 │
 ├── shared/
 │   ├── theme/          # AppTheme (dark theme, accent swatches)
-│   ├── utils/          # Formatting helpers, friendly error messages
+│   ├── utils/          # Formatting, friendly errors, genre icon matching
 │   └── widgets/        # TV-focusable controls, video surface, PIN dialog, tooltips, …
 │
 └── app.dart            # App entry, routing, tab shell, native back handling
 
 android/app/src/main/kotlin/com/openiptv/app/
-                        # NativeVideoPlayer (ExoPlayer), MainActivity (PiP, back, keep-awake)
+                        # NativeVideoPlayer (ExoPlayer), MainActivity (PiP, back, keep-awake),
+                        # AppUpdater (installs updates), FileSaver (Downloads)
 ```
 
 ---
@@ -156,6 +173,10 @@ android/app/src/main/kotlin/com/openiptv/app/
 **Parsing:** Custom Dart M3U, XMLTV, and Xtream Codes parsers. No third-party parser dependencies. Large payloads are decoded off the UI thread.
 
 **Background work:** `workmanager` schedules periodic playlist/EPG refresh; `flutter_local_notifications` reports results. `audio_service` provides the media notification.
+
+**Updates:** `UpdateService` reads GitHub's `releases/latest` API (anonymous — no device or user data is sent), compares versions, downloads the APK into the app cache, and hands it to Android's package installer through a `FileProvider`. Play Store installs are skipped.
+
+**Release signing:** release builds are signed with a dedicated key referenced by `android/key.properties` (git-ignored; never commit it or the keystore). Every release must use that same key, or Android will refuse to install it as an update. Without `key.properties`, release builds fall back to the debug key — fine for local testing, not for publishing.
 
 **Responsive layout:** Grid column count is derived from screen width at runtime. On Android TV (detected natively via `UiModeManager`) the app switches to a side nav rail and remote-first focus handling.
 
