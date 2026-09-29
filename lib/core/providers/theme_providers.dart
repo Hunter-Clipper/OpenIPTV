@@ -39,6 +39,23 @@ final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 // Tidy provider names for display (see display_name.dart).
 final cleanNamesProvider = StateProvider<bool>((ref) => true);
 
+// Movies / Series home layout: 'posters' (a rail per genre) or 'compact'
+// (the plain genre list).
+final homeLayoutMoviesProvider = StateProvider<String>((ref) => 'posters');
+final homeLayoutSeriesProvider = StateProvider<String>((ref) => 'posters');
+
+Future<void> setHomeLayoutMovies(
+    WidgetRef ref, String layout, AppPreferences prefs) async {
+  ref.read(homeLayoutMoviesProvider.notifier).state = layout;
+  await prefs.setHomeLayoutMovies(layout);
+}
+
+Future<void> setHomeLayoutSeries(
+    WidgetRef ref, String layout, AppPreferences prefs) async {
+  ref.read(homeLayoutSeriesProvider.notifier).state = layout;
+  await prefs.setHomeLayoutSeries(layout);
+}
+
 Future<void> setCleanNames(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(cleanNamesProvider.notifier).state = enabled;
@@ -132,4 +149,6 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
+  ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;
+  ref.read(homeLayoutSeriesProvider.notifier).state = prefs.homeLayoutSeries;
 }

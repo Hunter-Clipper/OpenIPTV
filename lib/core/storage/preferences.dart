@@ -21,6 +21,8 @@ const _kPipEnabled = 'pip_enabled';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
 const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
+const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
+const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
 const _kSkippedUpdateVersion = 'skipped_update_version';
 
@@ -115,6 +117,17 @@ class AppPreferences {
   // Tidy provider names for display (display_name.dart).
   bool get cleanNames => _prefs.getBool(_kCleanNames) ?? true;
   Future<void> setCleanNames(bool v) => _prefs.setBool(_kCleanNames, v);
+
+  // Movies / Series home: genre poster rails or the compact genre list.
+  String get homeLayoutMovies =>
+      _prefs.getString(_kHomeLayoutMovies) ?? 'posters';
+  Future<void> setHomeLayoutMovies(String v) =>
+      _prefs.setString(_kHomeLayoutMovies, v);
+
+  String get homeLayoutSeries =>
+      _prefs.getString(_kHomeLayoutSeries) ?? 'posters';
+  Future<void> setHomeLayoutSeries(String v) =>
+      _prefs.setString(_kHomeLayoutSeries, v);
 
   // Sideload self-updater (see update_service.dart)
   bool get autoUpdateCheck => _prefs.getBool(_kAutoUpdateCheck) ?? true;

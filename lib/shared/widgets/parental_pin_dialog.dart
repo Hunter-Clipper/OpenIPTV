@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/pin_keypad.dart';
 
 /// Shows a 4-digit PIN entry dialog.
@@ -117,7 +118,7 @@ Future<bool> ensureCategoryUnlocked(
     return true;
   }
   if (!await promptAdminPin(
-      context, ref, 'Enter admin PIN to unlock "$category"')) {
+      context, ref, 'Enter admin PIN to unlock "${context.displayName(category)}"')) {
     return false;
   }
   ref.read(parentalSessionUnlockedProvider.notifier).state = {

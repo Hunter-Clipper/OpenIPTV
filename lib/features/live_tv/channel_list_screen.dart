@@ -21,8 +21,8 @@ import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
-import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -87,6 +87,35 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     return cats;
   }
 
+  void _showRemoveRecentSheet(Channel ch) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.remove_circle_outline,
+                  color: Theme.of(sheetContext).colorScheme.error),
+              title: const Text('Remove from Recently Watched'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final profileId =
+                    ref.read(activeProfileProvider).valueOrNull?.id;
+                if (profileId == null) return;
+                await ref
+                    .read(appDatabaseProvider)
+                    .clearChannelLastWatched(profileId, ch.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _tapCategory(String cat) async {
     if (!await ensureCategoryUnlocked(context, ref, cat)) return;
     if (mounted) {
@@ -125,7 +154,10 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           final cats = _buildCategories(all, hiddenCats, sort)
               .where((c) => !isKid || !isAdultCategory(c))
               .toList();
-          final favCount = favIds.length;
+          final favorites = all
+              .where((c) => favIds.contains(c.id))
+              .where((c) => !isKid || !c.categories.any(isAdultCategory))
+              .toList();
           final recent =
               ref.watch(_recentChannelsProvider).valueOrNull ?? [];
           final catCounts = <String, int>{};
@@ -143,18 +175,25 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                 // button — the old grid icon looked like the list/grid view
                 // switch used elsewhere.
                 const _TvGuideTile(),
-                if (recent.isNotEmpty) ...[
-                  const SectionHeader('Recently Watched'),
-                  _RecentChannelsRow(channels: recent),
-                ],
-                if (favCount > 0)
-                  CategoryTile(
-                    label: 'Favorites',
-                    count: favCount,
-                    icon: Icons.star_outlined,
-                    onTap: () => context.push(
+                if (favorites.isNotEmpty)
+                  _ChannelRail(
+                    title: 'Favorites',
+                    channels: favorites.take(20).toList(),
+                    onSeeAll: () => context.push(
                         '/live/category/${Uri.encodeComponent('Favorites')}'),
+                    onLongPress: profileId == null
+                        ? null
+                        : (ch) => _showChannelOptions(
+                            context, ref, ch, profileId, true),
                   ),
+                if (recent.isNotEmpty)
+                  _ChannelRail(
+                    title: 'Recently Watched',
+                    channels: recent,
+                    onLongPress: (ch) => _showRemoveRecentSheet(ch),
+                  ),
+                if (favorites.isNotEmpty || recent.isNotEmpty)
+                  const RailHeader(title: 'Categories'),
                 if (cats.isEmpty)
                   CategoryTile(
                     label: 'All',
@@ -717,21 +756,31 @@ class _ChannelOptionsSheet extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Recently Watched row
+// Channel rails (Favorites / Recently Watched) — landscape cards with the
+// programme on now
 // ---------------------------------------------------------------------------
 
-class _RecentChannelsRow extends ConsumerStatefulWidget {
-  const _RecentChannelsRow({required this.channels});
+class _ChannelRail extends StatefulWidget {
+  const _ChannelRail({
+    required this.title,
+    required this.channels,
+    this.onSeeAll,
+    this.onLongPress,
+  });
+
+  final String title;
   final List<Channel> channels;
+  final VoidCallback? onSeeAll;
+  final void Function(Channel)? onLongPress;
 
   @override
-  ConsumerState<_RecentChannelsRow> createState() => _RecentChannelsRowState();
+  State<_ChannelRail> createState() => _ChannelRailState();
 }
 
-class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
+class _ChannelRailState extends State<_ChannelRail> {
   // Landing spot for "D-pad focus just entered this row from elsewhere" (see
-  // the wrapping Focus's onFocusChange below) — always the first tile,
-  // regardless of which tile the directional search would have geometrically
+  // the wrapping Focus's onFocusChange below) — always the first card,
+  // regardless of which card the directional search would have geometrically
   // picked otherwise.
   final FocusNode _firstItemFocusNode = FocusNode();
 
@@ -743,106 +792,181 @@ class _RecentChannelsRowState extends ConsumerState<_RecentChannelsRow> {
 
   // A FocusNode's `hasFocus` is true if it OR ANY DESCENDANT has focus, so
   // this fires exactly once when focus arrives in the row from outside (the
-  // false->true edge) — not on every move between tiles within the row,
-  // since the row itself stays "focused" throughout that internal traversal.
+  // false->true edge) — not on every move between cards within the row.
   void _handleRowFocusChange(bool hasFocus) {
     if (hasFocus && widget.channels.isNotEmpty) {
       _firstItemFocusNode.requestFocus();
     }
   }
 
-  void _showRemoveSheet(BuildContext context, WidgetRef ref, Channel ch) {
-    HapticFeedback.mediumImpact();
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.remove_circle_outline,
-                  color: Theme.of(sheetContext).colorScheme.error),
-              title: const Text('Remove from Recently Watched'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final profileId =
-                    ref.read(activeProfileProvider).valueOrNull?.id;
-                if (profileId == null) return;
-                await ref
-                    .read(appDatabaseProvider)
-                    .clearChannelLastWatched(profileId, ch.id);
+  @override
+  Widget build(BuildContext context) {
+    final width = PlatformHelper.isTV(context) ? 220.0 : 176.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RailHeader(title: widget.title, onSeeAll: widget.onSeeAll),
+        Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onFocusChange: _handleRowFocusChange,
+          child: SizedBox(
+            height: width * 9 / 16 + 56,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+              clipBehavior: Clip.none,
+              itemCount: widget.channels.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) {
+                final ch = widget.channels[i];
+                return _LiveChannelCard(
+                  channel: ch,
+                  width: width,
+                  focusNode: i == 0 ? _firstItemFocusNode : null,
+                  onLongPress: widget.onLongPress == null
+                      ? null
+                      : () => widget.onLongPress!(ch),
+                );
               },
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
+}
+
+class _LiveChannelCard extends ConsumerStatefulWidget {
+  const _LiveChannelCard({
+    required this.channel,
+    required this.width,
+    this.focusNode,
+    this.onLongPress,
+  });
+
+  final Channel channel;
+  final double width;
+  final FocusNode? focusNode;
+  final VoidCallback? onLongPress;
+
+  @override
+  ConsumerState<_LiveChannelCard> createState() => _LiveChannelCardState();
+}
+
+class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Focus(
-      canRequestFocus: false,
-      onFocusChange: _handleRowFocusChange,
+    final ch = widget.channel;
+    final prog = ref.watch(_nowProgrammeProvider(ch.id)).valueOrNull;
+    final lit = _focused && PlatformHelper.isTV(context);
+    final radius = BorderRadius.circular(12);
+    final logo = ch.logoUrl;
+    return TvFocusable(
+      focusNode: widget.focusNode,
+      ensureVisibleOnFocus: true,
+      showFocusRing: false,
+      onFocusChange: (f) => setState(() => _focused = f),
+      onTap: () => _playChannel(context, ch),
+      onLongPress: widget.onLongPress,
       child: SizedBox(
-        height: 88,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: widget.channels.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (context, i) {
-            final ch = widget.channels[i];
-            return TvFocusable(
-              focusNode: i == 0 ? _firstItemFocusNode : null,
-              ensureVisibleOnFocus: true,
-              onTap: () => context.push('/player', extra: {
-                'streamUrl': ch.streamUrl,
-                'title': ch.name,
-                'contentType': 'live',
-                'contentId': ch.id,
-              }),
-              onLongPress: () => _showRemoveSheet(context, ref, ch),
-              child: SizedBox(
-                width: 80,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ch.logoUrl != null && ch.logoUrl!.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(
-                                imageUrl: ch.logoUrl!,
-                                fit: BoxFit.contain,
-                                memCacheWidth: 120,
-                                memCacheHeight: 120,
-                                errorWidget: (_, __, ___) =>
-                                    const Icon(Icons.tv),
-                              ),
-                            )
-                          : const Icon(Icons.tv),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.displayName(ch.name),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall,
-                      textAlign: TextAlign.center,
+        width: widget.width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AnimatedScale(
+              scale: lit ? 1.06 : 1.0,
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: widget.width,
+                height: widget.width * 9 / 16,
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.colorScheme.surfaceContainerHighest,
+                      theme.colorScheme.surfaceContainer,
+                    ],
+                  ),
+                  border: Border.all(
+                    color: lit ? theme.colorScheme.primary : Colors.transparent,
+                    width: 2.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: lit
+                          ? theme.colorScheme.primary.withValues(alpha: 0.35)
+                          : Colors.black.withValues(alpha: 0.3),
+                      blurRadius: lit ? 18 : 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                child: ClipRRect(
+                  borderRadius: radius,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+                        child: logo != null && logo.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: logo,
+                                fit: BoxFit.contain,
+                                memCacheWidth: 300,
+                                errorWidget: (_, __, ___) => Icon(Icons.tv,
+                                    size: 36,
+                                    color: theme.colorScheme.onSurfaceVariant),
+                              )
+                            : Icon(Icons.tv,
+                                size: 36,
+                                color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                      if (prog != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(
+                            value: prog
+                                .progressAt(DateTime.now())
+                                .clamp(0.0, 1.0),
+                            minHeight: 3,
+                            backgroundColor: Colors.black38,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.displayName(ch.name),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium!
+                  .copyWith(fontWeight: FontWeight.w500, fontSize: 13),
+            ),
+            Text(
+              prog?.title ?? 'Live',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall!.copyWith(
+                fontSize: 11.5,
+                color: prog == null
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.primary,
+              ),
+            ),
+          ],
         ),
       ),
     );

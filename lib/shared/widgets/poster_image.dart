@@ -12,12 +12,14 @@ class PosterImage extends StatelessWidget {
     this.width,
     this.height,
     this.iconSize = 24,
+    this.fallbackIcon = Icons.movie_outlined,
   });
 
   final String? posterUrl;
   final double? width;
   final double? height;
   final double iconSize;
+  final IconData fallbackIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,7 @@ class PosterImage extends StatelessWidget {
         height: height,
         color: fallbackColor,
         child: Center(
-          child: Icon(Icons.movie_outlined, size: iconSize),
+          child: Icon(fallbackIcon, size: iconSize),
         ),
       );
     }
@@ -48,7 +50,7 @@ class PosterImage extends StatelessWidget {
         width: width,
         height: height,
         color: fallbackColor,
-        child: Center(child: Icon(Icons.movie_outlined, size: iconSize)),
+        child: Center(child: Icon(fallbackIcon, size: iconSize)),
       ),
     );
   }

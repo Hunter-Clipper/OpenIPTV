@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,10 +18,10 @@ import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
 import 'package:open_iptv/shared/widgets/category_tile.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
+import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
-import 'package:open_iptv/shared/widgets/section_header.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -98,13 +97,66 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     return genres;
   }
 
+  // Poster view: one rail per genre with its first [_railLength] titles.
+  static const _railLength = 20;
+
+  /// The first [_railLength] visible series of each genre, in [genres] order.
+  /// Series that also sit in a locked genre are left out of every rail, and
+  /// kids profiles never see adult titles.
+  Map<String, List<Series>> _buildRails(
+      List<Series> all, List<String> genres, Set<String> locked,
+      {required bool isKid}) {
+    final rails = {
+      for (final g in genres)
+        if (!locked.contains(g)) g: <Series>[],
+    };
+    for (final s in all) {
+      if (isKid && isAdultGenre(s.genre)) continue;
+      final sg = splitGenres(s.genre);
+      if (sg.any(locked.contains)) continue;
+      for (final g in sg) {
+        final rail = rails[g];
+        if (rail != null && rail.length < _railLength) rail.add(s);
+      }
+    }
+    return rails;
+  }
+
+  Future<void> _hideGenre(String profileId, String g) async {
+    unawaited(HapticFeedback.mediumImpact());
+    final hide = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility_off_outlined),
+              title: const Text('Hide Genre'),
+              subtitle: Text(context.displayName(g),
+                  style: Theme.of(sheetContext).textTheme.bodySmall),
+              onTap: () => Navigator.of(sheetContext).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (hide == true) {
+      await ref.read(profileServiceProvider).hideCategory(profileId, g);
+      ref.invalidate(activeProfileProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final allAsync = ref.watch(_allSeriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
+    final profileId = profile?.id;
 
     final sort = ref.watch(contentSortProvider);
+    final posterView = ref.watch(homeLayoutSeriesProvider) != 'compact';
     final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
     final inProgress =
@@ -113,9 +165,13 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
       appBar: AppBar(
         leading: const AppLogo(),
         title: const Text('Series'),
-        actions: const [
-          SortToggleAction(),
-          SettingsAction(),
+        actions: [
+          HomeLayoutToggleAction(
+            provider: homeLayoutSeriesProvider,
+            setLayout: setHomeLayoutSeries,
+          ),
+          const SortToggleAction(),
+          const SettingsAction(),
         ],
       ),
       body: allAsync.when(
@@ -147,91 +203,52 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                   .where((g) =>
                       isCategoryLocked(g, parentalPrefs, sessionUnlocked))
                   .toSet();
-          final genreCounts = <String, int>{};
-          for (final s in all) {
-            for (final g in splitGenres(s.genre)) {
-              if (g.isEmpty) continue;
-              genreCounts[g] = (genreCounts[g] ?? 0) + 1;
-            }
-          }
           // Whichever section renders first gets its first item autofocused
           // so the D-pad can start navigating immediately once the page
           // loads, without an extra "warm-up" press.
-          final firstSectionIsFavorites = favorites.isNotEmpty;
-          final firstSectionIsContinueWatching =
-              !firstSectionIsFavorites && visibleInProgress.isNotEmpty;
+          final firstSectionIsContinueWatching = visibleInProgress.isNotEmpty;
+          final firstSectionIsFavorites =
+              !firstSectionIsContinueWatching && favorites.isNotEmpty;
           final firstSectionIsGenres =
               !firstSectionIsFavorites && !firstSectionIsContinueWatching;
           return RefreshIndicator(
             onRefresh: () => _refreshSeries(ref),
             child: CustomScrollView(
               slivers: [
-                if (favorites.isNotEmpty) ...[
-                  const SectionHeaderSliver('Favorites'),
-                  SliverToBoxAdapter(
-                    child: _HorizontalPosterRow(
-                      items: favorites,
-                      profileId: profile?.id,
-                      autofocusFirst: firstSectionIsFavorites,
-                    ),
-                  ),
-                ],
-                if (visibleInProgress.isNotEmpty) ...[
-                  const SectionHeaderSliver('Continue Watching'),
+                if (visibleInProgress.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _EpisodeContinueWatchingRow(
                       episodes: visibleInProgress,
                       autofocusFirst: firstSectionIsContinueWatching,
                     ),
                   ),
-                ],
-                const SectionHeaderSliver('Browse by Genre'),
-                SliverToBoxAdapter(
-                  child: _GenreTileList(
-                    genres: genres.isEmpty ? ['All'] : genres,
-                    seriesCounts: {
-                      if (genres.isEmpty) 'All': all.length,
-                      for (final g in genres) g: genreCounts[g] ?? 0,
-                    },
-                    onTap: _tapGenre,
-                    lockedGenres: lockedGenres,
-                    profileId: profile?.id,
-                    autofocusFirst: firstSectionIsGenres,
-                    onHideGenre: profile?.id == null
-                        ? null
-                        : (g) async {
-                            unawaited(HapticFeedback.mediumImpact());
-                            final hide = await showModalBottomSheet<bool>(
-                              context: context,
-                              useRootNavigator: true,
-                              builder: (sheetContext) => SafeArea(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ListTile(
-                                      leading: const Icon(
-                                          Icons.visibility_off_outlined),
-                                      title: const Text('Hide Genre'),
-                                      subtitle: Text(g,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall),
-                                      onTap: () =>
-                                          Navigator.of(sheetContext).pop(true),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                            if (hide == true) {
-                              await ref
-                                  .read(profileServiceProvider)
-                                  .hideCategory(profile!.id, g);
-                              ref.invalidate(activeProfileProvider);
-                            }
-                          },
+                if (favorites.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: _HorizontalPosterRow(
+                      title: 'Favorites',
+                      items: favorites,
+                      profileId: profileId,
+                      isFavoritesRow: true,
+                      autofocusFirst: firstSectionIsFavorites,
+                    ),
                   ),
-                ),
+                if (posterView)
+                  ..._genreRails(
+                    all: all,
+                    genres: genres,
+                    lockedGenres: lockedGenres,
+                    isKid: isKid,
+                    profileId: profileId,
+                    autofocusFirst: firstSectionIsGenres,
+                  )
+                else
+                  ..._genreList(
+                    all: all,
+                    genres: genres,
+                    lockedGenres: lockedGenres,
+                    profileId: profileId,
+                    autofocusFirst: firstSectionIsGenres,
+                  ),
                 const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
               ],
             ),
@@ -239,6 +256,96 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         },
       ),
     );
+  }
+
+  /// Poster view: a rail per genre, built lazily as it scrolls into view.
+  List<Widget> _genreRails({
+    required List<Series> all,
+    required List<String> genres,
+    required Set<String> lockedGenres,
+    required bool isKid,
+    required String? profileId,
+    required bool autofocusFirst,
+  }) {
+    if (genres.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: _HorizontalPosterRow(
+            title: 'All Series',
+            items: all.take(_railLength).toList(),
+            profileId: profileId,
+            onSeeAll: () => _tapGenre('All'),
+            autofocusFirst: autofocusFirst,
+          ),
+        ),
+      ];
+    }
+    final rails = _buildRails(all, genres, lockedGenres, isKid: isKid);
+    final shown = [
+      for (final g in genres)
+        if (lockedGenres.contains(g) || (rails[g]?.isNotEmpty ?? false)) g,
+    ];
+    return [
+      SliverList.builder(
+        itemCount: shown.length,
+        itemBuilder: (context, i) {
+          final g = shown[i];
+          final onHide =
+              profileId == null ? null : () => _hideGenre(profileId, g);
+          if (lockedGenres.contains(g)) {
+            return LockedRail(
+              title: context.displayName(g),
+              onUnlock: () => _tapGenre(g),
+              onHeaderLongPress: onHide,
+              autofocusFirst: autofocusFirst && i == 0,
+            );
+          }
+          return _HorizontalPosterRow(
+            title: context.displayName(g),
+            items: rails[g]!,
+            profileId: profileId,
+            onSeeAll: () => _tapGenre(g),
+            onHeaderLongPress: onHide,
+            autofocusFirst: autofocusFirst && i == 0,
+          );
+        },
+      ),
+    ];
+  }
+
+  /// Compact view: the plain genre list with counts.
+  List<Widget> _genreList({
+    required List<Series> all,
+    required List<String> genres,
+    required Set<String> lockedGenres,
+    required String? profileId,
+    required bool autofocusFirst,
+  }) {
+    final genreCounts = <String, int>{};
+    for (final s in all) {
+      for (final g in splitGenres(s.genre)) {
+        if (g.isEmpty) continue;
+        genreCounts[g] = (genreCounts[g] ?? 0) + 1;
+      }
+    }
+    return [
+      const SliverToBoxAdapter(child: RailHeader(title: 'Browse by Genre')),
+      SliverToBoxAdapter(
+        child: _GenreTileList(
+          genres: genres.isEmpty ? ['All'] : genres,
+          seriesCounts: {
+            if (genres.isEmpty) 'All': all.length,
+            for (final g in genres) g: genreCounts[g] ?? 0,
+          },
+          onTap: _tapGenre,
+          lockedGenres: lockedGenres,
+          profileId: profileId,
+          autofocusFirst: autofocusFirst,
+          onHideGenre:
+              profileId == null ? null : (g) => _hideGenre(profileId, g),
+        ),
+      ),
+    ];
   }
 }
 
@@ -412,86 +519,44 @@ class _GenreTileList extends StatelessWidget {
 
 class _HorizontalPosterRow extends ConsumerWidget {
   const _HorizontalPosterRow({
+    required this.title,
     required this.items,
     required this.profileId,
+    this.isFavoritesRow = false,
     this.autofocusFirst = false,
+    this.onSeeAll,
+    this.onHeaderLongPress,
   });
 
+  final String title;
   final List<Series> items;
   final String? profileId;
+  final bool isFavoritesRow;
   final bool autofocusFirst;
-
-  void _showRemoveSheet(BuildContext context, WidgetRef ref, Series s) {
-    HapticFeedback.mediumImpact();
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.star_border),
-              title: const Text('Remove from Favorites'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                if (profileId != null) {
-                  await ref
-                      .read(profileServiceProvider)
-                      .toggleFavoriteSeries(profileId!, s.id);
-                  ref.invalidate(activeProfileProvider);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final VoidCallback? onSeeAll;
+  final VoidCallback? onHeaderLongPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (context, i) {
-          final s = items[i];
-          return TvFocusable(
+    // Favorites and genre rails share the same favorite-toggle sheet — it
+    // reads "Remove from Favorites" for anything already favorited.
+    return MediaRail(
+      title: title,
+      onSeeAll: onSeeAll,
+      onHeaderLongPress: onHeaderLongPress,
+      autofocusFirst: autofocusFirst,
+      fallbackIcon: Icons.video_library_outlined,
+      items: [
+        for (final s in items)
+          RailItem(
+            title: context.displayName(s.title),
+            imageUrl: s.posterUrl,
             onTap: () => context.push('/series/${s.id}'),
-            onLongPress: profileId != null
-                ? () => _showRemoveSheet(context, ref, s)
-                : null,
-            autofocus: autofocusFirst && i == 0,
-            ensureVisibleOnFocus: true,
-            child: SizedBox(
-              width: 110,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.cardRadius),
-                      child: PosterImage(posterUrl: s.posterUrl),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.displayName(s.title),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+            onLongPress: profileId == null
+                ? null
+                : () => _showSeriesOptions(context, ref, s, profileId!),
+          ),
+      ],
     );
   }
 }
@@ -696,27 +761,27 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    // Series lookup so each episode card can show the series poster (stills
-    // are often absent) and name — "S01E01 · Episode 1" alone doesn't say
-    // which show it is.
+    // Series lookup so each card can show the series poster (stills are
+    // often absent) and name — "S01E01 · Episode 1" alone doesn't say which
+    // show it is.
     final seriesById = {
       for (final s in ref.watch(_allSeriesProvider).valueOrNull ?? const [])
         s.id: s,
     };
-
-    return SizedBox(
-      height: 160,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: episodes.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (context, i) {
-          final ep = episodes[i];
-          final series = seriesById[ep.seriesId];
-          final posterUrl = series?.posterUrl ?? ep.stillUrl;
-          return TvFocusable(
+    return MediaRail(
+      title: 'Continue Watching',
+      autofocusFirst: autofocusFirst,
+      fallbackIcon: Icons.video_library_outlined,
+      items: [
+        for (final ep in episodes)
+          RailItem(
+            title: context
+                .displayName(seriesById[ep.seriesId]?.title ?? ep.displayTitle),
+            subtitle: seriesById[ep.seriesId] == null
+                ? ep.episodeLabel
+                : '${ep.episodeLabel} · ${ep.displayTitle}',
+            imageUrl: seriesById[ep.seriesId]?.posterUrl ?? ep.stillUrl,
+            progress: ep.watchProgress,
             onTap: () => context.push('/player', extra: {
               'streamUrl': ep.streamUrl,
               'title': '${ep.episodeLabel} – ${ep.displayTitle}',
@@ -727,85 +792,8 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
               'resumePosition': ep.watchedDuration,
             }),
             onLongPress: () => _showRemoveSheet(context, ref, ep),
-            autofocus: autofocusFirst && i == 0,
-            ensureVisibleOnFocus: true,
-            child: SizedBox(
-              width: 110,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.cardRadius),
-                          child: posterUrl != null && posterUrl.isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: posterUrl,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  placeholder: (_, __) => Container(
-                                    color: theme.colorScheme
-                                        .surfaceContainerHighest,
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: theme.colorScheme
-                                        .surfaceContainerHighest,
-                                    child: const Icon(
-                                        Icons.video_library_outlined),
-                                  ),
-                                )
-                              : Container(
-                                  color: theme.colorScheme
-                                      .surfaceContainerHighest,
-                                  child: const Icon(
-                                      Icons.video_library_outlined),
-                                ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(AppTheme.cardRadius)),
-                            child: LinearProgressIndicator(
-                              value: ep.watchProgress,
-                              minHeight: 3,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.displayName(series?.title ?? ep.displayTitle),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall!
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    series == null
-                        ? ep.episodeLabel
-                        : '${ep.episodeLabel} · ${ep.displayTitle}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall!.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+          ),
+      ],
     );
   }
 }
-

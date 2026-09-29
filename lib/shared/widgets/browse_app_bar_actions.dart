@@ -63,6 +63,38 @@ class ViewModeToggleAction extends ConsumerWidget {
   }
 }
 
+/// Toggles a Movies/Series home between genre poster rails and the compact
+/// genre list. [provider] and [setLayout] are the matching pair from
+/// theme_providers.dart — e.g. [homeLayoutMoviesProvider] with
+/// [setHomeLayoutMovies].
+class HomeLayoutToggleAction extends ConsumerWidget {
+  const HomeLayoutToggleAction({
+    super.key,
+    required this.provider,
+    required this.setLayout,
+  });
+
+  final StateProvider<String> provider;
+  final Future<void> Function(
+      WidgetRef ref, String layout, AppPreferences prefs) setLayout;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final posters = ref.watch(provider) != 'compact';
+    return TvActivatable(
+      onTap: () async {
+        final prefs = await ref.read(appPreferencesProvider.future);
+        await setLayout(ref, posters ? 'compact' : 'posters', prefs);
+      },
+      builder: (onTap) => IconButton(
+        icon: Icon(posters ? Icons.view_list : Icons.view_carousel_outlined),
+        tooltip: posters ? 'Switch to compact view' : 'Switch to poster view',
+        onPressed: onTap,
+      ),
+    );
+  }
+}
+
 /// Opens the Settings screen.
 class SettingsAction extends StatelessWidget {
   const SettingsAction({super.key});

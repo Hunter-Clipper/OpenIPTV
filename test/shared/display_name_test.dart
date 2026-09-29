@@ -19,6 +19,10 @@ void main() {
           'Billie Eilish: The World\'s A Little Blurry (2021)',
       'EN - The King\'s Speech (2010)': 'The King\'s Speech (2010)',
       'NF - Friends: The Reunion (2021)': 'Friends: The Reunion (2021)',
+      '01 EN - Friday The 13th': '01 Friday The 13th',
+      '|EN| PRE-RELEASES/SD CAM': 'Pre-Releases/SD Cam',
+      '12 FR - Le Dîner de Cons': '12 Le Dîner de Cons',
+      '90 DAY - The Last Resort': '90 DAY - The Last Resort',
     });
   });
 

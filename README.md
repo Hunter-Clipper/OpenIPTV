@@ -17,12 +17,12 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 ## What it does
 
 - Add an IPTV playlist via M3U URL or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
-- **Live TV** with channel categories, favorites, recently watched, and "what's on now" from the EPG (XMLTV)
-- **Clean names** — provider clutter like `|EN|`, `US|`, `A+ -` and ALL-CAPS is tidied for display ("|EN| HORROR/THRILLER" → "Horror / Thriller"); switch off in Settings → Appearance to see raw names
+- **Live TV** with channel categories, and Favorites / Recently Watched rows of channel cards showing what's on now from the EPG (XMLTV)
+- **Clean names** — provider clutter like `|EN|`, `US|`, `A+ -` and ALL-CAPS is tidied for display ("|EN| HORROR/THRILLER" → "Horror / Thriller", "01 EN - Friday The 13th" → "01 Friday The 13th"); switch off in Settings → Appearance to see raw names
 - **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
 - **Full-screen TV guide** — Cable box-style grid with a live "now" line: swipe or use the remote's left/right to move through time, jump back with **Now**, and open it from the **TV Guide** card at the top of Live TV. Plus a per-channel guide panel inside the player
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
-- **Movies and Series** with per-genre browsing, Continue Watching, and resume from where you left off
+- **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Resume from where you left off
 - **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
 - Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
 - Fast global search across channels, movies, series, and what's airing now
@@ -154,7 +154,7 @@ lib/
 ├── shared/
 │   ├── theme/          # AppTheme (dark theme, accent swatches)
 │   ├── utils/          # Formatting, friendly errors, genre icon matching
-│   └── widgets/        # TV-focusable controls, video surface, PIN dialog, tooltips, …
+│   └── widgets/        # Poster/channel rails, TV-focusable controls, video surface, PIN dialog, …
 │
 └── app.dart            # App entry, routing, tab shell, native back handling
 

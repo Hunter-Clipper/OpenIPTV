@@ -3,7 +3,8 @@ import 'package:flutter/widgets.dart';
 /// Tidies a provider-supplied channel, category or title name for display:
 ///
 ///  - drops leading provider tags — `|EN| `, `| DOC | `, `US| `, `4K| `,
-///    `A+ - `, `EN - ` (repeatedly: `|VOD| EN - …`);
+///    `A+ - `, `EN - ` (repeatedly: `|VOD| EN - …`), and the language tag
+///    in numbered titles (`01 EN - X` → `01 X`);
 ///  - drops superscript decorations (`ᴿᴬᵂ ⁶⁰ᶠᵖˢ`, `ᴴᴰ`);
 ///  - turns ALL-CAPS names into Title Case, keeping real acronyms (ESPN, HBO,
 ///    UHD, NFL…) and resolutions ("3840p");
@@ -19,6 +20,9 @@ String cleanDisplayName(String raw) {
   do {
     before = s;
     s = s.replaceFirst(_leadingTag, '');
+    // "01 EN - Friday The 13th" → "01 Friday The 13th": keep the provider's
+    // franchise number, drop the language tag after it.
+    s = s.replaceFirstMapped(_numberedTag, (m) => '${m[1]} ');
   } while (s != before);
   s = s
       .replaceAll(RegExp(r'\s+'), ' ')
@@ -41,6 +45,9 @@ final _decorations = RegExp(r'[ʰ-˿ᴀ-ᶿ⁰-₟]+');
 final _leadingTag = RegExp(
     r'^\s*(?:\|\s*[^|]{1,12}?\s*\||[A-Z0-9+]{1,5}\s*\||[A-Z0-9+]{1,4}\s+-\s+)\s*');
 
+// "01 EN - ", "12 FR - " (two letters only: "90 DAY - …" is a title)
+final _numberedTag = RegExp(r'^\s*(\d{1,3})\s+[A-Z]{2}\s+-\s+');
+
 bool _isAllCaps(String s) {
   final upper = RegExp('[A-Z]').allMatches(s).length;
   return upper >= 3 && !RegExp('[a-z]').hasMatch(s);
@@ -62,7 +69,9 @@ String _titleWord(String word, bool first, {bool part = false}) {
     if (word.contains(sep) && word.length > 1) {
       var firstPart = first;
       return word.split(sep).map((p) {
-        final out = _titleWord(p, firstPart, part: true);
+        // Only hyphen parts lose the short-code rule ("STAND-UP"); slash
+        // parts are separate words ("PRE-RELEASES/SD CAM" keeps "SD").
+        final out = _titleWord(p, firstPart, part: sep == '-');
         firstPart = false;
         return out;
       }).join(sep);
