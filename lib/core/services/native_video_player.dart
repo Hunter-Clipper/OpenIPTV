@@ -177,6 +177,8 @@ class NativeVideoPlayer {
   }
 
   Future<void> play() => _control.invokeMethod('play', {'id': _textureId});
+  Future<void> setSpeed(double speed) => _control
+      .invokeMethod('setSpeed', {'id': _textureId, 'speed': speed});
   Future<void> pause() => _control.invokeMethod('pause', {'id': _textureId});
   Future<void> stop() => _control.invokeMethod('stop', {'id': _textureId});
 

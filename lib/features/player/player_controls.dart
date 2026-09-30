@@ -9,10 +9,11 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/epg_panel.dart';
+import 'package:open_iptv/features/player/player_settings_sheet.dart';
+import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
-import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Overlay controls for the full-screen player.
 /// Supports both Live TV and VOD (movie / episode) modes.
@@ -31,6 +32,8 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.isBehindLive = false,
     this.playPauseFocusNode,
     this.backFocusNode,
+    this.onChannels,
+    this.buffering = false,
   });
 
   final String title;
@@ -58,6 +61,10 @@ class PlayerControls extends ConsumerStatefulWidget {
   // non-catch-up channel, or out of DVR mode on a catch-up one.
   final VoidCallback? onGoLive;
   final bool isBehindLive;
+  // Live TV: opens the channel switcher.
+  final VoidCallback? onChannels;
+  // Stream is loading: the play button shows a spinner.
+  final bool buffering;
 
   @override
   ConsumerState<PlayerControls> createState() => _PlayerControlsState();
@@ -122,88 +129,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     await ref.read(playbackServiceProvider).seekRelative(delta);
   }
 
-  /// User-facing name for a subtitle/CC track: its own label, else its
-  /// language, else the caption channel ("CC1"), else a numbered fallback.
-  /// Numbered by position when several tracks would otherwise read the same.
-  static String _trackLabel(
-      NativeVideoTrack t, int index, List<NativeVideoTrack> all) {
-    String base(NativeVideoTrack t) {
-      if (t.label.isNotEmpty) return t.label;
-      if (t.language?.isNotEmpty == true && t.language != 'und') {
-        return t.language!.toUpperCase();
-      }
-      final mime = t.mimeType ?? '';
-      // Broadcast captions: CEA-608 channel 1 / CEA-708 service 1 are the
-      // primary (almost always English) track; higher numbers are extras.
-      if (mime.contains('608')) {
-        return t.channel > 1 ? 'Captions ${t.channel}' : 'Captions';
-      }
-      if (mime.contains('708')) {
-        return t.channel > 1 ? 'Digital captions ${t.channel}' : 'Digital captions';
-      }
-      return 'Subtitles';
-    }
-
-    final name = base(t);
-    final duplicated = all.where((o) => base(o) == name).length > 1;
-    return duplicated ? '$name ${index + 1}' : name;
-  }
-
-  void _showCcPicker(BuildContext context) {
-    final realTracks = _tracks.where((t) => t.type == 'text').toList();
-    if (realTracks.isEmpty && widget.isLive) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No subtitles detected for this channel'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Text('Subtitles / CC',
-                    style: Theme.of(ctx)
-                        .textTheme
-                        .titleMedium!
-                        .copyWith(fontWeight: FontWeight.bold)),
-              ),
-              ListTile(
-                leading: const Icon(Icons.subtitles_off_outlined),
-                title: const Text('Off'),
-                selected: !_ccActive,
-                onTap: () {
-                  ref.read(playbackServiceProvider).clearTextTrack();
-                  Navigator.of(ctx).pop();
-                },
-              ),
-              ...realTracks.indexed.map((e) {
-                final (i, t) = e;
-                final label = _trackLabel(t, i, realTracks);
-                return ListTile(
-                  leading: const Icon(Icons.subtitles_outlined),
-                  title: Text(label),
-                  selected: t.selected,
-                  onTap: () {
-                    ref.read(playbackServiceProvider).selectTrack(t.id);
-                    Navigator.of(ctx).pop();
-                  },
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
+  void _showSettings(BuildContext context,
+      {PlayerSettingsFocus focus = PlayerSettingsFocus.all}) {
+    showPlayerSheet<void>(
+      context,
+      (_) => PlayerSettingsSheet(isLive: widget.isLive, focus: focus),
     );
   }
 
@@ -221,6 +151,13 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 
   @override
   Widget build(BuildContext context) {
+    return _Buffering(
+      buffering: widget.buffering,
+      child: _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     return widget.isLive
         ? _LiveControls(
             title: widget.title,
@@ -230,7 +167,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             ccActive: _ccActive,
             onBack: () => context.pop(),
             onEpg: () => _showEpgPanel(context),
-            onCc: () => _showCcPicker(context),
+            onCc: () =>
+                _showSettings(context, focus: PlayerSettingsFocus.subtitles),
+            onSettings: () => _showSettings(context),
             onPlayPause: widget.onLivePlayPause,
             onRewind: widget.onLiveRewind,
             onForward: widget.onLiveForward,
@@ -238,6 +177,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             isBehindLive: widget.isBehindLive,
             playPauseFocusNode: widget.playPauseFocusNode,
             backFocusNode: widget.backFocusNode,
+            onChannels: widget.onChannels,
           )
         : _VodControls(
             title: widget.title,
@@ -249,7 +189,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             isSeeking: _isSeeking,
             seekValue: _seekValue,
             onBack: () => context.pop(),
-            onCc: () => _showCcPicker(context),
+            onCc: () =>
+                _showSettings(context, focus: PlayerSettingsFocus.subtitles),
+            onSettings: () => _showSettings(context),
             onSeekStart: () => setState(() => _isSeeking = true),
             onSeekUpdate: (v) => setState(() => _seekValue = v),
             onSeekEnd: (v) {
@@ -281,33 +223,12 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 // Layout
 // ---------------------------------------------------------------------------
 //
-// Both modes share one layout, modelled on YouTube TV's player:
-//   - top-left Back, top-right quality badge;
-//   - transport (rewind / play-pause / forward) centred on the whole screen,
-//     not just the space left between the bars;
-//   - bottom-left title block over a full-width progress bar, with a meta
-//     line (LIVE / times) on the left and round action buttons on the right.
-
-/// Sizes scale up for TV (viewed from across the room) and down for phones.
-class _Metrics {
-  const _Metrics._(this.scale);
-
-  factory _Metrics.of(BuildContext context) {
-    if (PlatformHelper.isTV(context)) return const _Metrics._(1.15);
-    final short = MediaQuery.sizeOf(context).shortestSide;
-    return _Metrics._(short < 500 ? 0.85 : 1.0);
-  }
-
-  final double scale;
-
-  double get edge => 32 * scale;
-  double get playSize => 72 * scale;
-  double get skipSize => 56 * scale;
-  double get actionSize => 44 * scale;
-  double get transportGap => 32 * scale;
-  double get titleSize => 22 * scale;
-  double get bodySize => 14 * scale;
-}
+// Both modes share one layout:
+//   - top: round Back button, video quality chip;
+//   - transport (rewind / play-pause / forward) centred on the screen, the
+//     play button a solid accent disc;
+//   - bottom: title block, a Material 3 seek bar, then the LIVE chip / times
+//     on the left and round action buttons on the right.
 
 class _ControlsLayout extends StatelessWidget {
   const _ControlsLayout({
@@ -330,7 +251,7 @@ class _ControlsLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -340,12 +261,13 @@ class _ControlsLayout extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xB3000000),
-                Colors.transparent,
-                Colors.transparent,
+                Color(0xA6000000),
+                Color(0x00000000),
+                Color(0x00000000),
+                Color(0x8C000000),
                 Color(0xE6000000),
               ],
-              stops: [0.0, 0.22, 0.5, 1.0],
+              stops: [0.0, 0.24, 0.45, 0.72, 1.0],
             ),
           ),
         ),
@@ -360,15 +282,16 @@ class _ControlsLayout extends StatelessWidget {
             minimum: EdgeInsets.fromLTRB(m.edge, m.edge / 2, m.edge, 0),
             child: Row(
               children: [
-                _PlayerButton(
-                  icon: Icons.arrow_back,
+                PlayerButton(
+                  icon: Icons.arrow_back_rounded,
                   tooltip: 'Back',
                   onTap: onBack,
                   focusNode: backFocusNode,
                   size: m.actionSize,
+                  style: PlayerButtonStyle.tonal,
                 ),
                 const Spacer(),
-                if (qualityLabel != null) _QualityBadge(label: qualityLabel!),
+                if (qualityLabel != null) _QualityChip(label: qualityLabel!),
               ],
             ),
           ),
@@ -379,7 +302,7 @@ class _ControlsLayout extends StatelessWidget {
           bottom: 0,
           child: SafeArea(
             top: false,
-            minimum: EdgeInsets.fromLTRB(m.edge, 0, m.edge, m.edge * 0.75),
+            minimum: EdgeInsets.fromLTRB(m.edge, 0, m.edge, m.edge * 0.6),
             child: bottom,
           ),
         ),
@@ -406,7 +329,7 @@ class _BottomPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,14 +339,15 @@ class _BottomPanel extends StatelessWidget {
           style: TextStyle(
             color: Colors.white,
             fontSize: m.titleSize,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             height: 1.2,
+            shadows: const [Shadow(blurRadius: 8, color: Colors.black54)],
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         if (subtitle != null) ...[
-          SizedBox(height: 4 * m.scale),
+          SizedBox(height: 2 * m.scale),
           Text(
             context.displayName(subtitle!),
             style: TextStyle(
@@ -435,14 +359,14 @@ class _BottomPanel extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-        SizedBox(height: 12 * m.scale),
+        SizedBox(height: 10 * m.scale),
         bar,
-        SizedBox(height: 8 * m.scale),
+        SizedBox(height: 6 * m.scale),
         Row(
           children: [
             Expanded(child: meta),
             for (final a in actions) ...[
-              SizedBox(width: 8 * m.scale),
+              SizedBox(width: 4 * m.scale),
               a,
             ],
           ],
@@ -468,17 +392,17 @@ class _Transport extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
     final service = ref.watch(playbackServiceProvider);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _PlayerButton(
-          icon: Icons.replay_10,
+        PlayerButton(
+          icon: Icons.replay_10_rounded,
           tooltip: 'Back 10 seconds',
           onTap: onRewind,
           size: m.skipSize,
-          filled: true,
+          style: PlayerButtonStyle.tonal,
         ),
         SizedBox(width: m.transportGap),
         StreamBuilder<NativeVideoPlayerState>(
@@ -486,30 +410,50 @@ class _Transport extends ConsumerWidget {
           initialData: service.lastState,
           builder: (context, snap) {
             final playing = snap.data?.playing ?? false;
-            return _PlayerButton(
-              icon: playing ? Icons.pause : Icons.play_arrow,
-              tooltip: playing ? 'Pause' : 'Play',
-              onTap: onPlayPause,
-              focusNode: playPauseFocusNode,
-              size: m.playSize,
-              filled: true,
+            final loading = _Buffering.of(context);
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                PlayerButton(
+                  icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  tooltip: playing ? 'Pause' : 'Play',
+                  onTap: onPlayPause,
+                  focusNode: playPauseFocusNode,
+                  size: m.playSize,
+                  style: PlayerButtonStyle.primary,
+                ),
+                // Loading: a spinning ring around the play button, where
+                // the eye already is, instead of a spinner hidden behind it.
+                if (loading)
+                  IgnorePointer(
+                    child: SizedBox(
+                      width: m.playSize + 14 * m.scale,
+                      height: m.playSize + 14 * m.scale,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3.5 * m.scale,
+                        strokeCap: StrokeCap.round,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
             );
           },
         ),
         SizedBox(width: m.transportGap),
-        _PlayerButton(
-          icon: Icons.forward_10,
+        PlayerButton(
+          icon: Icons.forward_10_rounded,
           tooltip: 'Forward 10 seconds',
           onTap: onForward,
           size: m.skipSize,
-          filled: true,
+          style: PlayerButtonStyle.tonal,
         ),
       ],
     );
   }
 }
 
-/// CC / favourite / guide buttons shared by both modes.
+/// CC / favourite / guide / channels / settings, shared by both modes.
 List<Widget> _actionButtons({
   required BuildContext context,
   required WidgetRef ref,
@@ -517,27 +461,32 @@ List<Widget> _actionButtons({
   required bool hasCc,
   required bool ccActive,
   required VoidCallback onCc,
+  required VoidCallback onSettings,
   required String? favoriteChannelId,
   required VoidCallback? onEpg,
+  VoidCallback? onChannels,
 }) {
-  final m = _Metrics.of(context);
+  final m = PlayerMetrics.of(context);
   final profile = ref.watch(activeProfileProvider).valueOrNull;
-  final isFav = profile?.favoriteChannelIds.contains(favoriteChannelId) ?? false;
+  final isFav =
+      profile?.favoriteChannelIds.contains(favoriteChannelId) ?? false;
   return [
     // Live CC stays visible even with no tracks yet — embedded CEA-608/708
     // captions can appear late — but dims until some are detected.
     if (showCc)
-      _PlayerButton(
-        icon: ccActive ? Icons.closed_caption : Icons.closed_caption_outlined,
-        tooltip: 'Subtitles / CC',
+      PlayerButton(
+        icon: ccActive
+            ? Icons.closed_caption_rounded
+            : Icons.closed_caption_off_outlined,
+        tooltip: 'Subtitles',
         onTap: onCc,
         size: m.actionSize,
         dimmed: !hasCc && !ccActive,
-        active: ccActive,
+        selected: ccActive,
       ),
     if (favoriteChannelId != null && profile != null)
-      _PlayerButton(
-        icon: isFav ? Icons.star : Icons.star_border,
+      PlayerButton(
+        icon: isFav ? Icons.star_rounded : Icons.star_border_rounded,
         tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
         onTap: () async {
           await ref
@@ -548,15 +497,28 @@ List<Widget> _actionButtons({
           if (context.mounted) ref.invalidate(activeProfileProvider);
         },
         size: m.actionSize,
-        active: isFav,
+        selected: isFav,
       ),
     if (onEpg != null)
-      _PlayerButton(
-        icon: Icons.view_list_rounded,
+      PlayerButton(
+        icon: Icons.event_note_rounded,
         tooltip: 'TV Guide',
         onTap: onEpg,
         size: m.actionSize,
       ),
+    if (onChannels != null)
+      PlayerButton(
+        icon: Icons.format_list_bulleted_rounded,
+        tooltip: 'Channels',
+        onTap: onChannels,
+        size: m.actionSize,
+      ),
+    PlayerButton(
+      icon: Icons.settings_rounded,
+      tooltip: 'Playback settings',
+      onTap: onSettings,
+      size: m.actionSize,
+    ),
   ];
 }
 
@@ -571,6 +533,7 @@ class _LiveControls extends ConsumerWidget {
     required this.onBack,
     required this.onEpg,
     required this.onCc,
+    required this.onSettings,
     required this.hasCc,
     required this.ccActive,
     this.qualityLabel,
@@ -578,6 +541,7 @@ class _LiveControls extends ConsumerWidget {
     this.onRewind,
     this.onForward,
     this.onGoLive,
+    this.onChannels,
     this.isBehindLive = false,
     this.playPauseFocusNode,
     this.backFocusNode,
@@ -591,10 +555,12 @@ class _LiveControls extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onEpg;
   final VoidCallback onCc;
+  final VoidCallback onSettings;
   final VoidCallback? onPlayPause;
   final VoidCallback? onRewind;
   final VoidCallback? onForward;
   final VoidCallback? onGoLive;
+  final VoidCallback? onChannels;
   final bool isBehindLive;
   final FocusNode? playPauseFocusNode;
   final FocusNode? backFocusNode;
@@ -608,18 +574,20 @@ class _LiveControls extends ConsumerWidget {
       hasCc: hasCc,
       ccActive: ccActive,
       onCc: onCc,
+      onSettings: onSettings,
       favoriteChannelId: contentId,
       onEpg: onEpg,
+      onChannels: onChannels,
     );
     // LIVE badge doubles as a "back to live" button once the user has
     // paused/rewound behind the live edge.
     final liveBadge = isBehindLive && onGoLive != null
         ? TvFocusable(
             onTap: onGoLive!,
-            borderRadius: BorderRadius.circular(6),
-            child: const _LiveBadge(isBehindLive: true),
+            borderRadius: BorderRadius.circular(16),
+            child: const _LiveChip(isBehindLive: true),
           )
-        : const _LiveBadge(isBehindLive: false);
+        : const _LiveChip(isBehindLive: false);
 
     return _ControlsLayout(
       onBack: onBack,
@@ -674,19 +642,19 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
   // Held in state rather than built in build() — the parent rebuilds on
   // every player state event, which would otherwise re-query the EPG
   // several times a second.
-  late Future<Programme?> _programme;
+  late Future<(Programme?, Programme?)> _guide;
 
   @override
   void initState() {
     super.initState();
-    _programme = _fetchProgramme();
-    // Refresh the progress position (and the current programme, in case it
-    // has rolled over) every 30 seconds.
+    _guide = _fetch();
+    // Refresh the progress position (and the programme, in case it has
+    // rolled over) every 30 seconds.
     _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
       setState(() {
         _now = DateTime.now();
-        _programme = _fetchProgramme();
+        _guide = _fetch();
       });
     });
   }
@@ -694,9 +662,7 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
   @override
   void didUpdateWidget(covariant _LiveProgrammePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.channelId != widget.channelId) {
-      _programme = _fetchProgramme();
-    }
+    if (oldWidget.channelId != widget.channelId) _guide = _fetch();
   }
 
   @override
@@ -705,8 +671,12 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
     super.dispose();
   }
 
-  Future<Programme?> _fetchProgramme() =>
-      ref.read(epgServiceProvider).getCurrentProgramme(widget.channelId);
+  Future<(Programme?, Programme?)> _fetch() async {
+    final epg = ref.read(epgServiceProvider);
+    final now = await epg.getCurrentProgramme(widget.channelId);
+    final next = await epg.getNextProgramme(widget.channelId);
+    return (now, next);
+  }
 
   String _time(BuildContext context, DateTime t) =>
       MaterialLocalizations.of(context).formatTimeOfDay(
@@ -716,16 +686,19 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
 
   @override
   Widget build(BuildContext context) {
-    final m = _Metrics.of(context);
-    return FutureBuilder<Programme?>(
-      future: _programme,
+    final m = PlayerMetrics.of(context);
+    return FutureBuilder<(Programme?, Programme?)>(
+      future: _guide,
       builder: (context, snapshot) {
-        final prog = snapshot.data;
-        final metaStyle =
-            TextStyle(color: Colors.white70, fontSize: m.bodySize);
+        final prog = snapshot.data?.$1;
+        final next = snapshot.data?.$2;
+        final metaStyle = TextStyle(
+          color: Colors.white70,
+          fontSize: m.bodySize,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        );
         return _BottomPanel(
-          // Programme title leads when known (what's on), channel below —
-          // same hierarchy as YouTube TV.
+          // Programme title leads when known (what's on), channel below.
           title: prog?.title ?? widget.channelName,
           subtitle: prog == null ? null : widget.channelName,
           bar: _ProgressBar(value: prog?.progressAt(_now) ?? 1),
@@ -736,8 +709,11 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
                 SizedBox(width: 12 * m.scale),
                 Flexible(
                   child: Text(
-                    '${_time(context, prog.start)} – ${_time(context, prog.end)}'
-                    '  ·  ${formatRuntime(prog.end.difference(_now))} left',
+                    [
+                      '${_time(context, prog.start)} – ${_time(context, prog.end)}',
+                      '${formatRuntime(prog.end.difference(_now))} left',
+                      if (next != null) 'Next: ${next.title}',
+                    ].join('  ·  '),
                     style: metaStyle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -766,6 +742,7 @@ class _VodControls extends ConsumerWidget {
     required this.seekValue,
     required this.onBack,
     required this.onCc,
+    required this.onSettings,
     required this.hasCc,
     required this.ccActive,
     required this.onSeekStart,
@@ -796,6 +773,7 @@ class _VodControls extends ConsumerWidget {
   final double seekValue;
   final VoidCallback onBack;
   final VoidCallback onCc;
+  final VoidCallback onSettings;
   final VoidCallback onSeekStart;
   final void Function(double) onSeekUpdate;
   final void Function(double) onSeekEnd;
@@ -816,11 +794,18 @@ class _VodControls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final service = ref.watch(playbackServiceProvider);
     final shownPosition = isSeeking
         ? Duration(milliseconds: (seekValue * duration.inMilliseconds).round())
         : position;
+    final timeStyle = TextStyle(
+      color: Colors.white,
+      fontSize: m.bodySize,
+      fontWeight: FontWeight.w500,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
 
     return _ControlsLayout(
       onBack: onBack,
@@ -853,19 +838,18 @@ class _VodControls extends ConsumerWidget {
       bottom: _BottomPanel(
         title: title,
         bar: SizedBox(
-          height: 20 * m.scale,
+          height: 28 * m.scale,
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              trackHeight: 4 * m.scale,
-              thumbShape:
-                  RoundSliderThumbShape(enabledThumbRadius: 7 * m.scale),
-              overlayShape:
-                  RoundSliderOverlayShape(overlayRadius: 16 * m.scale),
-              activeTrackColor: Theme.of(context).colorScheme.primary,
-              inactiveTrackColor: Colors.white24,
-              thumbColor: Colors.white,
-              overlayColor: Colors.white24,
-              trackShape: const _EdgeToEdgeTrackShape(),
+              year2023: false,
+              padding: EdgeInsets.zero,
+              trackHeight: 6 * m.scale,
+              trackGap: 4 * m.scale,
+              thumbSize: WidgetStatePropertyAll(Size(4 * m.scale, 24 * m.scale)),
+              activeTrackColor: scheme.primary,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.28),
+              thumbColor: scheme.primary,
+              overlayColor: Colors.transparent,
             ),
             child: Slider(
               value: _sliderValue,
@@ -880,30 +864,29 @@ class _VodControls extends ConsumerWidget {
             if (onGoLive != null) ...[
               TvFocusable(
                 onTap: onGoLive!,
-                borderRadius: BorderRadius.circular(6),
-                child: const _LiveBadge(isBehindLive: true),
+                borderRadius: BorderRadius.circular(16),
+                child: const _LiveChip(isBehindLive: true),
               ),
               SizedBox(width: 12 * m.scale),
             ],
-            Text(
-              duration.inSeconds > 0
-                  ? '${formatClock(shownPosition)} / ${formatClock(duration)}'
-                  : formatClock(shownPosition),
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: m.bodySize,
-                fontFeatures: const [FontFeature.tabularFigures()],
+            Text(formatClock(shownPosition), style: timeStyle),
+            if (duration.inSeconds > 0)
+              Text(
+                '  /  ${formatClock(duration)}',
+                style: timeStyle.copyWith(color: Colors.white60),
               ),
-            ),
           ],
         ),
         actions: _actionButtons(
           context: context,
           ref: ref,
+          // Movies/episodes: CC only when the video has subtitles (live
+          // keeps it, since broadcast captions can turn up late).
           showCc: hasCc,
           hasCc: hasCc,
           ccActive: ccActive,
           onCc: onCc,
+          onSettings: onSettings,
           favoriteChannelId: contentId,
           onEpg: onEpg,
         ),
@@ -916,100 +899,8 @@ class _VodControls extends ConsumerWidget {
 // Shared pieces
 // ---------------------------------------------------------------------------
 
-/// Round, D-pad-focusable player button. Focus follows the YouTube TV
-/// convention: the button fills white with a dark icon and grows slightly,
-/// rather than the generic accent ring used elsewhere in the app.
-class _PlayerButton extends StatefulWidget {
-  const _PlayerButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    required this.size,
-    this.focusNode,
-    this.filled = false,
-    this.active = false,
-    this.dimmed = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final double size;
-  final FocusNode? focusNode;
-  // Floats over the picture (the centred transport), where the scrim is
-  // clear: a dark translucent disc keeps it legible over bright video.
-  final bool filled;
-  // On-state (CC on, favourited): icon in the accent colour.
-  final bool active;
-  // Available but nothing to show yet (CC with no tracks detected).
-  final bool dimmed;
-
-  @override
-  State<_PlayerButton> createState() => _PlayerButtonState();
-}
-
-class _PlayerButtonState extends State<_PlayerButton> {
-  bool _focused = false;
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    // Focus highlight only on TV, matching TvFocusable's ring — on touch
-    // devices the play button holds focus after reveal and would otherwise
-    // look permanently selected.
-    final lit = _focused && PlatformHelper.isTV(context);
-    final accent = Theme.of(context).colorScheme.primary;
-    final Color bg;
-    if (lit) {
-      bg = Colors.white;
-    } else if (_hovered) {
-      bg = Colors.white.withValues(alpha: 0.24);
-    } else if (widget.filled) {
-      bg = Colors.black.withValues(alpha: 0.45);
-    } else {
-      bg = Colors.transparent;
-    }
-    final Color fg;
-    if (lit) {
-      fg = Colors.black;
-    } else if (widget.active) {
-      fg = accent;
-    } else if (widget.dimmed) {
-      fg = Colors.white38;
-    } else {
-      fg = Colors.white;
-    }
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: TvFocusable(
-        onTap: widget.onTap,
-        focusNode: widget.focusNode,
-        showFocusRing: false,
-        onFocusChange: (f) => setState(() => _focused = f),
-        child: Tooltip(
-          message: widget.tooltip,
-          child: AnimatedScale(
-            scale: lit ? 1.1 : 1.0,
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-              child: Icon(widget.icon, color: fg, size: widget.size * 0.55),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Thin, rounded, non-interactive progress bar (live programme progress).
+/// Non-interactive progress bar (live programme progress), in the Material 3
+/// style of the seek bar: a rounded accent fill, a gap, then the track.
 class _ProgressBar extends StatelessWidget {
   const _ProgressBar({required this.value});
 
@@ -1017,79 +908,66 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
     return SizedBox(
-      height: 20 * m.scale,
+      height: 28 * m.scale,
       child: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(2 * m.scale),
+        child: ProgressIndicatorTheme(
+          data: ProgressIndicatorTheme.of(context).copyWith(year2023: false),
           child: LinearProgressIndicator(
-            value: value,
-            minHeight: 4 * m.scale,
-            backgroundColor: Colors.white24,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          value: value.clamp(0.0, 1.0),
+          minHeight: 6 * m.scale,
+          trackGap: 4 * m.scale,
+          stopIndicatorColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(3 * m.scale),
+          backgroundColor: Colors.white.withValues(alpha: 0.28),
+          color: Theme.of(context).colorScheme.primary,
+        ),
         ),
       ),
     );
   }
 }
 
-/// Slider track that spans the full width, so the seek bar lines up with
-/// the title and meta row instead of being inset by the thumb radius.
-class _EdgeToEdgeTrackShape extends RoundedRectSliderTrackShape {
-  const _EdgeToEdgeTrackShape();
+class _LiveChip extends StatelessWidget {
+  const _LiveChip({required this.isBehindLive});
 
-  @override
-  Rect getPreferredRect({
-    required RenderBox parentBox,
-    Offset offset = Offset.zero,
-    required SliderThemeData sliderTheme,
-    bool isEnabled = false,
-    bool isDiscrete = false,
-  }) {
-    final height = sliderTheme.trackHeight ?? 4;
-    final top = offset.dy + (parentBox.size.height - height) / 2;
-    return Rect.fromLTWH(offset.dx, top, parentBox.size.width, height);
-  }
-}
-
-class _LiveBadge extends StatelessWidget {
-  const _LiveBadge({required this.isBehindLive});
-
-  // Behind the live edge: grey "Go live" pill instead of the red dot.
+  // Behind the live edge: a tonal "Go live" chip instead of the red LIVE.
   final bool isBehindLive;
 
   @override
   Widget build(BuildContext context) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
     return Container(
       padding: EdgeInsets.symmetric(
-          horizontal: 10 * m.scale, vertical: 4 * m.scale),
+          horizontal: 12 * m.scale, vertical: 5 * m.scale),
       decoration: BoxDecoration(
-        color: isBehindLive ? Colors.white24 : const Color(0xFFE53935),
-        borderRadius: BorderRadius.circular(6),
+        color: isBehindLive
+            ? Colors.white.withValues(alpha: 0.2)
+            : const Color(0xFFE53935),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isBehindLive)
-            Icon(Icons.skip_next_rounded, color: Colors.white, size: 14 * m.scale)
+            Icon(Icons.skip_next_rounded,
+                color: Colors.white, size: 16 * m.scale)
           else
             Container(
-              width: 6 * m.scale,
-              height: 6 * m.scale,
+              width: 7 * m.scale,
+              height: 7 * m.scale,
               decoration: const BoxDecoration(
                   color: Colors.white, shape: BoxShape.circle),
             ),
           SizedBox(width: 6 * m.scale),
           Text(
-            isBehindLive ? 'GO LIVE' : 'LIVE',
+            isBehindLive ? 'Go live' : 'LIVE',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
-              fontSize: 12 * m.scale,
-              letterSpacing: 0.8,
+              fontSize: 12.5 * m.scale,
+              letterSpacing: isBehindLive ? 0.2 : 0.8,
             ),
           ),
         ],
@@ -1098,31 +976,46 @@ class _LiveBadge extends StatelessWidget {
   }
 }
 
-class _QualityBadge extends StatelessWidget {
-  const _QualityBadge({required this.label});
+class _QualityChip extends StatelessWidget {
+  const _QualityChip({required this.label});
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    final m = _Metrics.of(context);
+    final m = PlayerMetrics.of(context);
     return Container(
       padding: EdgeInsets.symmetric(
-          horizontal: 8 * m.scale, vertical: 3 * m.scale),
+          horizontal: 10 * m.scale, vertical: 5 * m.scale),
       decoration: BoxDecoration(
-        color: Colors.black38,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white38),
+        color: Colors.black.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
-          fontSize: 11 * m.scale,
+          fontSize: 11.5 * m.scale,
           letterSpacing: 0.8,
         ),
       ),
     );
   }
+}
+
+/// Tells the transport the stream is loading, without threading a flag
+/// through every controls widget.
+class _Buffering extends InheritedWidget {
+  const _Buffering({required this.buffering, required super.child});
+
+  final bool buffering;
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_Buffering>()?.buffering ??
+      false;
+
+  @override
+  bool updateShouldNotify(_Buffering old) => buffering != old.buffering;
 }

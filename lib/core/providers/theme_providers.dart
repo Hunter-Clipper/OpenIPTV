@@ -39,6 +39,16 @@ final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 // Tidy provider names for display (see display_name.dart).
 final cleanNamesProvider = StateProvider<bool>((ref) => true);
 
+/// Player picture fit: 'fit' (whole picture, letterboxed — the default),
+/// 'fill' (crop to fill the screen) or 'zoom' (in between).
+final videoFitProvider = StateProvider<String>((ref) => 'fit');
+
+Future<void> setVideoFit(
+    WidgetRef ref, String fit, AppPreferences prefs) async {
+  ref.read(videoFitProvider.notifier).state = fit;
+  await prefs.setVideoFit(fit);
+}
+
 // Movies / Series home layout: 'posters' (a rail per genre) or 'compact'
 // (the plain genre list).
 final homeLayoutMoviesProvider = StateProvider<String>((ref) => 'posters');
@@ -149,6 +159,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
+  ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;
   ref.read(homeLayoutSeriesProvider.notifier).state = prefs.homeLayoutSeries;
 }

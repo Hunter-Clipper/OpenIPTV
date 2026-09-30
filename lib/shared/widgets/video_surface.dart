@@ -15,9 +15,14 @@ class VideoSurface extends StatefulWidget {
     required this.textureId,
     required this.stateStream,
     this.initialAspectRatio,
+    this.fit = 'fit',
   });
 
   final int textureId;
+  /// 'fit' letterboxes the whole picture (never distorted); 'fill' crops it
+  /// to cover the screen; 'zoom' is between the two. Aspect ratio is always
+  /// kept — the picture is never stretched.
+  final String fit;
   final Stream<NativeVideoPlayerState> stateStream;
   final double? initialAspectRatio;
 
@@ -65,6 +70,24 @@ class _VideoSurfaceState extends State<VideoSurface> {
     // Before the first frame the size is unknown; nothing is visible yet,
     // so filling is harmless.
     if (ar == null) return texture;
-    return Center(child: AspectRatio(aspectRatio: ar, child: texture));
+    final fitted = Center(child: AspectRatio(aspectRatio: ar, child: texture));
+    return LayoutBuilder(builder: (context, c) {
+      final screenAr = c.maxWidth / c.maxHeight;
+      // Scale that makes the fitted picture cover the whole screen.
+      final cover = ar > screenAr ? ar / screenAr : screenAr / ar;
+      final scale = switch (widget.fit) {
+        'fill' => cover,
+        'zoom' => 1 + (cover - 1) / 2,
+        _ => 1.0,
+      };
+      return ClipRect(
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          child: fitted,
+        ),
+      );
+    });
   }
 }

@@ -112,6 +112,7 @@ class PlaybackService {
     // ExoPlayer starts at startPosition itself — no need to wait for the
     // duration and seek afterwards (an mpv-era workaround that briefly
     // played from 0 before jumping).
+    _speed = 1;
     await _player.open(streamUrl,
         streamTypeHint: _streamTypeHint(streamUrl),
         startPosition: startPosition);
@@ -134,6 +135,14 @@ class PlaybackService {
   }
 
   Future<void> stop() => _player.stop();
+
+  /// Playback speed of the current stream; reset to 1 by every [play].
+  double get speed => _speed;
+  double _speed = 1;
+  Future<void> setSpeed(double speed) {
+    _speed = speed;
+    return _player.setSpeed(speed);
+  }
 
   Future<void> selectTrack(String trackId) => _player.selectTrack(trackId);
   Future<void> clearTextTrack() => _player.clearTextTrack();

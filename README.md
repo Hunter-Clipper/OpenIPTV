@@ -76,7 +76,7 @@
 **Watch**
 - **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home.
 - **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
-- **The player**, inspired by top apps: centred controls, a clean progress bar, closed captions (CEA-608/708), catch-up on providers that support it, and the original aspect ratio (never stretched). Picture-in-Picture and a Now Playing notification.
+- **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
 - **Search** across channels, movies, series and what's on right now, with recent searches one tap away.
 
 **For the whole household**

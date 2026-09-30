@@ -22,6 +22,7 @@ const _kMediaNotificationEnabled = 'media_notification_enabled';
 const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
 const _kRecentSearches = 'recent_searches';
+const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
 const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
@@ -116,6 +117,10 @@ class AppPreferences {
       _prefs.setBool(_kMediaNotificationEnabled, v);
 
   // Tidy provider names for display (display_name.dart).
+  // Player: how the picture fits the screen.
+  String get videoFit => _prefs.getString(_kVideoFit) ?? 'fit';
+  Future<void> setVideoFit(String v) => _prefs.setString(_kVideoFit, v);
+
   // Search: the last few queries that led somewhere, newest first.
   List<String> get recentSearches =>
       _prefs.getStringList(_kRecentSearches) ?? const [];

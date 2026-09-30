@@ -138,6 +138,9 @@ class NativeVideoPlayer(
         currentUrl = url
         currentHint = streamTypeHint
         hlsRetried = false
+        // Every stream starts at normal speed (a movie watched at 1.5x must
+        // not make the next live channel run fast).
+        exoPlayer.setPlaybackSpeed(1f)
         // A new stream has no frames yet — reset so Dart's "has video" check
         // doesn't mistake the previous stream's last frame for playback.
         videoWidth = 0
@@ -237,6 +240,9 @@ class NativeVideoPlayer(
     fun play() = exoPlayer.play()
     fun pause() = exoPlayer.pause()
     fun stop() = exoPlayer.stop()
+
+    // 0.25–4x; ExoPlayer keeps audio pitch-corrected.
+    fun setSpeed(speed: Float) = exoPlayer.setPlaybackSpeed(speed.coerceIn(0.25f, 4f))
 
     // Returns the resulting position immediately — unlike mpv, ExoPlayer
     // updates currentPosition synchronously on seekTo, so callers no longer
@@ -401,6 +407,10 @@ class NativeVideoPlayerManager(
                 val pos = players[idArg(call)]
                     ?.seekTo((call.argument<Number>("positionMs") ?: 0).toLong())
                 result.success(pos)
+            }
+            "setSpeed" -> {
+                players[idArg(call)]?.setSpeed((call.argument<Number>("speed") ?: 1).toFloat())
+                result.success(null)
             }
             "getTracks" -> {
                 result.success(players[idArg(call)]?.getTracks() ?: emptyList<Any>())

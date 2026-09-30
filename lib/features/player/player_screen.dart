@@ -15,6 +15,7 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/features/player/channel_switcher.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
@@ -162,6 +163,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // affordance and the same live/catch-up controls switch, so this — not
   // widget.contentType, which never changes after construction — is what
   // drives that UI once _liveDvrActive can flip either way.
+  // The error screen has its own buttons (Try again / Channels / Go back);
+  // the regular controls would draw over it.
+  bool get _playbackGaveUp => _retryCount >= _maxRetries;
+  bool get _showOverlayControls => _controlsVisible && !_playbackGaveUp;
+
   bool get _isChannelPlayback => _isLive || widget.contentType == 'catchup';
 
   // Captured while mounted and kept current via listenManual, because
@@ -214,7 +220,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           _isBuffering = true;
           _errorMessage = e.httpStatus == 401 || e.httpStatus == 403
               ? "Your provider didn't allow this stream."
-              : 'This title isn\'t available from your provider right now.';
+              : _isChannelPlayback
+                  ? "This channel isn't available from your provider right now."
+                  : "This title isn't available from your provider right now.";
         });
       } else {
         setState(() => _isBuffering = true);
@@ -271,6 +279,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     _showControls();
   }
+
 
   void _startStallTimer() {
     _stallTimer?.cancel();
@@ -482,7 +491,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ((index + delta) % channels.length + channels.length) %
             channels.length];
     if (next.id == channel.id) return;
+    _tuneTo(next);
+  }
 
+  void _tuneTo(Channel next) {
+    if (next.id == widget.contentId && !_liveDvrActive) return;
     _playbackService.markTransitioning();
     context.pushReplacement('/player', extra: {
       'streamUrl': next.streamUrl,
@@ -490,6 +503,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       'contentType': 'live',
       'contentId': next.id,
     });
+  }
+
+  // Slides in the channel list over the video; picking one tunes to it.
+  Future<void> _openChannels() async {
+    final id = widget.contentId;
+    if (!_isChannelPlayback || id == null) return;
+    _hideTimer?.cancel();
+    final picked = await showChannelSwitcher(context, id);
+    if (!mounted) return;
+    if (picked != null) {
+      _tuneTo(picked);
+    } else if (!_playbackGaveUp) {
+      _showControls();
+    }
+    // (On the error screen, closing the list hands focus back to its own
+    // Channels button — route pop restores it.)
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -511,6 +540,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     if (!_isChannelPlayback) return KeyEventResult.ignored;
+    // With the controls hidden, Right (or the remote's Guide/Info key)
+    // brings up the channel list.
+    if (node.hasPrimaryFocus &&
+        (key == LogicalKeyboardKey.arrowRight ||
+            key == LogicalKeyboardKey.guide)) {
+      unawaited(_openChannels());
+      return KeyEventResult.handled;
+    }
     // Dedicated channel-up/down remote buttons always work; the arrow keys
     // only double as channel-up/down when this screen's own surface holds
     // focus directly (not one of the on-screen control buttons) — otherwise
@@ -780,6 +817,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
+      // A sheet or the channel list is open on top: hiding now would pull
+      // focus out of it (the TV remote would lose its place). Wait.
+      if (ModalRoute.of(context)?.isCurrent == false) {
+        _resetHideTimer();
+        return;
+      }
       // Like mainstream players, keep the controls up while paused (the
       // user is likely about to act on them); re-check until playback
       // resumes, then hide as normal.
@@ -807,7 +850,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _hideControls() {
     setState(() => _controlsVisible = false);
-    _rootFocusNode.requestFocus();
+    // The error screen owns focus (Try again / Channels / Go back); taking
+    // it back to the surface would strand a TV remote.
+    if (!_playbackGaveUp) _rootFocusNode.requestFocus();
   }
 
   void _onTap() {
@@ -825,6 +870,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       textureId: _playbackService.textureId,
       stateStream: _playbackService.stateStream,
       initialAspectRatio: _playbackService.lastState.aspectRatio,
+      fit: ref.watch(videoFitProvider),
     );
   }
 
@@ -877,6 +923,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         onKeyEvent: _handleKeyEvent,
         child: GestureDetector(
           onTap: _onTap,
+          // Swipe left (from anywhere) for the channel list on Live TV.
+          onHorizontalDragEnd: _isChannelPlayback
+              ? (d) {
+                  if ((d.primaryVelocity ?? 0) < -400) {
+                    unawaited(_openChannels());
+                  }
+                }
+              : null,
           behavior: HitTestBehavior.opaque,
           child: Stack(
             fit: StackFit.expand,
@@ -896,6 +950,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           ? _ErrorOverlay(
                               title: widget.title,
                               message: _errorMessage,
+                              onBack: () => context.pop(),
+                              onChannels: _isChannelPlayback &&
+                                      widget.contentId != null
+                                  ? _openChannels
+                                  : null,
                               onRetry: () {
                                 setState(() {
                                   _retryCount = 0;
@@ -906,24 +965,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 _startPlayback();
                               },
                             )
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const CircularProgressIndicator(
-                                    color: Colors.white),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _isRecovering
-                                      ? 'Reconnecting… ($_retryCount/$_maxRetries)'
-                                      : context.displayName(widget.title),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                          : _LoadingView(
+                              // The controls already show the title and a
+                              // spinner on the play button.
+                              visible: !_controlsVisible,
+                              title: widget.title,
+                              status: _isRecovering
+                                  ? 'Reconnecting… ($_retryCount of $_maxRetries)'
+                                  : null,
                             ),
                     ),
                   ),
@@ -931,12 +980,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ),
               // Controls overlay
               AnimatedOpacity(
-                opacity: _controlsVisible ? 1.0 : 0.0,
+                opacity: _showOverlayControls ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 250),
                 child: IgnorePointer(
-                  ignoring: !_controlsVisible,
+                  ignoring: !_showOverlayControls,
                   child: ExcludeFocus(
-                    excluding: !_controlsVisible,
+                    excluding: !_showOverlayControls,
                     // Touch presses on the overlay restart the countdown, the
                     // same as D-pad presses do via _onAnyKeyEvent.
                     child: Listener(
@@ -973,6 +1022,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             isBehindLive: _isBehindLive,
                             playPauseFocusNode: _playPauseFocusNode,
                             backFocusNode: _backFocusNode,
+                            buffering: _isBuffering &&
+                                _retryCount < _maxRetries,
+                            onChannels: _isChannelPlayback &&
+                                    widget.contentId != null
+                                ? _openChannels
+                                : null,
                           ),
                         ),
                       ),
@@ -1044,77 +1099,102 @@ class _UpNextBannerState extends State<_UpNextBanner> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final ep = widget.episode;
+    final still = ep.stillUrl;
     return Positioned(
       bottom: 32,
       right: 32,
-      child: Container(
-        width: 300,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xE6121212),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'UP NEXT',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-                letterSpacing: 1.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${widget.episode.episodeLabel} – ${widget.episode.displayTitle}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: 1.0 - (_remaining / _totalSeconds),
-              backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 2,
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: widget.onPlay,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      child: Material(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        elevation: 6,
+        child: SizedBox(
+          width: 340,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (still != null && still.isNotEmpty)
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    still,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        ColoredBox(color: scheme.surfaceContainerHighest),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Up next',
+                        style: theme.textTheme.labelLarge!
+                            .copyWith(color: scheme.primary)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${ep.episodeLabel} · ${ep.displayTitle}',
+                      style: theme.textTheme.titleMedium!
+                          .copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Text('Play Now ($_remaining)'),
-                  ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TvActivatable(
+                            autofocus: true,
+                            onTap: widget.onPlay,
+                            builder: (onTap) => FilledButton.icon(
+                              onPressed: onTap,
+                              style: FilledButton.styleFrom(
+                                  shape: const StadiumBorder(),
+                                  minimumSize: const Size.fromHeight(44)),
+                              icon: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      value: 1 - _remaining / _totalSeconds,
+                                      strokeWidth: 2.2,
+                                      color: scheme.onPrimary,
+                                      backgroundColor: scheme.onPrimary
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                    Text('$_remaining',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: scheme.onPrimary)),
+                                  ],
+                                ),
+                              ),
+                              label: const Text('Play now'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TvActivatable(
+                          onTap: widget.onDismiss,
+                          builder: (onTap) => TextButton(
+                            onPressed: onTap,
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: widget.onDismiss,
-                  style: TextButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1123,42 +1203,185 @@ class _UpNextBannerState extends State<_UpNextBanner> {
 
 // ---------------------------------------------------------------------------
 
-class _ErrorOverlay extends StatelessWidget {
-  const _ErrorOverlay(
-      {required this.title, required this.onRetry, this.message});
+class _LoadingView extends StatelessWidget {
+  const _LoadingView({required this.title, this.status, this.visible = true});
 
+  final bool visible;
   final String title;
-  final VoidCallback onRetry;
-  // Specific reason when known; otherwise a generic "Stream unavailable".
-  final String? message;
+  // e.g. "Reconnecting… (2 of 5)"; the title alone while first loading.
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final theme = Theme.of(context);
+    return AnimatedOpacity(
+      opacity: visible ? 1 : 0,
+      duration: const Duration(milliseconds: 200),
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.signal_wifi_connected_no_internet_4,
-            color: Colors.white54, size: 48),
-        const SizedBox(height: 16),
-        Text(
-          context.displayName(title),
-          style: const TextStyle(color: Colors.white70, fontSize: 14),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        SizedBox(
+          width: 52,
+          height: 52,
+          child: ProgressIndicatorTheme(
+            data:
+                ProgressIndicatorTheme.of(context).copyWith(year2023: false),
+            child: CircularProgressIndicator(
+              strokeWidth: 5,
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          message ?? 'Stream unavailable',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        const SizedBox(height: 20),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            context.displayName(title),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleMedium!.copyWith(color: Colors.white),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        const SizedBox(height: 24),
-        FilledButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Try Again'),
-        ),
+        if (status != null) ...[
+          const SizedBox(height: 6),
+          Text(status!,
+              style: theme.textTheme.bodyMedium!
+                  .copyWith(color: Colors.white60)),
+        ],
       ],
+      ),
+    );
+  }
+}
+
+final _outlined = OutlinedButton.styleFrom(
+  shape: const StadiumBorder(),
+  foregroundColor: Colors.white,
+  side: const BorderSide(color: Colors.white38),
+);
+
+class _ErrorOverlay extends StatefulWidget {
+  const _ErrorOverlay({
+    required this.title,
+    required this.onRetry,
+    required this.onBack,
+    this.onChannels,
+    this.message,
+  });
+
+  final String title;
+  final VoidCallback onRetry;
+  final VoidCallback onBack;
+  // Live TV: pick another channel straight from the error screen.
+  final VoidCallback? onChannels;
+  // Specific reason when known; otherwise a generic message.
+  final String? message;
+
+  @override
+  State<_ErrorOverlay> createState() => _ErrorOverlayState();
+}
+
+class _ErrorOverlayState extends State<_ErrorOverlay> {
+  // The player surface already holds focus, so plain autofocus loses; claim
+  // it explicitly so a TV remote lands on Try again.
+  final _retryFocus = FocusNode(debugLabel: 'PlayerRetry');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _retryFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _retryFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final error = theme.colorScheme.error;
+    final message = widget.message;
+    final title = widget.title;
+    final onRetry = widget.onRetry;
+    final onBack = widget.onBack;
+    final onChannels = widget.onChannels;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 460),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: error.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.cloud_off_rounded, color: error, size: 38),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              message ?? "This stream isn't playing right now",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge!.copyWith(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              context.displayName(title),
+              textAlign: TextAlign.center,
+              style:
+                  theme.textTheme.bodyMedium!.copyWith(color: Colors.white60),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                TvActivatable(
+                  focusNode: _retryFocus,
+                  onTap: onRetry,
+                  builder: (onTap) => FilledButton.icon(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Try again'),
+                  ),
+                ),
+                if (onChannels != null)
+                  TvActivatable(
+                    onTap: onChannels,
+                    builder: (onTap) => OutlinedButton.icon(
+                      onPressed: onTap,
+                      style: _outlined,
+                      icon: const Icon(Icons.format_list_bulleted_rounded),
+                      label: const Text('Channels'),
+                    ),
+                  ),
+                TvActivatable(
+                  onTap: onBack,
+                  builder: (onTap) => OutlinedButton.icon(
+                    onPressed: onTap,
+                    style: _outlined,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Go back'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
