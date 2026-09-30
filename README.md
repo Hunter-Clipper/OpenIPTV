@@ -25,7 +25,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - **Per-channel TV guide** inside the player — see what's on now and next without leaving the channel. (The full-screen guide grid is switched off for now while it's being reworked.)
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
 - **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress. Resume from where you left off
-- **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
+- **Player** inspired by top apps: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
 - Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
 - Fast global search across channels, movies, series, and what's airing now — results as rows of channel cards and posters, with your recent searches one tap away
 - Multiple profiles per device — a "Who's watching?" screen with colourful round avatars, PIN lock, admin vs restricted roles. PINs (4–8 digits) are always typed on your device's own number keyboard
