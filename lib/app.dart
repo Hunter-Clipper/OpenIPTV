@@ -90,6 +90,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       final playing = ref.read(playbackServiceProvider).lastState.playing;
       updatePipAvailability(ref.read(pipEnabledProvider) && playing);
     }
+
     pushPipAvailability();
     ref
         .read(playbackServiceProvider)
@@ -144,10 +145,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         return null;
       },
       routes: [
-        GoRoute(
-          path: '/setup',
-          builder: (_, __) => const SetupWizardScreen(),
-        ),
+        GoRoute(path: '/setup', builder: (_, __) => const SetupWizardScreen()),
         GoRoute(
           path: '/onboarding',
           builder: (_, __) => const SetupWizardScreen(addPlaylistOnly: true),
@@ -178,9 +176,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) => MovieGenreScreen(
-                    genre: state.pathParameters['genre']!,
-                  ),
+                  builder: (_, state) =>
+                      MovieGenreScreen(genre: state.pathParameters['genre']!),
                 ),
               ],
             ),
@@ -190,16 +187,12 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) => SeriesGenreScreen(
-                    genre: state.pathParameters['genre']!,
-                  ),
+                  builder: (_, state) =>
+                      SeriesGenreScreen(genre: state.pathParameters['genre']!),
                 ),
               ],
             ),
-            GoRoute(
-              path: '/search',
-              builder: (_, __) => const SearchScreen(),
-            ),
+            GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
           ],
         ),
         // Detail pages on the root navigator, outside the shell (same as
@@ -242,10 +235,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               path: 'profiles',
               builder: (_, __) => const ProfileScreen(),
             ),
-            GoRoute(
-              path: 'backup',
-              builder: (_, __) => const BackupScreen(),
-            ),
+            GoRoute(path: 'backup', builder: (_, __) => const BackupScreen()),
             GoRoute(
               path: 'parental',
               builder: (_, __) => const ParentalScreen(),
@@ -337,8 +327,9 @@ class _ShellState extends State<_Shell> {
   // doesn't reliably jump from the content pane (often inside its own
   // scrollable grid/list) across into a separate sibling column like this
   // rail.
-  final FocusNode _activeRailItemFocusNode =
-      FocusNode(debugLabel: 'NavRailActiveItem');
+  final FocusNode _activeRailItemFocusNode = FocusNode(
+    debugLabel: 'NavRailActiveItem',
+  );
 
   @override
   void initState() {
@@ -456,14 +447,30 @@ class _NavDestination {
 }
 
 const _kNavDestinations = [
-  _NavDestination(Icons.live_tv_outlined, 'Live TV', '/live',
-      selectedIcon: Icons.live_tv),
-  _NavDestination(Icons.movie_outlined, 'Movies', '/movies',
-      selectedIcon: Icons.movie),
-  _NavDestination(Icons.video_library_outlined, 'Series', '/series',
-      selectedIcon: Icons.video_library),
-  _NavDestination(Icons.search, 'Search', '/search',
-      selectedIcon: Icons.search),
+  _NavDestination(
+    Icons.live_tv_outlined,
+    'Live TV',
+    '/live',
+    selectedIcon: Icons.live_tv,
+  ),
+  _NavDestination(
+    Icons.movie_outlined,
+    'Movies',
+    '/movies',
+    selectedIcon: Icons.movie,
+  ),
+  _NavDestination(
+    Icons.video_library_outlined,
+    'Series',
+    '/series',
+    selectedIcon: Icons.video_library,
+  ),
+  _NavDestination(
+    Icons.search,
+    'Search',
+    '/search',
+    selectedIcon: Icons.search,
+  ),
 ];
 
 int _navIndexForLocation(BuildContext context) {
@@ -614,8 +621,7 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    final color =
-        widget.active ? accent : theme.colorScheme.onSurfaceVariant;
+    final color = widget.active ? accent : theme.colorScheme.onSurfaceVariant;
 
     return TvFocusable(
       autofocus: widget.autofocus,
