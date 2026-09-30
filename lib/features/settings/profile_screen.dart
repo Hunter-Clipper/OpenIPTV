@@ -8,7 +8,8 @@ import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
-import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/profile_avatar.dart';
+import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Profile overview screen — shows the active profile and lets the user
@@ -53,94 +54,95 @@ class ProfileScreen extends ConsumerWidget {
                 profile: profile,
                 onEdit: () => _showEditDialog(context, ref, profile),
               ),
-              const Divider(height: 1),
-
               // ── Account ───────────────────────────────────────────
-              const SectionHeader('Account'),
-              InfoTooltipScope(
-                controller: InfoTooltipController(),
-                child: InfoTooltip(
-                  id: 'kids_profile',
-                  title: 'Kids Profile',
-                  body: 'When turned on, this profile is marked as a Kids '
-                      'profile and adult content is automatically hidden '
-                      'from Live, Movies, and Series. Requires Parental '
-                      'Protection to be enabled.',
-                  child: TvActivatable(
-                    autofocus: true,
-                    onTap: profile.isAdmin
-                        ? null
-                        : () => _setKidsProfile(
-                            context, ref, profile, !profile.isKidsProfile),
-                    builder: (_) => SwitchListTile(
-                      secondary: const Icon(Icons.child_care_outlined),
-                      title: const Text('Kids Profile'),
-                      subtitle:
-                          Text(kidsSubtitle, style: theme.textTheme.bodySmall),
-                      value: profile.isKidsProfile,
-                      onChanged: profile.isAdmin
+              SettingsGroup(title: 'Account', children: [
+                InfoTooltipScope(
+                  controller: InfoTooltipController(),
+                  child: InfoTooltip(
+                    id: 'kids_profile',
+                    title: 'Kids Profile',
+                    body: 'When turned on, this profile is marked as a Kids '
+                        'profile and adult content is automatically hidden '
+                        'from Live, Movies, and Series. Requires Parental '
+                        'Protection to be enabled.',
+                    child: TvActivatable(
+                      autofocus: true,
+                      onTap: profile.isAdmin
                           ? null
-                          : (val) =>
-                              _setKidsProfile(context, ref, profile, val),
+                          : () => _setKidsProfile(
+                              context, ref, profile, !profile.isKidsProfile),
+                      builder: (_) => SwitchListTile(
+                        secondary:
+                            const IconBadge(icon: Icons.child_care_outlined),
+                        title: const Text('Kids Profile'),
+                        subtitle: Text(kidsSubtitle,
+                            style: theme.textTheme.bodySmall),
+                        value: profile.isKidsProfile,
+                        onChanged: profile.isAdmin
+                            ? null
+                            : (val) =>
+                                _setKidsProfile(context, ref, profile, val),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ]),
 
               // ── Security ──────────────────────────────────────────
-              if (!profile.isKidsProfile) ...[
-                const SectionHeader('Security'),
-                TvActivatable(
-                  autofocus: profile.isAdmin,
-                  onTap: showPinDialog,
-                  builder: (onTap) => ListTile(
-                    leading: Icon(profile.hasPin
-                        ? Icons.lock_outline
-                        : Icons.lock_open_outlined),
-                    title: const Text('PIN Lock'),
-                    subtitle: Text(
-                      profile.hasPin
-                          ? 'PIN is set — tap to change or remove'
-                          : 'No PIN — tap to set one',
-                      style: theme.textTheme.bodySmall,
+              if (!profile.isKidsProfile)
+                SettingsGroup(title: 'Security', children: [
+                  TvActivatable(
+                    autofocus: profile.isAdmin,
+                    onTap: showPinDialog,
+                    builder: (onTap) => ListTile(
+                      leading: IconBadge(
+                          icon: profile.hasPin
+                              ? Icons.lock_outline
+                              : Icons.lock_open_outlined),
+                      title: const Text('PIN Lock'),
+                      subtitle: Text(
+                        profile.hasPin
+                            ? 'PIN is set — tap to change or remove'
+                            : 'No PIN — tap to set one',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      trailing: profile.hasPin
+                          ? Icon(Icons.check_circle,
+                              color: theme.colorScheme.primary, size: 20)
+                          : null,
+                      onTap: onTap,
                     ),
-                    trailing: profile.hasPin
-                        ? Icon(Icons.check_circle,
-                            color: theme.colorScheme.primary, size: 20)
-                        : null,
-                    onTap: onTap,
                   ),
-                ),
-              ],
+                ]),
 
               // ── All Profiles (admin only) ─────────────────────────
-              if (profile.isAdmin) ...[
-                const SectionHeader('All Profiles'),
-                allAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (all) => Column(
-                    children: [
-                      ...all.map((p) => _ProfileTile(
-                            profile: p,
-                            isActive: p.id == profile.id,
-                            onEdit: () => _showEditDialog(context, ref, p),
-                            onDelete: all.length > 1
-                                ? () => _confirmDelete(context, ref, p)
-                                : null,
-                          )),
-                      TvActivatable(
-                        onTap: () => _showCreateDialog(context, ref),
-                        builder: (onTap) => ListTile(
-                          leading: const Icon(Icons.add),
-                          title: const Text('Add Profile'),
-                          onTap: onTap,
+              if (profile.isAdmin)
+                SettingsGroup(title: 'All Profiles', children: [
+                  allAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (all) => Column(
+                      children: [
+                        ...all.map((p) => _ProfileTile(
+                              profile: p,
+                              isActive: p.id == profile.id,
+                              onEdit: () => _showEditDialog(context, ref, p),
+                              onDelete: all.length > 1
+                                  ? () => _confirmDelete(context, ref, p)
+                                  : null,
+                            )),
+                        TvActivatable(
+                          onTap: () => _showCreateDialog(context, ref),
+                          builder: (onTap) => ListTile(
+                            leading: const IconBadge(icon: Icons.add),
+                            title: const Text('Add Profile'),
+                            onTap: onTap,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ]),
               const SizedBox(height: 32),
             ],
           );
@@ -300,36 +302,32 @@ class _ProfileHero extends StatelessWidget {
           Stack(
             alignment: Alignment.bottomRight,
             children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Text(
-                    profile.avatarEmoji,
-                    style: const TextStyle(fontSize: 48),
-                  ),
-                ),
+              ProfileAvatar(
+                emoji: profile.avatarEmoji,
+                name: profile.name,
+                size: 104,
               ),
               TvFocusable(
                 onTap: onEdit,
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
                     shape: BoxShape.circle,
+                    border: Border.all(
+                        color: theme.scaffoldBackgroundColor, width: 2),
                   ),
-                  child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                  child: Icon(Icons.edit_rounded,
+                      size: 16, color: theme.colorScheme.onPrimary),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(profile.name, style: theme.textTheme.titleLarge),
+          const SizedBox(height: 14),
+          Text(profile.name,
+              style: theme.textTheme.headlineSmall!
+                  .copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -395,7 +393,7 @@ class _ProfileTile extends StatelessWidget {
     return ListTile(
       leading: Stack(
         children: [
-          Text(profile.avatarEmoji, style: const TextStyle(fontSize: 32)),
+          ProfileAvatar(emoji: profile.avatarEmoji, name: profile.name),
           if (isActive)
             Positioned(
               right: 0,

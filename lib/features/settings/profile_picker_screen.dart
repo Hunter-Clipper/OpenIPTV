@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/pin_field.dart';
+import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 class ProfilePickerScreen extends ConsumerWidget {
   /// Called after a profile is successfully selected.
@@ -18,46 +20,65 @@ class ProfilePickerScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            Image.asset(
-              'assets/images/app_icon_dark.png',
-              width: 72,
-              height: 72,
-            ),
-            const SizedBox(height: 16),
-            Text('Who\'s watching?', style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Select your profile to continue',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 40),
-            Expanded(
-              child: profilesAsync.when(
-                loading: () => const LoadingView(),
-                error: (_, __) =>
-                    const Center(child: Text('Could not load profiles.')),
-                data: (profiles) => GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 160,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 20,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: profiles.length,
-                  itemBuilder: (context, i) => _ProfileCard(
-                    profile: profiles[i],
-                    autofocus: i == 0,
-                    onSelected: () => _selectProfile(context, ref, profiles[i]),
-                  ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // Opaque blends: a translucent tint let the sheet colour show
+            // through as a heavy green wash.
+            colors: [
+              Color.alphaBlend(theme.colorScheme.primary.withValues(alpha: 0.10),
+                  theme.scaffoldBackgroundColor),
+              theme.scaffoldBackgroundColor,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: profilesAsync.when(
+            loading: () => const LoadingView(),
+            error: (_, __) =>
+                const Center(child: Text('Could not load profiles.')),
+            data: (profiles) => Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/app_icon_dark.png',
+                      width: 56,
+                      height: 56,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "Who's watching?",
+                      style: theme.textTheme.displaySmall!
+                          .copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 40),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 28,
+                        runSpacing: 28,
+                        children: [
+                          for (var i = 0; i < profiles.length; i++)
+                            _ProfileCard(
+                              profile: profiles[i],
+                              autofocus: i == 0,
+                              onSelected: () =>
+                                  _selectProfile(context, ref, profiles[i]),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -86,47 +107,11 @@ class ProfilePickerScreen extends ConsumerWidget {
     onPicked();
   }
 
-  Future<String?> _showPinDialog(BuildContext context, String name) {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text('Enter PIN for $name'),
-        content: TextField(
-          controller: controller,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(6),
-          ],
-          decoration: const InputDecoration(hintText: 'PIN'),
-          onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
-        ),
-        actions: [
-          TvActivatable(
-            onTap: () => Navigator.of(ctx).pop(),
-            builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
-          ),
-          TvActivatable(
-            // A plain autofocus TextField above would trap D-pad focus there
-            // permanently (Flutter's EditableText consumes vertical arrow
-            // keys), so this button gets the default focus instead — the
-            // PIN field is still one press up to enter a code.
-            autofocus: true,
-            onTap: () => Navigator.of(ctx).pop(controller.text),
-            builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Unlock')),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<String?> _showPinDialog(BuildContext context, String name) =>
+      showPinEntryDialog(context, title: 'Enter PIN for $name');
 }
 
-class _ProfileCard extends StatelessWidget {
+class _ProfileCard extends StatefulWidget {
   const _ProfileCard({
     required this.profile,
     required this.onSelected,
@@ -138,55 +123,79 @@ class _ProfileCard extends StatelessWidget {
   final bool autofocus;
 
   @override
+  State<_ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<_ProfileCard> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return TvActivatable(
-      onTap: onSelected,
-      autofocus: autofocus,
-      borderRadius: BorderRadius.circular(16),
-      builder: (onTap) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+    final profile = widget.profile;
+    final isTV = PlatformHelper.isTV(context);
+    final size = isTV ? 132.0 : 104.0;
+    final lit = _focused && isTV;
+
+    return TvFocusable(
+      onTap: widget.onSelected,
+      autofocus: widget.autofocus,
+      showFocusRing: false,
+      onFocusChange: (f) => setState(() => _focused = f),
+      child: SizedBox(
+        width: size + 24,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
+            AnimatedScale(
+              scale: lit ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ProfileAvatar(
+                    emoji: profile.avatarEmoji,
+                    name: profile.name,
+                    size: size,
+                    highlighted: lit,
                   ),
-                  child: Center(
-                    child: Text(
-                      profile.avatarEmoji,
-                      style: const TextStyle(fontSize: 40),
+                  if (profile.hasPin)
+                    Positioned(
+                      right: 2,
+                      bottom: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.lock_rounded,
+                            size: 16, color: theme.colorScheme.onSurface),
+                      ),
                     ),
-                  ),
-                ),
-                if (profile.hasPin)
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.lock,
-                        size: 16, color: theme.colorScheme.primary),
-                  ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
             Text(
               profile.name,
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.titleMedium!.copyWith(
+                fontWeight: lit ? FontWeight.w700 : FontWeight.w500,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
+            if (profile.isKidsProfile)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Kids',
+                  style: theme.textTheme.labelMedium!
+                      .copyWith(color: theme.colorScheme.primary),
+                ),
+              ),
           ],
         ),
       ),

@@ -14,7 +14,10 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
+import 'package:open_iptv/shared/widgets/detail_header.dart';
+import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -115,27 +118,37 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   Timer? _debounce;
+  List<String> _recent = const [];
+
+  static const _maxRecent = 8;
 
   // A plain TextField swallows arrow keys for its own (single-line, no-op)
   // caret movement, so it never bubbles up to Flutter's directional focus
   // system — arrow-left here would otherwise never reach the nav rail, and
-  // arrow-down would never reach the results list below. Handling them
-  // directly on this exact FocusNode (rather than an ancestor) intercepts
-  // them before EditableText's own key handling gets a chance.
+  // arrow-down would never reach the results below. Handling them directly
+  // on this exact FocusNode (rather than an ancestor) intercepts them before
+  // EditableText's own key handling gets a chance.
   late final FocusNode _searchFocusNode = FocusNode(onKeyEvent: _handleKey);
-  final FocusNode _firstResultFocusNode = FocusNode();
+  // Wraps everything below the search bar; Down from the field goes to its
+  // first item (the first result or recent-search chip) — directional
+  // search picked whichever card sat geometrically closest instead.
+  final FocusNode _belowBarNode =
+      FocusNode(canRequestFocus: false, skipTraversal: true);
 
   @override
   void initState() {
     super.initState();
     _searchFocusNode.addListener(_handleFocusChange);
+    ref.read(appPreferencesProvider.future).then((prefs) {
+      if (mounted) setState(() => _recent = prefs.recentSearches);
+    });
   }
 
   @override
   void dispose() {
     _searchFocusNode.removeListener(_handleFocusChange);
     _searchFocusNode.dispose();
-    _firstResultFocusNode.dispose();
+    _belowBarNode.dispose();
     _controller.dispose();
     _debounce?.cancel();
     searchFieldFocused.value = false;
@@ -153,12 +166,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       TvNavRailFocus.maybeOf(context)?.requestFocus();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.arrowDown && _controller.text.isNotEmpty) {
-      final results = ref.read(_searchResultsProvider).valueOrNull;
-      if (results != null && !results.isEmpty) {
-        _firstResultFocusNode.requestFocus();
+    if (key == LogicalKeyboardKey.arrowDown) {
+      final first = _belowBarNode.traversalDescendants.firstOrNull;
+      if (first != null) {
+        first.requestFocus();
         return KeyEventResult.handled;
       }
+      return node.focusInDirection(TraversalDirection.down)
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
     }
     return KeyEventResult.ignored;
   }
@@ -168,89 +184,264 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _debounce = Timer(const Duration(milliseconds: 300), () {
       ref.read(_searchQueryProvider.notifier).state = value.trim();
     });
+    setState(() {}); // clear button
+  }
+
+  void _search(String query) {
+    _debounce?.cancel();
+    _controller.value = TextEditingValue(
+      text: query,
+      selection: TextSelection.collapsed(offset: query.length),
+    );
+    ref.read(_searchQueryProvider.notifier).state = query;
+    setState(() {});
   }
 
   void _clearSearch() {
     _controller.clear();
     ref.read(_searchQueryProvider.notifier).state = '';
+    setState(() {});
+  }
+
+  /// Keeps the current query in the recent list once it led somewhere.
+  Future<void> _remember() async {
+    final q = ref.read(_searchQueryProvider).trim();
+    if (q.length < SearchService.minQueryLength) return;
+    final next = [
+      q,
+      ..._recent.where((r) => r.toLowerCase() != q.toLowerCase()),
+    ].take(_maxRecent).toList();
+    setState(() => _recent = next);
+    await (await ref.read(appPreferencesProvider.future))
+        .setRecentSearches(next);
+  }
+
+  Future<void> _clearRecent() async {
+    setState(() => _recent = const []);
+    await (await ref.read(appPreferencesProvider.future))
+        .setRecentSearches(const []);
   }
 
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(_searchQueryProvider);
     final resultsAsync = ref.watch(_searchResultsProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _controller,
-          focusNode: _searchFocusNode,
-          autofocus: true,
-          onChanged: _onChanged,
-          decoration: InputDecoration(
-            hintText: 'Search channels, movies, series…',
-            border: InputBorder.none,
-            filled: false,
-            suffixIcon: query.isNotEmpty
-                ? TvFocusable(
-                    onTap: _clearSearch,
-                    borderRadius: BorderRadius.circular(20),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.clear),
-                    ),
-                  )
-                : null,
-          ),
-          style: theme.textTheme.bodyLarge,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _SearchBar(
+              controller: _controller,
+              focusNode: _searchFocusNode,
+              onChanged: _onChanged,
+              onSubmitted: _search,
+              onClear: _clearSearch,
+            ),
+            Expanded(
+              child: Focus(
+                focusNode: _belowBarNode,
+                child: query.length < SearchService.minQueryLength
+                    ? _SearchHome(
+                        recent: _recent,
+                        onPick: _search,
+                        onClear: _clearRecent,
+                      )
+                    : resultsAsync.when(
+                        loading: () =>
+                            const SkeletonList(itemCount: 6, leadingSize: 0),
+                        error: (_, __) => ErrorStateView(
+                          message: "Couldn't load search results. Try again.",
+                          onRetry: () => ref.invalidate(_searchResultsProvider),
+                        ),
+                        data: (results) => results.isEmpty
+                            ? EmptyStateView(
+                                icon: Icons.search_off_rounded,
+                                title: 'No results for "$query"',
+                                message:
+                                    'Check the spelling, or try a channel, a '
+                                    'movie or a show name.',
+                              )
+                            : _ResultsList(
+                                results: results,
+                                onOpen: _remember,
+                              ),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
-      body: query.length < SearchService.minQueryLength
-          ? const _SearchPrompt()
-          : resultsAsync.when(
-              loading: () => const SkeletonList(itemCount: 6, leadingSize: 0),
-              error: (_, __) => ErrorStateView(
-                message: "Couldn't load search results. Try again.",
-                onRetry: () => ref.invalidate(_searchResultsProvider),
-              ),
-              data: (results) {
-                if (results.isEmpty) {
-                  return _EmptyResults(query: query);
-                }
-                return _ResultsList(
-                  results: results,
-                  firstItemFocusNode: _firstResultFocusNode,
-                );
-              },
-            ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Results list
+// Search bar
+// ---------------------------------------------------------------------------
+
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onSubmitted,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pill = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(28),
+      borderSide: BorderSide.none,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        autofocus: true,
+        onChanged: onChanged,
+        onSubmitted: (v) => onSubmitted(v.trim()),
+        textInputAction: TextInputAction.search,
+        style: theme.textTheme.bodyLarge,
+        decoration: InputDecoration(
+          hintText: 'Search channels, movies and series',
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerHigh,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          border: pill,
+          enabledBorder: pill,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide:
+                BorderSide(color: theme.colorScheme.primary, width: 1.5),
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 4),
+            child: Icon(Icons.search_rounded,
+                color: theme.colorScheme.onSurfaceVariant),
+          ),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : TvFocusable(
+                  onTap: onClear,
+                  borderRadius: BorderRadius.circular(20),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.close_rounded),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Before a search: recent searches, or a short welcome
+// ---------------------------------------------------------------------------
+
+class _SearchHome extends StatelessWidget {
+  const _SearchHome({
+    required this.recent,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final List<String> recent;
+  final ValueChanged<String> onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const welcome = EmptyStateView(
+      icon: Icons.search_rounded,
+      title: 'Find something to watch',
+      message: "Search Live TV channels, movies, series — and what's on "
+          'right now.',
+    );
+    if (recent.isEmpty) return welcome;
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+          child: Text('Recent searches',
+              style: theme.textTheme.titleMedium!
+                  .copyWith(fontWeight: FontWeight.w600, fontSize: 17)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final q in recent)
+                TvActivatable(
+                  onTap: () => onPick(q),
+                  builder: (onTap) => ActionChip(
+                    avatar: const Icon(Icons.history_rounded, size: 18),
+                    label: Text(q),
+                    shape: const StadiumBorder(),
+                    onPressed: onTap,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Below the chips (not beside the title) so Down from the search
+        // bar lands on the first chip, not on Clear.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TvActivatable(
+              onTap: onClear,
+              builder: (onTap) => TextButton.icon(
+                onPressed: onTap,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                label: const Text('Clear recent searches'),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
+        welcome,
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Results: a row per kind, like the home screens
 // ---------------------------------------------------------------------------
 
 class _ResultsList extends ConsumerWidget {
-  const _ResultsList({required this.results, required this.firstItemFocusNode});
+  const _ResultsList({required this.results, required this.onOpen});
 
   final SearchResults results;
-  // Attached to the very first result tile across all groups (whichever
-  // group is non-empty first), so arrow-down from the search field has a
-  // fixed, reliable landing spot regardless of which groups are present.
-  final FocusNode firstItemFocusNode;
+  // Called when a result is opened, to remember the query.
+  final VoidCallback onOpen;
 
-  Future<void> _gate(
-    BuildContext context,
-    WidgetRef ref,
-    String label,
-    VoidCallback proceed,
-  ) async {
-    if (await promptAdminPin(
-        context, ref, 'Enter admin PIN to unlock "$label"')) {
-      proceed();
+  Future<void> _open(BuildContext context, WidgetRef ref, String label,
+      bool locked, VoidCallback proceed) async {
+    if (locked &&
+        !await promptAdminPin(
+            context, ref, 'Enter admin PIN to unlock "$label"')) {
+      return;
     }
+    onOpen();
+    proceed();
   }
 
   @override
@@ -258,273 +449,91 @@ class _ResultsList extends ConsumerWidget {
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
 
-    bool channelLocked(Channel c) => prefs != null &&
+    bool channelLocked(Channel c) =>
+        prefs != null &&
         c.categories
             .any((cat) => isCategoryLocked(cat, prefs, sessionUnlocked));
     bool genreLocked(String? genre) =>
         prefs != null && isGenreLocked(genre, prefs, sessionUnlocked);
 
-    final firstGroupIsChannels = results.channels.isNotEmpty;
-    final firstGroupIsMovies = !firstGroupIsChannels && results.movies.isNotEmpty;
-    final firstGroupIsSeries = !firstGroupIsChannels &&
-        !firstGroupIsMovies &&
-        results.series.isNotEmpty;
-
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         if (results.channels.isNotEmpty)
-          _ResultGroup<Channel>(
+          MediaRail(
             title: 'Live TV',
-            items: results.channels,
-            icon: Icons.live_tv,
-            labelOf: (c) => context.displayName(c.name),
-            subtitleOf: (c) {
-              final now = results.nowPlaying[c.id];
-              return now == null ? null : 'Now: $now';
-            },
-            isLockedOf: channelLocked,
-            firstItemFocusNode: firstGroupIsChannels ? firstItemFocusNode : null,
-            onTap: (c) {
-              void proceed() => context.push('/player', extra: {
-                    'streamUrl': c.streamUrl,
-                    'title': c.name,
-                    'contentType': 'live',
-                    'contentId': c.id,
-                  });
-              if (channelLocked(c)) {
-                _gate(context, ref, c.name, proceed);
-              } else {
-                proceed();
-              }
-            },
-          ),
-        if (results.movies.isNotEmpty)
-          _ResultGroup<Movie>(
-            title: 'Movies',
-            items: results.movies,
-            icon: Icons.movie_outlined,
-            labelOf: (m) => context.displayName(m.title),
-            subtitleOf: (m) => m.year,
-            isLockedOf: (m) => genreLocked(m.genre),
-            firstItemFocusNode: firstGroupIsMovies ? firstItemFocusNode : null,
-            onTap: (m) {
-              void proceed() => context.push('/movies/${m.id}');
-              if (genreLocked(m.genre)) {
-                _gate(context, ref, m.title, proceed);
-              } else {
-                proceed();
-              }
-            },
-          ),
-        if (results.series.isNotEmpty)
-          _ResultGroup<Series>(
-            title: 'Series',
-            items: results.series,
-            icon: Icons.video_library_outlined,
-            labelOf: (s) => context.displayName(s.title),
-            subtitleOf: (s) => s.year,
-            isLockedOf: (s) => genreLocked(s.genre),
-            firstItemFocusNode: firstGroupIsSeries ? firstItemFocusNode : null,
-            onTap: (s) {
-              void proceed() => context.push('/series/${s.id}');
-              if (genreLocked(s.genre)) {
-                _gate(context, ref, s.title, proceed);
-              } else {
-                proceed();
-              }
-            },
-          ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Generic result group
-// ---------------------------------------------------------------------------
-
-class _ResultGroup<T> extends StatefulWidget {
-  const _ResultGroup({
-    required this.title,
-    required this.items,
-    required this.icon,
-    required this.labelOf,
-    required this.subtitleOf,
-    required this.onTap,
-    this.isLockedOf,
-    this.firstItemFocusNode,
-  });
-
-  final String title;
-  final List<T> items;
-  final IconData icon;
-  final String Function(T) labelOf;
-  final String? Function(T) subtitleOf;
-  final void Function(T) onTap;
-  final bool Function(T)? isLockedOf;
-  // Non-null only when this is the first group rendered across all result
-  // types — see _ResultsList.
-  final FocusNode? firstItemFocusNode;
-
-  @override
-  State<_ResultGroup<T>> createState() => _ResultGroupState<T>();
-}
-
-class _ResultGroupState<T> extends State<_ResultGroup<T>> {
-  // A broad query can match dozens of channels; showing them all would push
-  // the Movies/Series groups (often what the user wanted) far off screen.
-  static const _collapsedCount = 5;
-  bool _expanded = false;
-
-  @override
-  void didUpdateWidget(covariant _ResultGroup<T> oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // New query → start collapsed again.
-    if (!identical(oldWidget.items, widget.items)) _expanded = false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final items = widget.items;
-    final shown = _expanded || items.length <= _collapsedCount
-        ? items
-        : items.take(_collapsedCount).toList();
-    final hidden = items.length - shown.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Row(
-            children: [
-              Icon(widget.icon, size: 16,
-                  color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Text(
-                widget.title,
-                style: theme.textTheme.titleSmall ??
-                    theme.textTheme.bodyMedium!
-                        .copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${items.length}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
+            count: results.channels.length,
+            shape: RailShape.logo,
+            fallbackIcon: Icons.tv_rounded,
+            items: [
+              for (final c in results.channels)
+                RailItem(
+                  title: context.displayName(c.name),
+                  subtitle: results.nowPlaying[c.id] ?? 'Live',
+                  highlightSubtitle: results.nowPlaying.containsKey(c.id),
+                  imageUrl: c.logoUrl,
+                  locked: channelLocked(c),
+                  onTap: () => _open(
+                    context,
+                    ref,
+                    context.displayName(c.name),
+                    channelLocked(c),
+                    () => context.push('/player', extra: {
+                      'streamUrl': c.streamUrl,
+                      'title': c.name,
+                      'contentType': 'live',
+                      'contentId': c.id,
+                    }),
+                  ),
+                ),
             ],
           ),
-        ),
-        ...shown.asMap().entries.map((entry) {
-          final item = entry.value;
-          final subtitle = widget.subtitleOf(item);
-          return TvActivatable(
-            focusNode: entry.key == 0 ? widget.firstItemFocusNode : null,
-            onTap: () => widget.onTap(item),
-            builder: (onTap) => ListTile(
-              title: Text(
-                widget.labelOf(item),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: subtitle != null
-                  ? Text(subtitle, style: theme.textTheme.bodySmall)
-                  : null,
-              trailing: (widget.isLockedOf?.call(item) ?? false)
-                  ? Icon(Icons.lock_outline,
-                      size: 16, color: theme.colorScheme.onSurfaceVariant)
-                  : null,
-              onTap: onTap,
-            ),
-          );
-        }),
-        if (hidden > 0)
-          TvActivatable(
-            onTap: () => setState(() => _expanded = true),
-            builder: (onTap) => ListTile(
-              leading: Icon(Icons.expand_more,
-                  color: theme.colorScheme.primary),
-              title: Text(
-                'Show all ${items.length}',
-                style: TextStyle(color: theme.colorScheme.primary),
-              ),
-              onTap: onTap,
-            ),
+        if (results.movies.isNotEmpty)
+          MediaRail(
+            title: 'Movies',
+            count: results.movies.length,
+            items: [
+              for (final m in results.movies)
+                RailItem(
+                  title: context.displayName(m.title),
+                  imageUrl: genreLocked(m.genre) ? null : m.posterUrl,
+                  locked: genreLocked(m.genre),
+                  heroTag: posterHeroTag('search', m.id),
+                  onTap: () => _open(
+                    context,
+                    ref,
+                    context.displayName(m.title),
+                    genreLocked(m.genre),
+                    () => context.push('/movies/${m.id}',
+                        extra: posterHeroTag('search', m.id)),
+                  ),
+                ),
+            ],
           ),
-        const Divider(height: 1),
+        if (results.series.isNotEmpty)
+          MediaRail(
+            title: 'Series',
+            count: results.series.length,
+            fallbackIcon: Icons.video_library_outlined,
+            items: [
+              for (final s in results.series)
+                RailItem(
+                  title: context.displayName(s.title),
+                  imageUrl: genreLocked(s.genre) ? null : s.posterUrl,
+                  locked: genreLocked(s.genre),
+                  heroTag: posterHeroTag('search', s.id),
+                  onTap: () => _open(
+                    context,
+                    ref,
+                    context.displayName(s.title),
+                    genreLocked(s.genre),
+                    () => context.push('/series/${s.id}',
+                        extra: posterHeroTag('search', s.id)),
+                  ),
+                ),
+            ],
+          ),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Empty / prompt states
-// ---------------------------------------------------------------------------
-
-class _SearchPrompt extends StatelessWidget {
-  const _SearchPrompt();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search,
-              size: 56,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Type at least 2 characters to search.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyResults extends StatelessWidget {
-  const _EmptyResults({required this.query});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 56,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No results for "$query".',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try a different spelling or check your sources are loaded.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

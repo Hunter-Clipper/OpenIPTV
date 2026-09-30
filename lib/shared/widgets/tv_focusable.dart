@@ -174,9 +174,10 @@ class _TvFocusableState extends State<TvFocusable> {
         duration: const Duration(milliseconds: 150),
         foregroundDecoration: BoxDecoration(
           border: Border.all(
-            color: lit
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            // White, not the accent: the accent already marks *selected*
+            // things (chosen avatar, active playlist), and a focus ring in
+            // the same colour made the two indistinguishable on TV.
+            color: lit ? Colors.white : Colors.transparent,
             width: 3,
           ),
           borderRadius: widget.borderRadius ??
@@ -275,4 +276,46 @@ class TvActivatable extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// App-wide D-pad escape from text fields on TV. A single-line TextField
+/// maps Up/Down to caret moves that go nowhere, swallowing them before the
+/// directional focus system sees them — so a remote could get *into* a
+/// field but never back out (the setup wizard's last field trapped focus
+/// above its "Load My Playlist" button). Sitting above every route, this
+/// sees the key first (bubbling from the focused field, before the app's
+/// text-editing shortcuts) and moves focus up/down instead.
+class TvTextFieldEscape extends StatelessWidget {
+  const TvTextFieldEscape({super.key, required this.child});
+
+  final Widget child;
+
+  static KeyEventResult _onKey(FocusNode _, KeyEvent event) {
+    if (event is! KeyDownEvent || !PlatformHelper.isTVDevice) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final down = key == LogicalKeyboardKey.arrowDown;
+    if (!down && key != LogicalKeyboardKey.arrowUp) {
+      return KeyEventResult.ignored;
+    }
+    final focused = FocusManager.instance.primaryFocus;
+    final editable =
+        focused?.context?.findAncestorWidgetOfExactType<EditableText>();
+    if (focused == null || editable == null || editable.maxLines != 1) {
+      return KeyEventResult.ignored;
+    }
+    final moved = focused.focusInDirection(
+            down ? TraversalDirection.down : TraversalDirection.up) ||
+        (down ? focused.nextFocus() : focused.previousFocus());
+    return moved ? KeyEventResult.handled : KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) => Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: _onKey,
+        child: child,
+      );
 }

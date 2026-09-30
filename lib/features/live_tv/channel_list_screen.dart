@@ -601,7 +601,7 @@ class _LogoTile extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: _logoTileColors,
+          colors: logoTileColors,
         ),
       ),
       child: url == null || url!.isEmpty
@@ -615,10 +615,6 @@ class _LogoTile extends StatelessWidget {
     );
   }
 }
-
-// Mid-grey, lighter than the page: dark logos (A&E, Adult Swim) vanish on
-// the usual surface colours, and white ones would on anything paler.
-const _logoTileColors = [Color(0xFF4A4A50), Color(0xFF36363B)];
 
 String _hm(BuildContext context, DateTime t) =>
     MaterialLocalizations.of(context).formatTimeOfDay(
@@ -829,10 +825,10 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: _logoTileColors,
+                    colors: logoTileColors,
                   ),
                   border: Border.all(
-                    color: lit ? theme.colorScheme.primary : Colors.transparent,
+                    color: lit ? Colors.white : Colors.transparent,
                     width: 2.5,
                   ),
                   boxShadow: [

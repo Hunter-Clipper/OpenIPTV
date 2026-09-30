@@ -13,7 +13,7 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
-import 'package:open_iptv/shared/widgets/pin_keypad.dart';
+import 'package:open_iptv/shared/widgets/pin_field.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -865,16 +865,21 @@ class _PinPage extends StatefulWidget {
 }
 
 class _PinPageState extends State<_PinPage> {
-  String _digits = '';
+  final _controller = TextEditingController();
 
-  void _onDigit(String d) {
-    if (_digits.length < 4) setState(() => _digits += d);
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  void _onBackspace() {
-    if (_digits.isNotEmpty) {
-      setState(() => _digits = _digits.substring(0, _digits.length - 1));
-    }
+  bool get _valid => _controller.text.length >= kPinMinLength;
+
+  void _submit() {
+    if (!_valid) return;
+    // Close the keyboard before the next page slides in.
+    FocusManager.instance.primaryFocus?.unfocus();
+    widget.onPinSet(_controller.text);
   }
 
   @override
@@ -911,23 +916,29 @@ class _PinPageState extends State<_PinPage> {
                       ),
                       SizedBox(height: v(8)),
                       const Text(
-                        'Set a 4-digit PIN to protect this admin account.\nYou can skip this and add one later in Settings.',
+                        'Set a PIN of 4 to 8 digits to protect this admin account.\nYou can skip this and add one later in Settings.',
                         style: TextStyle(
                             color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
                       ),
                       SizedBox(height: v(40)),
                       Center(
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: Theme.of(context)
-                                .colorScheme
-                                .copyWith(primary: widget.accentColor),
-                          ),
-                          child: PinKeypad(
-                            pin: _digits,
-                            onDigit: _onDigit,
-                            onBackspace: _onBackspace,
-                            firstDigitFocusNode: widget.firstDigitFocusNode,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: Theme.of(context)
+                                  .colorScheme
+                                  .copyWith(primary: widget.accentColor),
+                            ),
+                            // System number keyboard, opened when the page
+                            // is shown (the wizard focuses this node).
+                            child: PinField(
+                              controller: _controller,
+                              focusNode: widget.firstDigitFocusNode,
+                              autofocus: false,
+                              onChanged: (_) => setState(() {}),
+                              onSubmitted: (_) => _submit(),
+                            ),
                           ),
                         ),
                       ),
@@ -940,9 +951,7 @@ class _PinPageState extends State<_PinPage> {
                 label: 'Set PIN',
                 icon: Icons.lock,
                 accentColor: widget.accentColor,
-                onTap: _digits.length == 4
-                    ? () => widget.onPinSet(_digits)
-                    : null,
+                onTap: _valid ? _submit : null,
               ),
               SizedBox(height: v(12)),
               Center(
@@ -1047,21 +1056,21 @@ class _PlaylistTypePage extends StatelessWidget {
                 ),
                 SizedBox(height: v(40)),
                 _PlaylistTypeCard(
-                  icon: '📡',
+                  icon: Icons.dns_rounded,
                   title: 'Xtream Codes',
                   description:
                       'Login with a server address, username, and password.',
-                  gradient: const [Color(0xFF3A2ECC), Color(0xFF5B4FFF)],
+                  accentColor: accentColor,
                   onTap: () => onSelected(SourceType.xtream),
                   focusNode: firstCardFocusNode,
                 ),
                 SizedBox(height: v(16)),
                 _PlaylistTypeCard(
-                  icon: '📋',
+                  icon: Icons.link_rounded,
                   title: 'M3U Playlist',
                   description:
                       'Load from a direct playlist URL (ending in .m3u or .m3u8).',
-                  gradient: const [Color(0xFF1A2E6A), Color(0xFF2A4FBF)],
+                  accentColor: accentColor,
                   onTap: () => onSelected(SourceType.m3u),
                 ),
                 SizedBox(height: v(16)),
@@ -1079,15 +1088,15 @@ class _PlaylistTypeCard extends StatefulWidget {
     required this.icon,
     required this.title,
     required this.description,
-    required this.gradient,
+    required this.accentColor,
     required this.onTap,
     this.focusNode,
   });
 
-  final String icon;
+  final IconData icon;
   final String title;
   final String description;
-  final List<Color> gradient;
+  final Color accentColor;
   final VoidCallback onTap;
   // See TvFocusable.focusNode's doc — plain autofocus isn't reliable here
   // since this card lives inside a wizard PageView page that's built up
@@ -1140,25 +1149,23 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
         builder: (_, child) =>
             Transform.scale(scale: _pressCtrl.value, child: child),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: widget.gradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppTheme.surfaceColor,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: widget.gradient.last.withValues(alpha: 0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            border: Border.all(color: AppTheme.outlineColor),
           ),
           child: Row(
             children: [
-              Text(widget.icon, style: const TextStyle(fontSize: 38)),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: widget.accentColor.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(widget.icon, color: widget.accentColor, size: 28),
+              ),
               const SizedBox(width: 20),
               Expanded(
                 child: Column(
@@ -1168,15 +1175,15 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
                       widget.title,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.description,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
+                      style: const TextStyle(
+                        color: AppTheme.mutedTextColor,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -1186,7 +1193,7 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
               ),
               const SizedBox(width: 12),
               const Icon(Icons.chevron_right,
-                  color: Colors.white70, size: 18),
+                  color: AppTheme.mutedTextColor, size: 20),
             ],
           ),
         ),

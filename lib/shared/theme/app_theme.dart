@@ -134,7 +134,8 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: _surfaceVariant,
         selectedColor: primary.withValues(alpha: 0.2),
-        labelStyle: const TextStyle(color: _onSurface, fontSize: 13),
+        labelStyle: const TextStyle(
+            fontFamily: fontFamily, color: _onSurface, fontSize: 13),
         side: const BorderSide(color: Colors.transparent),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         shape: RoundedRectangleBorder(
@@ -152,7 +153,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: primary, width: 1.5),
         ),
-        hintStyle: const TextStyle(color: _onSurfaceVariant),
+        hintStyle: const TextStyle(
+            fontFamily: fontFamily, color: _onSurfaceVariant),
       ),
       // Google Sans type scale: tighter, heavier headings; relaxed body.
       textTheme: TextTheme(
@@ -255,12 +257,17 @@ class AppTheme {
           borderRadius: BorderRadius.circular(cardRadius),
         ),
         titleTextStyle: const TextStyle(
-            color: _onBackground, fontSize: 18, fontWeight: FontWeight.w600),
-        contentTextStyle: const TextStyle(color: _onSurface, fontSize: 14),
+            fontFamily: fontFamily,
+            color: _onBackground,
+            fontSize: 18,
+            fontWeight: FontWeight.w600),
+        contentTextStyle: const TextStyle(
+            fontFamily: fontFamily, color: _onSurface, fontSize: 14),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: _surfaceVariant,
-        contentTextStyle: const TextStyle(color: _onSurface),
+        contentTextStyle: const TextStyle(
+            fontFamily: fontFamily, color: _onSurface),
         actionTextColor: primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(

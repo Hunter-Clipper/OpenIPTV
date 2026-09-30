@@ -89,6 +89,7 @@ class MovieDetailScreen extends ConsumerWidget {
         message: "Couldn't load this movie. Try again.",
         onRetry: () => context.pop(),
         retryLabel: 'Go Back',
+        retryIcon: Icons.arrow_back_rounded,
       ),
     );
   }

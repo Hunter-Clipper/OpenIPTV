@@ -580,6 +580,7 @@ class _ErrorScaffold extends StatelessWidget {
         message: "Couldn't load this series. Try again.",
         onRetry: onBack,
         retryLabel: 'Go Back',
+        retryIcon: Icons.arrow_back_rounded,
       ),
     );
   }

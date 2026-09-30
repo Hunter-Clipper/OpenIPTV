@@ -4,93 +4,12 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
-import 'package:open_iptv/shared/widgets/pin_keypad.dart';
+import 'package:open_iptv/shared/widgets/pin_field.dart';
 
-/// Shows a 4-digit PIN entry dialog.
-/// Returns the entered PIN string, or null if the user cancelled.
-Future<String?> showParentalPinEntry(BuildContext context, String title) {
-  return showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _ParentalPinDialog(title: title),
-  );
-}
-
-class _ParentalPinDialog extends StatefulWidget {
-  const _ParentalPinDialog({required this.title});
-  final String title;
-
-  @override
-  State<_ParentalPinDialog> createState() => _ParentalPinDialogState();
-}
-
-class _ParentalPinDialogState extends State<_ParentalPinDialog> {
-  String _pin = '';
-  final _firstDigitFocusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _firstDigitFocusNode.requestFocus();
-    });
-  }
-
-  @override
-  void dispose() {
-    _firstDigitFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _onDigit(String d) {
-    if (_pin.length >= 4) return;
-    final next = _pin + d;
-    setState(() => _pin = next);
-    if (next.length == 4) {
-      // Auto-submit when 4 digits entered.
-      Future.microtask(() {
-        if (mounted) Navigator.of(context).pop(next);
-      });
-    }
-  }
-
-  void _onBackspace() {
-    if (_pin.isEmpty) return;
-    setState(() => _pin = _pin.substring(0, _pin.length - 1));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Dialog(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline,
-                size: 32, color: theme.colorScheme.primary),
-            const SizedBox(height: 10),
-            Text(widget.title, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 24),
-            PinKeypad(
-              pin: _pin,
-              onDigit: _onDigit,
-              onBackspace: _onBackspace,
-              firstDigitFocusNode: _firstDigitFocusNode,
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+/// Asks for a PIN with the system number keyboard. Returns the entered
+/// PIN, or null if the user cancelled.
+Future<String?> showParentalPinEntry(BuildContext context, String title) =>
+    showPinEntryDialog(context, title: title);
 
 /// Prompts for an admin PIN and verifies it. Shows an "Incorrect PIN"
 /// snackbar on a wrong entry. Returns true only for a valid admin PIN.

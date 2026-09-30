@@ -4,7 +4,8 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
-import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
+import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 class ParentalScreen extends ConsumerStatefulWidget {
@@ -58,62 +59,59 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Parental Controls')),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          const SectionHeader('Protection'),
-          TvActivatable(
-            autofocus: true,
-            onTap: () => _setProtectionEnabled(prefs, !enabled),
-            builder: (_) => SwitchListTile(
-              secondary: Icon(
-                enabled ? Icons.lock_outline : Icons.lock_open_outlined,
-                color: enabled
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
+          SettingsGroup(title: 'Protection', children: [
+            TvActivatable(
+              autofocus: true,
+              onTap: () => _setProtectionEnabled(prefs, !enabled),
+              builder: (_) => SwitchListTile(
+                secondary: IconBadge(
+                  icon: enabled
+                      ? Icons.lock_outline
+                      : Icons.lock_open_outlined,
+                ),
+                title: const Text('Parental Protection'),
+                subtitle: Text(
+                  enabled
+                      ? 'Adult and locked categories require an admin PIN'
+                      : 'Off — all content is visible',
+                  style: theme.textTheme.bodySmall,
+                ),
+                value: enabled,
+                onChanged: (v) => _setProtectionEnabled(prefs, v),
               ),
-              title: const Text('Parental Protection'),
-              subtitle: Text(
-                enabled
-                    ? 'Adult and locked categories require an admin PIN'
-                    : 'Disabled — all content visible',
-              ),
-              value: enabled,
-              onChanged: (v) => _setProtectionEnabled(prefs, v),
             ),
-          ),
+          ]),
 
           // Locked category list
-          if (enabled) ...[
-            const SectionHeader('Locked Categories'),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                'Adult content is locked automatically by keyword. '
-                'Categories below were added by the playlist scan.',
-                style: theme.textTheme.bodySmall!.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant),
-              ),
+          if (enabled)
+            SettingsGroup(
+              title: 'Locked Categories',
+              description: 'Adult content is locked automatically. '
+                  'Categories below were added by the playlist scan.',
+              children: [
+                if (locked.isEmpty)
+                  const ListTile(
+                    leading: IconBadge(icon: Icons.info_outline),
+                    title: Text('No other locked categories'),
+                  )
+                else
+                  ...locked.map((cat) => ListTile(
+                        leading: const IconBadge(icon: Icons.lock_outline),
+                        title: Text(context.displayName(cat)),
+                        trailing: TvActivatable(
+                          onTap: () => _removeLockedCat(prefs, cat),
+                          builder: (onTap) => IconButton(
+                            icon: Icon(Icons.delete_outline,
+                                color: theme.colorScheme.error),
+                            tooltip: 'Remove from locked list',
+                            onPressed: onTap,
+                          ),
+                        ),
+                      )),
+              ],
             ),
-            if (locked.isEmpty)
-              const ListTile(
-                leading: Icon(Icons.info_outline),
-                title: Text('No manually-locked categories'),
-              )
-            else
-              ...locked.map((cat) => ListTile(
-                    leading: const Icon(Icons.lock_outline),
-                    title: Text(cat),
-                    trailing: TvActivatable(
-                      onTap: () => _removeLockedCat(prefs, cat),
-                      builder: (onTap) => IconButton(
-                        icon: Icon(Icons.delete_outline,
-                            color: theme.colorScheme.error),
-                        tooltip: 'Remove from locked list',
-                        onPressed: onTap,
-                      ),
-                    ),
-                  )),
-          ],
         ],
       ),
     );

@@ -25,15 +25,15 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress. Resume from where you left off
 - **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
 - Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
-- Fast global search across channels, movies, series, and what's airing now
-- Multiple profiles per device — emoji avatars, PIN lock, admin vs restricted roles
+- Fast global search across channels, movies, series, and what's airing now — results as rows of channel cards and posters, with your recent searches one tap away
+- Multiple profiles per device — a "Who's watching?" screen with colourful round avatars, PIN lock, admin vs restricted roles. PINs (4–8 digits) are always typed on your device's own number keyboard
 - **Parental controls**: auto-detects adult/XXX categories and PIN-protects them across Live TV, Movies, Series, and Search (without false alarms like "Adult Swim"). Kid profiles hide adult content entirely instead of just locking it
 - **Role-based permissions**: only admin profiles can manage playlists, backup/restore, parental settings, and other profiles
 - Background auto-refresh of playlists and EPG on a schedule you choose, with optional notifications
 - Backup and restore your full setup (profiles, playlists, settings) as a single `.zip`, optionally password-protected — save it straight to Downloads (works on TVs), and restore it from the welcome screen on a fresh install
 - **In-app updates** for sideloaded installs (Fire TV, Android TV boxes, phones without Google Play): OpenIPTV checks GitHub for new releases, shows what changed, and installs the update for you
-- Material 3 design with Google Sans typography, a dark theme with 6 accent colors, and smooth transitions; content sort toggle (provider order or A-Z)
-- Works with a TV remote — full D-pad navigation and Android TV launcher support
+- Material 3 design with Google Sans typography, a dark theme with 6 accent colors, smooth transitions, and Android-style grouped Settings; content sort toggle (provider order or A-Z)
+- Works with a TV remote — full D-pad navigation with a clear white focus ring, a side navigation rail, and Android TV launcher support (tested on the Android TV emulator)
 - No ads, no telemetry, no accounts
 
 ---
@@ -154,7 +154,7 @@ lib/
 ├── shared/
 │   ├── theme/          # AppTheme (dark theme, accent swatches)
 │   ├── utils/          # Formatting, friendly errors, genre icon matching
-│   └── widgets/        # Poster/channel rails, TV-focusable controls, video surface, PIN dialog, …
+│   └── widgets/        # Poster/channel rails, settings cards, avatars, TV focus, native PIN field, …
 │
 └── app.dart            # App entry, routing, tab shell, native back handling
 

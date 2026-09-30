@@ -17,7 +17,8 @@ import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
-import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/profile_avatar.dart';
+import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -40,356 +41,371 @@ class SettingsScreen extends ConsumerWidget {
         body: ListView(
           children: [
             // --------------- PROFILES ---------------
-            const SectionHeader('Account'),
-            InfoTooltip(
-              id: 'settings_profile',
-              title: 'Profile',
-              body: 'OpenIPTV supports multiple profiles on one device. '
-                  'Each profile has its own watch history, favorites, hidden '
-                  'categories, and PIN lock. Tap to manage profiles.',
-              child: _NavTile(
-                autofocus: true,
-                leading: profile != null
-                    ? Text(profile.avatarEmoji,
-                        style: const TextStyle(fontSize: 28))
-                    : const Icon(Icons.person_outline),
-                title: 'Profile',
-                subtitle: profile != null
-                    ? Text(profile.name, style: theme.textTheme.bodySmall)
-                    : const Text('No profile selected'),
-                onTap: () => context.push('/settings/profiles'),
-              ),
-            ),
-            Consumer(builder: (context, ref, _) {
-              final all = ref.watch(allProfilesProvider);
-              final count = all.valueOrNull?.length ?? 0;
-              if (count <= 1) return const SizedBox.shrink();
-              return InfoTooltip(
-                id: 'settings_switch_profile',
-                title: 'Switch Profile',
-                body: 'Quickly change the active profile without going into '
-                    'profile management. Useful when sharing a device with '
-                    'family or roommates.',
-                child: _NavTile(
-                  leading: const Icon(Icons.switch_account_outlined),
-                  title: 'Switch Profile',
-                  subtitle: Text('$count profiles available',
-                      style: theme.textTheme.bodySmall),
-                  onTap: () => showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    builder: (_) => ProfilePickerScreen(
-                      onPicked: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                ),
-              );
-            }),
-
-            // --------------- SOURCES (admin only) ---------------
-            if (isAdmin) ...[
-              const SectionHeader('Playlists'),
-              Consumer(builder: (context, ref, _) {
-                final sources = ref.watch(allSourcesProvider);
-                return InfoTooltip(
-                  id: 'settings_sources',
-                  title: 'Playlists',
-                  body: 'A playlist is your provider connection — either '
-                      'an M3U playlist URL or Xtream Codes credentials. '
-                      'Playlists supply your channels, movies, and series. '
-                      'You can add multiple playlists and refresh them here.',
-                  child: _NavTile(
-                    leading: const Icon(Icons.playlist_play_outlined),
-                    title: 'Playlists',
-                    subtitle: sources.when(
-                      loading: () => null,
-                      error: (_, __) => null,
-                      data: (list) => Text(
-                        list.isEmpty
-                            ? 'No playlists added'
-                            : '${list.length} playlist${list.length == 1 ? '' : 's'}',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                    onTap: () => _openSourcesPage(context),
-                  ),
-                );
-              }),
-
-              // --------------- BACKUP (admin only) ---------------
-              const SectionHeader('Data'),
+            SettingsGroup(title: 'Account', children: [
               InfoTooltip(
-                id: 'settings_backup',
-                title: 'Backup & Restore',
-                body: 'Export your profiles and playlists to a single '
-                    '.zip file you can store anywhere. Restore it '
-                    'later to move to a new device or recover from a reset. '
-                    'Stream credentials are included — keep the file safe.',
+                id: 'settings_profile',
+                title: 'Profile',
+                body: 'OpenIPTV supports multiple profiles on one device. '
+                    'Each profile has its own watch history, favorites, hidden '
+                    'categories, and PIN lock. Tap to manage profiles.',
                 child: _NavTile(
-                  leading: const Icon(Icons.backup_outlined),
-                  title: 'Backup & Restore',
+                  autofocus: true,
+                  leading: profile != null
+                      ? ProfileAvatar(
+                          emoji: profile.avatarEmoji, name: profile.name)
+                      : const Icon(Icons.person_outline),
+                  title: profile?.name ?? 'Profile',
                   subtitle: Text(
-                    'Export or import your profile and playlists',
+                    profile == null
+                        ? 'No profile selected'
+                        : '${profile.isAdmin ? 'Admin' : profile.isKidsProfile ? 'Kids profile' : 'Standard profile'} · Manage profiles',
                     style: theme.textTheme.bodySmall,
                   ),
-                  onTap: () => context.push('/settings/backup'),
+                  onTap: () => context.push('/settings/profiles'),
                 ),
               ),
-
-              // --------------- AUTO-REFRESH (admin only) ---------------
               Consumer(builder: (context, ref, _) {
-                final hours = ref.watch(refreshIntervalHoursProvider);
+                final all = ref.watch(allProfilesProvider);
+                final count = all.valueOrNull?.length ?? 0;
+                if (count <= 1) return const SizedBox.shrink();
                 return InfoTooltip(
-                  id: 'settings_auto_refresh',
-                  title: 'Auto-Refresh',
-                  body: 'Automatically refreshes your playlists and TV guide '
-                      'in the background so channels and schedules stay '
-                      'current without manual refreshing.',
+                  id: 'settings_switch_profile',
+                  title: 'Switch Profile',
+                  body: 'Quickly change the active profile without going into '
+                      'profile management. Useful when sharing a device with '
+                      'family or roommates.',
                   child: _NavTile(
-                    leading: const Icon(Icons.autorenew),
-                    title: 'Auto-Refresh',
+                    leading: const Icon(Icons.switch_account_outlined),
+                    title: 'Switch Profile',
+                    subtitle: Text('$count profiles available',
+                        style: theme.textTheme.bodySmall),
+                    onTap: () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      builder: (_) => ProfilePickerScreen(
+                        onPicked: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ]),
+            // --------------- SOURCES (admin only) ---------------
+            if (isAdmin) ...[
+              SettingsGroup(title: 'Playlists', children: [
+                Consumer(builder: (context, ref, _) {
+                  final sources = ref.watch(allSourcesProvider);
+                  return InfoTooltip(
+                    id: 'settings_sources',
+                    title: 'Playlists',
+                    body: 'A playlist is your provider connection — either '
+                        'an M3U playlist URL or Xtream Codes credentials. '
+                        'Playlists supply your channels, movies, and series. '
+                        'You can add multiple playlists and refresh them here.',
+                    child: _NavTile(
+                      leading: const Icon(Icons.playlist_play_outlined),
+                      title: 'Playlists',
+                      subtitle: sources.when(
+                        loading: () => null,
+                        error: (_, __) => null,
+                        data: (list) => Text(
+                          list.isEmpty
+                              ? 'No playlists added'
+                              : '${list.length} playlist${list.length == 1 ? '' : 's'}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                      onTap: () => _openSourcesPage(context),
+                    ),
+                  );
+                }),
+              ]),
+              // --------------- BACKUP (admin only) ---------------
+              SettingsGroup(title: 'Data', children: [
+                InfoTooltip(
+                  id: 'settings_backup',
+                  title: 'Backup & Restore',
+                  body: 'Export your profiles and playlists to a single '
+                      '.zip file you can store anywhere. Restore it '
+                      'later to move to a new device or recover from a reset. '
+                      'Stream credentials are included — keep the file safe.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.backup_outlined),
+                    title: 'Backup & Restore',
                     subtitle: Text(
-                      _refreshIntervalLabel(hours),
+                      'Export or import your profile and playlists',
                       style: theme.textTheme.bodySmall,
                     ),
-                    onTap: () => _showAutoRefreshDialog(context, ref, hours),
+                    onTap: () => context.push('/settings/backup'),
+                  ),
+                ),
+
+                // --------------- AUTO-REFRESH (admin only) ---------------
+                Consumer(builder: (context, ref, _) {
+                  final hours = ref.watch(refreshIntervalHoursProvider);
+                  return InfoTooltip(
+                    id: 'settings_auto_refresh',
+                    title: 'Auto-Refresh',
+                    body: 'Automatically refreshes your playlists and TV guide '
+                        'in the background so channels and schedules stay '
+                        'current without manual refreshing.',
+                    child: _NavTile(
+                      leading: const Icon(Icons.autorenew),
+                      title: 'Auto-Refresh',
+                      subtitle: Text(
+                        _refreshIntervalLabel(hours),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      onTap: () => _showAutoRefreshDialog(context, ref, hours),
+                    ),
+                  );
+                }),
+                Consumer(builder: (context, ref, _) {
+                  final hours = ref.watch(refreshIntervalHoursProvider);
+                  if (hours <= 0) return const SizedBox.shrink();
+                  final notifyEnabled =
+                      ref.watch(refreshNotificationsEnabledProvider);
+                  return InfoTooltip(
+                    id: 'settings_refresh_notifications',
+                    title: 'Refresh Notifications',
+                    body: 'Lets you know when a background refresh finishes, '
+                        'or if a playlist failed to refresh.',
+                    child: _ToggleTile(
+                      icon: Icons.notifications_outlined,
+                      title: 'Refresh Notifications',
+                      value: notifyEnabled,
+                      onChanged: (v) async {
+                        final prefs =
+                            await ref.read(appPreferencesProvider.future);
+                        await setRefreshNotificationsEnabled(ref, v, prefs);
+                      },
+                    ),
+                  );
+                }),
+              ]),
+              // --------------- PARENTAL (admin only) ---------------
+              SettingsGroup(title: 'Family', children: [
+                InfoTooltip(
+                  id: 'settings_parental',
+                  title: 'Parental Controls',
+                  body: 'Hide adult categories and lock any category you '
+                      'choose behind an admin PIN. Locked categories stay '
+                      'unlocked until the app is restarted.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.family_restroom_outlined),
+                    title: 'Parental Controls',
+                    subtitle: Text(
+                      'PIN-protect adult and locked categories',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () => context.push('/settings/parental'),
+                  ),
+                ),
+              ]),
+            ],
+
+            // --------------- PLAYBACK ---------------
+            SettingsGroup(title: 'Playback', children: [
+              InfoTooltip(
+                id: 'settings_continue_watching',
+                title: 'Continue Watching',
+                body: 'When this is on, OpenIPTV remembers where you left off '
+                    'in movies and series. The next time you open them, '
+                    "you'll be offered the option to resume.",
+                child: _ToggleTile(
+                  icon: Icons.play_circle_outline,
+                  title: 'Continue Watching',
+                  value:
+                      true, // TODO: wire from AppPreferences in Phase 1 completion
+                  onChanged: (_) {},
+                ),
+              ),
+              Consumer(builder: (context, ref, _) {
+                final pipEnabled = ref.watch(pipEnabledProvider);
+                return InfoTooltip(
+                  id: 'settings_pip',
+                  title: 'Picture-in-Picture',
+                  body: 'When enabled, pressing Home while a video is playing '
+                      'shrinks it into a small floating window so you can '
+                      'keep watching while using other apps.',
+                  child: _ToggleTile(
+                    icon: Icons.picture_in_picture_alt_outlined,
+                    title: 'Picture-in-Picture',
+                    value: pipEnabled,
+                    onChanged: (v) async {
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setPipEnabled(ref, v, prefs);
+                    },
                   ),
                 );
               }),
               Consumer(builder: (context, ref, _) {
-                final hours = ref.watch(refreshIntervalHoursProvider);
-                if (hours <= 0) return const SizedBox.shrink();
                 final notifyEnabled =
-                    ref.watch(refreshNotificationsEnabledProvider);
+                    ref.watch(mediaNotificationEnabledProvider);
                 return InfoTooltip(
-                  id: 'settings_refresh_notifications',
-                  title: 'Refresh Notifications',
-                  body: 'Lets you know when a background refresh finishes, '
-                      'or if a playlist failed to refresh.',
+                  id: 'settings_media_notification',
+                  title: 'Media Notification',
+                  body: 'Shows a "Now Playing" notification with play/pause '
+                      'controls while content is playing, so you can control '
+                      'playback from the notification shade or lock screen.',
                   child: _ToggleTile(
-                    icon: Icons.notifications_outlined,
-                    title: 'Refresh Notifications',
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Media Notification',
                     value: notifyEnabled,
                     onChanged: (v) async {
                       final prefs =
                           await ref.read(appPreferencesProvider.future);
-                      await setRefreshNotificationsEnabled(ref, v, prefs);
+                      await setMediaNotificationEnabled(ref, v, prefs);
                     },
                   ),
                 );
               }),
-
-              // --------------- PARENTAL (admin only) ---------------
-              const SectionHeader('Family'),
-              InfoTooltip(
-                id: 'settings_parental',
-                title: 'Parental Controls',
-                body: 'Hide adult categories and lock any category you '
-                    'choose behind an admin PIN. Locked categories stay '
-                    'unlocked until the app is restarted.',
-                child: _NavTile(
-                  leading: const Icon(Icons.family_restroom_outlined),
-                  title: 'Parental Controls',
-                  subtitle: Text(
-                    'PIN-protect adult and locked categories',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  onTap: () => context.push('/settings/parental'),
-                ),
-              ),
-            ],
-
-            // --------------- PLAYBACK ---------------
-            const SectionHeader('Playback'),
-            InfoTooltip(
-              id: 'settings_continue_watching',
-              title: 'Continue Watching',
-              body: 'When this is on, OpenIPTV remembers where you left off '
-                  'in movies and series. The next time you open them, '
-                  "you'll be offered the option to resume.",
-              child: _ToggleTile(
-                icon: Icons.play_circle_outline,
-                title: 'Continue Watching',
-                value:
-                    true, // TODO: wire from AppPreferences in Phase 1 completion
-                onChanged: (_) {},
-              ),
-            ),
-            Consumer(builder: (context, ref, _) {
-              final pipEnabled = ref.watch(pipEnabledProvider);
-              return InfoTooltip(
-                id: 'settings_pip',
-                title: 'Picture-in-Picture',
-                body: 'When enabled, pressing Home while a video is playing '
-                    'shrinks it into a small floating window so you can '
-                    'keep watching while using other apps.',
-                child: _ToggleTile(
-                  icon: Icons.picture_in_picture_alt_outlined,
-                  title: 'Picture-in-Picture',
-                  value: pipEnabled,
-                  onChanged: (v) async {
-                    final prefs = await ref.read(appPreferencesProvider.future);
-                    await setPipEnabled(ref, v, prefs);
-                  },
-                ),
-              );
-            }),
-            Consumer(builder: (context, ref, _) {
-              final notifyEnabled = ref.watch(mediaNotificationEnabledProvider);
-              return InfoTooltip(
-                id: 'settings_media_notification',
-                title: 'Media Notification',
-                body: 'Shows a "Now Playing" notification with play/pause '
-                    'controls while content is playing, so you can control '
-                    'playback from the notification shade or lock screen.',
-                child: _ToggleTile(
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Media Notification',
-                  value: notifyEnabled,
-                  onChanged: (v) async {
-                    final prefs = await ref.read(appPreferencesProvider.future);
-                    await setMediaNotificationEnabled(ref, v, prefs);
-                  },
-                ),
-              );
-            }),
-            Consumer(builder: (context, ref, _) {
-              final sort = ref.watch(contentSortProvider);
-              return InfoTooltip(
-                id: 'settings_sort_order',
-                title: 'Content Sort Order',
-                body: 'Controls how channels, movies, and series are listed. '
-                    'Provider order shows them in the sequence your IPTV '
-                    'provider sends them. A–Z sorts them alphabetically.',
-                child: _NavTile(
-                  leading: const Icon(Icons.sort),
+              Consumer(builder: (context, ref, _) {
+                final sort = ref.watch(contentSortProvider);
+                return InfoTooltip(
+                  id: 'settings_sort_order',
                   title: 'Content Sort Order',
-                  subtitle: Text(
-                    sort == 'az' ? 'A–Z' : 'Provider order',
-                    style: theme.textTheme.bodySmall,
+                  body: 'Controls how channels, movies, and series are listed. '
+                      'Provider order shows them in the sequence your IPTV '
+                      'provider sends them. A–Z sorts them alphabetically.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.sort),
+                    title: 'Content Sort Order',
+                    subtitle: Text(
+                      sort == 'az' ? 'A–Z' : 'Provider order',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () => _showSortOrderDialog(context, ref, sort),
                   ),
-                  onTap: () => _showSortOrderDialog(context, ref, sort),
-                ),
-              );
-            }),
+                );
+              }),
+            ]),
             // --------------- APPEARANCE ---------------
-            const SectionHeader('Appearance'),
-            Consumer(builder: (context, ref, _) {
-              final accent = ref.watch(accentColorProvider);
-              return InfoTooltip(
-                id: 'settings_accent_color',
-                title: 'Accent Color',
-                body: 'Changes the highlight color used throughout the app — '
-                    'active buttons, selected items, progress bars, and '
-                    'other indicators. Pick whichever color you like best.',
-                child: _NavTile(
-                  leading: CircleAvatar(backgroundColor: accent, radius: 12),
+            SettingsGroup(title: 'Appearance', children: [
+              Consumer(builder: (context, ref, _) {
+                final accent = ref.watch(accentColorProvider);
+                return InfoTooltip(
+                  id: 'settings_accent_color',
                   title: 'Accent Color',
-                  subtitle: Text(
-                    AppTheme.accentSwatches
-                        .firstWhere((s) => s.color == accent,
-                            orElse: () => (label: 'Custom', color: accent))
-                        .label,
-                    style: theme.textTheme.bodySmall,
+                  body: 'Changes the highlight color used throughout the app — '
+                      'active buttons, selected items, progress bars, and '
+                      'other indicators. Pick whichever color you like best.',
+                  child: _NavTile(
+                    leading: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: accent.withValues(alpha: 0.14),
+                      child: CircleAvatar(backgroundColor: accent, radius: 10),
+                    ),
+                    title: 'Accent Color',
+                    subtitle: Text(
+                      AppTheme.accentSwatches
+                          .firstWhere((s) => s.color == accent,
+                              orElse: () => (label: 'Custom', color: accent))
+                          .label,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () => _showAccentColorPicker(context, ref, accent),
                   ),
-                  onTap: () => _showAccentColorPicker(context, ref, accent),
-                ),
-              );
-            }),
-            InfoTooltip(
-              id: 'settings_clean_names',
-              title: 'Clean Up Names',
-              body: 'Tidies the names your provider sends — removes tags like '
-                  '"|EN|", "US|" or "A+ -" and turns ALL-CAPS names into '
-                  'normal capitalization. Turn off to see names exactly as '
-                  'your provider sends them.',
-              child: Consumer(builder: (context, ref, _) {
-                return _ToggleTile(
-                  icon: Icons.auto_fix_high_outlined,
-                  title: 'Clean Up Names',
-                  value: ref.watch(cleanNamesProvider),
-                  onChanged: (v) async {
-                    final prefs = await ref.read(appPreferencesProvider.future);
-                    await setCleanNames(ref, v, prefs);
-                  },
                 );
               }),
-            ),
-            if (isAdmin)
               InfoTooltip(
-                id: 'settings_hidden_cats',
-                title: 'Hidden Categories',
-                body: "Categories you've hidden won't appear in your channel "
-                    "list. Your channels are still there — they're just out "
-                    "of the way. You can unhide them here at any time.",
-                child: _NavTile(
-                  leading: const Icon(Icons.visibility_off_outlined),
+                id: 'settings_clean_names',
+                title: 'Clean Up Names',
+                body:
+                    'Tidies the names your provider sends — removes tags like '
+                    '"|EN|", "US|" or "A+ -" and turns ALL-CAPS names into '
+                    'normal capitalization. Turn off to see names exactly as '
+                    'your provider sends them.',
+                child: Consumer(builder: (context, ref, _) {
+                  return _ToggleTile(
+                    icon: Icons.auto_fix_high_outlined,
+                    title: 'Clean Up Names',
+                    value: ref.watch(cleanNamesProvider),
+                    onChanged: (v) async {
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setCleanNames(ref, v, prefs);
+                    },
+                  );
+                }),
+              ),
+              if (isAdmin)
+                InfoTooltip(
+                  id: 'settings_hidden_cats',
                   title: 'Hidden Categories',
-                  onTap: () => _showHiddenCategoriesPage(context),
+                  body: "Categories you've hidden won't appear in your channel "
+                      "list. Your channels are still there — they're just out "
+                      "of the way. You can unhide them here at any time.",
+                  child: _NavTile(
+                    leading: const Icon(Icons.visibility_off_outlined),
+                    title: 'Hidden Categories',
+                    onTap: () => _showHiddenCategoriesPage(context),
+                  ),
+                ),
+            ]),
+            // --------------- ABOUT ---------------
+            SettingsGroup(title: 'About', children: [
+              InfoTooltip(
+                id: 'settings_about',
+                title: 'About OpenIPTV',
+                body: 'Shows the current app version and license information. '
+                    'OpenIPTV is open-source under the GPL-3.0 license — '
+                    'no ads, no telemetry, no accounts. Ever.',
+                child: FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snap) {
+                    final version = snap.hasData
+                        ? 'Version ${snap.data!.version}'
+                        : 'OpenIPTV';
+                    return _NavTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: 'About OpenIPTV',
+                      subtitle: Text(version, style: theme.textTheme.bodySmall),
+                      showChevron: false,
+                      onTap: () => _showAboutDialog(context, snap.data),
+                    );
+                  },
                 ),
               ),
-
-            // --------------- ABOUT ---------------
-            const SectionHeader('About'),
-            InfoTooltip(
-              id: 'settings_about',
-              title: 'About OpenIPTV',
-              body: 'Shows the current app version and license information. '
-                  'OpenIPTV is open-source under the GPL-3.0 license — '
-                  'no ads, no telemetry, no accounts. Ever.',
-              child: FutureBuilder<PackageInfo>(
-                future: PackageInfo.fromPlatform(),
-                builder: (context, snap) {
-                  final version = snap.hasData
-                      ? 'Version ${snap.data!.version}'
-                      : 'OpenIPTV';
-                  return _NavTile(
-                    leading: const Icon(Icons.info_outline),
-                    title: 'About OpenIPTV',
-                    subtitle: Text(version),
-                    showChevron: false,
-                    onTap: () => _showAboutDialog(context, snap.data),
-                  );
-                },
-              ),
-            ),
-            InfoTooltip(
-              id: 'settings_check_updates',
-              title: 'Check for Updates',
-              body: 'Looks for a newer version of OpenIPTV on GitHub and, if '
-                  'there is one, shows what changed and installs it. Only '
-                  'the public release page is contacted — nothing about you '
-                  'or your device is sent.',
-              child: _NavTile(
-                leading: const Icon(Icons.system_update_outlined),
+              InfoTooltip(
+                id: 'settings_check_updates',
                 title: 'Check for Updates',
-                subtitle: Text('See if a newer version is available',
-                    style: theme.textTheme.bodySmall),
-                onTap: () => checkForUpdateManually(context),
+                body: 'Looks for a newer version of OpenIPTV on GitHub and, if '
+                    'there is one, shows what changed and installs it. Only '
+                    'the public release page is contacted — nothing about you '
+                    'or your device is sent.',
+                child: _NavTile(
+                  leading: const Icon(Icons.system_update_outlined),
+                  title: 'Check for Updates',
+                  subtitle: Text('See if a newer version is available',
+                      style: theme.textTheme.bodySmall),
+                  onTap: () => checkForUpdateManually(context),
+                ),
               ),
-            ),
-            InfoTooltip(
-              id: 'settings_auto_update',
-              title: 'Check Automatically',
-              body: 'When on, OpenIPTV checks for a new version about once a '
-                  'day when it starts, and lets admin profiles know. Turn '
-                  'off to only check from this menu.',
-              child: Consumer(builder: (context, ref, _) {
-                final prefs = ref.watch(appPreferencesProvider).valueOrNull;
-                return StatefulBuilder(
-                  builder: (context, setLocal) => _ToggleTile(
-                    icon: Icons.update,
-                    title: 'Check Automatically',
-                    value: prefs?.autoUpdateCheck ?? true,
-                    onChanged: (v) async {
-                      await prefs?.setAutoUpdateCheck(v);
-                      setLocal(() {});
-                    },
-                  ),
-                );
-              }),
-            ),
+              InfoTooltip(
+                id: 'settings_auto_update',
+                title: 'Check Automatically',
+                body: 'When on, OpenIPTV checks for a new version about once a '
+                    'day when it starts, and lets admin profiles know. Turn '
+                    'off to only check from this menu.',
+                child: Consumer(builder: (context, ref, _) {
+                  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+                  return StatefulBuilder(
+                    builder: (context, setLocal) => _ToggleTile(
+                      icon: Icons.update,
+                      title: 'Check Automatically',
+                      value: prefs?.autoUpdateCheck ?? true,
+                      onChanged: (v) async {
+                        await prefs?.setAutoUpdateCheck(v);
+                        setLocal(() {});
+                      },
+                    ),
+                  );
+                }),
+              ),
+            ]),
             const SizedBox(height: 32),
           ],
         ),
@@ -676,7 +692,7 @@ class _ToggleTile extends StatelessWidget {
     return TvActivatable(
       onTap: () => onChanged(!value),
       builder: (_) => SwitchListTile(
-        secondary: Icon(icon),
+        secondary: IconBadge(icon: icon),
         title: Text(title),
         value: value,
         onChanged: onChanged,
@@ -710,7 +726,9 @@ class _NavTile extends StatelessWidget {
       onTap: onTap,
       autofocus: autofocus,
       builder: (onTap) => ListTile(
-        leading: leading,
+        leading: leading is Icon
+            ? IconBadge(icon: (leading as Icon).icon!)
+            : leading,
         title: Text(title),
         subtitle: subtitle,
         trailing: showChevron ? const Icon(Icons.chevron_right) : null,
@@ -971,10 +989,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                             ? null
                             : () => _switchSource(context, null),
                         builder: (onTap) => ListTile(
-                          leading: allActive
-                              ? Icon(Icons.check_circle,
-                                  color: Theme.of(context).colorScheme.primary)
-                              : const Icon(Icons.library_books_outlined),
+                          leading: _PlaylistBadge(
+                              icon: Icons.library_books_outlined,
+                              active: allActive),
                           title: const Text('All playlists'),
                           subtitle: Text(
                             '${sources.length} playlists combined',
@@ -996,13 +1013,17 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                           ? () => _switchSource(context, s)
                           : null,
                       builder: (onTap) => ListTile(
-                        leading: isActive
-                            ? Icon(Icons.check_circle,
-                                color: Theme.of(context).colorScheme.primary)
-                            : const Icon(Icons.playlist_play),
+                        leading: _PlaylistBadge(
+                            icon: Icons.playlist_play_rounded,
+                            active: isActive),
                         title: Text(s.nickname),
                         subtitle: Text(
-                          s.type.name.toUpperCase(),
+                          [
+                            s.type == SourceType.xtream
+                                ? 'Xtream Codes'
+                                : 'M3U playlist',
+                            if (isActive && multiSource) 'Browsing',
+                          ].join(' · '),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         onTap: onTap,
@@ -1010,30 +1031,18 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _SourceAction(
-                              icon: Icons.info_outline,
-                              tooltip: 'Playlist Info',
-                              onTap: () => _showInfoPanel(context, s),
-                            ),
-                            _SourceAction(
-                              icon: Icons.sync,
+                              icon: Icons.sync_rounded,
                               tooltip: 'Refresh Playlist',
-                              busy: isPlaylistRefreshing,
+                              busy: isBusy,
                               onTap:
                                   isBusy ? null : () => _refreshPlaylist(s.id),
                             ),
-                            _SourceAction(
-                              icon: Icons.tv,
-                              tooltip: 'Refresh TV Guide',
-                              busy: isEpgRefreshing,
-                              onTap: isBusy ? null : () => _refreshEpg(s.id),
-                            ),
-                            _SourceAction(
-                              icon: Icons.delete_outline,
-                              tooltip: 'Remove',
-                              onTap: isBusy
-                                  ? null
-                                  : () =>
-                                      _confirmDelete(context, s.id, s.nickname),
+                            _SourceMenu(
+                              enabled: !isBusy,
+                              onInfo: () => _showInfoPanel(context, s),
+                              onRefreshGuide: () => _refreshEpg(s.id),
+                              onRemove: () =>
+                                  _confirmDelete(context, s.id, s.nickname),
                             ),
                           ],
                         ),
@@ -1044,6 +1053,80 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A playlist's icon in a tinted circle; the one being browsed gets a
+/// solid accent circle with a tick.
+class _PlaylistBadge extends StatelessWidget {
+  const _PlaylistBadge({required this.icon, required this.active});
+
+  final IconData icon;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    if (!active) return IconBadge(icon: icon);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: Icon(Icons.check_rounded,
+          size: 22, color: Theme.of(context).colorScheme.onPrimary),
+    );
+  }
+}
+
+/// The less-used playlist actions, tucked into a ⋮ menu.
+class _SourceMenu extends StatelessWidget {
+  const _SourceMenu({
+    required this.enabled,
+    required this.onInfo,
+    required this.onRefreshGuide,
+    required this.onRemove,
+  });
+
+  final bool enabled;
+  final VoidCallback onInfo;
+  final VoidCallback onRefreshGuide;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final menuKey = GlobalKey<PopupMenuButtonState<int>>();
+    final error = Theme.of(context).colorScheme.error;
+    PopupMenuItem<int> item(int v, IconData icon, String label,
+            [Color? color]) =>
+        PopupMenuItem(
+          value: v,
+          child: Row(children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 12),
+            Text(label, style: TextStyle(color: color)),
+          ]),
+        );
+    return TvFocusable(
+      wrapsGesture: false,
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => enabled ? menuKey.currentState?.showButtonMenu() : null,
+      child: PopupMenuButton<int>(
+        key: menuKey,
+        enabled: enabled,
+        tooltip: 'More',
+        onSelected: (v) => switch (v) {
+          0 => onInfo(),
+          1 => onRefreshGuide(),
+          _ => onRemove(),
+        },
+        itemBuilder: (_) => [
+          item(0, Icons.info_outline, 'Playlist Info'),
+          item(1, Icons.event_note_outlined, 'Refresh TV Guide'),
+          const PopupMenuDivider(),
+          item(2, Icons.delete_outline, 'Remove', error),
         ],
       ),
     );
@@ -1128,11 +1211,12 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = 'Could not fetch server info.';
           _loading = false;
         });
+      }
     } finally {
       client.dispose();
     }

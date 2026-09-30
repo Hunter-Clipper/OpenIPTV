@@ -145,7 +145,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         return null;
       },
       routes: [
-        GoRoute(path: '/setup', builder: (_, __) => const SetupWizardScreen()),
+        GoRoute(
+          path: '/setup',
+          builder: (_, __) => const SetupWizardScreen(),
+        ),
         GoRoute(
           path: '/onboarding',
           builder: (_, __) => const SetupWizardScreen(addPlaylistOnly: true),
@@ -176,8 +179,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) =>
-                      MovieGenreScreen(genre: state.pathParameters['genre']!),
+                  builder: (_, state) => MovieGenreScreen(
+                    genre: state.pathParameters['genre']!,
+                  ),
                 ),
               ],
             ),
@@ -187,12 +191,16 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) =>
-                      SeriesGenreScreen(genre: state.pathParameters['genre']!),
+                  builder: (_, state) => SeriesGenreScreen(
+                    genre: state.pathParameters['genre']!,
+                  ),
                 ),
               ],
             ),
-            GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
+            GoRoute(
+              path: '/search',
+              builder: (_, __) => const SearchScreen(),
+            ),
           ],
         ),
         // Detail pages on the root navigator, outside the shell (same as
@@ -235,7 +243,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               path: 'profiles',
               builder: (_, __) => const ProfileScreen(),
             ),
-            GoRoute(path: 'backup', builder: (_, __) => const BackupScreen()),
+            GoRoute(
+              path: 'backup',
+              builder: (_, __) => const BackupScreen(),
+            ),
             GoRoute(
               path: 'parental',
               builder: (_, __) => const ParentalScreen(),
@@ -282,7 +293,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         debugShowCheckedModeBanner: false,
         builder: (context, child) => DisplayNames(
           enabled: ref.watch(cleanNamesProvider),
-          child: child ?? const SizedBox.shrink(),
+          child: TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
         ),
       ),
     );
@@ -327,13 +338,13 @@ class _ShellState extends State<_Shell> {
   // doesn't reliably jump from the content pane (often inside its own
   // scrollable grid/list) across into a separate sibling column like this
   // rail.
-  final FocusNode _activeRailItemFocusNode = FocusNode(
-    debugLabel: 'NavRailActiveItem',
-  );
+  final FocusNode _activeRailItemFocusNode =
+      FocusNode(debugLabel: 'NavRailActiveItem');
 
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addListener(_trackContentFocus);
     // Sideloaded installs have no store to update them — offer new GitHub
     // releases. Runs once the main UI is up (i.e. after setup and the
     // profile picker); throttled and admin-only inside.
@@ -347,9 +358,30 @@ class _ShellState extends State<_Shell> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);
     _activeRailItemFocusNode.dispose();
     super.dispose();
+  }
+
+  // The last thing focused in the content pane (never a rail item). Pages
+  // pushed or popped in the shell move focus themselves, so this always
+  // belongs to the visible page — unlike directional search from the rail,
+  // which can reach items of a page covered by the one on top.
+  FocusNode? _lastContentFocus;
+
+  void _trackContentFocus() {
+    final f = FocusManager.instance.primaryFocus;
+    if (f == null || f is FocusScopeNode) return;
+    if (f.context?.findAncestorWidgetOfExactType<_TvNavRail>() != null) return;
+    _lastContentFocus = f;
+  }
+
+  bool _focusContent() {
+    final f = _lastContentFocus;
+    if (f == null || f.context == null || !f.canRequestFocus) return false;
+    f.requestFocus();
+    return true;
   }
 
   void _handleNativeBackPressed() {
@@ -413,6 +445,7 @@ class _ShellState extends State<_Shell> {
               _TvNavRail(
                 onBeforeNavigate: onBeforeNavigate,
                 activeItemFocusNode: _activeRailItemFocusNode,
+                onEnterContent: _focusContent,
               ),
               Expanded(
                 child: TvNavRailFocus(
@@ -447,30 +480,14 @@ class _NavDestination {
 }
 
 const _kNavDestinations = [
-  _NavDestination(
-    Icons.live_tv_outlined,
-    'Live TV',
-    '/live',
-    selectedIcon: Icons.live_tv,
-  ),
-  _NavDestination(
-    Icons.movie_outlined,
-    'Movies',
-    '/movies',
-    selectedIcon: Icons.movie,
-  ),
-  _NavDestination(
-    Icons.video_library_outlined,
-    'Series',
-    '/series',
-    selectedIcon: Icons.video_library,
-  ),
-  _NavDestination(
-    Icons.search,
-    'Search',
-    '/search',
-    selectedIcon: Icons.search,
-  ),
+  _NavDestination(Icons.live_tv_outlined, 'Live TV', '/live',
+      selectedIcon: Icons.live_tv),
+  _NavDestination(Icons.movie_outlined, 'Movies', '/movies',
+      selectedIcon: Icons.movie),
+  _NavDestination(Icons.video_library_outlined, 'Series', '/series',
+      selectedIcon: Icons.video_library),
+  _NavDestination(Icons.search, 'Search', '/search',
+      selectedIcon: Icons.search),
 ];
 
 int _navIndexForLocation(BuildContext context) {
@@ -517,11 +534,15 @@ class _BottomNav extends StatelessWidget {
 // touch-target sizing.
 // ---------------------------------------------------------------------------
 
-class _TvNavRail extends StatelessWidget {
+class _TvNavRail extends StatefulWidget {
   const _TvNavRail({
     required this.onBeforeNavigate,
     required this.activeItemFocusNode,
+    required this.onEnterContent,
   });
+
+  // Moves focus back into the content pane; false if there's nowhere known.
+  final bool Function() onEnterContent;
 
   final void Function(int currentIndex, int newIndex) onBeforeNavigate;
   // Attached to whichever destination is currently active, so the shell can
@@ -530,54 +551,112 @@ class _TvNavRail extends StatelessWidget {
   final FocusNode activeItemFocusNode;
 
   @override
+  State<_TvNavRail> createState() => _TvNavRailState();
+}
+
+class _TvNavRailState extends State<_TvNavRail> {
+  // Nodes for the non-active items (the active one uses the shell's shared
+  // activeItemFocusNode instead).
+  final _itemNodes = List.generate(
+      _kNavDestinations.length, (i) => FocusNode(debugLabel: 'NavRail$i'));
+
+  @override
+  void dispose() {
+    for (final n in _itemNodes) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
+  FocusNode _nodeFor(int i, int activeIndex) =>
+      i == activeIndex ? widget.activeItemFocusNode : _itemNodes[i];
+
+  // Up/Down move between rail items only. Left to Flutter's directional
+  // search, Down from an item could land in a *covered* page of the shell
+  // navigator (e.g. the Live TV home under a category page) — invisible
+  // focus, and OK then opened a category the user couldn't see.
+  KeyEventResult _onKey(FocusNode _, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowRight) {
+      // Back into the *visible* page, where focus last was. Directional
+      // search could otherwise pick a card in a page covered by it.
+      return widget.onEnterContent()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+    final delta = key == LogicalKeyboardKey.arrowDown
+        ? 1
+        : key == LogicalKeyboardKey.arrowUp
+            ? -1
+            : 0;
+    if (delta == 0) return KeyEventResult.ignored;
+    final activeIndex = _navIndexForLocation(context);
+    final current = [
+      for (var i = 0; i < _kNavDestinations.length; i++)
+        if (_nodeFor(i, activeIndex).hasPrimaryFocus) i,
+    ].firstOrNull;
+    if (current == null) return KeyEventResult.ignored;
+    final target = (current + delta).clamp(0, _kNavDestinations.length - 1);
+    _nodeFor(target, activeIndex).requestFocus();
+    return KeyEventResult.handled;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final index = _navIndexForLocation(context);
+    final onBeforeNavigate = widget.onBeforeNavigate;
 
-    return Container(
-      width: 96,
-      color: theme.colorScheme.surface,
-      child: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < _kNavDestinations.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: _TvNavRailItem(
-                  icon: _kNavDestinations[i].icon,
-                  label: _kNavDestinations[i].label,
-                  active: i == index,
-                  // Only the very first item auto-claims focus, and only on
-                  // the rail's initial mount (cold app start, landing on
-                  // Live TV) — NOT `i == index`, which would re-fire
-                  // autofocus on every navigation. `activeItemFocusNode` is
-                  // still wired up below so the explicit arrow-left "escape
-                  // to rail" fallback (EdgeAwareDirectionalFocusAction) can
-                  // requestFocus() it on demand.
-                  autofocus: i == 0,
-                  focusNode: i == index ? activeItemFocusNode : null,
-                  onTap: () {
-                    // Explicitly drop focus from whichever rail item the
-                    // user actually pressed select on — that item currently
-                    // holds real focus on its OWN internal FocusNode (from
-                    // D-pad navigation), separate from `activeItemFocusNode`.
-                    // The moment this item becomes "active" a few lines
-                    // above, its `focusNode` prop is swapped from that
-                    // internal node onto the shared `activeItemFocusNode`
-                    // instance — and Flutter's Focus widget carries a live
-                    // "hasFocus" over across a focusNode swap by design, so
-                    // without this the rail keeps real focus (and its glow
-                    // pill lit) even after the destination screen autofocuses
-                    // its own first item. Dropping focus first, before that
-                    // swap/rebuild happens, leaves nothing to carry over.
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    onBeforeNavigate(index, i);
-                    context.go(_kNavDestinations[i].path);
-                  },
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: _onKey,
+      child: Container(
+        width: 96,
+        color: theme.colorScheme.surface,
+        child: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < _kNavDestinations.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: _TvNavRailItem(
+                    icon: _kNavDestinations[i].icon,
+                    label: _kNavDestinations[i].label,
+                    active: i == index,
+                    // Only the very first item auto-claims focus, and only on
+                    // the rail's initial mount (cold app start, landing on
+                    // Live TV) — NOT `i == index`, which would re-fire
+                    // autofocus on every navigation. `activeItemFocusNode` is
+                    // still wired up below so the explicit arrow-left "escape
+                    // to rail" fallback (EdgeAwareDirectionalFocusAction) can
+                    // requestFocus() it on demand.
+                    autofocus: i == 0,
+                    focusNode: _nodeFor(i, index),
+                    onTap: () {
+                      // Explicitly drop focus from whichever rail item the
+                      // user actually pressed select on — that item currently
+                      // holds real focus on its OWN internal FocusNode (from
+                      // D-pad navigation), separate from `activeItemFocusNode`.
+                      // The moment this item becomes "active" a few lines
+                      // above, its `focusNode` prop is swapped from that
+                      // internal node onto the shared `activeItemFocusNode`
+                      // instance — and Flutter's Focus widget carries a live
+                      // "hasFocus" over across a focusNode swap by design, so
+                      // without this the rail keeps real focus (and its glow
+                      // pill lit) even after the destination screen autofocuses
+                      // its own first item. Dropping focus first, before that
+                      // swap/rebuild happens, leaves nothing to carry over.
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      onBeforeNavigate(index, i);
+                      context.go(_kNavDestinations[i].path);
+                    },
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -639,9 +718,8 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
           margin: const EdgeInsets.symmetric(horizontal: 10),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: BoxDecoration(
-            color: _focused
-                ? accent.withValues(alpha: 0.16)
-                : Colors.transparent,
+            color:
+                _focused ? accent.withValues(alpha: 0.16) : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
             boxShadow: _focused
                 ? [

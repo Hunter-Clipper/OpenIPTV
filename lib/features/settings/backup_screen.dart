@@ -13,7 +13,7 @@ import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
-import 'package:open_iptv/shared/widgets/section_header.dart';
+import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:path_provider/path_provider.dart';
@@ -40,63 +40,61 @@ class BackupScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(title: const Text('Backup & Restore')),
         body: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.only(bottom: 32),
           children: [
-            // --------------- EXPORT ---------------
-            const InfoTooltip(
-              id: 'backup_export_section',
-              title: 'Export Backup',
-              body: 'Exporting saves every profile, every source, and your '
-                  'app settings into a single .zip file. You can optionally '
-                  'protect it with a password.',
-              tip: "Save this file somewhere safe — you'll need it to "
-                  'restore everything on a new device.',
-              child: SectionHeader(
-                'Export',
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-              ),
-            ),
-            const Divider(height: 1),
-            TvActivatable(
-              autofocus: true,
-              onTap: () => _exportBackup(context, ref),
-              builder: (onTap) => ListTile(
-                leading: const Icon(Icons.upload_file_outlined),
-                title: const Text('Export Backup'),
-                subtitle: const Text(
-                  'Save all profiles, sources, and settings as a .zip file',
+            SettingsGroup(
+              title: 'Export',
+              children: [
+                InfoTooltip(
+                  id: 'backup_export_section',
+                  title: 'Export Backup',
+                  body: 'Exporting saves every profile, every source, and '
+                      'your app settings into a single .zip file. You can '
+                      'optionally protect it with a password.',
+                  tip: "Save this file somewhere safe — you'll need it to "
+                      'restore everything on a new device.',
+                  child: TvActivatable(
+                    autofocus: true,
+                    onTap: () => _exportBackup(context, ref),
+                    builder: (onTap) => ListTile(
+                      leading: const IconBadge(icon: Icons.upload_file_outlined),
+                      title: const Text('Export Backup'),
+                      subtitle: Text(
+                        'Save all profiles, sources, and settings as a .zip file',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: onTap,
+                    ),
+                  ),
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: onTap,
-              ),
+              ],
             ),
-
-            // --------------- IMPORT ---------------
-            const SizedBox(height: 16),
-            const InfoTooltip(
-              id: 'backup_import_section',
-              title: 'Restore Backup',
-              body: 'Importing reads a .zip backup file and adds its '
-                  'profiles and sources to this device. '
-                  "If the backup was password-protected, you'll be asked "
-                  'for the password used when it was exported.',
-              tip: 'Importing does not delete anything — your existing '
-                  'profiles are kept.',
-              child: SectionHeader(
-                'Restore',
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-              ),
-            ),
-            const Divider(height: 1),
-            TvActivatable(
-              onTap: () => _importBackup(context, ref),
-              builder: (onTap) => ListTile(
-                leading: const Icon(Icons.download_outlined),
-                title: const Text('Import Backup'),
-                subtitle: const Text('Open a .zip backup file'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: onTap,
-              ),
+            SettingsGroup(
+              title: 'Restore',
+              children: [
+                InfoTooltip(
+                  id: 'backup_import_section',
+                  title: 'Restore Backup',
+                  body: 'Importing reads a .zip backup file and adds its '
+                      'profiles and sources to this device. '
+                      "If the backup was password-protected, you'll be asked "
+                      'for the password used when it was exported.',
+                  tip: 'Importing does not delete anything — your existing '
+                      'profiles are kept.',
+                  child: TvActivatable(
+                    onTap: () => _importBackup(context, ref),
+                    builder: (onTap) => ListTile(
+                      leading: const IconBadge(icon: Icons.download_outlined),
+                      title: const Text('Import Backup'),
+                      subtitle: Text('Open a .zip backup file',
+                          style: Theme.of(context).textTheme.bodySmall),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: onTap,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

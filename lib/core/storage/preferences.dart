@@ -21,6 +21,7 @@ const _kPipEnabled = 'pip_enabled';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
 const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
+const _kRecentSearches = 'recent_searches';
 const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
 const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
@@ -115,6 +116,12 @@ class AppPreferences {
       _prefs.setBool(_kMediaNotificationEnabled, v);
 
   // Tidy provider names for display (display_name.dart).
+  // Search: the last few queries that led somewhere, newest first.
+  List<String> get recentSearches =>
+      _prefs.getStringList(_kRecentSearches) ?? const [];
+  Future<void> setRecentSearches(List<String> v) =>
+      _prefs.setStringList(_kRecentSearches, v);
+
   bool get cleanNames => _prefs.getBool(_kCleanNames) ?? true;
   Future<void> setCleanNames(bool v) => _prefs.setBool(_kCleanNames, v);
 
