@@ -52,8 +52,7 @@ class ProfilePickerScreen extends ConsumerWidget {
                   itemBuilder: (context, i) => _ProfileCard(
                     profile: profiles[i],
                     autofocus: i == 0,
-                    onSelected: () =>
-                        _selectProfile(context, ref, profiles[i]),
+                    onSelected: () => _selectProfile(context, ref, profiles[i]),
                   ),
                 ),
               ),
@@ -103,8 +102,7 @@ class ProfilePickerScreen extends ConsumerWidget {
             LengthLimitingTextInputFormatter(6),
           ],
           decoration: const InputDecoration(hintText: 'PIN'),
-          onSubmitted: (_) =>
-              Navigator.of(ctx).pop(controller.text),
+          onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
         ),
         actions: [
           TvActivatable(

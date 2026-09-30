@@ -26,8 +26,7 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Profile')),
       body: activeAsync.when(
         loading: () => const LoadingView(),
-        error: (_, __) =>
-            const Center(child: Text("Couldn't load profile.")),
+        error: (_, __) => const Center(child: Text("Couldn't load profile.")),
         data: (profile) {
           if (profile == null) {
             return const Center(child: Text('No active profile.'));
@@ -44,8 +43,8 @@ class ProfileScreen extends ConsumerWidget {
                 context,
                 ref,
                 profile,
-                blockPinRemoval: profile.isAdmin &&
-                    (allAsync.valueOrNull?.length ?? 1) > 1,
+                blockPinRemoval:
+                    profile.isAdmin && (allAsync.valueOrNull?.length ?? 1) > 1,
               );
           return ListView(
             children: [
@@ -63,8 +62,7 @@ class ProfileScreen extends ConsumerWidget {
                 child: InfoTooltip(
                   id: 'kids_profile',
                   title: 'Kids Profile',
-                  body:
-                      'When turned on, this profile is marked as a Kids '
+                  body: 'When turned on, this profile is marked as a Kids '
                       'profile and adult content is automatically hidden '
                       'from Live, Movies, and Series. Requires Parental '
                       'Protection to be enabled.',
@@ -185,8 +183,7 @@ class ProfileScreen extends ConsumerWidget {
     ref.invalidate(allProfilesProvider);
   }
 
-  Future<void> _showCreateDialog(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _showCreateDialog(BuildContext context, WidgetRef ref) async {
     await showDialog<void>(
       context: context,
       builder: (ctx) => _CreateProfileDialog(ref: ref),
@@ -326,8 +323,7 @@ class _ProfileHero extends StatelessWidget {
                     color: theme.colorScheme.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.edit, size: 14,
-                      color: Colors.white),
+                  child: const Icon(Icons.edit, size: 14, color: Colors.white),
                 ),
               ),
             ],
@@ -339,8 +335,7 @@ class _ProfileHero extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -365,8 +360,8 @@ class _ProfileHero extends StatelessWidget {
               ],
               if (profile.hasPin) ...[
                 const SizedBox(width: 6),
-                Icon(Icons.lock, size: 14,
-                    color: theme.colorScheme.onSurfaceVariant),
+                Icon(Icons.lock,
+                    size: 14, color: theme.colorScheme.onSurfaceVariant),
               ],
             ],
           ),
@@ -400,8 +395,7 @@ class _ProfileTile extends StatelessWidget {
     return ListTile(
       leading: Stack(
         children: [
-          Text(profile.avatarEmoji,
-              style: const TextStyle(fontSize: 32)),
+          Text(profile.avatarEmoji, style: const TextStyle(fontSize: 32)),
           if (isActive)
             Positioned(
               right: 0,
@@ -434,8 +428,7 @@ class _ProfileTile extends StatelessWidget {
           if (profile.hasPin)
             Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.lock_outline,
-                  size: 12,
-                  color: theme.colorScheme.onSurfaceVariant),
+                  size: 12, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 2),
               Text('PIN', style: theme.textTheme.bodySmall),
             ]),
@@ -454,8 +447,7 @@ class _ProfileTile extends StatelessWidget {
             const PopupMenuItem(value: _Action.edit, child: Text('Edit')),
             if (onDelete != null) ...[
               const PopupMenuDivider(),
-              const PopupMenuItem(
-                  value: _Action.delete, child: Text('Delete')),
+              const PopupMenuItem(value: _Action.delete, child: Text('Delete')),
             ],
           ],
         ),
@@ -596,8 +588,7 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
       final prefs = await widget.ref.read(appPreferencesProvider.future);
       if (!mounted) return;
       if (!prefs.parentalProtectionEnabled) {
-        final enable =
-            await _showParentalProtectionRequiredDialog(context);
+        final enable = await _showParentalProtectionRequiredDialog(context);
         if (!enable) return;
         await prefs.setParentalProtectionEnabled(true);
       }
