@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -67,6 +69,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
   // Source state
   SourceType _playlistType = SourceType.xtream;
+  // "Playlist File": an M3U picked from the device instead of a URL.
+  bool _fromFile = false;
+  String? _pickedFileName;
+  String? _pickedFileContent;
   final _nicknameCtrl = TextEditingController();
   final _xtreamHostCtrl = TextEditingController();
   final _xtreamUserCtrl = TextEditingController();
@@ -187,8 +193,44 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     }
   }
 
+  Future<void> _pickPlaylistFile() async {
+    FocusScope.of(context).unfocus();
+    FilePickerResult? result;
+    try {
+      // Any type: Android has no reliable MIME type for .m3u/.m3u8, so an
+      // extension filter hides real playlists. The contents are checked.
+      result = await FilePicker.pickFiles(type: FileType.any, withData: true);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _errorMessage =
+            "Couldn't open the file picker on this device.");
+      }
+      return;
+    }
+    final file = result?.files.firstOrNull;
+    if (file == null || file.bytes == null || !mounted) return;
+    try {
+      final content = LocalPlaylists.decode(file.bytes!);
+      setState(() {
+        _pickedFileName = file.name;
+        _pickedFileContent = content;
+        _errorMessage = null;
+      });
+    } on LocalPlaylistException catch (e) {
+      setState(() {
+        _pickedFileName = null;
+        _pickedFileContent = null;
+        _errorMessage = friendlySourceErrorMessage(e);
+      });
+    }
+  }
+
   Future<void> _submitSource() async {
     FocusScope.of(context).unfocus();
+    if (_fromFile && _pickedFileContent == null) {
+      setState(() => _errorMessage = 'Choose a playlist file first.');
+      return;
+    }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -198,7 +240,11 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
     try {
       final manager = ref.read(sourceManagerProvider);
-      final nickname = _nicknameCtrl.text.trim();
+      var nickname = _nicknameCtrl.text.trim();
+      if (nickname.isEmpty && _fromFile) {
+        nickname = _pickedFileName!.replaceAll(RegExp(r'\.m3u8?$',
+            caseSensitive: false), '');
+      }
       final epgUrl = _epgUrlCtrl.text.trim().isEmpty
           ? null
           : _epgUrlCtrl.text.trim();
@@ -214,7 +260,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       await manager.addSource(
         nickname: nickname,
         type: _playlistType,
-        m3uUrl: isM3u ? _m3uUrlCtrl.text.trim() : null,
+        m3uUrl: isM3u && !_fromFile ? _m3uUrlCtrl.text.trim() : null,
+        m3uFileContent: isM3u && _fromFile ? _pickedFileContent : null,
         xtreamHost: isM3u ? null : _xtreamHostCtrl.text.trim(),
         xtreamUsername: isM3u ? null : _xtreamUserCtrl.text.trim(),
         xtreamPassword: isM3u ? null : _xtreamPassCtrl.text.trim(),
@@ -386,13 +433,28 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             addingPlaylist: addOnly,
             onBack: addOnly && context.canPop() ? () => context.pop() : null,
             onSelected: (type) {
-              setState(() => _playlistType = type);
+              setState(() {
+                _playlistType = type;
+                _fromFile = false;
+                _errorMessage = null;
+              });
+              _goToPage(4);
+            },
+            onFileSelected: () {
+              setState(() {
+                _playlistType = SourceType.m3u;
+                _fromFile = true;
+                _errorMessage = null;
+              });
               _goToPage(4);
             },
           ),
           _CredentialsPage(
             accentColor: _accentColor,
             playlistType: _playlistType,
+            fromFile: _fromFile,
+            pickedFileName: _pickedFileName,
+            onPickFile: _pickPlaylistFile,
             nicknameCtrl: _nicknameCtrl,
             nicknameFocusNode: _nicknameFocusNode,
             xtreamHostCtrl: _xtreamHostCtrl,
@@ -983,11 +1045,13 @@ class _PlaylistTypePage extends StatelessWidget {
     required this.firstCardFocusNode,
     required this.step,
     required this.totalSteps,
+    required this.onFileSelected,
     this.addingPlaylist = false,
     this.onBack,
   });
   final Color accentColor;
   final ValueChanged<SourceType> onSelected;
+  final VoidCallback onFileSelected;
   final FocusNode firstCardFocusNode;
   final int step;
   final int totalSteps;
@@ -1072,6 +1136,15 @@ class _PlaylistTypePage extends StatelessWidget {
                       'Load from a direct playlist URL (ending in .m3u or .m3u8).',
                   accentColor: accentColor,
                   onTap: () => onSelected(SourceType.m3u),
+                ),
+                SizedBox(height: v(16)),
+                _PlaylistTypeCard(
+                  icon: Icons.upload_file_rounded,
+                  title: 'Playlist File',
+                  description:
+                      'Choose an .m3u file saved on this device.',
+                  accentColor: accentColor,
+                  onTap: onFileSelected,
                 ),
                 SizedBox(height: v(16)),
               ],
@@ -1211,6 +1284,9 @@ class _CredentialsPage extends StatelessWidget {
   const _CredentialsPage({
     required this.accentColor,
     required this.playlistType,
+    required this.fromFile,
+    required this.pickedFileName,
+    required this.onPickFile,
     required this.nicknameCtrl,
     required this.xtreamHostCtrl,
     required this.xtreamUserCtrl,
@@ -1229,6 +1305,9 @@ class _CredentialsPage extends StatelessWidget {
 
   final Color accentColor;
   final SourceType playlistType;
+  final bool fromFile;
+  final String? pickedFileName;
+  final VoidCallback onPickFile;
   final TextEditingController nicknameCtrl;
   final FocusNode nicknameFocusNode;
   final TextEditingController xtreamHostCtrl;
@@ -1279,7 +1358,11 @@ class _CredentialsPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isXtream ? 'Xtream Credentials' : 'M3U Playlist',
+                          isXtream
+                              ? 'Xtream Credentials'
+                              : fromFile
+                                  ? 'Playlist File'
+                                  : 'M3U Playlist',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 26,
@@ -1290,7 +1373,9 @@ class _CredentialsPage extends StatelessWidget {
                         Text(
                           isXtream
                               ? 'Enter the login details from your provider.'
-                              : 'Paste the playlist link your provider gave you.',
+                              : fromFile
+                                  ? 'Choose the playlist file saved on this device.'
+                                  : 'Paste the playlist link your provider gave you.',
                           style:
                               const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
                         ),
@@ -1307,9 +1392,11 @@ class _CredentialsPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _WizardField(
-                      label: 'Nickname',
+                      label: fromFile ? 'Nickname (optional)' : 'Nickname',
                       ctrl: nicknameCtrl,
-                      hint: 'e.g. Home Server',
+                      hint: fromFile
+                          ? 'Uses the file name if left blank'
+                          : 'e.g. Home Server',
                       accentColor: accentColor,
                       focusNode: nicknameFocusNode,
                     ),
@@ -1346,6 +1433,20 @@ class _CredentialsPage extends StatelessWidget {
                           tooltip: passVisible ? 'Hide password' : 'Show password',
                           onPressed: onTogglePass,
                         ),
+                      ),
+                    ] else if (fromFile) ...[
+                      _FilePickerField(
+                        fileName: pickedFileName,
+                        accentColor: accentColor,
+                        onTap: onPickFile,
+                      ),
+                      const SizedBox(height: 16),
+                      _WizardField(
+                        label: 'TV Guide URL (optional)',
+                        ctrl: epgUrlCtrl,
+                        hint: 'https://example.com/epg.xml',
+                        type: TextInputType.url,
+                        accentColor: accentColor,
                       ),
                     ] else ...[
                       _WizardField(
@@ -1405,6 +1506,93 @@ class _CredentialsPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The "choose a file" control on the Playlist File page, styled like a
+/// wizard text field; shows the picked file's name once chosen.
+class _FilePickerField extends StatelessWidget {
+  const _FilePickerField({
+    required this.fileName,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String? fileName;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final picked = fileName != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Playlist file',
+          style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 6),
+        TvFocusable(
+          wrapsGesture: false,
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Material(
+            color: AppTheme.surfaceVariantColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: picked ? accentColor : AppTheme.outlineColor,
+                width: picked ? 1.5 : 1,
+              ),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(
+                      picked
+                          ? Icons.description_rounded
+                          : Icons.folder_open_rounded,
+                      color: picked ? accentColor : AppTheme.mutedTextColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        fileName ?? 'Choose a file…',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: picked
+                              ? Colors.white
+                              : AppTheme.mutedTextColor,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      picked ? 'Change' : 'Browse',
+                      style: TextStyle(
+                        color: accentColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

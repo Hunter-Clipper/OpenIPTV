@@ -9,6 +9,7 @@ import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -49,11 +50,21 @@ Future<List<Source>> allSources(AllSourcesRef ref) {
   return ref.watch(appDatabaseProvider).getAllSources();
 }
 
+final _defaultLocalPlaylists = LocalPlaylists();
+
 class SourceManager {
-  const SourceManager({required this.db, required this.epgService});
+  const SourceManager({
+    required this.db,
+    required this.epgService,
+    this.localPlaylists,
+  });
 
   final AppDatabase db;
   final EpgService epgService;
+  // Injectable for tests; defaults to app storage.
+  final LocalPlaylists? localPlaylists;
+
+  LocalPlaylists get _local => localPlaylists ?? _defaultLocalPlaylists;
 
   // ---------------------------------------------------------------------------
   // Auto-detection
@@ -108,17 +119,23 @@ class SourceManager {
     required String nickname,
     required SourceType type,
     String? m3uUrl,
+    // Contents of a playlist file picked from the device (instead of
+    // [m3uUrl]); saved to app storage, see [LocalPlaylists].
+    String? m3uFileContent,
     String? xtreamHost,
     String? xtreamUsername,
     String? xtreamPassword,
     String? epgUrl,
     void Function(String)? onProgress,
   }) async {
+    final id = _uuid.v4();
     final source = Source(
-      id: _uuid.v4(),
+      id: id,
       nickname: nickname,
       type: type,
-      m3uUrl: m3uUrl,
+      m3uUrl: m3uFileContent != null
+          ? await _local.save(id, m3uFileContent)
+          : m3uUrl,
       xtreamHost: xtreamHost,
       xtreamUsername: xtreamUsername,
       xtreamPassword: xtreamPassword,
@@ -331,6 +348,8 @@ class SourceManager {
   }
 
   Future<void> deleteSource(String sourceId) async {
+    final source = await db.getSourceById(sourceId);
+    await _local.delete(source?.m3uUrl);
     await db.deleteChannelsForSource(sourceId);
     await db.deleteMoviesForSource(sourceId);
     await db.deleteSeriesForSource(sourceId);
@@ -349,6 +368,17 @@ class SourceManager {
     String sourceId, {
     void Function()? onFetched,
   }) async {
+    if (LocalPlaylists.isLocal(url)) {
+      final content = await _local.read(url);
+      onFetched?.call();
+      final result = await M3uParser.parse(content, sourceId);
+      if (result.channels.isEmpty &&
+          result.movies.isEmpty &&
+          result.series.isEmpty) {
+        throw const LocalPlaylistException('empty');
+      }
+      return result;
+    }
     final response =
         await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) {
@@ -379,7 +409,9 @@ class SourceManager {
     final url = source.m3uUrl;
     if (url == null) return source;
 
-    onProgress?.call('Connecting to provider…');
+    onProgress?.call(LocalPlaylists.isLocal(url)
+        ? 'Reading your playlist file…'
+        : 'Connecting to provider…');
     final result = await _fetchM3u(
       url,
       source.id,

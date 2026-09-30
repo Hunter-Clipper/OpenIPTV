@@ -9,6 +9,7 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
@@ -1021,7 +1022,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                           [
                             s.type == SourceType.xtream
                                 ? 'Xtream Codes'
-                                : 'M3U playlist',
+                                : LocalPlaylists.isLocal(s.m3uUrl)
+                                    ? 'Playlist file'
+                                    : 'M3U playlist',
                             if (isActive && multiSource) 'Browsing',
                           ].join(' · '),
                           style: Theme.of(context).textTheme.bodySmall,
@@ -1248,12 +1251,16 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
             Text(
               source.type == SourceType.xtream
                   ? 'Xtream Codes'
-                  : 'M3U Playlist',
+                  : LocalPlaylists.isLocal(source.m3uUrl)
+                      ? 'Playlist file'
+                      : 'M3U Playlist',
               style: theme.textTheme.bodySmall,
             ),
             const Divider(height: 28),
             if (source.type == SourceType.m3u) ...[
-              _InfoRow('URL', source.m3uUrl ?? '—'),
+              LocalPlaylists.isLocal(source.m3uUrl)
+                  ? const _InfoRow('Source', 'File saved on this device')
+                  : _InfoRow('URL', source.m3uUrl ?? '—'),
               if (source.epgUrl != null) _InfoRow('EPG URL', source.epgUrl!),
               _InfoRow(
                 'Last refreshed',

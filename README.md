@@ -1,4 +1,6 @@
-# OpenIPTV
+<p align="center"><img src="docs/images/icon.png" width="128" alt="OpenIPTV logo"></p>
+
+<h1 align="center">OpenIPTV</h1>
 
 An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
@@ -16,7 +18,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 
 ## What it does
 
-- Add an IPTV playlist via M3U URL or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
+- Add an IPTV playlist via M3U URL, an M3U **file saved on your device**, or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
 - **Live TV** with channel categories — every channel shows its logo, what's on now (with time and progress) and what's next from the EPG (XMLTV), in a list or a grid of cards — plus Favorites / Recently Watched rows on the Live TV home
 - **Clean names** — provider clutter like `|EN|`, `US|`, `A+ -` and ALL-CAPS is tidied for display ("|EN| HORROR/THRILLER" → "Horror / Thriller", "01 EN - Friday The 13th" → "01 Friday The 13th"); switch off in Settings → Appearance to see raw names
 - **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized

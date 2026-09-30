@@ -7,6 +7,7 @@ import 'package:encrypt/encrypt.dart' as enc;
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 
 const _schemaVersion = 2;
@@ -32,10 +33,18 @@ class BackupSummary {
 /// re-fetched from the source itself on the next refresh, so shipping it in
 /// the backup would just be dead weight.
 class BackupManager {
-  const BackupManager({required this.db, required this.prefs});
+  const BackupManager({
+    required this.db,
+    required this.prefs,
+    this.localPlaylists,
+  });
 
   final AppDatabase db;
   final AppPreferences prefs;
+  // Injectable for tests; defaults to app storage.
+  final LocalPlaylists? localPlaylists;
+
+  LocalPlaylists get _local => localPlaylists ?? LocalPlaylists();
 
   // ---------------------------------------------------------------------------
   // Export
@@ -49,9 +58,12 @@ class BackupManager {
     final profiles = await db.getAllProfiles();
     final sources = await db.getAllSources();
 
+    final encodedSources = [
+      for (final s in sources) await _encodeSourceWithFile(s),
+    ];
     final payload = jsonEncode({
       'profiles': profiles.map(_encodeProfile).toList(),
-      'sources': sources.map(_encodeSource).toList(),
+      'sources': encodedSources,
       'settings': _encodeSettings(),
     });
 
@@ -135,9 +147,10 @@ class BackupManager {
     final profiles = (data['profiles'] as List? ?? [])
         .map((m) => _decodeProfile(m as Map<String, dynamic>))
         .toList();
-    final sources = (data['sources'] as List? ?? [])
-        .map((m) => _decodeSource(m as Map<String, dynamic>))
-        .toList();
+    final sources = [
+      for (final m in (data['sources'] as List? ?? []))
+        await _decodeSourceWithFile(m as Map<String, dynamic>),
+    ];
     final settings = Map<String, dynamic>.from(data['settings'] as Map? ?? {});
 
     // Sources first — profiles reference sourceIds, and several screens read
@@ -224,6 +237,28 @@ class BackupManager {
         'xtreamPassword': s.xtreamPassword,
         'epgUrl': s.epgUrl,
       };
+
+  /// A playlist picked from the device only exists as a file in app
+  /// storage, so its contents travel inside the backup (`m3uFile`) —
+  /// otherwise a restore on another device would point at a missing file.
+  Future<Map<String, dynamic>> _encodeSourceWithFile(Source s) async {
+    final m = _encodeSource(s);
+    if (LocalPlaylists.isLocal(s.m3uUrl)) {
+      try {
+        m['m3uFile'] = await _local.read(s.m3uUrl!);
+      } on LocalPlaylistException {
+        // Copy already gone: back up the rest; refresh will say so.
+      }
+    }
+    return m;
+  }
+
+  Future<Source> _decodeSourceWithFile(Map<String, dynamic> m) async {
+    final source = _decodeSource(m);
+    final content = m['m3uFile'] as String?;
+    if (content == null) return source;
+    return source.copyWith(m3uUrl: await _local.save(source.id, content));
+  }
 
   Source _decodeSource(Map<String, dynamic> m) => Source(
         id: m['id'] as String,
