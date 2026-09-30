@@ -143,8 +143,7 @@ class SettingsScreen extends ConsumerWidget {
                 return InfoTooltip(
                   id: 'settings_auto_refresh',
                   title: 'Auto-Refresh',
-                  body:
-                      'Automatically refreshes your playlists and TV guide '
+                  body: 'Automatically refreshes your playlists and TV guide '
                       'in the background so channels and schedules stay '
                       'current without manual refreshing.',
                   child: _NavTile(
@@ -206,14 +205,14 @@ class SettingsScreen extends ConsumerWidget {
             InfoTooltip(
               id: 'settings_continue_watching',
               title: 'Continue Watching',
-              body:
-                  'When this is on, OpenIPTV remembers where you left off '
+              body: 'When this is on, OpenIPTV remembers where you left off '
                   'in movies and series. The next time you open them, '
                   "you'll be offered the option to resume.",
               child: _ToggleTile(
                 icon: Icons.play_circle_outline,
                 title: 'Continue Watching',
-                value: true, // TODO: wire from AppPreferences in Phase 1 completion
+                value:
+                    true, // TODO: wire from AppPreferences in Phase 1 completion
                 onChanged: (_) {},
               ),
             ),
@@ -222,8 +221,7 @@ class SettingsScreen extends ConsumerWidget {
               return InfoTooltip(
                 id: 'settings_pip',
                 title: 'Picture-in-Picture',
-                body:
-                    'When enabled, pressing Home while a video is playing '
+                body: 'When enabled, pressing Home while a video is playing '
                     'shrinks it into a small floating window so you can '
                     'keep watching while using other apps.',
                 child: _ToggleTile(
@@ -242,8 +240,7 @@ class SettingsScreen extends ConsumerWidget {
               return InfoTooltip(
                 id: 'settings_media_notification',
                 title: 'Media Notification',
-                body:
-                    'Shows a "Now Playing" notification with play/pause '
+                body: 'Shows a "Now Playing" notification with play/pause '
                     'controls while content is playing, so you can control '
                     'playback from the notification shade or lock screen.',
                 child: _ToggleTile(
@@ -313,8 +310,7 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Clean Up Names',
                   value: ref.watch(cleanNamesProvider),
                   onChanged: (v) async {
-                    final prefs =
-                        await ref.read(appPreferencesProvider.future);
+                    final prefs = await ref.read(appPreferencesProvider.future);
                     await setCleanNames(ref, v, prefs);
                   },
                 );
@@ -324,8 +320,7 @@ class SettingsScreen extends ConsumerWidget {
               InfoTooltip(
                 id: 'settings_hidden_cats',
                 title: 'Hidden Categories',
-                body:
-                    "Categories you've hidden won't appear in your channel "
+                body: "Categories you've hidden won't appear in your channel "
                     "list. Your channels are still there — they're just out "
                     "of the way. You can unhide them here at any time.",
                 child: _NavTile(
@@ -610,9 +605,7 @@ class SettingsScreen extends ConsumerWidget {
                             shape: BoxShape.circle,
                             border: selected
                                 ? Border.all(
-                                    color: Theme.of(ctx)
-                                        .colorScheme
-                                        .onSurface,
+                                    color: Theme.of(ctx).colorScheme.onSurface,
                                     width: 3)
                                 : null,
                           ),
@@ -870,8 +863,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove Playlist?'),
-        content: Text(
-            'This will remove "$nickname" and all its channels, '
+        content: Text('This will remove "$nickname" and all its channels, '
             'movies, and series. This cannot be undone.'),
         actions: [
           TvActivatable(
@@ -995,7 +987,8 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                     final s = sources[index - allOffset];
                     final isActive = activeSourceId == s.id ||
                         (!multiSource && activeSourceId == null);
-                    final isPlaylistRefreshing = _refreshingPlaylist.contains(s.id);
+                    final isPlaylistRefreshing =
+                        _refreshingPlaylist.contains(s.id);
                     final isEpgRefreshing = _refreshingEpg.contains(s.id);
                     final isBusy = isPlaylistRefreshing || isEpgRefreshing;
                     return TvActivatable(
@@ -1120,7 +1113,10 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
   }
 
   Future<void> _fetchInfo() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     final client = XtreamClient.fromSource(widget.source);
     try {
       final info = await client.getServerInfo();
@@ -1132,7 +1128,11 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = 'Could not fetch server info.'; _loading = false; });
+      if (mounted)
+        setState(() {
+          _error = 'Could not fetch server info.';
+          _loading = false;
+        });
     } finally {
       client.dispose();
     }
@@ -1162,14 +1162,15 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
             Text(source.nickname, style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              source.type == SourceType.xtream ? 'Xtream Codes' : 'M3U Playlist',
+              source.type == SourceType.xtream
+                  ? 'Xtream Codes'
+                  : 'M3U Playlist',
               style: theme.textTheme.bodySmall,
             ),
             const Divider(height: 28),
             if (source.type == SourceType.m3u) ...[
               _InfoRow('URL', source.m3uUrl ?? '—'),
-              if (source.epgUrl != null)
-                _InfoRow('EPG URL', source.epgUrl!),
+              if (source.epgUrl != null) _InfoRow('EPG URL', source.epgUrl!),
               _InfoRow(
                 'Last refreshed',
                 lastRefreshed != null ? formatYmd(lastRefreshed) : 'Never',
@@ -1186,11 +1187,14 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
             ] else ...[
               _InfoRow('Status', '${_userInfo?['status'] ?? '—'}'),
               _InfoRow('Expires', _formatEpoch(_userInfo?['exp_date'])),
-              _InfoRow('Active connections', '${_userInfo?['active_cons'] ?? '—'}'),
-              _InfoRow('Max connections', '${_userInfo?['max_connections'] ?? '—'}'),
+              _InfoRow(
+                  'Active connections', '${_userInfo?['active_cons'] ?? '—'}'),
+              _InfoRow(
+                  'Max connections', '${_userInfo?['max_connections'] ?? '—'}'),
               _InfoRow('Trial', _userInfo?['is_trial'] == '1' ? 'Yes' : 'No'),
               const Divider(height: 24),
-              _InfoRow('Server', '${_serverInfo?['url'] ?? source.xtreamHost ?? '—'}'),
+              _InfoRow('Server',
+                  '${_serverInfo?['url'] ?? source.xtreamHost ?? '—'}'),
               _InfoRow('Timezone', '${_serverInfo?['timezone'] ?? '—'}'),
             ],
           ],
@@ -1263,8 +1267,7 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
           const Divider(height: 1),
           Expanded(
             child: hidden.isEmpty
-                ? const Center(
-                    child: Text('No categories are hidden.'))
+                ? const Center(child: Text('No categories are hidden.'))
                 : ListView.builder(
                     controller: controller,
                     itemCount: hidden.length,
