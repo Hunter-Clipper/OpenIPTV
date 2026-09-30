@@ -547,9 +547,9 @@ class _WelcomePageState extends State<_WelcomePage>
                   ),
                 ),
                 child: Image.asset(
-                  'assets/images/app_icon_dark.png',
-                  width: 90,
-                  height: 90,
+                  'assets/images/logo_mark.png',
+                  width: 150,
+                  height: 150,
                 ),
               ),
               const SizedBox(height: 48),

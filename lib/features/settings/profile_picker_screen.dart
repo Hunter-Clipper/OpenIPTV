@@ -46,9 +46,9 @@ class ProfilePickerScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      'assets/images/app_icon_dark.png',
-                      width: 56,
-                      height: 56,
+                      'assets/images/logo_mark.png',
+                      width: 84,
+                      height: 84,
                     ),
                     const SizedBox(height: 20),
                     Text(
