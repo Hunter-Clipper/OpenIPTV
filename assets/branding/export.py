@@ -58,3 +58,4 @@ for d,px in [('mdpi',24),('hdpi',36),('xhdpi',48),('xxhdpi',72),('xxxhdpi',96)]:
     save(stat, f'{RES}/drawable-{d}/ic_stat_open_iptv.png', (px,px))
 # README / GitHub
 save(render('icon_tile.svg',1024,1024,True), f'{ROOT}/docs/images/icon.png', (256,256))
+save(render('readme_banner.svg',1600,560,True), f'{ROOT}/docs/images/banner.png', (1200,420))

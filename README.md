@@ -1,54 +1,96 @@
-<p align="center"><img src="docs/images/icon.png" width="128" alt="OpenIPTV logo"></p>
+<p align="center">
+  <img src="docs/images/banner.png" alt="OpenIPTV — Open source · Ad free · Cross platform" width="720">
+</p>
 
-<h1 align="center">OpenIPTV</h1>
+<p align="center">
+  A clean, fast media player for the IPTV playlists <b>you already have</b>. Built in Flutter.<br>
+  <sub>If a non-technical user can't find their show in 3 taps, the UX has failed.</sub>
+</p>
 
-An open-source, ad-free, cross-platform IPTV client built in Flutter.
+<p align="center">
+  <a href="https://github.com/Hunter-Clipper/OpenIPTV/releases/latest"><img src="https://img.shields.io/github/v/release/Hunter-Clipper/OpenIPTV?color=3B82F6&label=release" alt="Latest release"></a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/license-GPL--3.0-8B5CF6" alt="License: GPL-3.0"></a>
+  <img src="https://img.shields.io/badge/platform-Android%20%C2%B7%20Android%20TV%20%C2%B7%20Fire%20TV-22D3EE" alt="Platforms">
+</p>
 
-**Guiding principle:** If a non-technical user can't find their show in 3 taps, the UX has failed.
-
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Platform](https://img.shields.io/badge/platform-Android-lightgrey)]()
-[![Latest Release](https://img.shields.io/github/v/release/Hunter-Clipper/OpenIPTV)](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest)
-
-> **📺 Quick install on Fire TV / Android TV:** open the **Downloader** app and enter code **`2687835`**
-> (or go to **[aftv.news/2687835](http://aftv.news/2687835)**).
-> Direct APK: [app-release.apk](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk) · [All install options](#install)
-
----
-
-## What it does
-
-- Add an IPTV playlist via M3U URL, an M3U **file saved on your device**, or Xtream Codes credentials through a friendly setup wizard — no account required. Add more playlists any time from Settings, and browse one at a time or all together
-- **Live TV** with channel categories — every channel shows its logo, what's on now (with time and progress) and what's next from the EPG (XMLTV), in a list or a grid of cards — plus Favorites / Recently Watched rows on the Live TV home
-- **Clean names** — provider clutter like `|EN|`, `US|`, `A+ -` and ALL-CAPS is tidied for display ("|EN| HORROR/THRILLER" → "Horror / Thriller", "01 EN - Friday The 13th" → "01 Friday The 13th"); switch off in Settings → Appearance to see raw names
-- **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
-- **Per-channel TV guide** inside the player — see what's on now and next without leaving the channel. (The full-screen guide grid is switched off for now while it's being reworked.)
-- **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
-- **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress. Resume from where you left off
-- **Player** inspired by top apps: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
-- Picture-in-Picture, a media notification with "now playing" info, and the screen stays awake during playback
-- Fast global search across channels, movies, series, and what's airing now — results as rows of channel cards and posters, with your recent searches one tap away
-- Multiple profiles per device — a "Who's watching?" screen with colourful round avatars, PIN lock, admin vs restricted roles. PINs (4–8 digits) are always typed on your device's own number keyboard
-- **Parental controls**: auto-detects adult/XXX categories and PIN-protects them across Live TV, Movies, Series, and Search (without false alarms like "Adult Swim"). Kid profiles hide adult content entirely instead of just locking it
-- **Role-based permissions**: only admin profiles can manage playlists, backup/restore, parental settings, and other profiles
-- Background auto-refresh of playlists and EPG on a schedule you choose, with optional notifications
-- Backup and restore your full setup (profiles, playlists, settings) as a single `.zip`, optionally password-protected — save it straight to Downloads (works on TVs), and restore it from the welcome screen on a fresh install
-- **In-app updates** for sideloaded installs (Fire TV, Android TV boxes, phones without Google Play): OpenIPTV checks GitHub for new releases, shows what changed, and installs the update for you
-- Material 3 design with Google Sans typography, a dark theme with 6 accent colors, smooth transitions, and Android-style grouped Settings; content sort toggle (provider order or A-Z)
-- Works with a TV remote — full D-pad navigation with a clear white focus ring, a side navigation rail, and Android TV launcher support (tested on the Android TV emulator)
-- No ads, no telemetry, no accounts
+> [!IMPORTANT]
+> **OpenIPTV is only a player. It does not include, host, sell or link to any channels, streams or playlists.**
+> You add your own M3U playlist, playlist file or Xtream Codes login from a service you are entitled to use.
+> We don't provide playlists and won't give advice on where to get them. Please make sure you have the
+> right to watch anything you open in the app. The only playlist this project mentions is the public,
+> community-maintained [iptv-org/iptv](https://github.com/iptv-org/iptv) repository, which lists freely
+> available channels and is used for our screenshots.
 
 ---
 
 ## Install
 
-OpenIPTV is distributed as an APK from [GitHub Releases](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest).
+> **📺 Fire TV / Android TV:** open the **Downloader** app and enter code **`2687835`**
+> (or go to **[aftv.news/2687835](http://aftv.news/2687835)**). It always installs the latest version.
 
-- **Fire TV / Android TV:** install the free **Downloader** app, enter code **`2687835`** (short link: [aftv.news/2687835](http://aftv.news/2687835)), and install. It points at the [latest APK](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk), so the code always installs the newest version. Allow Downloader to install unknown apps when asked.
-- **Android phone / tablet:** download `app-release.apk` from the latest release and open it, allowing installs from your browser or file manager.
-- **Updates:** from v0.10.48 on, the app offers new versions itself (Settings → About → Check for Updates, or automatically about once a day).
+- **Android phone / tablet:** download [`app-release.apk`](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk) from the [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) and open it, allowing installs from your browser or file manager.
+- **Fire TV / Android TV:** install the free Downloader app, enter the code above, and allow it to install unknown apps when asked.
+- **Updates:** the app offers new versions itself (Settings → About → Check for Updates, or automatically about once a day).
 
-> Upgrading from **v0.10.45 or older**? Those builds were signed with a different key, so uninstall first: export a backup (Settings → Backup & Restore), uninstall, install the new version, then tap **Restore from a backup** on the welcome screen.
+> Upgrading from **v0.10.45 or older**? Those builds were signed with a different key, so uninstall first:
+> export a backup (Settings → Backup & Restore), uninstall, install the new version, then tap
+> **Restore from a backup** on the welcome screen.
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/player.jpg" alt="The player: centred controls, live badge and channel guide" width="820">
+</p>
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/live_tv.png" alt="Live TV home with Favorites and Recently Watched rows" width="200"><br><sub>Live TV</sub></td>
+    <td align="center"><img src="docs/screenshots/channels.png" alt="Channel list with logo tiles" width="200"><br><sub>Channels</sub></td>
+    <td align="center"><img src="docs/screenshots/settings.png" alt="Grouped Settings" width="200"><br><sub>Settings</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/setup_wizard.png" alt="Setup wizard: choosing a playlist type" width="200"><br><sub>Add a playlist</sub></td>
+    <td align="center"><img src="docs/screenshots/playlist_file.png" alt="Adding a playlist from a file on the device" width="200"><br><sub>From a file</sub></td>
+    <td></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/tv_live.png" alt="Android TV: side navigation rail and focused channel card" width="400">
+  <img src="docs/screenshots/tv_search.png" alt="Android TV: search results as channel cards" width="400"><br>
+  <sub>On Android TV and Fire TV</sub>
+</p>
+
+<sub>Shown with the public <a href="https://github.com/iptv-org/iptv">iptv-org</a> playlist. OpenIPTV provides no content of its own.</sub>
+
+---
+
+## What it does
+
+**Bring your own playlist**
+- Add an **M3U link**, an **M3U file saved on your device**, or an **Xtream Codes** login in a friendly setup wizard. No account needed.
+- Add as many playlists as you like and browse one at a time or all together.
+
+**Watch**
+- **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home.
+- **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
+- **The player**, inspired by top apps: centred controls, a clean progress bar, closed captions (CEA-608/708), catch-up on providers that support it, and the original aspect ratio (never stretched). Picture-in-Picture and a Now Playing notification.
+- **Search** across channels, movies, series and what's on right now, with recent searches one tap away.
+
+**For the whole household**
+- Profiles with a "Who's watching?" screen, optional PINs (typed on your device's own number keyboard) and admin/standard roles.
+- **Parental controls** that lock adult categories behind the admin PIN everywhere (without false alarms like "Adult Swim"). Kids profiles hide adult content entirely.
+- **Backup & Restore** of profiles, playlists and settings as one `.zip`, optionally password-protected.
+
+**Polish**
+- Tidy names (`|EN| HORROR/THRILLER` → "Horror / Thriller") and a fitting icon for every category.
+- Material 3 design with Google Sans, six accent colours and Android-style grouped Settings.
+- Works with a TV remote: a side navigation rail, a clear white focus ring, and Android TV launcher support.
+- Background refresh of playlists and guides on a schedule you choose.
+- **In-app updates** for sideloaded installs.
+- **No ads, no telemetry, no accounts.**
 
 ---
 
@@ -56,59 +98,24 @@ OpenIPTV is distributed as an APK from [GitHub Releases](https://github.com/Hunt
 
 | Phase | Target | Status |
 |---|---|---|
-| 1 | Android phone + tablet | ✅ Active development — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
-| 2 | Android TV | 🚧 In progress — D-pad navigation, TV nav rail, Leanback launcher |
+| 1 | Android phone + tablet | ✅ Active — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
+| 2 | Android TV / Fire TV | 🚧 In progress — tested on the Android TV emulator |
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
 
-### Roadmap — what's next
-
-- UI to promote an existing profile to admin (currently the only admin account is the one created during first-run setup)
-- Deep link support for advanced users (launch directly into a channel/movie/series or search from an external URL)
-- Android TV polish — remote-first focus handling across every screen and text field
-- iOS / iPadOS port (Phase 3)
+**Next up:** promoting a profile to admin, deep links, a reworked full-screen TV guide, and the iOS port.
 
 ---
 
-## Screenshots
-
-<p align="center">
-  <img src="docs/screenshots/player.jpg" alt="Player with YouTube TV-style controls" width="820">
-</p>
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/screenshots/live_tv.png" alt="Live TV categories and recently watched" width="240"><br><sub>Live TV</sub></td>
-    <td align="center"><img src="docs/screenshots/channels.png" alt="Channel list with logos and favorites" width="240"><br><sub>Channels</sub></td>
-    <td align="center"><img src="docs/screenshots/search.png" alt="Global search across channels and series" width="240"><br><sub>Search</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/screenshots/setup_wizard.png" alt="Setup wizard — choosing a playlist type" width="240"><br><sub>Setup wizard</sub></td>
-    <td align="center" colspan="2"><img src="docs/screenshots/playlists.png" alt="Managing multiple playlists" width="420"><br><sub>Multiple playlists</sub></td>
-  </tr>
-</table>
-
-<sub>Shown with the public <a href="https://github.com/iptv-org/iptv">iptv-org</a> playlist. OpenIPTV does not provide any content — bring your own playlist.</sub>
-
----
-
-## Developer Setup
-
-### Requirements
+## Developer setup
 
 | Tool | Version |
 |---|---|
-| Flutter | 3.22+ (stable channel; developed on 3.44) |
+| Flutter | 3.22+ (stable; developed on 3.44) |
 | Dart | 3.4+ |
 | Android SDK | minSdk 24 (Android 7.0), compile/target SDK 36 |
 | Java | 17 (for Android Gradle) |
-
-```bash
-flutter doctor -v
-```
-
-### Clone and run
 
 ```bash
 git clone https://github.com/Hunter-Clipper/OpenIPTV.git
@@ -118,117 +125,68 @@ dart run build_runner build --delete-conflicting-outputs
 flutter run -d <device-id>
 ```
 
-`build_runner` generates Drift database code and Riverpod providers. Re-run it after changing any `@DriftDatabase`, `@DataClassName`, or `@riverpod` annotated class.
-
-### Run tests
+`build_runner` generates the Drift database code and Riverpod providers; re-run it after changing any `@DriftDatabase`, `@DataClassName` or `@riverpod` class.
 
 ```bash
-flutter test
 flutter analyze
+flutter test
 ```
 
----
-
-## Project Structure
+### Project structure
 
 ```
 lib/
 ├── core/
-│   ├── models/         # Channel, Movie, Series, Episode, Programme, Profile, Source
-│   ├── parsers/        # M3U, XMLTV, and Xtream Codes clients (no third-party parsers)
-│   ├── providers/      # theme_providers (accent color, sort order, view modes), channel providers
-│   ├── services/       # SourceManager, ProfileService, EpgService, PlaybackService,
-│   │                   # NativeVideoPlayer, ParentalService, SearchService,
-│   │                   # AutoRefreshService, NowPlayingService, PipService,
-│   │                   # UpdateService
-│   └── storage/        # database.dart (Drift/SQLite), preferences.dart, backup_manager.dart
-│
-├── features/
-│   ├── updates/        # In-app update prompt and release-notes view
-│   ├── live_tv/        # Channel list, categories, TV guide grid (disabled: kTvGuideEnabled), EPG panel, catch-up
-│   ├── movies/         # Movie genre grid, movie detail
-│   ├── series/         # Series genre grid, series detail (seasons, episodes)
-│   ├── player/         # Full-screen player and controls overlay
-│   ├── search/         # Global search (parental-filtered)
-│   ├── onboarding/     # Setup wizard (first run, or add-playlist mode)
-│   └── settings/       # Settings, profiles, profile picker, parental controls, backup
-│
-├── shared/
-│   ├── theme/          # AppTheme (dark theme, accent swatches)
-│   ├── utils/          # Formatting, friendly errors, genre icon matching
-│   └── widgets/        # Poster/channel rails, settings cards, avatars, TV focus, native PIN field, …
-│
-└── app.dart            # App entry, routing, tab shell, native back handling
+│   ├── models/      # Channel, Movie, Series, Episode, Programme, Profile, Source, ContentDetails
+│   ├── parsers/     # M3U, XMLTV and Xtream Codes clients (no third-party parsers)
+│   ├── providers/   # accent colour, sort order, view modes, home layouts, channels
+│   ├── services/    # SourceManager, ProfileService, EpgService, PlaybackService, NativeVideoPlayer,
+│   │                # ParentalService, SearchService, AutoRefreshService, UpdateService, …
+│   └── storage/     # Drift database, preferences, backups, local playlist files
+├── features/        # live_tv, movies, series, player, search, onboarding, settings, updates
+├── shared/          # theme, utils (names, formatting, errors, genre icons) and shared widgets
+└── app.dart         # routing, tab shell / TV rail, native back handling
 
+assets/branding/     # logo, splash, TV banner and README banner sources (SVG) + export.py
 android/app/src/main/kotlin/com/openiptv/app/
-                        # NativeVideoPlayer (ExoPlayer), MainActivity (PiP, back, keep-awake),
-                        # AppUpdater (installs updates), FileSaver (Downloads)
+                     # NativeVideoPlayer (ExoPlayer), MainActivity, AppUpdater, FileSaver
 ```
 
----
+### Architecture
 
-## Architecture
+- **State:** Riverpod 2, partly code-generated with `riverpod_annotation`.
+- **Database:** Drift (SQLite), with versioned, guarded migrations.
+- **Navigation:** `go_router`. On Android TV (detected natively via `UiModeManager`) the tab bar becomes a side rail with remote-first focus handling.
+- **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture`. It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
+- **Parsing:** custom Dart M3U, XMLTV and Xtream parsers; large payloads are decoded off the UI thread.
+- **Background work:** `workmanager` for scheduled refresh, `flutter_local_notifications` for results, `audio_service` for the media notification.
+- **Updates:** reads GitHub's `releases/latest` API anonymously, downloads the APK and hands it to Android's installer. Play Store installs are skipped.
+- **Branding:** edit the SVGs in `assets/branding/`, then run `python3 assets/branding/export.py`, `dart run flutter_launcher_icons` and `dart run flutter_native_splash:create`.
+- **Release signing:** release builds are signed with a dedicated key referenced by the git-ignored `android/key.properties`. Every release must use the same key or Android refuses the update.
 
-**State management:** Riverpod 2 (`flutter_riverpod`). Providers are code-generated via `riverpod_annotation` + `riverpod_generator`. Accent color, sort order, and view mode are `StateProvider`s initialized from persisted preferences at startup. Theme is dark-only and not user-configurable.
+### Project rules
 
-**Database:** Drift (SQLite via `sqlite3_flutter_libs`). Schema is versioned with `schemaVersion` and guarded migrations (`PRAGMA table_info` checks before `addColumn`). All reads/writes are async.
-
-**Navigation:** `go_router` with path-based deep linking.
-
-**Video:** A custom native player built on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` and driven over a method/event channel (`NativeVideoPlayer.kt` ↔ `native_video_player.dart`). Supports HLS, MPEG-TS, MP4/MKV, hardware decode, CEA-608/708 closed captions (multi-PMT TS extraction), audio/subtitle track selection, and resuming directly at a saved position. It replaced `media_kit`/libmpv in v0.10.3 for reliability on low-end Android TV hardware.
-
-**Parsing:** Custom Dart M3U, XMLTV, and Xtream Codes parsers. No third-party parser dependencies. Large payloads are decoded off the UI thread.
-
-**Background work:** `workmanager` schedules periodic playlist/EPG refresh; `flutter_local_notifications` reports results. `audio_service` provides the media notification.
-
-**Updates:** `UpdateService` reads GitHub's `releases/latest` API (anonymous — no device or user data is sent), compares versions, downloads the APK into the app cache, and hands it to Android's package installer through a `FileProvider`. Play Store installs are skipped.
-
-**Release signing:** release builds are signed with a dedicated key referenced by `android/key.properties` (git-ignored; never commit it or the keystore). Every release must use that same key, or Android will refuse to install it as an update. Without `key.properties`, release builds fall back to the debug key — fine for local testing, not for publishing.
-
-**Responsive layout:** Grid column count is derived from screen width at runtime. On Android TV (detected natively via `UiModeManager`) the app switches to a side nav rail and remote-first focus handling.
-
----
-
-## Key Rules
-
-**No analytics or telemetry.** The app functions 100% offline except for fetching streams and playlist URLs.
-
-**No accounts required.** Ever.
-
-**F-Droid compatible target.** No proprietary dependencies in the main build.
-
-**User-facing errors must be plain English.** Never expose stack traces, HTTP codes, or library error strings to the user.
-
-**Performance floors:**
-- Cold start to channel list: < 3 seconds
-- Channel tap to video playing: < 2 seconds
-- Search results: < 300ms post-debounce
+- **No content.** The app ships with no channels, playlists or stream sources, and the project won't add any or document where to find them.
+- **No analytics, telemetry or accounts.** The app only contacts the playlists and guides you add, plus GitHub for update checks.
+- **Plain-English errors.** Never show stack traces, HTTP codes or library error strings to users.
+- **F-Droid-friendly:** no proprietary dependencies in the main build.
+- **Performance targets:** cold start to channel list under 3 s, channel tap to video under 2 s, search results under 300 ms.
 
 ---
 
 ## Contributing
 
-1. Check the [open issues](https://github.com/Hunter-Clipper/OpenIPTV/issues)
-2. Comment before starting to avoid duplication
-3. Branch from `main` — `feature/<issue-number>-short-description`
-4. Open a PR referencing the issue number
+1. Check the [open issues](https://github.com/Hunter-Clipper/OpenIPTV/issues) and comment before starting.
+2. Branch from `main` (`feature/<issue-number>-short-description`) and open a PR referencing the issue.
+3. Use short imperative commit subjects: `fix: channel list respects sort toggle`.
 
-**Commit style:** Short imperative subject line, no trailing period.
-```
-fix: channel list respects sort toggle in category view
-feat: accent color picker with 6 swatches
-```
+Before opening a PR: `flutter analyze` is clean, `flutter test` passes, and no new dependencies without discussion first.
 
-**PR checklist:**
-- [ ] `flutter test` passes
-- [ ] `flutter analyze` shows no issues
-- [ ] No hardcoded user-facing strings outside the UI layer
-- [ ] No new dependencies added without discussion in the issue first
+Please don't open issues or PRs asking for, sharing or linking to playlists or streams. They will be closed.
 
 ---
 
 ## License
 
-GPL-3.0 — see [LICENSE](./LICENSE).
-
-Contributions are welcome under the same license.
+GPL-3.0 — see [LICENSE](./LICENSE). Contributions are welcome under the same license.
+Google Sans is used under the SIL Open Font License (`assets/fonts/google_sans/OFL.txt`).

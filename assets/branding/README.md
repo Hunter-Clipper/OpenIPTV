@@ -17,6 +17,7 @@ around a play button).
 | `mark_mono.svg` | single-colour mark (themed/monochrome icon, notification icon) |
 | `wordmark.svg` | "OpenIPTV" wordmark |
 | `tv_banner.svg` | Android TV / Fire TV launcher banner |
+| `readme_banner.svg` | the banner at the top of the GitHub README |
 
 Run  (needs Firefox, Pillow, numpy) to
 re-export everything below after editing an SVG.
