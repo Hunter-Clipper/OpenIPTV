@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -25,8 +27,13 @@ Future<List<Programme>> _fetchAndParseAll(
     final request = http.Request('GET', Uri.parse(epgUrl));
     final streamed =
         await client.send(request).timeout(const Duration(seconds: 90));
-    if (streamed.statusCode != 200) return programmes;
-    final bodyStream = streamed.stream.transform(utf8.decoder);
+    // A failed download isn't an empty guide — say so (the caller logs it
+    // and keeps the programmes already saved).
+    if (streamed.statusCode != 200) {
+      throw http.ClientException('http_${streamed.statusCode}');
+    }
+    final bodyStream =
+        maybeGunzip(streamed.stream).transform(const Utf8Decoder());
     await for (final prog
         in XmltvParser.parse(bodyStream, pastWindow: pastWindow)) {
       programmes.add(prog);
@@ -35,6 +42,32 @@ Future<List<Programme>> _fetchAndParseAll(
     client.close();
   }
   return programmes;
+}
+
+/// Guides are often served as `.xml.gz` without a `Content-Encoding` header
+/// (DrewLive sends `application/gzip`), so the HTTP client hands over the
+/// compressed bytes. Sniff the gzip magic number and unpack when present.
+@visibleForTesting
+Stream<List<int>> maybeGunzip(Stream<List<int>> bytes) async* {
+  final chunks = StreamIterator(bytes);
+  final head = <int>[];
+  final firstChunks = <List<int>>[];
+  while (head.length < 2 && await chunks.moveNext()) {
+    firstChunks.add(chunks.current);
+    head.addAll(chunks.current.take(2 - head.length));
+  }
+  Stream<List<int>> rest() async* {
+    yield* Stream.fromIterable(firstChunks);
+    while (await chunks.moveNext()) {
+      yield chunks.current;
+    }
+  }
+
+  if (head.length == 2 && head[0] == 0x1f && head[1] == 0x8b) {
+    yield* rest().transform(gzip.decoder);
+  } else {
+    yield* rest();
+  }
 }
 
 @Riverpod(keepAlive: true)
