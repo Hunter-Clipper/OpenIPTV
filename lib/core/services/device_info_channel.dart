@@ -28,3 +28,14 @@ Future<bool> isTelevisionDevice({
     }
   }
 }
+
+/// Whether the device has a real document picker. Google TV / Fire TV often
+/// don't (the request goes to a stub that cancels at once), so file pickers
+/// need a fallback there. Assumes yes if the question can't be asked.
+Future<bool> hasDocumentPicker() async {
+  try {
+    return await _channel.invokeMethod<bool>('hasDocumentPicker') ?? true;
+  } catch (_) {
+    return true;
+  }
+}

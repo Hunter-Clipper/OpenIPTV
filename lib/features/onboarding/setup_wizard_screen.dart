@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +14,7 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
+import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -195,11 +195,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
   Future<void> _pickPlaylistFile() async {
     FocusScope.of(context).unfocus();
-    FilePickerResult? result;
+    PickedDeviceFile? file;
     try {
-      // Any type: Android has no reliable MIME type for .m3u/.m3u8, so an
-      // extension filter hides real playlists. The contents are checked.
-      result = await FilePicker.pickFiles(type: FileType.any, withData: true);
+      // Any type in the system picker: Android has no reliable MIME type for
+      // .m3u/.m3u8, so a filter hides real playlists. Contents are checked.
+      file = await pickDeviceFile(context,
+          title: 'Choose a playlist file',
+          extensions: const ['.m3u', '.m3u8', '.txt']);
     } catch (_) {
       if (mounted) {
         setState(() => _errorMessage =
@@ -207,12 +209,12 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       }
       return;
     }
-    final file = result?.files.firstOrNull;
-    if (file == null || file.bytes == null || !mounted) return;
+    final picked = file;
+    if (picked == null || !mounted) return;
     try {
-      final content = LocalPlaylists.decode(file.bytes!);
+      final content = LocalPlaylists.decode(picked.bytes);
       setState(() {
-        _pickedFileName = file.name;
+        _pickedFileName = picked.name;
         _pickedFileContent = content;
         _errorMessage = null;
       });

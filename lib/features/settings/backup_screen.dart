@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
+import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -220,12 +220,10 @@ class BackupScreen extends ConsumerWidget {
 
   Future<BackupSummary?> _pickAndRestore(
       BuildContext context, WidgetRef ref) async {
-    FilePickerResult? result;
+    PickedDeviceFile? file;
     try {
-      result = await FilePicker.pickFiles(
-        type: FileType.any,
-        withData: true,
-      );
+      file = await pickDeviceFile(context,
+          title: 'Choose a backup', extensions: const ['.zip']);
     } catch (_) {
       if (!context.mounted) return null;
       _showError(context,
@@ -234,14 +232,8 @@ class BackupScreen extends ConsumerWidget {
       return null;
     }
 
-    if (result == null ||
-        result.files.isEmpty ||
-        result.files.first.bytes == null) {
-      return null;
-    }
-
-    if (!context.mounted) return null;
-    return _doImport(context, ref, result.files.first.bytes!);
+    if (file == null || !context.mounted) return null;
+    return _doImport(context, ref, file.bytes);
   }
 
   Future<BackupSummary?> _doImport(

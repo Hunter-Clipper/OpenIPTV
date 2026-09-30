@@ -3,6 +3,8 @@ package com.openiptv.app
 import android.app.PictureInPictureParams
 import android.app.UiModeManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.util.Log
@@ -60,6 +62,18 @@ class MainActivity : AudioServiceActivity() {
                 "isTelevision" -> {
                     val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
                     result.success(uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION)
+                }
+                // Google TV / Fire TV often ship without a document picker:
+                // OPEN_DOCUMENT resolves to a framework stub that just
+                // cancels, so "choose a file" silently does nothing.
+                "hasDocumentPicker" -> {
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+                        .addCategory(Intent.CATEGORY_OPENABLE)
+                        .setType("*/*")
+                    val handler = packageManager
+                        .resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                        ?.activityInfo?.packageName
+                    result.success(handler != null && !handler.contains("frameworkpackagestubs"))
                 }
                 else -> result.notImplemented()
             }
