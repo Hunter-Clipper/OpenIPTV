@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.10.84+1
+version: 0.10.85+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

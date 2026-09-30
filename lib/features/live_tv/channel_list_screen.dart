@@ -14,6 +14,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
@@ -183,10 +184,12 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                 // Labelled entry point rather than an icon-only app-bar
                 // button — the old grid icon looked like the list/grid view
                 // switch used elsewhere.
-                const _TvGuideTile(),
+                if (kTvGuideEnabled) const _TvGuideTile(),
                 if (favorites.isNotEmpty)
                   _ChannelRail(
                     title: 'Favorites',
+                    // The guide card normally takes the first D-pad focus.
+                    autofocusFirst: !kTvGuideEnabled,
                     channels: favorites.take(20).toList(),
                     onSeeAll: () => context.push(
                         '/live/category/${Uri.encodeComponent('Favorites')}'),
@@ -198,6 +201,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                 if (recent.isNotEmpty)
                   _ChannelRail(
                     title: 'Recently Watched',
+                    autofocusFirst: !kTvGuideEnabled && favorites.isEmpty,
                     channels: recent,
                     onLongPress: (ch) => _showRemoveRecentSheet(ch),
                   ),
@@ -206,6 +210,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                 if (cats.isEmpty)
                   CategoryTile(
                     label: 'All',
+                    autofocus: !kTvGuideEnabled &&
+                        favorites.isEmpty &&
+                        recent.isEmpty,
                     count: all.length,
                     icon: Icons.live_tv_outlined,
                     onTap: () => context.push(
@@ -217,6 +224,10 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
                   return CategoryTile(
                     label: cat,
+                    autofocus: !kTvGuideEnabled &&
+                        favorites.isEmpty &&
+                        recent.isEmpty &&
+                        cat == cats.first,
                     count: count,
                     icon: genreIcon(cat, fallback: Icons.folder_outlined),
                     isLocked: locked,
@@ -695,12 +706,14 @@ class _ChannelRail extends StatefulWidget {
     required this.channels,
     this.onSeeAll,
     this.onLongPress,
+    this.autofocusFirst = false,
   });
 
   final String title;
   final List<Channel> channels;
   final VoidCallback? onSeeAll;
   final void Function(Channel)? onLongPress;
+  final bool autofocusFirst;
 
   @override
   State<_ChannelRail> createState() => _ChannelRailState();
@@ -753,6 +766,7 @@ class _ChannelRailState extends State<_ChannelRail> {
                   channel: ch,
                   width: width,
                   focusNode: i == 0 ? _firstItemFocusNode : null,
+                  autofocus: widget.autofocusFirst && i == 0,
                   onLongPress: widget.onLongPress == null
                       ? null
                       : () => widget.onLongPress!(ch),

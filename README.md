@@ -20,7 +20,7 @@ An open-source, ad-free, cross-platform IPTV client built in Flutter.
 - **Live TV** with channel categories — every channel shows its logo, what's on now (with time and progress) and what's next from the EPG (XMLTV), in a list or a grid of cards — plus Favorites / Recently Watched rows on the Live TV home
 - **Clean names** — provider clutter like `|EN|`, `US|`, `A+ -` and ALL-CAPS is tidied for display ("|EN| HORROR/THRILLER" → "Horror / Thriller", "01 EN - Friday The 13th" → "01 Friday The 13th"); switch off in Settings → Appearance to see raw names
 - **Genre icons** — categories and genres get a fitting icon automatically (sports and leagues, news, music, kids, movies, streaming services, networks and more), with a default for anything unrecognized
-- **Full-screen TV guide** — Cable box-style grid with a live "now" line: swipe or use the remote's left/right to move through time, jump back with **Now**, and open it from the **TV Guide** card at the top of Live TV. Plus a per-channel guide panel inside the player
+- **Per-channel TV guide** inside the player — see what's on now and next without leaving the channel. (The full-screen guide grid is switched off for now while it's being reworked.)
 - **Catch-up / timeshift** on providers that support it — pause, rewind, and jump back to live
 - **Movies and Series** home screens in the style of Google TV: a row of posters for every genre (first 20, then **See all**), plus Continue Watching and Favorites — or switch to a compact genre list from the top bar. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress. Resume from where you left off
 - **Player** inspired by YouTube TV: centered controls, clean progress bar, closed captions (CEA-608/708), original aspect ratio preserved (letterboxed, never stretched)
@@ -55,7 +55,7 @@ OpenIPTV is distributed as an APK from [GitHub Releases](https://github.com/Hunt
 | Phase | Target | Status |
 |---|---|---|
 | 1 | Android phone + tablet | ✅ Active development — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
-| 2 | Android TV | 🚧 In progress — D-pad navigation, TV nav rail, full-screen guide, Leanback launcher |
+| 2 | Android TV | 🚧 In progress — D-pad navigation, TV nav rail, Leanback launcher |
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
@@ -143,7 +143,7 @@ lib/
 │
 ├── features/
 │   ├── updates/        # In-app update prompt and release-notes view
-│   ├── live_tv/        # Channel list, categories, TV guide grid, EPG panel, catch-up
+│   ├── live_tv/        # Channel list, categories, TV guide grid (disabled: kTvGuideEnabled), EPG panel, catch-up
 │   ├── movies/         # Movie genre grid, movie detail
 │   ├── series/         # Series genre grid, series detail (seasons, episodes)
 │   ├── player/         # Full-screen player and controls overlay

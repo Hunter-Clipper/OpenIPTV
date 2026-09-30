@@ -57,6 +57,11 @@ final _guideProgrammesProvider =
 /// TiviMate-style full-screen EPG grid: channel rail on the left, a
 /// time-proportional programme timeline scrolling in sync across every row,
 /// and a live mini-preview of whichever channel currently has focus.
+/// The full-screen TV guide is switched off while it's re-evaluated: its
+/// entry card is hidden from Live TV (the route and screen stay, so turning
+/// this back on restores it). The in-player guide panel is unaffected.
+const kTvGuideEnabled = false;
+
 class TvGuideScreen extends ConsumerStatefulWidget {
   const TvGuideScreen({super.key});
 
