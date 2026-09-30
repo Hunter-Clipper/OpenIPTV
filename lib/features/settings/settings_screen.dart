@@ -1103,34 +1103,38 @@ class _SourceMenu extends StatelessWidget {
     final menuKey = GlobalKey<PopupMenuButtonState<int>>();
     final error = Theme.of(context).colorScheme.error;
     PopupMenuItem<int> item(int v, IconData icon, String label,
-            [Color? color]) =>
-        PopupMenuItem(
-          value: v,
-          child: Row(children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 12),
-            Text(label, style: TextStyle(color: color)),
-          ]),
-        );
+        [Color? color]) {
+      final row = Row(children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 12),
+        Text(label, style: TextStyle(color: color)),
+      ]);
+      return PopupMenuItem(
+        value: v,
+        child: v == 0 ? TvInitialFocus(child: row) : row,
+      );
+    }
     return TvFocusable(
       wrapsGesture: false,
       borderRadius: BorderRadius.circular(20),
       onTap: () => enabled ? menuKey.currentState?.showButtonMenu() : null,
-      child: PopupMenuButton<int>(
-        key: menuKey,
-        enabled: enabled,
-        tooltip: 'More',
-        onSelected: (v) => switch (v) {
-          0 => onInfo(),
-          1 => onRefreshGuide(),
-          _ => onRemove(),
-        },
-        itemBuilder: (_) => [
-          item(0, Icons.info_outline, 'Playlist Info'),
-          item(1, Icons.event_note_outlined, 'Refresh TV Guide'),
-          const PopupMenuDivider(),
-          item(2, Icons.delete_outline, 'Remove', error),
-        ],
+      child: TvMenuTheme(
+        child: PopupMenuButton<int>(
+          key: menuKey,
+          enabled: enabled,
+          tooltip: 'More',
+          onSelected: (v) => switch (v) {
+            0 => onInfo(),
+            1 => onRefreshGuide(),
+            _ => onRemove(),
+          },
+          itemBuilder: (_) => [
+            item(0, Icons.info_outline, 'Playlist Info'),
+            item(1, Icons.event_note_outlined, 'Refresh TV Guide'),
+            const PopupMenuDivider(),
+            item(2, Icons.delete_outline, 'Remove', error),
+          ],
+        ),
       ),
     );
   }

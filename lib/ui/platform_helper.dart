@@ -40,6 +40,14 @@ class PlatformHelper {
   /// before this completes.
   static Future<void> initTvDetection() async {
     _cachedIsTv = await isTelevisionDevice();
+    // A TV is driven by the remote only. Flutter otherwise decides whether
+    // to draw ink focus highlights (popup menu items, list tiles) from the
+    // last input's source, and key events some remotes / IR bridges report
+    // as the virtual keyboard never switch it out of touch mode.
+    if (_cachedIsTv!) {
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+    }
   }
 
   /// Context-free equivalent of isTV(context), for call sites that run

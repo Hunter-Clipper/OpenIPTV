@@ -135,6 +135,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              autofocus: true,
               leading: const Icon(Icons.visibility_off_outlined),
               title: const Text('Hide Genre'),
               subtitle: Text(context.displayName(g),
@@ -557,6 +558,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
           children: [
             if (isFavoritesRow)
               ListTile(
+                autofocus: true,
                 leading: const Icon(Icons.star_border),
                 title: const Text('Remove from Favorites'),
                 onTap: () async {
@@ -571,6 +573,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
               ),
             if (isContinueWatchingRow)
               ListTile(
+                autofocus: !isFavoritesRow,
                 leading: Icon(Icons.remove_circle_outline,
                     color: Theme.of(context).colorScheme.error),
                 title: const Text('Remove from Continue Watching'),

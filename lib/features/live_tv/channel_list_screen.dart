@@ -107,6 +107,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              autofocus: true,
               leading: Icon(Icons.remove_circle_outline,
                   color: Theme.of(sheetContext).colorScheme.error),
               title: const Text('Remove from Recently Watched'),
@@ -649,6 +650,7 @@ class _CategoryOptionsSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
+            autofocus: true,
             leading: const Icon(Icons.visibility_off_outlined),
             title: const Text('Hide Category'),
             subtitle: Text(label,

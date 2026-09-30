@@ -417,6 +417,7 @@ class _EpisodeCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              autofocus: true,
               leading: Icon(Icons.delete_outline,
                   color: Theme.of(sheetContext).colorScheme.error),
               title: const Text('Clear Progress'),

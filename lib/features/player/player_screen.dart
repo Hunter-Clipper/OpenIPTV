@@ -920,6 +920,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       body: Focus(
         focusNode: _rootFocusNode,
         autofocus: true,
+        // Held only by explicit request (controls hidden). As a traversal
+        // candidate its screen-sized rect sits "right of" / "below" any
+        // button, so D-pad moves could land on it — an invisible focus from
+        // which Up/Down change channel.
+        skipTraversal: true,
         onKeyEvent: _handleKeyEvent,
         child: GestureDetector(
           onTap: _onTap,

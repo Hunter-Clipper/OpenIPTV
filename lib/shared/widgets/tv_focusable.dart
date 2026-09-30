@@ -158,6 +158,17 @@ class _TvFocusableState extends State<TvFocusable> {
       }
       return KeyEventResult.handled;
     }
+    if (event is KeyRepeatEvent) {
+      // Android only starts repeating a held key after its own long-press
+      // timeout, so the first repeat *is* the platform's long-press — don't
+      // wait out the rest of our timer.
+      if (_keyDownActive && !_longPressFired) {
+        _longPressTimer?.cancel();
+        _longPressFired = true;
+        widget.onLongPress!();
+      }
+      return KeyEventResult.handled;
+    }
     return KeyEventResult.ignored;
   }
 
@@ -183,7 +194,16 @@ class _TvFocusableState extends State<TvFocusable> {
           borderRadius: widget.borderRadius ??
               BorderRadius.circular(AppTheme.cardRadius),
         ),
-        child: widget.child,
+        child: PlatformHelper.isTV(context)
+            // The ring is the focus indicator on TV. A wrapped ListTile or
+            // button would also paint its own ink focus fill — a second,
+            // differently-sized highlight under the ring.
+            ? Theme(
+                data: Theme.of(context)
+                    .copyWith(focusColor: Colors.transparent),
+                child: widget.child,
+              )
+            : widget.child,
       );
     }
     return Focus(
@@ -318,4 +338,47 @@ class TvTextFieldEscape extends StatelessWidget {
         onKeyEvent: _onKey,
         child: child,
       );
+}
+
+/// Popup menu items have no focus ring of their own — only an ink fill,
+/// which at the default strength is invisible from across the room. Wrap a
+/// PopupMenuButton in this (the menu inherits the button's theme).
+class TvMenuTheme extends StatelessWidget {
+  const TvMenuTheme({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Theme(
+        data: Theme.of(context)
+            .copyWith(focusColor: Colors.white.withValues(alpha: 0.24)),
+        child: child,
+      );
+}
+
+/// On TV, focuses the nearest enclosing focusable (the ink of a
+/// [PopupMenuItem], say) when first shown. Popup menus open with nothing
+/// focused, so the remote's OK and arrows had no visible target; wrap the
+/// first item's child in this.
+class TvInitialFocus extends StatefulWidget {
+  const TvInitialFocus({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<TvInitialFocus> createState() => _TvInitialFocusState();
+}
+
+class _TvInitialFocusState extends State<TvInitialFocus> {
+  @override
+  void initState() {
+    super.initState();
+    if (!PlatformHelper.isTVDevice) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Focus.maybeOf(context)?.requestFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

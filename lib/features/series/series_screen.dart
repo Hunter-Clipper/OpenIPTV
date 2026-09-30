@@ -133,6 +133,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              autofocus: true,
               leading: const Icon(Icons.visibility_off_outlined),
               title: const Text('Hide Genre'),
               subtitle: Text(context.displayName(g),
@@ -747,6 +748,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              autofocus: true,
               leading: Icon(Icons.remove_circle_outline,
                   color: Theme.of(context).colorScheme.error),
               title: const Text('Remove from Continue Watching'),

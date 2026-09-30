@@ -435,19 +435,24 @@ class _ProfileTile extends StatelessWidget {
       trailing: TvFocusable(
         wrapsGesture: false,
         onTap: () => menuKey.currentState?.showButtonMenu(),
-        child: PopupMenuButton<_Action>(
-          key: menuKey,
-          onSelected: (a) {
-            if (a == _Action.edit) onEdit();
-            if (a == _Action.delete) onDelete?.call();
-          },
-          itemBuilder: (_) => [
-            const PopupMenuItem(value: _Action.edit, child: Text('Edit')),
-            if (onDelete != null) ...[
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: _Action.delete, child: Text('Delete')),
+        child: TvMenuTheme(
+          child: PopupMenuButton<_Action>(
+            key: menuKey,
+            onSelected: (a) {
+              if (a == _Action.edit) onEdit();
+              if (a == _Action.delete) onDelete?.call();
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                  value: _Action.edit,
+                  child: TvInitialFocus(child: Text('Edit'))),
+              if (onDelete != null) ...[
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                    value: _Action.delete, child: Text('Delete')),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
