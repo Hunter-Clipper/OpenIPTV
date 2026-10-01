@@ -118,9 +118,6 @@ class UpdateService {
 
   static const _channel = MethodChannel('openiptv/updates');
 
-  /// How often the automatic launch-time check may hit the network.
-  static const autoCheckInterval = Duration(hours: 24);
-
   final http.Client _client;
 
   Future<AppVersion?> installedVersion() async =>

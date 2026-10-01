@@ -11,24 +11,28 @@ import 'package:open_iptv/features/updates/release_notes.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
-/// Launch-time check: offers an update at most once per
-/// [UpdateService.autoCheckInterval], only to admin profiles (installing
-/// replaces the app for every profile on the device), never for Play Store
-/// installs, and never for a version the user chose to skip.
+// Set once this launch's check has run, so moving around the app (which can
+// rebuild the shell) doesn't check again until the app is next opened.
+bool _checkedThisLaunch = false;
+
+/// Launch-time check: every fresh start of the app offers a newer release
+/// (a once-a-day throttle meant reopening the app right after a release
+/// showed nothing). Only for admin profiles (installing replaces the app for
+/// every profile on the device), never for Play Store installs, and never
+/// for a version the user chose to skip.
 Future<void> maybePromptForUpdate(BuildContext context) async {
+  if (_checkedThisLaunch) return;
   final container = ProviderScope.containerOf(context, listen: false);
   final service = container.read(updateServiceProvider);
   final prefs = await container.read(appPreferencesProvider.future);
   if (!prefs.autoUpdateCheck) return;
-  final last = prefs.lastUpdateCheck;
-  if (last != null &&
-      DateTime.now().difference(last) < UpdateService.autoCheckInterval) {
-    return;
-  }
   if (!await service.isSelfUpdatable()) return;
   final profile = await container.read(activeProfileProvider.future);
+  // Not marked as checked: if a kid profile is in use at launch, switching
+  // to an admin profile still gets the check.
   if (profile?.isAdmin != true) return;
 
+  _checkedThisLaunch = true;
   final update = await service.checkForUpdate();
   await prefs.setLastUpdateCheck(DateTime.now());
   if (update == null) return;

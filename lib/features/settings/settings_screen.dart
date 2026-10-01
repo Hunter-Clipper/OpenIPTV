@@ -390,9 +390,9 @@ class SettingsScreen extends ConsumerWidget {
               InfoTooltip(
                 id: 'settings_auto_update',
                 title: 'Check Automatically',
-                body: 'When on, OpenIPTV checks for a new version about once a '
-                    'day when it starts, and lets admin profiles know. Turn '
-                    'off to only check from this menu.',
+                body: 'When on, OpenIPTV checks for a new version every time '
+                    'it starts, and lets admin profiles know. Turn off to '
+                    'only check from this menu.',
                 child: Consumer(builder: (context, ref, _) {
                   final prefs = ref.watch(appPreferencesProvider).valueOrNull;
                   return StatefulBuilder(
