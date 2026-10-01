@@ -229,6 +229,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 //     play button a solid accent disc;
 //   - bottom: title block, a Material 3 seek bar, then the LIVE chip / times
 //     on the left and round action buttons on the right.
+//
+// TV keeps the picture clear instead: no centred transport and no Back
+// button (the remote has one) — a bottom scrim holds the title, a slim
+// progress bar and one row of uniform round buttons, transport first.
 
 class _ControlsLayout extends StatelessWidget {
   const _ControlsLayout({
@@ -252,6 +256,7 @@ class _ControlsLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
+    if (m.tv) return _buildTv(m);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -309,6 +314,49 @@ class _ControlsLayout extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildTv(PlayerMetrics m) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0x73000000),
+                Color(0x00000000),
+                Color(0x00000000),
+                Color(0xB3000000),
+                Color(0xF2000000),
+              ],
+              stops: [0.0, 0.18, 0.4, 0.68, 1.0],
+            ),
+          ),
+        ),
+        Positioned(
+          top: m.tvEdge * 0.6,
+          right: m.tvEdge,
+          child: Row(
+            children: [
+              if (qualityLabel != null) ...[
+                _QualityChip(label: qualityLabel!),
+                const SizedBox(width: 16),
+              ],
+              const _Clock(),
+            ],
+          ),
+        ),
+        Positioned(
+          left: m.tvEdge,
+          right: m.tvEdge,
+          bottom: m.tvEdge * 0.6,
+          child: bottom,
+        ),
+      ],
+    );
+  }
 }
 
 /// Title block + progress bar + meta/actions row.
@@ -319,17 +367,23 @@ class _BottomPanel extends StatelessWidget {
     required this.meta,
     required this.actions,
     this.subtitle,
+    this.transport,
   });
 
   final String title;
   final String? subtitle;
-  final Widget bar;
+  // Null on TV when there's nothing to measure (live with no guide data) —
+  // a permanently full bar says nothing.
+  final Widget? bar;
   final Widget meta;
   final List<Widget> actions;
+  // TV only: leads the button row (phones centre it on the screen).
+  final Widget? transport;
 
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
+    if (m.tv) return _buildTv(context, m);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,13 +414,70 @@ class _BottomPanel extends StatelessWidget {
           ),
         ],
         SizedBox(height: 10 * m.scale),
-        bar,
+        bar ?? const _ProgressBar(value: 1),
         SizedBox(height: 6 * m.scale),
         Row(
           children: [
             Expanded(child: meta),
             for (final a in actions) ...[
               SizedBox(width: 4 * m.scale),
+              a,
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Channel (or show) as a quiet overline, the title beneath it, a slim
+  // bar, then [transport] [meta] ... [actions] on one line.
+  Widget _buildTv(BuildContext context, PlayerMetrics m) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (subtitle != null) ...[
+          Text(
+            context.displayName(subtitle!).toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.4,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+        ],
+        Text(
+          context.displayName(title),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 30,
+            fontWeight: FontWeight.w600,
+            height: 1.15,
+            letterSpacing: -0.2,
+            shadows: [Shadow(blurRadius: 12, color: Colors.black45)],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 14),
+        if (bar != null) ...[
+          bar!,
+          const SizedBox(height: 12),
+        ] else
+          const SizedBox(height: 4),
+        Row(
+          children: [
+            if (transport != null) ...[
+              transport!,
+              const SizedBox(width: 20),
+            ],
+            Expanded(child: meta),
+            for (final a in actions) ...[
+              const SizedBox(width: 8),
               a,
             ],
           ],
@@ -394,6 +505,12 @@ class _Transport extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final m = PlayerMetrics.of(context);
     final service = ref.watch(playbackServiceProvider);
+    // TV: a compact cluster at the start of the bottom bar, every button the
+    // same size; elsewhere a large centred group.
+    final skipSize = m.tv ? m.tvButton : m.skipSize;
+    final playSize = m.tv ? m.tvButton : m.playSize;
+    final gap = m.tv ? 8.0 : m.transportGap;
+    final skipStyle = m.tv ? PlayerButtonStyle.plain : PlayerButtonStyle.tonal;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -401,10 +518,10 @@ class _Transport extends ConsumerWidget {
           icon: Icons.replay_10_rounded,
           tooltip: 'Back 10 seconds',
           onTap: onRewind,
-          size: m.skipSize,
-          style: PlayerButtonStyle.tonal,
+          size: skipSize,
+          style: skipStyle,
         ),
-        SizedBox(width: m.transportGap),
+        SizedBox(width: gap),
         StreamBuilder<NativeVideoPlayerState>(
           stream: service.stateStream,
           initialData: service.lastState,
@@ -419,7 +536,7 @@ class _Transport extends ConsumerWidget {
                   tooltip: playing ? 'Pause' : 'Play',
                   onTap: onPlayPause,
                   focusNode: playPauseFocusNode,
-                  size: m.playSize,
+                  size: playSize,
                   style: PlayerButtonStyle.primary,
                 ),
                 // Loading: a spinning ring around the play button, where
@@ -427,10 +544,10 @@ class _Transport extends ConsumerWidget {
                 if (loading)
                   IgnorePointer(
                     child: SizedBox(
-                      width: m.playSize + 14 * m.scale,
-                      height: m.playSize + 14 * m.scale,
+                      width: playSize + (m.tv ? 8 : 14 * m.scale),
+                      height: playSize + (m.tv ? 8 : 14 * m.scale),
                       child: CircularProgressIndicator(
-                        strokeWidth: 3.5 * m.scale,
+                        strokeWidth: m.tv ? 2.5 : 3.5 * m.scale,
                         strokeCap: StrokeCap.round,
                         color: Colors.white,
                       ),
@@ -440,13 +557,13 @@ class _Transport extends ConsumerWidget {
             );
           },
         ),
-        SizedBox(width: m.transportGap),
+        SizedBox(width: gap),
         PlayerButton(
           icon: Icons.forward_10_rounded,
           tooltip: 'Forward 10 seconds',
           onTap: onForward,
-          size: m.skipSize,
-          style: PlayerButtonStyle.tonal,
+          size: skipSize,
+          style: skipStyle,
         ),
       ],
     );
@@ -467,6 +584,7 @@ List<Widget> _actionButtons({
   VoidCallback? onChannels,
 }) {
   final m = PlayerMetrics.of(context);
+  final size = m.tv ? m.tvButton : m.actionSize;
   final profile = ref.watch(activeProfileProvider).valueOrNull;
   final isFav =
       profile?.favoriteChannelIds.contains(favoriteChannelId) ?? false;
@@ -480,7 +598,7 @@ List<Widget> _actionButtons({
             : Icons.closed_caption_off_outlined,
         tooltip: 'Subtitles',
         onTap: onCc,
-        size: m.actionSize,
+        size: size,
         dimmed: !hasCc && !ccActive,
         selected: ccActive,
       ),
@@ -496,7 +614,7 @@ List<Widget> _actionButtons({
           // (and the channel lists behind the player) reflect the change.
           if (context.mounted) ref.invalidate(activeProfileProvider);
         },
-        size: m.actionSize,
+        size: size,
         selected: isFav,
       ),
     if (onEpg != null)
@@ -504,20 +622,20 @@ List<Widget> _actionButtons({
         icon: Icons.event_note_rounded,
         tooltip: 'TV Guide',
         onTap: onEpg,
-        size: m.actionSize,
+        size: size,
       ),
     if (onChannels != null)
       PlayerButton(
         icon: Icons.format_list_bulleted_rounded,
         tooltip: 'Channels',
         onTap: onChannels,
-        size: m.actionSize,
+        size: size,
       ),
     PlayerButton(
       icon: Icons.settings_rounded,
       tooltip: 'Playback settings',
       onTap: onSettings,
-      size: m.actionSize,
+      size: size,
     ),
   ];
 }
@@ -589,30 +707,34 @@ class _LiveControls extends ConsumerWidget {
           )
         : const _LiveChip(isBehindLive: false);
 
+    final transport = onPlayPause == null
+        ? null
+        : _Transport(
+            onPlayPause: onPlayPause!,
+            onRewind: onRewind!,
+            onForward: onForward!,
+            playPauseFocusNode: playPauseFocusNode,
+          );
+    final tv = PlayerMetrics.of(context).tv;
     return _ControlsLayout(
       onBack: onBack,
       backFocusNode: backFocusNode,
       qualityLabel: qualityLabel,
-      transport: onPlayPause == null
-          ? null
-          : _Transport(
-              onPlayPause: onPlayPause!,
-              onRewind: onRewind!,
-              onForward: onForward!,
-              playPauseFocusNode: playPauseFocusNode,
-            ),
+      transport: tv ? null : transport,
       bottom: contentId == null
           ? _BottomPanel(
               title: title,
-              bar: const _ProgressBar(value: 1),
+              bar: tv ? null : const _ProgressBar(value: 1),
               meta: liveBadge,
               actions: actions,
+              transport: tv ? transport : null,
             )
           : _LiveProgrammePanel(
               channelId: contentId!,
               channelName: title,
               liveBadge: liveBadge,
               actions: actions,
+              transport: tv ? transport : null,
             ),
     );
   }
@@ -624,12 +746,14 @@ class _LiveProgrammePanel extends ConsumerStatefulWidget {
     required this.channelName,
     required this.liveBadge,
     required this.actions,
+    this.transport,
   });
 
   final String channelId;
   final String channelName;
   final Widget liveBadge;
   final List<Widget> actions;
+  final Widget? transport;
 
   @override
   ConsumerState<_LiveProgrammePanel> createState() =>
@@ -701,7 +825,9 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
           // Programme title leads when known (what's on), channel below.
           title: prog?.title ?? widget.channelName,
           subtitle: prog == null ? null : widget.channelName,
-          bar: _ProgressBar(value: prog?.progressAt(_now) ?? 1),
+          bar: prog == null && m.tv
+              ? null
+              : _ProgressBar(value: prog?.progressAt(_now) ?? 1),
           meta: Row(
             children: [
               widget.liveBadge,
@@ -723,6 +849,7 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
             ],
           ),
           actions: widget.actions,
+          transport: widget.transport,
         );
       },
     );
@@ -807,6 +934,12 @@ class _VodControls extends ConsumerWidget {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
 
+    final transport = _Transport(
+      onPlayPause: service.togglePlayPause,
+      onRewind: onSkipBack,
+      onForward: onSkipForward,
+      playPauseFocusNode: playPauseFocusNode,
+    );
     return _ControlsLayout(
       onBack: onBack,
       backFocusNode: backFocusNode,
@@ -829,23 +962,21 @@ class _VodControls extends ConsumerWidget {
           ),
         ],
       ),
-      transport: _Transport(
-        onPlayPause: service.togglePlayPause,
-        onRewind: onSkipBack,
-        onForward: onSkipForward,
-        playPauseFocusNode: playPauseFocusNode,
-      ),
+      transport: m.tv ? null : transport,
       bottom: _BottomPanel(
         title: title,
+        transport: m.tv ? transport : null,
         bar: SizedBox(
-          height: 28 * m.scale,
+          height: m.tv ? 20 : 28 * m.scale,
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               year2023: false,
               padding: EdgeInsets.zero,
-              trackHeight: 6 * m.scale,
-              trackGap: 4 * m.scale,
-              thumbSize: WidgetStatePropertyAll(Size(4 * m.scale, 24 * m.scale)),
+              trackHeight: m.tv ? 4 : 6 * m.scale,
+              trackGap: m.tv ? 3 : 4 * m.scale,
+              thumbSize: WidgetStatePropertyAll(m.tv
+                  ? const Size(3, 16)
+                  : Size(4 * m.scale, 24 * m.scale)),
               activeTrackColor: scheme.primary,
               inactiveTrackColor: Colors.white.withValues(alpha: 0.28),
               thumbColor: scheme.primary,
@@ -909,17 +1040,18 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
+    final thickness = m.tv ? 4.0 : 6 * m.scale;
     return SizedBox(
-      height: 28 * m.scale,
+      height: m.tv ? 20 : 28 * m.scale,
       child: Center(
         child: ProgressIndicatorTheme(
           data: ProgressIndicatorTheme.of(context).copyWith(year2023: false),
           child: LinearProgressIndicator(
           value: value.clamp(0.0, 1.0),
-          minHeight: 6 * m.scale,
-          trackGap: 4 * m.scale,
+          minHeight: thickness,
+          trackGap: m.tv ? 3 : 4 * m.scale,
           stopIndicatorColor: Colors.transparent,
-          borderRadius: BorderRadius.circular(3 * m.scale),
+          borderRadius: BorderRadius.circular(thickness / 2),
           backgroundColor: Colors.white.withValues(alpha: 0.28),
           color: Theme.of(context).colorScheme.primary,
         ),
@@ -1000,6 +1132,55 @@ class _QualityChip extends StatelessWidget {
           fontSize: 11.5 * m.scale,
           letterSpacing: 0.8,
         ),
+      ),
+    );
+  }
+}
+
+/// TV: time of day in the corner, the way a TV's own player shows it.
+class _Clock extends StatefulWidget {
+  const _Clock();
+
+  @override
+  State<_Clock> createState() => _ClockState();
+}
+
+class _ClockState extends State<_Clock> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tick on the minute boundary, then every minute.
+    final now = DateTime.now();
+    _timer = Timer(Duration(seconds: 60 - now.second), () {
+      if (!mounted) return;
+      setState(() {});
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.now(),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+      ),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w500,
+        fontFeatures: [FontFeature.tabularFigures()],
+        shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
       ),
     );
   }

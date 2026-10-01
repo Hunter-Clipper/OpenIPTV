@@ -1007,7 +1007,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 TraversalDirection.up,
                                 TraversalDirection.left,
                               },
-                              onNoMove: () => _backFocusNode.requestFocus(),
+                              // TV has no on-screen Back (the remote's
+                              // Back key does it) — nothing to move to.
+                              onNoMove: () {
+                                if (_backFocusNode.context != null) {
+                                  _backFocusNode.requestFocus();
+                                }
+                              },
                             ),
                           },
                           child: PlayerControls(

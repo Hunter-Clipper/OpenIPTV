@@ -9,17 +9,29 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Sizes scale up for TV (viewed from across the room) and down for phones.
 class PlayerMetrics {
-  const PlayerMetrics._(this.scale);
+  const PlayerMetrics._(this.scale, {this.tv = false});
 
   factory PlayerMetrics.of(BuildContext context) {
-    if (PlatformHelper.isTV(context)) return const PlayerMetrics._(1.15);
+    if (PlatformHelper.isTV(context)) {
+      return const PlayerMetrics._(1.15, tv: true);
+    }
     final short = MediaQuery.sizeOf(context).shortestSide;
     return PlayerMetrics._(short < 500 ? 0.86 : 1.0);
   }
 
   final double scale;
 
+  /// TV layout: every control sits in one slim bottom bar instead of a
+  /// centred transport — the picture stays clear from across the room.
+  final bool tv;
+
   double get edge => 32 * scale;
+
+  /// TV: side margin of the bottom bar (TV overscan-safe, and airy).
+  double get tvEdge => 56;
+
+  /// TV: one size for every bar button, play included.
+  double get tvButton => 44;
   double get playSize => 76 * scale;
   double get skipSize => 56 * scale;
   double get actionSize => 46 * scale;
