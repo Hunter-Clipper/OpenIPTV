@@ -756,7 +756,8 @@ class _ChannelRailState extends State<_ChannelRail> {
           onFocusChange: _handleRowFocusChange,
           child: SizedBox(
             height: width * 9 / 16 + 56,
-            child: ListView.separated(
+            child: TvRowFocus(
+              child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
               clipBehavior: Clip.none,
@@ -774,6 +775,7 @@ class _ChannelRailState extends State<_ChannelRail> {
                       : () => widget.onLongPress!(ch),
                 );
               },
+              ),
             ),
           ),
         ),

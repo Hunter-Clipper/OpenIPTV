@@ -97,19 +97,21 @@ class MediaRail extends StatelessWidget {
         SizedBox(
           // Poster + padding + title (+ subtitle) lines.
           height: posterHeight + 40 + (hasSubtitle ? 16 : 0),
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-            clipBehavior: Clip.none,
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _PosterCard(
-              item: items[i],
-              width: width,
-              height: posterHeight,
-              shape: shape,
-              autofocus: autofocusFirst && i == 0,
-              fallbackIcon: fallbackIcon,
+          child: TvRowFocus(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+              clipBehavior: Clip.none,
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) => _PosterCard(
+                item: items[i],
+                width: width,
+                height: posterHeight,
+                shape: shape,
+                autofocus: autofocusFirst && i == 0,
+                fallbackIcon: fallbackIcon,
+              ),
             ),
           ),
         ),

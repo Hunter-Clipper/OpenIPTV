@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Wraps [child] so it can receive D-pad/keyboard focus: shows an animated
@@ -381,4 +382,79 @@ class _TvInitialFocusState extends State<TvInitialFocus> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Keeps Left/Right inside one horizontal row on TV. Flutter's directional
+/// search considers every focusable on screen, so at the start of a row
+/// whose neighbour row was scrolled, Left jumped to a half-hidden poster in
+/// the other row instead of the side menu. Here Left/Right move to the
+/// nearest item of this row; Left past the first goes to the nav rail,
+/// Right past the last stays put. Up/Down are handed on unchanged.
+class TvRowFocus extends StatefulWidget {
+  const TvRowFocus({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<TvRowFocus> createState() => _TvRowFocusState();
+}
+
+class _TvRowFocusState extends State<TvRowFocus> {
+  final _row = FocusNode(canRequestFocus: false, skipTraversal: true);
+
+  @override
+  void dispose() {
+    _row.dispose();
+    super.dispose();
+  }
+
+  Object? _move(DirectionalFocusIntent intent) {
+    final dir = intent.direction;
+    if (dir == TraversalDirection.up || dir == TraversalDirection.down) {
+      // This State's context sits above the Actions built below, so this
+      // reaches whatever handled the press before (shell, app default).
+      return Actions.maybeInvoke(context, intent);
+    }
+    final current = FocusManager.instance.primaryFocus;
+    if (current == null) return null;
+    final from = current.rect.center.dx;
+    final sign = dir == TraversalDirection.right ? 1 : -1;
+    FocusNode? best;
+    var bestDistance = double.infinity;
+    for (final node in _row.traversalDescendants) {
+      if (identical(node, current) || node.context == null) continue;
+      // A card's own nested focusables share its centre — skip those.
+      final distance = (node.rect.center.dx - from) * sign;
+      if (distance > 1 && distance < bestDistance) {
+        best = node;
+        bestDistance = distance;
+      }
+    }
+    if (best != null) {
+      best.requestFocus();
+      Scrollable.ensureVisible(
+        best.context!,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        alignmentPolicy: sign > 0
+            ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+            : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+    } else if (dir == TraversalDirection.left) {
+      TvNavRailFocus.maybeOf(context)?.requestFocus();
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!PlatformHelper.isTV(context)) return widget.child;
+    return Actions(
+      actions: {
+        DirectionalFocusIntent:
+            CallbackAction<DirectionalFocusIntent>(onInvoke: _move),
+      },
+      child: Focus(focusNode: _row, child: widget.child),
+    );
+  }
 }
