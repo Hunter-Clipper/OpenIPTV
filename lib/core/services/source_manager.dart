@@ -164,7 +164,8 @@ class SourceManager {
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
     // Pass the updated source so the auto-set EPG URL is included.
-    unawaited(epgService.refreshEpg(updated));
+    // Background: a failed guide is logged, and mustn't fail the playlist.
+    unawaited(epgService.refreshEpg(updated).catchError((Object _) {}));
   }
 
   /// Refreshes playlist and EPG concurrently instead of sequentially, for use
@@ -229,6 +230,44 @@ class SourceManager {
     );
   }
 
+  /// One playlist's step of "refresh everything" in Settings: the catalog
+  /// ([playlist]) and/or the TV guide ([guide]), one after the other — a
+  /// 2 GB TV can't hold a big catalog and a big guide in memory at once.
+  /// Never throws; each phase's failure is reported in the result.
+  Future<SourceRefreshResult> refreshSourceParts(
+    Source source, {
+    bool playlist = true,
+    bool guide = true,
+  }) async {
+    var current = source;
+    Object? playlistError;
+    if (playlist) {
+      try {
+        current = source.type == SourceType.m3u
+            ? await _refreshM3u(source)
+            : await _refreshXtream(source);
+        await db.updateSourceRefreshTime(source.id, DateTime.now());
+      } catch (e) {
+        playlistError = e;
+      }
+    }
+    Object? epgError;
+    if (guide) {
+      try {
+        // The playlist refresh may have just found (or changed) the URL.
+        await epgService.refreshEpg(current);
+      } catch (e) {
+        epgError = e;
+      }
+    }
+    return SourceRefreshResult(
+      sourceId: source.id,
+      nickname: source.nickname,
+      playlistError: playlistError,
+      epgError: epgError,
+    );
+  }
+
   /// Refreshes only the playlist (channels/movies/series) — no EPG.
   /// Used by the "Refresh Playlist" button in Settings.
   Future<void> refreshPlaylist(Source source) async {
@@ -266,7 +305,8 @@ class SourceManager {
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
-    unawaited(epgService.refreshEpg(source));
+    // Background: a failed guide is logged, and mustn't fail the playlist.
+    unawaited(epgService.refreshEpg(source).catchError((Object _) {}));
   }
 
   /// Refreshes only movies for a source.

@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
+import 'package:open_iptv/features/settings/refresh_all.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/format.dart';
@@ -121,6 +122,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   );
                 }),
+                const RefreshAllTiles(),
               ]),
               // --------------- BACKUP (admin only) ---------------
               SettingsGroup(title: 'Data', children: [
@@ -817,9 +819,10 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
   Future<void> _refreshEpg(String id) async {
     if (_refreshingPlaylist.contains(id) || _refreshingEpg.contains(id)) return;
     setState(() => _refreshingEpg.add(id));
+    Source? source;
     try {
       final sources = await ref.read(allSourcesProvider.future);
-      final source = sources.firstWhere((s) => s.id == id);
+      source = sources.firstWhere((s) => s.id == id);
       await ref.read(sourceManagerProvider).refreshEpgOnly(source);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -831,7 +834,8 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  'TV guide refresh failed: ${friendlySourceErrorMessage(e)}')),
+                  "${source?.nickname ?? 'This playlist'}'s TV guide isn't "
+                  'available right now. Try again later.')),
         );
       }
     } finally {

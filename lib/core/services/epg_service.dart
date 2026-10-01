@@ -166,6 +166,9 @@ class EpgService {
     } catch (e, st) {
       sw.stop();
       debugPrint('[EPG] Error after ${sw.elapsedMilliseconds}ms: $e\n$st');
+      // Callers report it ("TV guide isn't available"); swallowing it here
+      // made every failed guide refresh look like a success.
+      rethrow;
     }
   }
 
