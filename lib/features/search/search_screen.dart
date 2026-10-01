@@ -138,6 +138,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    // The query outlives this screen (switching tabs rebuilds it); show it
+    // in the box, or the old results sit under an empty field.
+    _controller.text = ref.read(_searchQueryProvider);
     _searchFocusNode.addListener(_handleFocusChange);
     ref.read(appPreferencesProvider.future).then((prefs) {
       if (mounted) setState(() => _recent = prefs.recentSearches);
