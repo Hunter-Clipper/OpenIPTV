@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/db_encryption.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -111,12 +113,20 @@ void autoRefreshCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    final db = AppDatabase();
+    final db = AppDatabase.background();
     final epgService = EpgService(db: db);
     final sourceManager = SourceManager(db: db, epgService: epgService);
     final prefs = AppPreferences(await SharedPreferences.getInstance());
 
-    final sources = await db.getAllSources();
+    final List<Source> sources;
+    try {
+      sources = await db.getAllSources();
+    } on DatabaseNotReadyException {
+      // The app hasn't encrypted an older database yet (it does on its
+      // next launch). Skip this run rather than race it.
+      await db.close();
+      return true;
+    }
     final results = <SourceRefreshResult>[];
     for (final source in sources) {
       results.add(await sourceManager.refreshSourceConcurrent(source));

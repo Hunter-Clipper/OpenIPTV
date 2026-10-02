@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+import 'package:open_iptv/core/storage/db_encryption.dart';
+import 'package:sqlite3/sqlite3.dart' show Database;
 import 'package:open_iptv/core/models/channel.dart' as model;
 import 'package:open_iptv/core/models/episode.dart' as model;
 import 'package:open_iptv/core/models/movie.dart' as model;
@@ -180,6 +182,10 @@ class WatchProgress extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? _openConnection());
+
+  /// For the background auto-refresh isolate: opens the encrypted database
+  /// but never converts an unencrypted one (the app does that on launch).
+  AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
   int get schemaVersion => 8;
@@ -1242,16 +1248,26 @@ class AppDatabase extends _$AppDatabase {
 }
 
 // Top-level so Isolate.spawn can send it across isolate boundaries.
-void _dbSetup(dynamic db) {
+void _dbSetup(Database db) {
   // Wait up to 5s for any transient external lock (OS backup, WAL recovery)
   // before failing with SQLITE_BUSY. Must be set before migrations run.
   db.execute('PRAGMA busy_timeout = 5000;');
 }
 
-QueryExecutor _openConnection() {
+/// The app database, encrypted on disk (see db_encryption.dart). The
+/// background auto-refresh isolate passes `migrate: false` so it never
+/// races the app converting an older unencrypted database.
+QueryExecutor _openConnection({bool migrate = true}) {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'open_iptv.db'));
-    return NativeDatabase.createInBackground(file, setup: _dbSetup);
+    final (executor, state) = await openEncryptedDatabase(
+      file,
+      keys: DbKeyStore(),
+      setup: _dbSetup,
+      migrate: migrate,
+    );
+    debugPrint('[OTV-db] opened (${state.name})');
+    return executor;
   });
 }

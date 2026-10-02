@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'playback_service.g.dart';
@@ -107,7 +108,7 @@ class PlaybackService {
 
   Future<void> play(String streamUrl, {Duration? startPosition}) async {
     await ensureTexture();
-    debugPrint('[OTV-play] opening url=${streamUrl.split('?').first}, '
+    debugPrint('[OTV-play] opening url=${redactUrl(streamUrl.split('?').first)}, '
         'startPosition=${startPosition?.inSeconds}s');
     // ExoPlayer starts at startPosition itself — no need to wait for the
     // duration and seek afterwards (an mpv-era workaround that briefly

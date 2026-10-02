@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xmltv_parser.dart';
+import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -123,7 +124,8 @@ class EpgService {
       return;
     }
 
-    debugPrint('[EPG] Starting fetch for "${source.nickname}": $epgUrl');
+    debugPrint(
+        '[EPG] Starting fetch for "${source.nickname}": ${redactUrl(epgUrl)}');
     final sw = Stopwatch()..start();
 
     try {
