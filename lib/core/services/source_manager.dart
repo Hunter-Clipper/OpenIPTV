@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -96,18 +97,33 @@ class SourceManager {
     return SourceDetectionResult.failed;
   }
 
+  /// Whether [url] serves an M3U playlist. Reads only the start of the
+  /// response — enough for the `#EXTM3U` / `#EXTINF` header — rather than
+  /// downloading a playlist that can be tens of megabytes. (It used to send
+  /// HEAD first and then test the empty HEAD body, so every server that
+  /// answered HEAD looked like it had no playlist.)
   Future<bool> _probeM3u(String url) async {
+    final client = http.Client();
     try {
-      final uri = Uri.parse(url);
-      var response = await http.head(uri).timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) {
-        response = await http.get(uri).timeout(const Duration(seconds: 10));
-      }
+      final response = await client
+          .send(http.Request('GET', Uri.parse(url)))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return false;
-      final body = response.body.trimLeft();
-      return body.startsWith('#EXTM3U');
+      final head = <int>[];
+      await for (final chunk
+          in response.stream.timeout(const Duration(seconds: 15))) {
+        head.addAll(chunk);
+        if (head.length >= 1024) break;
+      }
+      final text = utf8
+          .decode(head, allowMalformed: true)
+          .replaceFirst('\uFEFF', '')
+          .trimLeft();
+      return text.startsWith('#EXTM3U') || text.startsWith('#EXTINF');
     } catch (_) {
       return false;
+    } finally {
+      client.close();
     }
   }
 
@@ -188,8 +204,14 @@ class SourceManager {
         ? _refreshM3u(source)
         : _refreshXtream(source);
     final hasKnownEpgUrl = source.epgUrl != null && source.epgUrl!.isNotEmpty;
-    final epgFuture =
-        hasKnownEpgUrl ? epgService.refreshEpg(source) : null;
+    // Errors captured as values right away: the guide often fails while the
+    // playlist is still loading, and a failed Future with no listener yet is
+    // reported as an unhandled exception.
+    final epgFuture = hasKnownEpgUrl
+        ? epgService
+            .refreshEpg(source)
+            .then<Object?>((_) => null, onError: (Object e) => e)
+        : null;
 
     Object? playlistError;
     Source? updated;
@@ -201,11 +223,7 @@ class SourceManager {
 
     Object? epgError;
     if (epgFuture != null) {
-      try {
-        await epgFuture;
-      } catch (e) {
-        epgError = e;
-      }
+      epgError = await epgFuture;
     } else if (updated != null &&
         updated.epgUrl != null &&
         updated.epgUrl!.isNotEmpty) {
@@ -387,6 +405,103 @@ class SourceManager {
     }
   }
 
+  /// The TV guide address a playlist would get automatically, so the edit
+  /// screen can show "automatic" instead of a link with the login inside.
+  static String? automaticGuideUrl(Source s) {
+    if (s.type != SourceType.xtream ||
+        s.xtreamHost == null ||
+        s.xtreamUsername == null ||
+        s.xtreamPassword == null) {
+      return null;
+    }
+    final client = XtreamClient(
+      host: s.xtreamHost!,
+      username: s.xtreamUsername!,
+      password: s.xtreamPassword!,
+      sourceId: s.id,
+    );
+    final url = client.xmltvUrl;
+    client.dispose();
+    return url;
+  }
+
+  /// Saves edits to a playlist: a new name, server address, login (a null
+  /// or empty [xtreamPassword] keeps the current one), playlist link or TV
+  /// guide address (empty = automatic).
+  ///
+  /// Changed connection details are checked first — nothing is saved if
+  /// the provider won't accept them ([SourceEditException]). Once saved,
+  /// the catalog is refreshed so every stream link uses the new details;
+  /// item ids don't change, so favourites and watch progress carry over.
+  /// Returns the refresh result, or null when only the name changed.
+  Future<SourceRefreshResult?> updateSource(
+    Source original, {
+    required String nickname,
+    String? m3uUrl,
+    String? xtreamHost,
+    String? xtreamUsername,
+    String? xtreamPassword,
+    String? epgUrl,
+  }) async {
+    String? clean(String? v) => v == null || v.trim().isEmpty ? null : v.trim();
+    final name = clean(nickname) ?? original.nickname;
+    final isXtream = original.type == SourceType.xtream;
+    final isFile = LocalPlaylists.isLocal(original.m3uUrl);
+
+    final host = isXtream ? clean(xtreamHost) ?? original.xtreamHost : null;
+    final user =
+        isXtream ? clean(xtreamUsername) ?? original.xtreamUsername : null;
+    final pass =
+        isXtream ? clean(xtreamPassword) ?? original.xtreamPassword : null;
+    final url = isXtream || isFile ? original.m3uUrl : clean(m3uUrl);
+    if (!isXtream && url == null) {
+      throw const SourceEditException('m3u_missing');
+    }
+
+    final connectionChanged = host != original.xtreamHost ||
+        user != original.xtreamUsername ||
+        pass != original.xtreamPassword ||
+        url != original.m3uUrl;
+
+    // Guide: a typed address wins; empty means automatic — for Xtream that
+    // is derived from the (possibly new) login on the next refresh, for M3U
+    // it's whatever the playlist itself names.
+    final wasAutomatic = original.epgUrl == null ||
+        original.epgUrl!.isEmpty ||
+        original.epgUrl == automaticGuideUrl(original);
+    final typedGuide = clean(epgUrl);
+    final guide = typedGuide ??
+        (wasAutomatic && !connectionChanged ? original.epgUrl : null);
+    final guideChanged = guide != original.epgUrl;
+
+    if (connectionChanged) {
+      if (isXtream) {
+        final client = XtreamClient(
+            host: host!, username: user!, password: pass!, sourceId: '');
+        final ok = await client.validate();
+        client.dispose();
+        if (!ok) throw const SourceEditException('xtream_login');
+      } else if (!await _probeM3u(url!)) {
+        throw const SourceEditException('m3u_unreachable');
+      }
+    }
+
+    final updated = Source(
+      id: original.id,
+      nickname: name,
+      type: original.type,
+      m3uUrl: url,
+      xtreamHost: host,
+      xtreamUsername: user,
+      xtreamPassword: pass,
+      epgUrl: guide,
+      lastRefreshed: original.lastRefreshed,
+    );
+    await db.upsertSource(updated);
+    if (!connectionChanged && !guideChanged) return null;
+    return refreshSourceParts(updated, playlist: connectionChanged);
+  }
+
   Future<void> deleteSource(String sourceId) async {
     final source = await db.getSourceById(sourceId);
     await _local.delete(source?.m3uUrl);
@@ -525,4 +640,16 @@ class SourceManager {
       return updated;
     });
   }
+}
+
+/// Why edited playlist details weren't saved (see
+/// [SourceManager.updateSource]); worded by `friendlySourceErrorMessage`.
+class SourceEditException implements Exception {
+  const SourceEditException(this.code);
+
+  /// `xtream_login`, `m3u_unreachable` or `m3u_missing`.
+  final String code;
+
+  @override
+  String toString() => 'SourceEditException($code)';
 }

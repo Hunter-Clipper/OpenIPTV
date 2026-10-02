@@ -11,12 +11,14 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/settings/edit_playlist_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/refresh_all.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
+import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/profile_avatar.dart';
@@ -816,6 +818,16 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     }
   }
 
+  // Closes this sheet (popped with its own context — see the lessons on
+  // root-navigator sheets) and opens the editor above Settings.
+  void _editSource(Source s) {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.push(MaterialPageRoute<void>(
+      builder: (_) => EditPlaylistScreen(source: s),
+    ));
+  }
+
   Future<void> _refreshEpg(String id) async {
     if (_refreshingPlaylist.contains(id) || _refreshingEpg.contains(id)) return;
     setState(() => _refreshingEpg.add(id));
@@ -1046,6 +1058,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                             ),
                             _SourceMenu(
                               enabled: !isBusy,
+                              onEdit: () => _editSource(s),
                               onInfo: () => _showInfoPanel(context, s),
                               onRefreshGuide: () => _refreshEpg(s.id),
                               onRemove: () =>
@@ -1092,12 +1105,14 @@ class _PlaylistBadge extends StatelessWidget {
 class _SourceMenu extends StatelessWidget {
   const _SourceMenu({
     required this.enabled,
+    required this.onEdit,
     required this.onInfo,
     required this.onRefreshGuide,
     required this.onRemove,
   });
 
   final bool enabled;
+  final VoidCallback onEdit;
   final VoidCallback onInfo;
   final VoidCallback onRefreshGuide;
   final VoidCallback onRemove;
@@ -1115,7 +1130,7 @@ class _SourceMenu extends StatelessWidget {
       ]);
       return PopupMenuItem(
         value: v,
-        child: v == 0 ? TvInitialFocus(child: row) : row,
+        child: v == 3 ? TvInitialFocus(child: row) : row,
       );
     }
     return TvFocusable(
@@ -1128,11 +1143,13 @@ class _SourceMenu extends StatelessWidget {
           enabled: enabled,
           tooltip: 'More',
           onSelected: (v) => switch (v) {
+            3 => onEdit(),
             0 => onInfo(),
             1 => onRefreshGuide(),
             _ => onRemove(),
           },
           itemBuilder: (_) => [
+            item(3, Icons.edit_outlined, 'Edit Playlist'),
             item(0, Icons.info_outline, 'Playlist Info'),
             item(1, Icons.event_note_outlined, 'Refresh TV Guide'),
             const PopupMenuDivider(),
@@ -1268,8 +1285,8 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
             if (source.type == SourceType.m3u) ...[
               LocalPlaylists.isLocal(source.m3uUrl)
                   ? const _InfoRow('Source', 'File saved on this device')
-                  : _InfoRow('URL', source.m3uUrl ?? '—'),
-              if (source.epgUrl != null) _InfoRow('EPG URL', source.epgUrl!),
+                  : _InfoRow('URL', redactUrl(source.m3uUrl ?? '—')),
+              if (source.epgUrl != null) _InfoRow('EPG URL', redactUrl(source.epgUrl!)),
               _InfoRow(
                 'Last refreshed',
                 lastRefreshed != null ? formatYmd(lastRefreshed) : 'Never',

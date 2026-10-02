@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 
 /// Maps a raw exception thrown while adding/refreshing an IPTV source into
@@ -18,6 +19,14 @@ String friendlySourceErrorMessage(Object error) {
       'empty' => "This playlist file doesn't have any channels in it.",
       _ => "The playlist file is no longer on this device. Remove this "
           'playlist and add the file again.',
+    };
+  }
+  if (error is SourceEditException) {
+    return switch (error.code) {
+      'xtream_login' => "Couldn't sign in with these details. Check the "
+          'server address, username and password with your provider.',
+      'm3u_missing' => 'Enter the playlist link from your provider.',
+      _ => "Couldn't open this playlist link. Check it with your provider.",
     };
   }
   if (msg.contains('http_401') || msg.contains('http_403')) {
