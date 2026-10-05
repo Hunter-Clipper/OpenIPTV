@@ -681,6 +681,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     unawaited(_updateNowPlayingMetadata());
   }
 
+  // The title as the user sees it in the app ("Clean Up Names"). Leaves the
+  // app's own screens through the media session — notification, lock
+  // screen, Android Auto — and the cast receiver, which can't apply the
+  // setting themselves, so it's cleaned here.
+  String get _shownTitle => ref.read(cleanNamesProvider)
+      ? cleanDisplayName(widget.title)
+      : widget.title;
+
   // Opening while a cast device is connected plays straight there.
   Future<void> _playOrCast(Duration? start) async {
     if (_cast.status.connected) {
@@ -733,7 +741,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _playbackStarted = true;
     final accepted = await _cast.load(
       streamUrl: _currentUrl,
-      title: widget.title,
+      title: _shownTitle,
       subtitle: _castSubtitle,
       imageUrl: _castImage,
       live: _isPlainLive,
@@ -803,7 +811,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _castSubtitle = artist;
       _castImage = artUri?.toString();
     });
-    nowPlayingHandler.setNowPlaying(widget.title,
+    nowPlayingHandler.setNowPlaying(_shownTitle,
         artist: artist, artUri: artUri);
   }
 
