@@ -41,23 +41,24 @@
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/player.jpg" alt="The player: centred controls, live badge and channel guide" width="820">
+  <img src="docs/screenshots/player.jpg" alt="The player on a phone: centred controls, live badge and action buttons" width="820">
 </p>
 
 <table>
   <tr>
     <td align="center"><img src="docs/screenshots/live_tv.png" alt="Live TV home with Favorites and Recently Watched rows" width="200"><br><sub>Live TV</sub></td>
     <td align="center"><img src="docs/screenshots/channels.png" alt="Channel list with logo tiles" width="200"><br><sub>Channels</sub></td>
-    <td align="center"><img src="docs/screenshots/settings.png" alt="Grouped Settings" width="200"><br><sub>Settings</sub></td>
+    <td align="center"><img src="docs/screenshots/settings.png" alt="Settings with one-tap Refresh Everything, Playlists and TV Guides" width="200"><br><sub>Settings</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/setup_wizard.png" alt="Setup wizard: choosing a playlist type" width="200"><br><sub>Add a playlist</sub></td>
+    <td align="center"><img src="docs/screenshots/xtream_login.png" alt="Entering Xtream Codes login details" width="200"><br><sub>Xtream login</sub></td>
     <td align="center"><img src="docs/screenshots/playlist_file.png" alt="Adding a playlist from a file on the device" width="200"><br><sub>From a file</sub></td>
-    <td></td>
   </tr>
 </table>
 
 <p align="center">
+  <img src="docs/screenshots/tv_player.jpg" alt="Android TV player: every control in one slim bar along the bottom" width="820"><br>
   <img src="docs/screenshots/tv_live.png" alt="Android TV: side navigation rail and focused channel card" width="400">
   <img src="docs/screenshots/tv_search.png" alt="Android TV: search results as channel cards" width="400"><br>
   <sub>On Android TV and Fire TV</sub>
