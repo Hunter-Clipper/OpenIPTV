@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 /// A cast device found on the network.
 @immutable
@@ -106,9 +107,13 @@ class CastStatus {
 /// Casting to Chromecast / Google TV ("openiptv/cast"). Safe to use where
 /// casting isn't supported: [status] just stays unavailable.
 class CastService {
-  CastService() {
-    _listen();
+  /// [enabled] is false on TVs (Android TV, Google TV, Fire TV): they are
+  /// the screen, so casting is off — no native side, every call a no-op.
+  CastService({bool? enabled}) : enabled = enabled ?? !PlatformHelper.isTVDevice {
+    if (this.enabled) _listen();
   }
+
+  final bool enabled;
 
   // The Flutter engine is shared with audio_service and can run Dart before
   // MainActivity registers the cast channels (see isTelevisionDevice), so
@@ -150,6 +155,7 @@ class CastService {
   Stream<CastStatus> get statusStream => _controller.stream;
 
   Future<void> _call(String method, [Map<String, Object?>? args]) async {
+    if (!enabled) return;
     final deadline = DateTime.now().add(_retryFor);
     try {
       while (true) {
@@ -189,6 +195,7 @@ class CastService {
     String? imageUrl,
     Duration? start,
   }) async {
+    if (!enabled) return null;
     for (final url in castCandidates(streamUrl, live: live)) {
       try {
         final ok = await _channel.invokeMethod<bool>('load', {

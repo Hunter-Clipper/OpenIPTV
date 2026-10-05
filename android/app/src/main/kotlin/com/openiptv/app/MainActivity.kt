@@ -60,10 +60,7 @@ class MainActivity : AudioServiceActivity() {
         deviceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/device")
         deviceChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
-                "isTelevision" -> {
-                    val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-                    result.success(uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION)
-                }
+                "isTelevision" -> result.success(isTelevision())
                 // Google TV / Fire TV often ship without a document picker:
                 // OPEN_DOCUMENT resolves to a framework stub that just
                 // cancels, so "choose a file" silently does nothing.
@@ -102,10 +99,21 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.renderer,
         ) { anyPlaying -> setKeepScreenOn(anyPlaying) }
 
-        castController = CastController(
-            applicationContext,
-            flutterEngine.dartExecutor.binaryMessenger,
-        )
+        // Casting is phone / tablet only: a TV, Fire TV or Android TV box is
+        // the screen itself, so the Cast framework isn't even started there.
+        if (!isTelevision()) {
+            castController = CastController(
+                applicationContext,
+                flutterEngine.dartExecutor.binaryMessenger,
+            )
+        }
+    }
+
+    // TV mode (Android TV, Google TV, Fire TV), or Leanback hardware.
+    private fun isTelevision(): Boolean {
+        val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
 
     // Issue #28: the system's normal screen-timeout/screensaver rules apply

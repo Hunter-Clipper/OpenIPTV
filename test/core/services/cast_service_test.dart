@@ -63,4 +63,15 @@ void main() {
     expect(empty.available, isFalse);
     expect(empty.playerState, CastPlayerState.idle);
   });
+
+  test('casting is off on TVs: calls do nothing', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final cast = CastService(enabled: false);
+    expect(cast.status.supported, isFalse);
+    await cast.startDiscovery();
+    expect(
+      await cast.load(streamUrl: 'http://h/1.m3u8', title: 'x', live: true),
+      isNull,
+    );
+  });
 }
