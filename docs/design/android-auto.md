@@ -1,6 +1,6 @@
 # Android Auto (and parked video)
 
-Status: **planning** — tracks [#33](https://github.com/Hunter-Clipper/OpenIPTV/issues/33).
+Status: **phase 1 built, in review** — tracks [#33](https://github.com/Hunter-Clipper/OpenIPTV/issues/33).
 
 ## Goal
 
@@ -56,6 +56,29 @@ Testing: the **Desktop Head Unit (DHU)** from the Android SDK with the
 phone over USB/ADB, then a real car. Users who sideload must enable
 Android Auto → Settings → Developer settings → "Unknown sources"; the app
 and README must explain this simply.
+
+## What's built (phase 1, branch `feature/android-auto`)
+
+- `lib/core/services/car_library.dart` — the browse tree (Live TV:
+  Favorites, Recently Watched, categories; Movies: Continue Watching,
+  Favorites, genres; Series: Continue Watching, Favorites, genres → shows
+  → episodes), search, and resolving a pick; applies the active profile and
+  playlist, hidden categories, parental locks (locked = not shown) and Kids
+  filtering; clean names per the user's setting.
+- `NowPlayingHandler` (audio_service) — browse / search / play-from-id,
+  next / previous through the list an item was picked from, resume
+  positions, progress saving every 15 s for movies and episodes, Recently
+  Watched for channels; live channels show no timeline.
+- `packages/engine_hooks` + `EngineChannels.kt` + `OpenIptvApplication` —
+  the video player and device channels are registered on every Flutter
+  engine, so Android Auto works with the app closed (audio_service starts a
+  headless engine for its media service).
+- Manifest `com.google.android.gms.car.application` → `automotive_app_desc`
+  (media).
+
+Verified with the Desktop Head Unit against a Pixel 9 Pro XL with the app
+force-stopped: browse all three tabs, play a live channel (+ next), a
+movie (resume + length + progress), a series episode (+ next), search.
 
 ## Phase 2 — Parked video (future, separate decision)
 

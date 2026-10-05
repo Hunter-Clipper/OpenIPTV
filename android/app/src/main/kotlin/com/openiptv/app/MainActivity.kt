@@ -19,10 +19,8 @@ import io.flutter.plugin.common.MethodChannel
 // notification in sync with the same media_kit Player instance.
 class MainActivity : AudioServiceActivity() {
     private var pipChannel: MethodChannel? = null
-    private var deviceChannel: MethodChannel? = null
     private var backChannel: MethodChannel? = null
     private var updatesChannel: MethodChannel? = null
-    private var videoPlayerManager: NativeVideoPlayerManager? = null
     private var castController: CastController? = null
 
     // Updated proactively by Dart via pip_service.dart's updatePipAvailability()
@@ -57,26 +55,6 @@ class MainActivity : AudioServiceActivity() {
             }
         }
 
-        deviceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/device")
-        deviceChannel?.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "isTelevision" -> result.success(isTelevision())
-                // Google TV / Fire TV often ship without a document picker:
-                // OPEN_DOCUMENT resolves to a framework stub that just
-                // cancels, so "choose a file" silently does nothing.
-                "hasDocumentPicker" -> {
-                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
-                        .addCategory(Intent.CATEGORY_OPENABLE)
-                        .setType("*/*")
-                    val handler = packageManager
-                        .resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                        ?.activityInfo?.packageName
-                    result.success(handler != null && !handler.contains("frameworkpackagestubs"))
-                }
-                else -> result.notImplemented()
-            }
-        }
-
         backChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/back")
         backChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -100,11 +78,10 @@ class MainActivity : AudioServiceActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/files")
             .setMethodCallHandler(FileSaver(this))
 
-        videoPlayerManager = NativeVideoPlayerManager(
-            applicationContext,
-            flutterEngine.dartExecutor.binaryMessenger,
-            flutterEngine.renderer,
-        ) { anyPlaying -> setKeepScreenOn(anyPlaying) }
+        // The video player and device channels are registered on every
+        // engine by EngineChannels (so Android Auto can play with the app
+        // closed); this window only keeps the screen on while playing.
+        EngineChannels.onAnyPlayingChanged = { anyPlaying -> setKeepScreenOn(anyPlaying) }
 
         // TV text entry goes through a native EditText (see TvTextInput).
         if (isTelevision()) {
@@ -121,12 +98,7 @@ class MainActivity : AudioServiceActivity() {
         }
     }
 
-    // TV mode (Android TV, Google TV, Fire TV), or Leanback hardware.
-    private fun isTelevision(): Boolean {
-        val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-    }
+    private fun isTelevision(): Boolean = EngineChannels.isTelevision(this)
 
     // Issue #28: the system's normal screen-timeout/screensaver rules apply
     // during playback because nothing was telling Android the device is in
