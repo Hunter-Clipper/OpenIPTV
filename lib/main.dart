@@ -34,22 +34,27 @@ void main() async {
   await initNowPlayingService(container.read(playbackServiceProvider));
   // Android Auto's browse tree reads the same data, profile and playlist
   // as the app (the car may start the app without its screen — see
-  // EngineChannels.kt).
-  nowPlayingHandler
-    ..library = CarLibrary(
-      db: container.read(appDatabaseProvider),
-      loadPrefs: () => container.read(appPreferencesProvider.future),
-      loadProfile: () => container.read(activeProfileProvider.future),
-      fetchEpisodes: (seriesId, sourceId) => container
-          .read(sourceManagerProvider)
-          .fetchEpisodesForSeries(seriesId, sourceId),
-      nowOn: (channelId) async => (await container
-              .read(epgServiceProvider)
-              .getCurrentProgramme(channelId))
-          ?.title,
-    )
-    ..currentProfileId =
-        () async => (await container.read(activeProfileProvider.future))?.id;
+  // EngineChannels.kt). Phones and tablets only: TVs never connect to a
+  // car, so the car library isn't set up there at all.
+  debugPrint('[OTV-auto] car library '
+      '${PlatformHelper.isTVDevice ? 'off (TV)' : 'on'}');
+  if (!PlatformHelper.isTVDevice) {
+    nowPlayingHandler
+      ..library = CarLibrary(
+        db: container.read(appDatabaseProvider),
+        loadPrefs: () => container.read(appPreferencesProvider.future),
+        loadProfile: () => container.read(activeProfileProvider.future),
+        fetchEpisodes: (seriesId, sourceId) => container
+            .read(sourceManagerProvider)
+            .fetchEpisodesForSeries(seriesId, sourceId),
+        nowOn: (channelId) async => (await container
+                .read(epgServiceProvider)
+                .getCurrentProgramme(channelId))
+            ?.title,
+      )
+      ..currentProfileId =
+          () async => (await container.read(activeProfileProvider.future))?.id;
+  }
 
   runApp(
     UncontrolledProviderScope(
