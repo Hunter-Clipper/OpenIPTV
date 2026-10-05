@@ -37,17 +37,26 @@ import io.flutter.view.TextureRegistry
  * for exactly this reason (far more battle-tested against the fragmented
  * Android decoder landscape than mpv).
  *
- * One instance per texture/surface. Rendered via TextureRegistry's modern
- * SurfaceProducer API (the same one video_player_android itself now uses)
+ * One instance per texture/surface. Rendered into a TextureRegistry
+ * SurfaceTexture (see the field comment for why not a SurfaceProducer)
  * rather than a full native PlatformView — simpler and composes better
  * with Flutter (including PiP) since it's just a GPU texture, no view
  * hierarchy overlay.
  */
 class NativeVideoPlayer(
     context: Context,
-    private val surfaceProducer: TextureRegistry.SurfaceProducer,
+    private val texture: TextureRegistry.SurfaceTextureEntry,
     private val onPlayingChanged: (Boolean) -> Unit = {},
 ) {
+    // A SurfaceTexture, not a SurfaceProducer: on Android 10+ the producer
+    // is ImageReader-backed and Flutter draws the whole decoder buffer,
+    // ignoring its crop rectangle. Decoders that pad their buffers (common
+    // on TV chips, e.g. SD channels in a 1920x1088 buffer) then showed the
+    // picture in the top-left corner with uninitialised green around it
+    // (#30). SurfaceTexture's transform matrix carries the crop, which the
+    // engine applies on every backend.
+    private val surface = android.view.Surface(texture.surfaceTexture())
+
     private val appContext = context.applicationContext
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
 
@@ -67,7 +76,7 @@ class NativeVideoPlayer(
     }
 
     init {
-        exoPlayer.setVideoSurface(surfaceProducer.surface)
+        exoPlayer.setVideoSurface(surface)
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) = emitState()
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -328,7 +337,8 @@ class NativeVideoPlayer(
         mainHandler.removeCallbacks(positionUpdater)
         onPlayingChanged(false)
         exoPlayer.release()
-        surfaceProducer.release()
+        surface.release()
+        texture.release()
     }
 }
 
@@ -366,9 +376,9 @@ class NativeVideoPlayerManager(
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "create" -> {
-                val surfaceProducer = textureRegistry.createSurfaceProducer()
-                val id = surfaceProducer.id()
-                val player = NativeVideoPlayer(context, surfaceProducer) { isPlaying ->
+                val texture = textureRegistry.createSurfaceTexture()
+                val id = texture.id()
+                val player = NativeVideoPlayer(context, texture) { isPlaying ->
                     setPlaying(id, isPlaying)
                 }
                 val eventChannel = EventChannel(messenger, "openiptv/video_player_events/$id")
