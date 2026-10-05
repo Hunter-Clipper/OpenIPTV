@@ -23,6 +23,7 @@ class MainActivity : AudioServiceActivity() {
     private var backChannel: MethodChannel? = null
     private var updatesChannel: MethodChannel? = null
     private var videoPlayerManager: NativeVideoPlayerManager? = null
+    private var castController: CastController? = null
 
     // Updated proactively by Dart via pip_service.dart's updatePipAvailability()
     // whenever "PiP enabled AND actively playing" changes. Read synchronously
@@ -100,6 +101,11 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             flutterEngine.renderer,
         ) { anyPlaying -> setKeepScreenOn(anyPlaying) }
+
+        castController = CastController(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
     }
 
     // Issue #28: the system's normal screen-timeout/screensaver rules apply
