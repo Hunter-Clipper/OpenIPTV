@@ -30,7 +30,7 @@
 
 - **Android phone / tablet:** download [`app-release.apk`](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk) from the [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) and open it, allowing installs from your browser or file manager.
 - **Fire TV / Android TV:** install the free Downloader app, enter the code above, and allow it to install unknown apps when asked.
-- **Updates:** the app offers new versions itself (Settings → About → Check for Updates, or automatically about once a day).
+- **Updates:** the app offers new versions itself (automatically every time it starts, or Settings → About → Check for Updates).
 
 > Upgrading from **v0.10.45 or older**? Those builds were signed with a different key, so uninstall first:
 > export a backup (Settings → Backup & Restore), uninstall, install the new version, then tap
@@ -72,11 +72,14 @@
 **Bring your own playlist**
 - Add an **M3U link**, an **M3U file saved on your device**, or an **Xtream Codes** login in a friendly setup wizard. No account needed.
 - Add as many playlists as you like and browse one at a time or all together.
+- **Edit a playlist** when your provider changes its server address or your login — the new details are checked before they're saved, and your favourites and watch progress carry over.
+- **Refresh everything with one tap** — every playlist's channels, movies, series and TV guide — or set it to happen in the background.
+- Your logins are **stored encrypted** on the device, with a key only the app can use.
 
 **Watch**
 - **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home.
 - **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
-- **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
+- **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour on phones and a slim bar along the bottom on TV, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
 - **Search** across channels, movies, series and what's on right now, with recent searches one tap away.
 
 **For the whole household**
@@ -99,7 +102,7 @@
 | Phase | Target | Status |
 |---|---|---|
 | 1 | Android phone + tablet | ✅ Active — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
-| 2 | Android TV / Fire TV | 🚧 In progress — tested on the Android TV emulator |
+| 2 | Android TV / Fire TV | 🚧 In progress — tested on a Chromecast with Google TV |
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
@@ -155,9 +158,9 @@ android/app/src/main/kotlin/com/openiptv/app/
 ### Architecture
 
 - **State:** Riverpod 2, partly code-generated with `riverpod_annotation`.
-- **Database:** Drift (SQLite), with versioned, guarded migrations.
+- **Database:** Drift on SQLCipher (AES-256, key kept in the Android Keystore via `flutter_secure_storage`), with versioned, guarded migrations.
 - **Navigation:** `go_router`. On Android TV (detected natively via `UiModeManager`) the tab bar becomes a side rail with remote-first focus handling.
-- **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture`. It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
+- **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` (a `SurfaceTexture`, so decoder crop is honoured). It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
 - **Parsing:** custom Dart M3U, XMLTV and Xtream parsers; large payloads are decoded off the UI thread.
 - **Background work:** `workmanager` for scheduled refresh, `flutter_local_notifications` for results, `audio_service` for the media notification.
 - **Updates:** reads GitHub's `releases/latest` API anonymously, downloads the APK and hands it to Android's installer. Play Store installs are skipped.
