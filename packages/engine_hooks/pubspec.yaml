@@ -1,0 +1,19 @@
+name: engine_hooks
+description: Lets the OpenIPTV app register its own native channels on every Flutter engine, including the headless one audio_service starts for Android Auto.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.openiptv.engine_hooks
+        pluginClass: EngineHooksPlugin

@@ -5,8 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/car_library.dart';
+import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
@@ -27,6 +32,24 @@ void main() async {
   // rest of the app plays through, not a separate one.
   final container = ProviderContainer();
   await initNowPlayingService(container.read(playbackServiceProvider));
+  // Android Auto's browse tree reads the same data, profile and playlist
+  // as the app (the car may start the app without its screen — see
+  // EngineChannels.kt).
+  nowPlayingHandler
+    ..library = CarLibrary(
+      db: container.read(appDatabaseProvider),
+      loadPrefs: () => container.read(appPreferencesProvider.future),
+      loadProfile: () => container.read(activeProfileProvider.future),
+      fetchEpisodes: (seriesId, sourceId) => container
+          .read(sourceManagerProvider)
+          .fetchEpisodesForSeries(seriesId, sourceId),
+      nowOn: (channelId) async => (await container
+              .read(epgServiceProvider)
+              .getCurrentProgramme(channelId))
+          ?.title,
+    )
+    ..currentProfileId =
+        () async => (await container.read(activeProfileProvider.future))?.id;
 
   runApp(
     UncontrolledProviderScope(

@@ -28,5 +28,10 @@ void initPipChannel({
 /// fast one. So MainActivity keeps a cached flag, updated here whenever
 /// PiP-eligibility (pref enabled AND actively playing) changes.
 Future<void> updatePipAvailability(bool canEnterPip) async {
-  await _pipChannel.invokeMethod('setPipAvailable', canEnterPip);
+  try {
+    await _pipChannel.invokeMethod('setPipAvailable', canEnterPip);
+  } on MissingPluginException {
+    // No app window (playback started from Android Auto with the app
+    // closed) — nothing to put into Picture-in-Picture.
+  }
 }

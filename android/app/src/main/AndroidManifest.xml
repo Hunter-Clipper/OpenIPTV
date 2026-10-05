@@ -17,7 +17,7 @@
 
     <application
         android:label="OpenIPTV"
-        android:name="${applicationName}"
+        android:name=".OpenIptvApplication"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
         android:usesCleartextTraffic="true"
@@ -54,6 +54,11 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Android Auto (#33): OpenIPTV is a media app (audio while
+             driving), browsed through audio_service's media service. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
         <!-- Casting (CastController.kt): built-in Default Media Receiver. -->
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
