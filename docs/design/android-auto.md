@@ -21,8 +21,8 @@ while parked (waiting to pick someone up, charging an EV).
 
 What users get:
 - OpenIPTV appears in Android Auto's media apps.
-- Browse: Favorites, Recently Watched, Live TV categories → channels
-  (and optionally Movies / Series as audio).
+- Browse: Favorites, Recently Watched, Live TV categories → channels,
+  plus Movies and Series (played as audio, resuming where you left off).
 - Voice search ("Play BBC News on OpenIPTV").
 - Plays the stream's **audio**, with car controls: play / pause,
   next / previous channel, and now-playing info (channel logo, current
@@ -39,8 +39,10 @@ Technical plan:
    `MediaLibraryService` in Kotlin. Start with audio_service to reuse what
    exists; revisit if it limits us.
 2. **Browse tree** backed by the existing providers / database queries:
-   root → Favorites, Recently Watched, Categories → channels. Artwork from
-   channel logos. Bounded lists (Android Auto limits list sizes).
+   root → Live TV (Favorites, Recently Watched, categories → channels),
+   Movies (Continue Watching, genres → titles) and Series (Continue
+   Watching, genres → series → seasons → episodes). Artwork from logos and
+   posters. Bounded lists (Android Auto limits list sizes and depth).
 3. **Audio-only playback** through the existing native player without a
    video surface (disable the video track to save data / battery).
 4. **Car-only guards:** no PIN dialogs, no setup or settings in the car;
@@ -78,16 +80,32 @@ Blockers to weigh before starting:
   Google's restrictions, break often and can put the user's Google account
   at risk. OpenIPTV won't build on or recommend them.
 
-## Open questions for the owner
+## Decisions (owner, 2026-10-05)
 
-1. OK to start with audio-only Android Auto (phase 1)?
-2. Include Movies / Series (audio) in the car browse tree, or Live TV only?
-3. Is a Play Store edition something you'd pursue (needed for parked video
-   and for Android Auto without "Unknown sources")?
+1. **Start audio-only, for everything:** Live TV, Movies and Series are all
+   browsable and play as audio in the car.
+2. **Play Store edition: maybe, undecided.** Parked video stays a
+   future phase; meanwhile it can be prototyped for development as below.
+
+## Developer testing of parked video (sideloaded)
+
+| Where | Possible? |
+|---|---|
+| **Android Automotive OS emulator** (AAOS x86_64 system images in the SDK) | **Yes.** The sideloaded APK installs over ADB; the parked-video category and the driving-restriction handling can be exercised by simulating gear / speed through the emulator's car data (extended controls or VHAL property injection). Flutter builds x86_64. |
+| Real car with Google built-in | Generally **no** — production cars don't allow sideloading; apps come from the car's Play Store. |
+| Android Auto (phone projected, incl. the Desktop Head Unit) | **No** — third-party apps only get Google's templates; there's no video surface, even for development. |
+
+So parked video can be built and verified end-to-end in the emulator with
+today's sideloaded app, as groundwork for a possible Play Store edition —
+but real users could only get it in their cars through the Play Store.
+Note: the emulator plus a release build is heavy for this machine's 7 GB
+RAM (as with the TV emulator) — build first, then boot the emulator.
 
 ## Milestones
 
 1. Browse tree in the DHU (Favorites, Recently Watched, categories).
 2. Audio playback + car controls + now-playing info.
 3. Voice search, parental / Kids filtering, car-safe error states.
-4. README section on enabling it for sideloaded installs.
+4. Movies / Series browsing with resume.
+5. README section on enabling it for sideloaded installs.
+6. (Optional, dev-only) parked-video prototype in the Automotive emulator.
