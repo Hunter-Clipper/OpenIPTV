@@ -567,6 +567,17 @@ class _ChannelRow extends ConsumerWidget {
                   ],
                 ),
               ),
+              // TV: a marker only — the row itself is the one focus stop;
+              // hold OK on it for Add to / Remove from Favorites (#31).
+              if (PlatformHelper.isTV(context))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: isFavorite
+                      ? Icon(Icons.star_rounded,
+                          color: theme.colorScheme.primary)
+                      : const SizedBox(width: 24),
+                )
+              else
               IconButton(
                 icon: Icon(
                   isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
@@ -683,6 +694,8 @@ class _ChannelOptionsSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
+            // TV: the remote's OK acts on it straight away.
+            autofocus: true,
             leading: Icon(isFavorite ? Icons.star_border : Icons.star),
             title: Text(
                 isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),

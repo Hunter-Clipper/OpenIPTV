@@ -587,6 +587,7 @@ void _showSeriesOptions(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
+            autofocus: true,
             leading: Icon(isFav ? Icons.star_border : Icons.star),
             title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
             onTap: () async {
