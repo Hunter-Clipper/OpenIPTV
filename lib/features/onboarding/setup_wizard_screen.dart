@@ -233,6 +233,23 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       setState(() => _errorMessage = 'Choose a playlist file first.');
       return;
     }
+    // Say what's missing rather than trying to connect with blanks and
+    // failing with a vague error.
+    final missing = _playlistType == SourceType.xtream
+        ? [
+            if (_xtreamHostCtrl.text.trim().isEmpty) 'server address',
+            if (_xtreamUserCtrl.text.trim().isEmpty) 'username',
+            if (_xtreamPassCtrl.text.trim().isEmpty) 'password',
+          ]
+        : [if (!_fromFile && _m3uUrlCtrl.text.trim().isEmpty) 'M3U URL'];
+    if (missing.isNotEmpty) {
+      final list = missing.length == 1
+          ? missing.first
+          : '${missing.sublist(0, missing.length - 1).join(', ')} and '
+              '${missing.last}';
+      setState(() => _errorMessage = 'Enter the $list from your provider.');
+      return;
+    }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -764,9 +781,12 @@ class _NamePage extends StatelessWidget {
                 style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
               ),
               SizedBox(height: v(32)),
-              TextField(
-                controller: nameCtrl,
+              TvTextFieldGate(
                 focusNode: nameFocusNode,
+                borderRadius: const BorderRadius.all(Radius.circular(14)),
+                builder: (context, fieldNode) => TextField(
+                controller: nameCtrl,
+                focusNode: fieldNode,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => onContinue(),
@@ -791,6 +811,7 @@ class _NamePage extends StatelessWidget {
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 18),
                 ),
+              ),
               ),
               SizedBox(height: v(32)),
               const Text(
@@ -1635,9 +1656,11 @@ class _WizardField extends StatelessWidget {
               fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 6),
-        TextField(
-          controller: ctrl,
+        TvTextFieldGate(
           focusNode: focusNode,
+          builder: (context, fieldNode) => TextField(
+          controller: ctrl,
+          focusNode: fieldNode,
           keyboardType: type,
           obscureText: obscure,
           autocorrect: false,
@@ -1664,6 +1687,7 @@ class _WizardField extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             suffixIcon: suffix,
           ),
+        ),
         ),
       ],
     );

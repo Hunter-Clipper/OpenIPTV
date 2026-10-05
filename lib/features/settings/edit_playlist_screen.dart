@@ -276,8 +276,10 @@ class _Field extends StatelessWidget {
               style: theme.textTheme.labelLarge!
                   .copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 6),
-          TextField(
+          TvTextFieldGate(
+            builder: (context, fieldNode) => TextField(
             controller: ctrl,
+            focusNode: fieldNode,
             keyboardType: type,
             obscureText: obscure,
             enabled: enabled,
@@ -301,6 +303,7 @@ class _Field extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               suffixIcon: suffix,
             ),
+          ),
           ),
         ],
       ),

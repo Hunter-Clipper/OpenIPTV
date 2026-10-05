@@ -458,3 +458,116 @@ class _TvRowFocusState extends State<TvRowFocus> {
     );
   }
 }
+
+/// A text field the TV remote can move past without the on-screen keyboard
+/// popping up (#29). On TV the field's outline is the focus stop; OK opens
+/// the keyboard (focuses the real [TextField]), and finishing ("Next" /
+/// "Done") or Up/Down hands the remote back to the outlines. Focusing a
+/// field directly — how Flutter normally works — opens Google TV's
+/// full-screen keyboard at once, hiding which field it was for. The
+/// selected field is also scrolled into view.
+///
+/// [builder] receives the node to give the TextField. [focusNode], when
+/// given, is the outline's node, so a screen can still move the remote
+/// to a particular field. On phones and tablets this is the plain field.
+class TvTextFieldGate extends StatefulWidget {
+  const TvTextFieldGate({
+    super.key,
+    required this.builder,
+    this.focusNode,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+  });
+
+  final Widget Function(BuildContext context, FocusNode fieldNode) builder;
+  final FocusNode? focusNode;
+  final BorderRadius borderRadius;
+
+  @override
+  State<TvTextFieldGate> createState() => _TvTextFieldGateState();
+}
+
+class _TvTextFieldGateState extends State<TvTextFieldGate> {
+  FocusNode? _ownGate;
+  FocusNode get _gate => widget.focusNode ?? (_ownGate ??= FocusNode());
+  // Not a D-pad stop itself: traversal moves between gates, and leaving a
+  // field with Next/Up/Down lands on the neighbouring gate, not its field.
+  final _field = FocusNode(skipTraversal: true);
+  bool _gateFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _field.addListener(_onFieldFocus);
+  }
+
+  @override
+  void dispose() {
+    _field.removeListener(_onFieldFocus);
+    _field.dispose();
+    _ownGate?.dispose();
+    super.dispose();
+  }
+
+  void _onFieldFocus() {
+    if (mounted) setState(() {});
+  }
+
+  // Scrolls only the nearest *vertical* scrollable. Scrollable.ensureVisible
+  // would also move every scrollable above it — in the setup wizard that's
+  // the sideways page view, which jolted the page left on each move.
+  void _reveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = context.findRenderObject();
+      var scrollable = Scrollable.maybeOf(context);
+      while (scrollable != null &&
+          scrollable.axisDirection != AxisDirection.down &&
+          scrollable.axisDirection != AxisDirection.up) {
+        scrollable = Scrollable.maybeOf(scrollable.context);
+      }
+      if (box == null || scrollable == null) return;
+      scrollable.position.ensureVisible(
+        box,
+        alignment: 0.3,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  KeyEventResult _onGateKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.gameButtonA) {
+      _field.requestFocus();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!PlatformHelper.isTV(context)) {
+      return widget.builder(context, widget.focusNode ?? _field);
+    }
+    final lit = _gateFocused && !_field.hasFocus;
+    return Focus(
+      focusNode: _gate,
+      onKeyEvent: _onGateKey,
+      onFocusChange: (f) {
+        setState(() => _gateFocused = f);
+        if (f) _reveal();
+      },
+      child: Container(
+        foregroundDecoration: BoxDecoration(
+          border: Border.all(
+              color: lit ? Colors.white : Colors.transparent, width: 3),
+          borderRadius: widget.borderRadius,
+        ),
+        child: widget.builder(context, _field),
+      ),
+    );
+  }
+}
