@@ -123,13 +123,15 @@ class ProfileScreen extends ConsumerWidget {
                     error: (_, __) => const SizedBox.shrink(),
                     data: (all) => Column(
                       children: [
-                        ...all.map((p) => _ProfileTile(
-                              profile: p,
-                              isActive: p.id == profile.id,
-                              onEdit: () => _showEditDialog(context, ref, p),
-                              onDelete: all.length > 1
-                                  ? () => _confirmDelete(context, ref, p)
-                                  : null,
+                        ...all.map((p) => TvRevealOnFocus(
+                              child: _ProfileTile(
+                                profile: p,
+                                isActive: p.id == profile.id,
+                                onEdit: () => _showEditDialog(context, ref, p),
+                                onDelete: all.length > 1
+                                    ? () => _confirmDelete(context, ref, p)
+                                    : null,
+                              ),
                             )),
                         TvActivatable(
                           onTap: () => _showCreateDialog(context, ref),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
@@ -569,5 +570,51 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
         child: widget.builder(context, _field),
       ),
     );
+  }
+}
+
+/// Scrolls this whole widget into view whenever focus lands anywhere inside
+/// it. Flutter's D-pad traversal only reveals the focused node itself, so a
+/// small button in a row (a playlist's refresh or ⋮) could be on screen
+/// while the rest of its row was cut off at the edge.
+class TvRevealOnFocus extends StatelessWidget {
+  const TvRevealOnFocus({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!PlatformHelper.isTV(context)) return child;
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (focused) {
+        if (focused) _reveal(context);
+      },
+      child: child,
+    );
+  }
+
+  static void _reveal(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      final box = context.findRenderObject();
+      final scrollable = Scrollable.maybeOf(context);
+      if (box == null || scrollable == null) return;
+      final viewport = RenderAbstractViewport.maybeOf(box);
+      if (viewport == null) return;
+      final position = scrollable.position;
+      // Smallest scroll that shows both the top and the bottom edge.
+      final showTop = viewport.getOffsetToReveal(box, 0).offset;
+      final showBottom = viewport.getOffsetToReveal(box, 1).offset;
+      final lo = showBottom < showTop ? showBottom : showTop;
+      final hi = showBottom < showTop ? showTop : showBottom;
+      final target = position.pixels
+          .clamp(lo, hi)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      if ((target - position.pixels).abs() < 1) return;
+      position.animateTo(target,
+          duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
+    });
   }
 }

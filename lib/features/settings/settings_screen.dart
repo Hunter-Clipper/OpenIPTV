@@ -1025,46 +1025,48 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                         _refreshingPlaylist.contains(s.id);
                     final isEpgRefreshing = _refreshingEpg.contains(s.id);
                     final isBusy = isPlaylistRefreshing || isEpgRefreshing;
-                    return TvActivatable(
-                      onTap: multiSource && !isActive && !isBusy
-                          ? () => _switchSource(context, s)
-                          : null,
-                      builder: (onTap) => ListTile(
-                        leading: _PlaylistBadge(
-                            icon: Icons.playlist_play_rounded,
-                            active: isActive),
-                        title: Text(s.nickname),
-                        subtitle: Text(
-                          [
-                            s.type == SourceType.xtream
-                                ? 'Xtream Codes'
-                                : LocalPlaylists.isLocal(s.m3uUrl)
-                                    ? 'Playlist file'
-                                    : 'M3U playlist',
-                            if (isActive && multiSource) 'Browsing',
-                          ].join(' · '),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        onTap: onTap,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _SourceAction(
-                              icon: Icons.sync_rounded,
-                              tooltip: 'Refresh Playlist',
-                              busy: isBusy,
-                              onTap:
-                                  isBusy ? null : () => _refreshPlaylist(s.id),
-                            ),
-                            _SourceMenu(
-                              enabled: !isBusy,
-                              onEdit: () => _editSource(s),
-                              onInfo: () => _showInfoPanel(context, s),
-                              onRefreshGuide: () => _refreshEpg(s.id),
-                              onRemove: () =>
-                                  _confirmDelete(context, s.id, s.nickname),
-                            ),
-                          ],
+                    return TvRevealOnFocus(
+                      child: TvActivatable(
+                        onTap: multiSource && !isActive && !isBusy
+                            ? () => _switchSource(context, s)
+                            : null,
+                        builder: (onTap) => ListTile(
+                          leading: _PlaylistBadge(
+                              icon: Icons.playlist_play_rounded,
+                              active: isActive),
+                          title: Text(s.nickname),
+                          subtitle: Text(
+                            [
+                              s.type == SourceType.xtream
+                                  ? 'Xtream Codes'
+                                  : LocalPlaylists.isLocal(s.m3uUrl)
+                                      ? 'Playlist file'
+                                      : 'M3U playlist',
+                              if (isActive && multiSource) 'Browsing',
+                            ].join(' · '),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          onTap: onTap,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _SourceAction(
+                                icon: Icons.sync_rounded,
+                                tooltip: 'Refresh Playlist',
+                                busy: isBusy,
+                                onTap:
+                                    isBusy ? null : () => _refreshPlaylist(s.id),
+                              ),
+                              _SourceMenu(
+                                enabled: !isBusy,
+                                onEdit: () => _editSource(s),
+                                onInfo: () => _showInfoPanel(context, s),
+                                onRefreshGuide: () => _refreshEpg(s.id),
+                                onRemove: () =>
+                                    _confirmDelete(context, s.id, s.nickname),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
