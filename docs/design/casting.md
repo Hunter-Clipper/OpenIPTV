@@ -78,10 +78,8 @@ Mitigations, in order:
 
 ## Licensing / distribution
 
-- The Google Cast SDK is part of Google Play Services. That conflicts with
-  the project's F-Droid-friendly goal, so casting should live in a
-  **Play-services build flavour** (the default GitHub APK) with an
-  F-Droid flavour that leaves it out. Decide flavours before merging.
+- The Google Cast SDK is part of Google Play Services. Decision: ship it in
+  the single GitHub APK; an F-Droid build without it is deferred.
 
 ## AirPlay
 
@@ -100,18 +98,19 @@ Native to Apple platforms only; it comes with the iOS port
 - Unit tests: cast URL builder (format selection from
   `allowed_output_formats`), hand-off position logic.
 
-## Open questions for the owner
+## Decisions (owner, 2026-10-05)
 
-1. OK with a Play-services build flavour for casting (F-Droid build
-   without it)?
-2. Start with the Default Media Receiver only, accepting that some live
-   channels won't cast, or invest in a custom receiver early?
-3. Should casting be admin-only or available to every profile (parental
-   locks still apply to what's picked)?
+1. **One build.** Casting ships in the normal GitHub APK; an F-Droid build
+   without Play Services is on the back burner for now.
+2. **Built-in Chromecast player** (the Default Media Receiver) — no custom
+   receiver. Channels it can't play get the plain-English message, and live
+   channels are requested as HLS where the provider allows it.
+3. **Available app-wide** — every profile can cast (parental locks still
+   decide what each profile can pick).
 
 ## Milestones
 
-1. Build flavours + Cast SDK wiring, device discovery, Cast button.
+1. Cast SDK wiring, device discovery, Cast button.
 2. Cast a movie / episode (MP4) with hand-off and remote controls.
 3. Live TV casting with HLS selection + friendly failure message.
 4. Notification / lock-screen integration, polish, docs.
