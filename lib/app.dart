@@ -19,6 +19,7 @@ import 'package:open_iptv/features/player/player_screen.dart';
 import 'package:open_iptv/features/search/search_screen.dart';
 import 'package:open_iptv/features/series/series_detail_screen.dart';
 import 'package:open_iptv/features/series/series_screen.dart';
+import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/features/settings/parental_screen.dart';
@@ -462,7 +463,14 @@ class _ShellState extends State<_Shell> {
 
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: _BottomNav(onBeforeNavigate: onBeforeNavigate),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // "Now casting" bar while something plays on a cast device.
+          const CastMiniBar(),
+          _BottomNav(onBeforeNavigate: onBeforeNavigate),
+        ],
+      ),
     );
   }
 }

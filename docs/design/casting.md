@@ -1,6 +1,6 @@
 # Casting to TVs and speakers (Chromecast / AirPlay)
 
-Status: **planning** — tracks [#32](https://github.com/Hunter-Clipper/OpenIPTV/issues/32).
+Status: **built, in review** — tracks [#32](https://github.com/Hunter-Clipper/OpenIPTV/issues/32).
 
 ## Goal
 
@@ -107,6 +107,26 @@ Native to Apple platforms only; it comes with the iOS port
    channels are requested as HLS where the provider allows it.
 3. **Available app-wide** — every profile can cast (parental locks still
    decide what each profile can pick).
+
+## What's built (branch `feature/casting`)
+
+- `CastController.kt` (Cast framework + MediaRouter, Default Media
+  Receiver) on `openiptv/cast` / `openiptv/cast_events`; device discovery
+  runs while a Cast button is on screen (reference-counted).
+- `CastService` (Dart): status stream, connect / load / transport; waits
+  for the native channel at startup (shared audio_service engine).
+- Player: Cast button (phones / tablets only), hand-off both ways with
+  position, `CastRemoteView` remote, channel switching while casting,
+  Continue Watching kept current from the receiver position.
+- Browse screens: Cast button next to Settings (connect first, then pick
+  content), "now casting" bar above the tabs, full-screen remote page.
+- Live Xtream `.ts` channels are cast as their `.m3u8` variant first,
+  then the original link; a plain-English message if neither plays.
+
+Verified on a Pixel 9 Pro XL → "Office TV" (Chromecast): live channel
+(HLS), channel switch while casting, movie with seek and resume,
+pause / play from the bar and the remote, stop from the sheet and the
+remote, hand-back to the phone.
 
 ## Milestones
 

@@ -33,6 +33,7 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.playPauseFocusNode,
     this.backFocusNode,
     this.onChannels,
+    this.onCast,
     this.buffering = false,
   });
 
@@ -63,6 +64,8 @@ class PlayerControls extends ConsumerStatefulWidget {
   final bool isBehindLive;
   // Live TV: opens the channel switcher.
   final VoidCallback? onChannels;
+  // Opens the cast device picker; null hides the Cast button.
+  final VoidCallback? onCast;
   // Stream is loading: the play button shows a spinner.
   final bool buffering;
 
@@ -178,6 +181,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             playPauseFocusNode: widget.playPauseFocusNode,
             backFocusNode: widget.backFocusNode,
             onChannels: widget.onChannels,
+            onCast: widget.onCast,
           )
         : _VodControls(
             title: widget.title,
@@ -215,6 +219,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             onGoLive: widget.isLiveDvr ? widget.onGoLive : null,
             playPauseFocusNode: widget.playPauseFocusNode,
             backFocusNode: widget.backFocusNode,
+            onCast: widget.onCast,
           );
   }
 }
@@ -582,6 +587,7 @@ List<Widget> _actionButtons({
   required String? favoriteChannelId,
   required VoidCallback? onEpg,
   VoidCallback? onChannels,
+  VoidCallback? onCast,
 }) {
   final m = PlayerMetrics.of(context);
   final size = m.tv ? m.tvButton : m.actionSize;
@@ -624,6 +630,13 @@ List<Widget> _actionButtons({
         onTap: onEpg,
         size: size,
       ),
+    if (onCast != null)
+      PlayerButton(
+        icon: Icons.cast_rounded,
+        tooltip: 'Cast',
+        onTap: onCast,
+        size: size,
+      ),
     if (onChannels != null)
       PlayerButton(
         icon: Icons.format_list_bulleted_rounded,
@@ -660,6 +673,7 @@ class _LiveControls extends ConsumerWidget {
     this.onForward,
     this.onGoLive,
     this.onChannels,
+    this.onCast,
     this.isBehindLive = false,
     this.playPauseFocusNode,
     this.backFocusNode,
@@ -679,6 +693,8 @@ class _LiveControls extends ConsumerWidget {
   final VoidCallback? onForward;
   final VoidCallback? onGoLive;
   final VoidCallback? onChannels;
+  // Opens the cast device picker; null hides the Cast button.
+  final VoidCallback? onCast;
   final bool isBehindLive;
   final FocusNode? playPauseFocusNode;
   final FocusNode? backFocusNode;
@@ -696,6 +712,7 @@ class _LiveControls extends ConsumerWidget {
       favoriteChannelId: contentId,
       onEpg: onEpg,
       onChannels: onChannels,
+      onCast: onCast,
     );
     // LIVE badge doubles as a "back to live" button once the user has
     // paused/rewound behind the live edge.
@@ -883,12 +900,14 @@ class _VodControls extends ConsumerWidget {
     this.onGoLive,
     this.playPauseFocusNode,
     this.backFocusNode,
+    this.onCast,
   });
 
   final String title;
   final String? qualityLabel;
   final FocusNode? playPauseFocusNode;
   final FocusNode? backFocusNode;
+  final VoidCallback? onCast;
   // Only set for catch-up playback — the channel id, reused so the
   // favourite toggle applies to the channel, same as live playback.
   final String? contentId;
@@ -1020,6 +1039,7 @@ class _VodControls extends ConsumerWidget {
           onSettings: onSettings,
           favoriteChannelId: contentId,
           onEpg: onEpg,
+          onCast: onCast,
         ),
       ),
     );

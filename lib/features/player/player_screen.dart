@@ -16,6 +16,8 @@ import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/channel_switcher.dart';
+import 'package:open_iptv/core/services/cast_service.dart';
+import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
@@ -137,6 +139,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // reconnect logic must use _currentUrl instead once either tier kicks in.
   late String _currentUrl;
   Channel? _liveChannel;
+
+  // Casting (#32). While [_casting], this screen's item plays on the cast
+  // device: the local engine is stopped and CastRemoteView covers the
+  // player. Starts when a device connects (or is already connected when
+  // the player opens); stopping casting resumes here at the same point.
+  late final CastService _cast;
+  StreamSubscription<CastStatus>? _castSub;
+  bool _casting = false;
+  String? _castMessage;
+  String? _castSubtitle;
+  String? _castImage;
   Source? _liveSource;
   // True once a catch-up-enabled channel has been switched into full DVR
   // scrubbing (real seek bar via _VodControls) by pausing/rewinding.
@@ -166,7 +179,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // The error screen has its own buttons (Try again / Channels / Go back);
   // the regular controls would draw over it.
   bool get _playbackGaveUp => _retryCount >= _maxRetries;
-  bool get _showOverlayControls => _controlsVisible && !_playbackGaveUp;
+  bool get _showOverlayControls =>
+      _controlsVisible && !_playbackGaveUp && !_casting;
 
   bool get _isChannelPlayback => _isLive || widget.contentType == 'catchup';
 
@@ -182,18 +196,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _profileId = ref.read(activeProfileIdProvider);
     ref.listenManual<String?>(
         activeProfileIdProvider, (_, next) => _profileId = next);
-    // Lock to landscape for immersive playback.
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Lock to landscape for immersive playback — unless this opens straight
+    // onto a cast device, where the phone is just the remote.
+    if (!ref.read(castServiceProvider).status.connected) _enterFullscreen();
 
     _playbackService = ref.read(playbackServiceProvider);
     _playbackService.ensureTexture().then((_) {
       if (mounted) setState(() => _textureReady = true);
     });
     _currentUrl = widget.streamUrl;
+    _cast = ref.read(castServiceProvider);
+    _castSub = _cast.statusStream.listen(_onCastStatus);
+    // Look for cast devices while the player is open so the Cast button
+    // can appear (phones / tablets only — a TV is the screen itself).
+    if (!PlatformHelper.isTVDevice) unawaited(_cast.startDiscovery());
     // A guide-picked catch-up programme starts life already "in DVR mode"
     // for this channel — there's no separate live-then-rewind transition to
     // flip it on, since this screen was launched straight into catch-up.
@@ -210,7 +226,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // retrying. Permanent HTTP failures show a message right away; anything
     // else reconnects now instead of waiting for the stall timer.
     _errorSub = _playbackService.errorStream.listen((e) {
-      if (!mounted) return;
+      if (!mounted || _casting) return;
       _cancelStallTimer();
       if (e.isPermanent) {
         setState(() {
@@ -230,7 +246,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
     });
     _stateSub = _playbackService.stateStream.listen((s) {
-      if (!mounted) return;
+      if (!mounted || _casting) return;
       if (_playbackFailed) return;
       if (s.buffering && !s.hasVideo) {
         if (!_isBuffering) setState(() => _isBuffering = true);
@@ -292,7 +308,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _onStall() async {
-    if (!mounted) return;
+    if (!mounted || _casting) return;
     if (_retryCount >= _maxRetries) {
       // Give up — show a permanent error state via the buffering overlay.
       setState(() {
@@ -587,6 +603,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _stateSub?.cancel();
     _errorSub?.cancel();
     _cueSub?.cancel();
+    _castSub?.cancel();
+    if (!PlatformHelper.isTVDevice) unawaited(_cast.stopDiscovery());
     HardwareKeyboard.instance.removeHandler(_onAnyKeyEvent);
     _controlsFocusNode.dispose();
     _playPauseFocusNode.dispose();
@@ -650,23 +668,103 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
       _lastKnownPosition = Duration.zero;
       _lastKnownDuration = Duration.zero;
-      await _playbackService.play(
-        widget.streamUrl,
-        startPosition: resume ? widget.resumePosition : null,
-      );
+      await _playOrCast(resume ? widget.resumePosition : null);
       _playbackStarted = true;
     } else {
       _lastKnownPosition = Duration.zero;
       _lastKnownDuration = Duration.zero;
-      await _playbackService.play(
-        widget.streamUrl,
-        startPosition: widget.resumePosition == Duration.zero
-            ? null
-            : widget.resumePosition,
-      );
+      await _playOrCast(widget.resumePosition == Duration.zero
+          ? null
+          : widget.resumePosition);
       _playbackStarted = true;
     }
     unawaited(_updateNowPlayingMetadata());
+  }
+
+  // Opening while a cast device is connected plays straight there.
+  Future<void> _playOrCast(Duration? start) async {
+    if (_cast.status.connected) {
+      await _startCasting(start);
+    } else {
+      await _playbackService.play(widget.streamUrl, startPosition: start);
+    }
+  }
+
+  void _onCastStatus(CastStatus s) {
+    if (!mounted) return;
+    if (s.connected && !_casting && _playbackStarted) {
+      // A device just connected: hand over at the current point.
+      unawaited(_startCasting(_isPlainLive ? null : _lastKnownPosition));
+    } else if (_casting &&
+        !s.connected &&
+        s.session != CastSessionState.connecting) {
+      // Casting stopped (here, from the notification, or the TV): carry on
+      // on this device where the TV left off.
+      _stopCasting(resumeAt: _isPlainLive ? null : _lastKnownPosition);
+    } else if (_casting && !_isPlainLive && s.position > Duration.zero) {
+      // Keep progress current so Continue Watching is right.
+      _lastKnownPosition = s.position;
+      if (s.duration > Duration.zero) _lastKnownDuration = s.duration;
+    }
+    if (_casting &&
+        _castMessage == null &&
+        s.playerState == CastPlayerState.idle &&
+        s.idleReason == 'error') {
+      setState(() => _castMessage = _castFailedMessage(s));
+    }
+  }
+
+  String _castFailedMessage(CastStatus s) =>
+      "This ${_isChannelPlayback ? 'channel' : 'title'} can't be played on "
+      "${s.device ?? 'this device'}. Stop casting to watch it here.";
+
+  Future<void> _startCasting(Duration? start) async {
+    _cancelStallTimer();
+    setState(() {
+      _casting = true;
+      _castMessage = null;
+      _isBuffering = false;
+      _isRecovering = false;
+      _controlsVisible = false;
+    });
+    _hideTimer?.cancel();
+    // Free the provider connection first — many accounts allow only one.
+    await _playbackService.stop();
+    _playbackStarted = true;
+    final accepted = await _cast.load(
+      streamUrl: _currentUrl,
+      title: widget.title,
+      subtitle: _castSubtitle,
+      imageUrl: _castImage,
+      live: _isPlainLive,
+      start: start,
+    );
+    if (!mounted || !_casting) return;
+    if (accepted == null) {
+      setState(() => _castMessage = _castFailedMessage(_cast.status));
+    }
+  }
+
+  void _enterFullscreen() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _stopCasting({Duration? resumeAt}) {
+    _enterFullscreen();
+    setState(() {
+      _casting = false;
+      _castMessage = null;
+      _isBuffering = true;
+      _retryCount = 0;
+      _playbackFailed = false;
+    });
+    unawaited(_playbackService.play(_currentUrl, startPosition: resumeAt));
+    _startStallTimer();
+    _showControls();
   }
 
   // Best-effort — a lookup failure must never block or crash playback, so
@@ -701,6 +799,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Ignore — fall back to bare title below.
     }
     if (!mounted) return;
+    setState(() {
+      _castSubtitle = artist;
+      _castImage = artUri?.toString();
+    });
     nowPlayingHandler.setNowPlaying(widget.title,
         artist: artist, artUri: artUri);
   }
@@ -901,6 +1003,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final castAvailable = ref.watch(castStatusProvider
+        .select((a) => a.valueOrNull?.available ?? false));
     final inPip = ref.watch(pipActiveProvider);
     if (inPip) {
       // Bare video surface only — no controls/overlays fit the tiny PiP window.
@@ -1039,6 +1143,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     widget.contentId != null
                                 ? _openChannels
                                 : null,
+                            // Casting is a phone/tablet feature (a TV is
+                            // itself the screen), shown once a device is
+                            // on the network.
+                            onCast: castAvailable && !PlatformHelper.isTV(context)
+                                ? () => showCastPicker(context)
+                                : null,
                           ),
                         ),
                       ),
@@ -1052,6 +1162,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   episode: _nextEpisode!,
                   onPlay: _playNextEpisode,
                   onDismiss: () => setState(() => _showUpNext = false),
+                ),
+              if (_casting)
+                Positioned.fill(
+                  child: CastRemoteView(
+                    title: widget.title,
+                    subtitle: _castSubtitle,
+                    isLive: _isPlainLive,
+                    message: _castMessage,
+                    onBack: () => context.pop(),
+                    onChannels: _isChannelPlayback && widget.contentId != null
+                        ? _openChannels
+                        : null,
+                  ),
                 ),
             ],
           ),

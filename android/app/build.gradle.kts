@@ -83,4 +83,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.11.0")
     implementation("androidx.media3:media3-exoplayer-hls:1.11.0")
     implementation("androidx.media3:media3-extractor:1.11.0")
+    // Casting to Chromecast / Google TV (CastController.kt): Google Cast
+    // framework + MediaRouter for device discovery.
+    implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
+    implementation("androidx.mediarouter:mediarouter:1.8.1")
 }
