@@ -82,6 +82,7 @@
 - **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
 - **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour on phones and a slim bar along the bottom on TV, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
 - **Search** across channels, movies, series and what's on right now, with recent searches one tap away.
+- **Cast to your TV** from your phone: send a channel, movie or episode to a Chromecast or Google TV and keep using the phone as the remote (play, pause, seek, switch channels, volume). Your place in movies and episodes is saved while you cast.
 
 **For the whole household**
 - Profiles with a "Who's watching?" screen, optional PINs (typed on your device's own number keyboard) and admin/standard roles.
@@ -153,7 +154,7 @@ lib/
 
 assets/branding/     # logo, splash, TV banner and README banner sources (SVG) + export.py
 android/app/src/main/kotlin/com/openiptv/app/
-                     # NativeVideoPlayer (ExoPlayer), MainActivity, AppUpdater, FileSaver
+                     # NativeVideoPlayer (ExoPlayer), CastController, MainActivity, AppUpdater, FileSaver
 ```
 
 ### Architecture
@@ -163,6 +164,7 @@ android/app/src/main/kotlin/com/openiptv/app/
 - **Navigation:** `go_router`. On Android TV (detected natively via `UiModeManager`) the tab bar becomes a side rail with remote-first focus handling.
 - **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` (a `SurfaceTexture`, so decoder crop is honoured). It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
 - **Parsing:** custom Dart M3U, XMLTV and Xtream parsers; large payloads are decoded off the UI thread.
+- **Casting:** the Google Cast framework with the Default Media Receiver (no custom receiver app); phones only — it is switched off on TVs.
 - **Background work:** `workmanager` for scheduled refresh, `flutter_local_notifications` for results, `audio_service` for the media notification.
 - **Updates:** reads GitHub's `releases/latest` API anonymously, downloads the APK and hands it to Android's installer. Play Store installs are skipped.
 - **Branding:** edit the SVGs in `assets/branding/`, then run `python3 assets/branding/export.py`, `dart run flutter_launcher_icons` and `dart run flutter_native_splash:create`.
