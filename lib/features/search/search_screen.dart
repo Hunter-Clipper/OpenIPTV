@@ -5,8 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
-import 'package:open_iptv/core/models/movie.dart';
-import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
@@ -22,6 +20,7 @@ import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 // Read by _ShellState (app.dart) when the native Back-button channel fires
 // while sitting on the Search tab, to decide whether Back should refocus the
@@ -37,56 +36,25 @@ final ValueNotifier<bool> searchFieldFocused = ValueNotifier<bool>(false);
 
 final _searchQueryProvider = StateProvider<String>((ref) => '');
 
-/// The full searchable catalog, loaded once while the Search tab is open
-/// (autoDispose) rather than on every debounced keystroke — reloading tens
-/// of thousands of rows per query made results take several seconds.
-final _searchCatalogProvider = FutureProvider.autoDispose<
-    ({List<Channel> channels, List<Movie> movies, List<Series> series})>(
-  (ref) async {
-    final db = ref.watch(appDatabaseProvider);
-    // Search follows the active playlist, like the browse tabs; null means
-    // "All playlists".
-    final sourceId = ref.watch(activeSourceIdProvider);
-    final (channels, movies, series) = await (
-      db.getAllChannels(),
-      db.getAllMovies(),
-      db.getAllSeries(),
-    ).wait;
-    if (sourceId == null) {
-      return (channels: channels, movies: movies, series: series);
-    }
-    return (
-      channels: channels.where((c) => c.sourceId == sourceId).toList(),
-      movies: movies.where((m) => m.sourceId == sourceId).toList(),
-      series: series.where((s) => s.sourceId == sourceId).toList(),
-    );
-  },
-);
-
 final _searchResultsProvider =
     FutureProvider.autoDispose<SearchResults>((ref) async {
-  // Watched before the short-query early return so the catalog stays
-  // loaded (and starts preloading as soon as the tab opens) between queries.
-  final catalogFuture = ref.watch(_searchCatalogProvider.future);
   final query = ref.watch(_searchQueryProvider);
   if (query.trim().length < SearchService.minQueryLength) {
     return SearchResults.empty;
   }
 
+  // Search follows the active playlist, like the browse tabs; null means
+  // "All playlists". The matching happens in the database isolate — never
+  // load the whole catalog here: with large playlists that froze the UI
+  // (and the remote) for ~10 s on TVs (#38).
+  final search = SearchService(ref.watch(appDatabaseProvider));
   final epg = ref.watch(epgServiceProvider);
-  // Only what's airing right now changes between queries, so only the
-  // programme search runs per query.
-  final (catalog, currentProgrammes) = await (
-    catalogFuture,
-    epg.searchCurrentProgrammes(query),
-  ).wait;
-
-  final results = const SearchService().search(
+  final sourceId = ref.watch(activeSourceIdProvider);
+  final airing = await epg.searchCurrentProgrammes(query);
+  final results = await search.search(
     query: query,
-    channels: catalog.channels,
-    currentProgrammes: currentProgrammes,
-    movies: catalog.movies,
-    series: catalog.series,
+    currentProgrammes: airing,
+    sourceId: sourceId,
   );
 
   // Kid profiles never see adult content in search results at all —
@@ -122,13 +90,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   static const _maxRecent = 8;
 
-  // A plain TextField swallows arrow keys for its own (single-line, no-op)
-  // caret movement, so it never bubbles up to Flutter's directional focus
-  // system — arrow-left here would otherwise never reach the nav rail, and
-  // arrow-down would never reach the results below. Handling them directly
-  // on this exact FocusNode (rather than an ancestor) intercepts them before
-  // EditableText's own key handling gets a chance.
-  late final FocusNode _searchFocusNode = FocusNode(onKeyEvent: _handleKey);
+  // On phones the field's node; on TV the node of the field's outline
+  // (TvTextFieldGate), which is where the remote stops — OK on it opens the
+  // keyboard. Focusing the field itself on TV popped Google TV's keyboard
+  // over the screen every time the tab opened (#38).
+  final FocusNode _searchFocusNode = FocusNode();
   // Wraps everything below the search bar; Down from the field goes to its
   // first item (the first result or recent-search chip) — directional
   // search picked whichever card sat geometrically closest instead.
@@ -141,7 +107,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // The query outlives this screen (switching tabs rebuilds it); show it
     // in the box, or the old results sit under an empty field.
     _controller.text = ref.read(_searchQueryProvider);
-    _searchFocusNode.addListener(_handleFocusChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && PlatformHelper.isTV(context)) {
+        _searchFocusNode.requestFocus();
+      }
+    });
     ref.read(appPreferencesProvider.future).then((prefs) {
       if (mounted) setState(() => _recent = prefs.recentSearches);
     });
@@ -149,7 +119,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
-    _searchFocusNode.removeListener(_handleFocusChange);
     _searchFocusNode.dispose();
     _belowBarNode.dispose();
     _controller.dispose();
@@ -158,14 +127,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     super.dispose();
   }
 
-  void _handleFocusChange() {
-    searchFieldFocused.value = _searchFocusNode.hasFocus;
-  }
-
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.arrowLeft && _controller.text.isEmpty) {
+    // From the outline (TV) Left always goes to the menu; inside the field
+    // it moves the caret unless there's nothing to move through.
+    if (key == LogicalKeyboardKey.arrowLeft &&
+        (_controller.text.isEmpty || _searchFocusNode.hasPrimaryFocus &&
+            PlatformHelper.isTV(context))) {
       TvNavRailFocus.maybeOf(context)?.requestFocus();
       return KeyEventResult.handled;
     }
@@ -175,7 +144,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         first.requestFocus();
         return KeyEventResult.handled;
       }
-      return node.focusInDirection(TraversalDirection.down)
+      final moved = FocusManager.instance.primaryFocus
+              ?.focusInDirection(TraversalDirection.down) ??
+          false;
+      return moved
           ? KeyEventResult.handled
           : KeyEventResult.ignored;
     }
@@ -235,12 +207,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         bottom: false,
         child: Column(
           children: [
-            _SearchBar(
-              controller: _controller,
-              focusNode: _searchFocusNode,
-              onChanged: _onChanged,
-              onSubmitted: _search,
-              onClear: _clearSearch,
+            // Sees the arrows before the field's own caret handling, from
+            // the field or (TV) its outline; also tells the shell's Back
+            // handler that the search bar has the remote.
+            Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onKeyEvent: _handleKey,
+              onFocusChange: (f) => searchFieldFocused.value = f,
+              child: _SearchBar(
+                controller: _controller,
+                focusNode: _searchFocusNode,
+                onChanged: _onChanged,
+                onSubmitted: (q) {
+                  _search(q);
+                  // Keyboard closed: give the remote back to the outline.
+                  if (PlatformHelper.isTV(context)) {
+                    _searchFocusNode.requestFocus();
+                  }
+                },
+                onClear: _clearSearch,
+              ),
             ),
             Expanded(
               child: Focus(
@@ -308,10 +295,14 @@ class _SearchBar extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: TextField(
-        controller: controller,
+      child: TvTextFieldGate(
         focusNode: focusNode,
-        autofocus: true,
+        borderRadius: BorderRadius.circular(28),
+        builder: (context, fieldNode) => TextField(
+        controller: controller,
+        focusNode: fieldNode,
+        // On TV the screen focuses the outline instead (no keyboard).
+        autofocus: !PlatformHelper.isTV(context),
         onChanged: onChanged,
         onSubmitted: (v) => onSubmitted(v.trim()),
         textInputAction: TextInputAction.search,
@@ -344,6 +335,7 @@ class _SearchBar extends StatelessWidget {
                   ),
                 ),
         ),
+      ),
       ),
     );
   }

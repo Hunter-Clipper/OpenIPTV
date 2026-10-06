@@ -2,6 +2,7 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/series.dart';
+import 'package:open_iptv/core/storage/database.dart' show AppDatabase;
 
 class SearchResults {
   const SearchResults({
@@ -29,49 +30,37 @@ class SearchResults {
 }
 
 class SearchService {
-  const SearchService();
+  const SearchService(this.db);
+
+  final AppDatabase db;
 
   static const minQueryLength = 2;
 
-  /// Strict contains-match search.
+  /// Strict contains-match search, case-insensitive, run in the database.
   ///
   /// Channels match if their name contains [query] OR if a currently-airing
-  /// EPG programme title contains [query] (TiviMate-style).
-  /// [currentProgrammes] is a list of programmes currently on air that match
-  /// [query] — their channelId is used to surface the channel.
-  SearchResults search({
+  /// EPG programme title contains [query] (TiviMate-style); name matches
+  /// come first. [currentProgrammes] are the airing programmes that match
+  /// [query] — their channelId surfaces the channel. [sourceId] limits the
+  /// search to one playlist (null = all playlists).
+  Future<SearchResults> search({
     required String query,
-    required List<Channel> channels,
     required List<Programme> currentProgrammes,
-    required List<Movie> movies,
-    required List<Series> series,
-  }) {
-    final q = query.trim().toLowerCase();
+    String? sourceId,
+  }) async {
+    final q = query.trim();
     if (q.length < minQueryLength) return SearchResults.empty;
 
-    // Build set of channel IDs matched via EPG
-    final epgMatchedIds = {for (final p in currentProgrammes) p.channelId};
-
-    // Name matches rank above channels found only via what's airing on them.
-    final nameMatches = <Channel>[];
-    final epgOnlyMatches = <Channel>[];
-    for (final c in channels) {
-      if (c.name.toLowerCase().contains(q)) {
-        nameMatches.add(c);
-      } else if (epgMatchedIds.contains(c.id)) {
-        epgOnlyMatches.add(c);
-      }
-    }
-
+    final found = await db.searchCatalog(
+      q,
+      sourceId: sourceId,
+      airingChannelIds: {for (final p in currentProgrammes) p.channelId},
+    );
     return SearchResults(
-      channels: [...nameMatches, ...epgOnlyMatches],
+      channels: found.channels,
       nowPlaying: {for (final p in currentProgrammes) p.channelId: p.title},
-      movies: movies
-          .where((m) => m.title.toLowerCase().contains(q))
-          .toList(),
-      series: series
-          .where((s) => s.title.toLowerCase().contains(q))
-          .toList(),
+      movies: found.movies,
+      series: found.series,
     );
   }
 }

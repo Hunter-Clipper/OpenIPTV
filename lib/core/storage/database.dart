@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:drift/extensions/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/storage/db_encryption.dart';
 import 'package:sqlite3/sqlite3.dart' show Database;
@@ -188,7 +189,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -271,6 +272,7 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(channels, channels.streamId);
             }
           }
+          if (from < 9) await _createSearchIndexes();
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -310,6 +312,28 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_watch_progress_profile '
       'ON watch_progress (profile_id, content_type)',
+    );
+    await _createSearchIndexes();
+  }
+
+  // Search scans these narrow indexes instead of whole rows (#38): reading
+  // every movie's description or every programme off an encrypted database
+  // took seconds per query on a TV. A "contains" can't seek an index, but
+  // a covering index is far less to read than the table.
+  Future<void> _createSearchIndexes() async {
+    // Currently-airing programme search: range on start, rest covered.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_programmes_airing '
+      'ON programmes (start, "end", title, channel_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_channels_name ON channels (name)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movies_title ON movies (title)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_series_title ON series_entries (title)',
     );
   }
 
@@ -466,6 +490,78 @@ class AppDatabase extends _$AppDatabase {
   Future<List<model.Channel>> getAllChannels({String? profileId}) async {
     final rows = await select(channels).get();
     return _withChannelProgress(rows.map(_channelFromRow).toList(), profileId);
+  }
+
+  /// Search, run inside the database isolate so only the matches cross over
+  /// — loading the whole catalog to filter it in Dart froze the UI for
+  /// ~10 s on a TV with large playlists (#38). Matching is a strict,
+  /// case-insensitive "contains" (see [_textContains]); each table is
+  /// scanned through its small name/title index, not its full rows.
+  ///
+  /// Channels match by name, or — ranked after those — by what's airing on
+  /// them: [airingChannelIds] comes from a capped programme search.
+  Future<
+      ({
+        List<model.Channel> channels,
+        List<model.Movie> movies,
+        List<model.Series> series,
+      })> searchCatalog(
+    String query, {
+    String? sourceId,
+    Set<String> airingChannelIds = const {},
+  }) async {
+    Expression<bool> inSource(GeneratedColumn<String> column) =>
+        sourceId == null ? const Constant(true) : column.equals(sourceId);
+    // Row ids from a scan of the (narrow) title index only; the full rows
+    // — descriptions and all — are read just for the matches.
+    Expression<bool> matching(
+      TableInfo<Table, dynamic> table,
+      GeneratedColumn<String> title,
+    ) =>
+        table.rowId.isInQuery(selectOnly(table)
+          ..addColumns([table.rowId])
+          ..where(_textContains(title, query)));
+
+    final (byName, byAiring, movieRows, seriesRows) = await (
+      (select(channels)
+            ..where((t) => matching(channels, t.name) & inSource(t.sourceId)))
+          .get(),
+      airingChannelIds.isEmpty
+          ? Future.value(<ChannelRow>[])
+          : (select(channels)
+                ..where((t) =>
+                    t.id.isIn(airingChannelIds) &
+                    _textContains(t.name, query).not() &
+                    inSource(t.sourceId)))
+              .get(),
+      (select(movies)
+            ..where((t) => matching(movies, t.title) & inSource(t.sourceId)))
+          .get(),
+      (select(seriesEntries)
+            ..where((t) =>
+                matching(seriesEntries, t.title) & inSource(t.sourceId)))
+          .get(),
+    ).wait;
+    return (
+      channels: [...byName, ...byAiring].map(_channelFromRow).toList(),
+      movies: movieRows.map(_movieFromRow).toList(),
+      series: seriesRows.map(_seriesFromRow).toList(),
+    );
+  }
+
+  /// Case-insensitive "contains", matching Dart's
+  /// `text.toLowerCase().contains(query.toLowerCase())`. Plain-ASCII
+  /// queries use SQLite's own LIKE (case-folds ASCII; `%`/`_` escaped) —
+  /// a Dart callback per row is ~2× slower on a TV. Anything else (é, Ж…)
+  /// goes through drift's Dart-side `containsCase`, since LIKE only folds
+  /// ASCII.
+  static Expression<bool> _textContains(
+      Expression<String> text, String query) {
+    final ascii = query.codeUnits.every((c) => c < 0x80);
+    if (!ascii) return text.containsCase(query);
+    final escaped = query.replaceAllMapped(
+        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
+    return text.like('%$escaped%', escapeChar: '\\');
   }
 
   Stream<List<model.Channel>> watchAllChannels({String? profileId}) {
@@ -655,19 +751,34 @@ class AppDatabase extends _$AppDatabase {
     return rows.map(_programmeFromRow).toList();
   }
 
-  /// Returns programmes currently airing whose title contains [query].
-  /// Used to surface channels in search results via EPG title matching.
+  /// Returns programmes currently airing whose title contains [query]
+  /// (see [_textContains]). Used to surface channels in search results via
+  /// EPG title matching, so only channel, times and title are read — all
+  /// from idx_programmes_airing, never the full rows (a full scan of a big
+  /// guide took ~14 s on a TV).
   Future<List<model.Programme>> searchCurrentProgrammes(String query) async {
     final now = DateTime.now();
-    final q = '%${query.toLowerCase()}%';
-    final rows = await (select(programmes)
-          ..where((t) =>
-              t.title.lower().like(q) &
-              t.start.isSmallerOrEqualValue(now) &
-              t.end.isBiggerThanValue(now))
+    final rows = await (selectOnly(programmes)
+          ..addColumns([
+            programmes.channelId,
+            programmes.start,
+            programmes.end,
+            programmes.title,
+          ])
+          ..where(programmes.start.isSmallerOrEqualValue(now) &
+              programmes.end.isBiggerThanValue(now) &
+              _textContains(programmes.title, query))
           ..limit(100))
         .get();
-    return rows.map(_programmeFromRow).toList();
+    return [
+      for (final r in rows)
+        model.Programme(
+          channelId: r.read(programmes.channelId)!,
+          start: r.read(programmes.start)!,
+          end: r.read(programmes.end)!,
+          title: r.read(programmes.title)!,
+        ),
+    ];
   }
 
   // ---------------------------------------------------------------------------

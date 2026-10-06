@@ -73,4 +73,27 @@ void main() {
 
     expect(result.map((p) => p.channelId), ['a']);
   });
+
+  test('searchCurrentProgrammes finds only what is airing now', () async {
+    Future<void> show(String channelId, String title, Duration from,
+            Duration to) =>
+        db.into(db.programmes).insert(ProgrammesCompanion.insert(
+              channelId: channelId,
+              start: now.add(from),
+              end: now.add(to),
+              title: title,
+            ));
+    await show('a', 'The Simpsons', const Duration(minutes: -10),
+        const Duration(minutes: 20));
+    await show('b', 'Simpsons Marathon', const Duration(hours: 1),
+        const Duration(hours: 2)); // later
+    await show('c', 'Old Simpsons', const Duration(hours: -2),
+        const Duration(hours: -1)); // over
+    await show('d', 'News', const Duration(minutes: -5),
+        const Duration(minutes: 5));
+
+    final found = await db.searchCurrentProgrammes('SIMPSON');
+    expect(found.map((p) => (p.channelId, p.title)),
+        [('a', 'The Simpsons')]);
+  });
 }
