@@ -32,7 +32,7 @@
 - **Fire TV / Android TV:** install the free Downloader app, enter the code above, and allow it to install unknown apps when asked.
 - **Updates:** the app offers new versions itself (automatically every time it starts, or Settings → About → Check for Updates).
 
-> Upgrading from **v0.10.45 or older**? Those builds were signed with a different key, so uninstall first:
+> Upgrading from **v0.10.47 or older**? Those builds were signed with a different key, so uninstall first:
 > export a backup (Settings → Backup & Restore), uninstall, install the new version, then tap
 > **Restore from a backup** on the welcome screen.
 
@@ -109,7 +109,7 @@
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
 
-**Next up:** promoting a profile to admin, deep links, a reworked full-screen TV guide, and the iOS port.
+**Next up:** Android Auto (audio, in testing), promoting a profile to admin, deep links, a reworked full-screen TV guide, and the iOS port.
 
 ---
 
@@ -154,7 +154,8 @@ lib/
 
 assets/branding/     # logo, splash, TV banner and README banner sources (SVG) + export.py
 android/app/src/main/kotlin/com/openiptv/app/
-                     # NativeVideoPlayer (ExoPlayer), CastController, MainActivity, AppUpdater, FileSaver
+                     # NativeVideoPlayer (ExoPlayer), CastController, TvTextInput, MainActivity,
+                     # AppUpdater, FileSaver
 ```
 
 ### Architecture
@@ -164,6 +165,7 @@ android/app/src/main/kotlin/com/openiptv/app/
 - **Navigation:** `go_router`. On Android TV (detected natively via `UiModeManager`) the tab bar becomes a side rail with remote-first focus handling.
 - **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` (a `SurfaceTexture`, so decoder crop is honoured). It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
 - **Parsing:** custom Dart M3U, XMLTV and Xtream parsers; large payloads are decoded off the UI thread.
+- **TV text input:** on Android TV, typing goes through a native Android text box mirrored into the Flutter field, because TV keyboards can't be driven by the remote in a Flutter text field.
 - **Casting:** the Google Cast framework with the Default Media Receiver (no custom receiver app); phones only — it is switched off on TVs.
 - **Background work:** `workmanager` for scheduled refresh, `flutter_local_notifications` for results, `audio_service` for the media notification.
 - **Updates:** reads GitHub's `releases/latest` API anonymously, downloads the APK and hands it to Android's installer. Play Store installs are skipped.
@@ -175,7 +177,7 @@ android/app/src/main/kotlin/com/openiptv/app/
 - **No content.** The app ships with no channels, playlists or stream sources, and the project won't add any or document where to find them.
 - **No analytics, telemetry or accounts.** The app only contacts the playlists and guides you add, plus GitHub for update checks.
 - **Plain-English errors.** Never show stack traces, HTTP codes or library error strings to users.
-- **F-Droid-friendly:** no proprietary dependencies in the main build.
+- **Open dependencies:** the only proprietary library is the Google Cast framework, used for casting from phones. Everything else is open source, so an F-Droid build without casting remains possible.
 - **Performance targets:** cold start to channel list under 3 s, channel tap to video under 2 s, search results under 300 ms.
 
 ---
