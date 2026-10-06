@@ -92,7 +92,7 @@
 **Polish**
 - Tidy names (`|EN| HORROR/THRILLER` → "Horror / Thriller") and a fitting icon for every category.
 - Material 3 design with Google Sans, six accent colours and Android-style grouped Settings.
-- Works with a TV remote: a side navigation rail, a clear white focus ring, and Android TV launcher support.
+- Works with a TV remote: a side navigation rail, a clear white focus ring, the TV's own on-screen keyboard for search, logins and PINs, and Android TV launcher support.
 - Background refresh of playlists and guides on a schedule you choose.
 - **In-app updates** for sideloaded installs.
 - **No ads, no telemetry, no accounts.**
