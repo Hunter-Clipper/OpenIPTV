@@ -104,7 +104,7 @@
 | Phase | Target | Status |
 |---|---|---|
 | 1 | Android phone + tablet | ✅ Active — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
-| 2 | Android TV / Fire TV | 🚧 In progress — tested on a Chromecast with Google TV |
+| 2 | Android TV / Fire TV | ✅ Beta — tested on a Chromecast with Google TV |
 | 3 | iOS + iPadOS | Not started |
 | 4 | Apple TV | Not started |
 | 5 | Windows + macOS | Not started |
