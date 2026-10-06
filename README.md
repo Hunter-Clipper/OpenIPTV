@@ -105,11 +105,12 @@
 |---|---|---|
 | 1 | Android phone + tablet | ✅ Beta — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
 | 2 | Android TV / Fire TV | ✅ Beta — [latest release](https://github.com/Hunter-Clipper/OpenIPTV/releases/latest) |
-| 3 | iOS + iPadOS | Not started |
-| 4 | Apple TV | Not started |
-| 5 | Windows + macOS | Not started |
+| 3 | iOS + iPadOS | 📋 Planned |
+| 4 | Apple TV | 📋 Planned |
+| 5 | Windows + macOS | 📋 Planned |
+| 6 | Web browser | 📋 Planned |
 
-**Next up:** Android Auto (audio, in testing), promoting a profile to admin, deep links, a reworked full-screen TV guide, and the iOS port.
+**Next up:** Android Auto (audio, in testing), promoting a profile to admin, deep links and a reworked full-screen TV guide. Plans for the other platforms are in [`docs/design`](docs/design).
 
 ---
 
