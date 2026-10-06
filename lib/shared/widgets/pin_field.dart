@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 /// PINs are 4–8 digits everywhere (profile PINs, the admin PIN).
 const kPinMinLength = 4;
@@ -60,34 +61,44 @@ class _PinFieldState extends State<PinField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return TextField(
-      controller: widget.controller,
+    final tv = PlatformHelper.isTV(context);
+    // TV: the outline is the stop and typing goes through the native
+    // keyboard bridge (see TvTextFieldGate) — Google TV's keyboard can't be
+    // driven by the remote in a Flutter field. Autofocus opens it at once.
+    return TvTextFieldGate(
       focusNode: _node,
-      autofocus: widget.autofocus,
-      obscureText: true,
-      obscuringCharacter: '●',
-      keyboardType: TextInputType.number,
-      textInputAction: TextInputAction.done,
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(kPinMaxLength),
-      ],
-      textAlign: TextAlign.center,
-      style: theme.textTheme.headlineSmall!.copyWith(letterSpacing: 10),
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmitted,
-      decoration: InputDecoration(
-        errorText: widget.errorText,
-        counterText: '',
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+      borderRadius: BorderRadius.circular(16),
+      openOnShow: widget.autofocus,
+      builder: (context, fieldNode) => TextField(
+        controller: widget.controller,
+        focusNode: fieldNode,
+        autofocus: widget.autofocus && !tv,
+        obscureText: true,
+        obscuringCharacter: '●',
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(kPinMaxLength),
+        ],
+        textAlign: TextAlign.center,
+        style: theme.textTheme.headlineSmall!.copyWith(letterSpacing: 10),
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+        decoration: InputDecoration(
+          errorText: widget.errorText,
+          counterText: '',
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerHighest,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide:
+                BorderSide(color: theme.colorScheme.primary, width: 2),
+          ),
         ),
       ),
     );
@@ -146,7 +157,10 @@ class _PinDialogState extends State<_PinDialog> {
     return Dialog(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
-        child: ConstrainedBox(
+        // Scrolls when the TV keyboard leaves little room; the PIN box sits
+        // high enough to stay in view.
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -206,6 +220,7 @@ class _PinDialogState extends State<_PinDialog> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -291,6 +291,8 @@ class BackupScreen extends ConsumerWidget {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        // Scrolls when the TV keyboard leaves little room.
+        scrollable: true,
         title: const Text('Protect This Backup?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -302,12 +304,15 @@ class BackupScreen extends ConsumerWidget {
               "you'll need the same password to restore it.",
             ),
             const SizedBox(height: 16),
-            TextField(
+            TvTextFieldGate(
+              builder: (context, fieldNode) => TextField(
+                focusNode: fieldNode,
               controller: controller,
               obscureText: true,
               decoration:
                   const InputDecoration(hintText: 'Password (optional)'),
               onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
+            )
             ),
           ],
         ),
@@ -340,6 +345,8 @@ class BackupScreen extends ConsumerWidget {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        // Scrolls when the TV keyboard leaves little room.
+        scrollable: true,
         title: const Text('Backup is Protected'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -350,11 +357,14 @@ class BackupScreen extends ConsumerWidget {
               'Enter the password that was set when it was exported.',
             ),
             const SizedBox(height: 16),
-            TextField(
+            TvTextFieldGate(
+              builder: (context, fieldNode) => TextField(
+                focusNode: fieldNode,
               controller: controller,
               obscureText: true,
               decoration: const InputDecoration(hintText: 'Enter password'),
               onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
+            )
             ),
           ],
         ),

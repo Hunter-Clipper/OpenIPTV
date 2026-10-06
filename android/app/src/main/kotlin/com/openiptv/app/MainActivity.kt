@@ -106,6 +106,11 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.renderer,
         ) { anyPlaying -> setKeepScreenOn(anyPlaying) }
 
+        // TV text entry goes through a native EditText (see TvTextInput).
+        if (isTelevision()) {
+            TvTextInput(this, flutterEngine.dartExecutor.binaryMessenger)
+        }
+
         // Casting is phone / tablet only: a TV, Fire TV or Android TV box is
         // the screen itself, so the Cast framework isn't even started there.
         if (!isTelevision()) {

@@ -10,6 +10,7 @@ import 'package:open_iptv/core/services/pip_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
@@ -295,7 +296,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         debugShowCheckedModeBanner: false,
         builder: (context, child) => DisplayNames(
           enabled: ref.watch(cleanNamesProvider),
-          child: TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+          child: TvKeyboardInset(
+            child: TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );

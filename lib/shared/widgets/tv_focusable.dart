@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Wraps [child] so it can receive D-pad/keyboard focus: shows an animated
@@ -461,27 +462,39 @@ class _TvRowFocusState extends State<TvRowFocus> {
 }
 
 /// A text field the TV remote can move past without the on-screen keyboard
-/// popping up (#29). On TV the field's outline is the focus stop; OK opens
-/// the keyboard (focuses the real [TextField]), and finishing ("Next" /
-/// "Done") or Up/Down hands the remote back to the outlines. Focusing a
-/// field directly — how Flutter normally works — opens Google TV's
-/// full-screen keyboard at once, hiding which field it was for. The
-/// selected field is also scrolled into view.
+/// popping up (#29). On TV the field's outline is the focus stop and OK
+/// opens the keyboard. Typing goes through a native Android text box
+/// ([TvTextInput]) — Google TV's keyboard ignores the remote while a
+/// Flutter field owns the input — and is mirrored into the TextField's
+/// controller, so the Flutter field never takes focus on TV. The keyboard's
+/// action key runs `onSubmitted` (and "Next" moves on to the next field);
+/// Back, or Up/Down once the keyboard is gone, hands the remote back to the
+/// outline. The selected field is also scrolled into view.
 ///
-/// [builder] receives the node to give the TextField. [focusNode], when
-/// given, is the outline's node, so a screen can still move the remote
-/// to a particular field. On phones and tablets this is the plain field.
+/// [builder] must return a [TextField] with a controller; it receives the
+/// node to give it. [focusNode], when given, is the outline's node, so a
+/// screen can still move the remote to a particular field. On phones and
+/// tablets this is the plain field.
 class TvTextFieldGate extends StatefulWidget {
   const TvTextFieldGate({
     super.key,
     required this.builder,
     this.focusNode,
     this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+    this.autofocus = false,
+    this.openOnShow = false,
   });
 
   final Widget Function(BuildContext context, FocusNode fieldNode) builder;
   final FocusNode? focusNode;
   final BorderRadius borderRadius;
+
+  /// TV: the outline takes the remote when first shown. (The TextField
+  /// itself must not autofocus on TV — pass `autofocus: !isTV`.)
+  final bool autofocus;
+
+  /// TV: also opens the keyboard straight away (a PIN prompt).
+  final bool openOnShow;
 
   @override
   State<TvTextFieldGate> createState() => _TvTextFieldGateState();
@@ -490,27 +503,34 @@ class TvTextFieldGate extends StatefulWidget {
 class _TvTextFieldGateState extends State<TvTextFieldGate> {
   FocusNode? _ownGate;
   FocusNode get _gate => widget.focusNode ?? (_ownGate ??= FocusNode());
-  // Not a D-pad stop itself: traversal moves between gates, and leaving a
-  // field with Next/Up/Down lands on the neighbouring gate, not its field.
+  // The TextField's own node. On TV it's never focused (that would open
+  // Flutter's input, which the TV keyboard can't be driven through).
   final _field = FocusNode(skipTraversal: true);
   bool _gateFocused = false;
+  // The native keyboard is open for this field.
+  bool _typing = false;
+  Timer? _keepVisible;
+  TextField? _textField;
 
   @override
   void initState() {
     super.initState();
-    _field.addListener(_onFieldFocus);
+    if (widget.openOnShow) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !PlatformHelper.isTV(context)) return;
+        _gate.requestFocus();
+        _startTyping();
+      });
+    }
   }
 
   @override
   void dispose() {
-    _field.removeListener(_onFieldFocus);
+    _keepVisible?.cancel();
+    if (_typing) TvTextInput.close();
     _field.dispose();
     _ownGate?.dispose();
     super.dispose();
-  }
-
-  void _onFieldFocus() {
-    if (mounted) setState(() {});
   }
 
   // Scrolls only the nearest *vertical* scrollable. Scrollable.ensureVisible
@@ -542,10 +562,65 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
     if (key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.gameButtonA) {
-      _field.requestFocus();
+      _startTyping();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  void _startTyping() {
+    final tf = _textField;
+    final controller = tf?.controller;
+    if (tf == null || controller == null || tf.enabled == false) return;
+    setState(() => _typing = true);
+    // The keyboard takes the bottom of the screen (TvKeyboardInset) and the
+    // layout shrinks over the next frames (a dialog animates its inset, and
+    // hides the inset from its contents, so there's nothing to listen to):
+    // keep bringing this field back into view for the first second.
+    _keepVisible?.cancel();
+    var ticks = 0;
+    _keepVisible = Timer.periodic(const Duration(milliseconds: 100), (t) {
+      if (!mounted || !_typing || ++ticks > 10) {
+        t.cancel();
+        return;
+      }
+      _reveal();
+      WidgetsBinding.instance.scheduleFrame();
+    });
+    TvTextInput.open(
+      controller: controller,
+      keyboardType: tf.keyboardType,
+      obscureText: tf.obscureText,
+      enableSuggestions: tf.enableSuggestions && (tf.autocorrect ?? true),
+      textInputAction: tf.textInputAction,
+      maxLength: tf.maxLength ??
+          tf.inputFormatters
+              ?.whereType<LengthLimitingTextInputFormatter>()
+              .firstOrNull
+              ?.maxLength,
+      onChanged: tf.onChanged,
+      onAction: () {
+        tf.onSubmitted?.call(controller.text);
+        if (tf.textInputAction == TextInputAction.next && mounted) {
+          _gate.nextFocus();
+        }
+      },
+      onClosed: (how) {
+        if (!mounted) return;
+        setState(() => _typing = false);
+        switch (how) {
+          case TvTextInputClose.up:
+            _gate.focusInDirection(TraversalDirection.up);
+          case TvTextInputClose.down:
+            _gate.focusInDirection(TraversalDirection.down);
+          case TvTextInputClose.back:
+            _gate.requestFocus();
+          case TvTextInputClose.action:
+          case TvTextInputClose.blur:
+            break;
+        }
+      },
+    );
   }
 
   @override
@@ -553,9 +628,12 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
     if (!PlatformHelper.isTV(context)) {
       return widget.builder(context, widget.focusNode ?? _field);
     }
-    final lit = _gateFocused && !_field.hasFocus;
+    final built = widget.builder(context, _field);
+    _textField = built is TextField ? built : null;
+    final scheme = Theme.of(context).colorScheme;
     return Focus(
       focusNode: _gate,
+      autofocus: widget.autofocus || widget.openOnShow,
       onKeyEvent: _onGateKey,
       onFocusChange: (f) {
         setState(() => _gateFocused = f);
@@ -564,10 +642,15 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
       child: Container(
         foregroundDecoration: BoxDecoration(
           border: Border.all(
-              color: lit ? Colors.white : Colors.transparent, width: 3),
+              color: _typing
+                  ? scheme.primary
+                  : _gateFocused
+                      ? Colors.white
+                      : Colors.transparent,
+              width: 3),
           borderRadius: widget.borderRadius,
         ),
-        child: widget.builder(context, _field),
+        child: built,
       ),
     );
   }

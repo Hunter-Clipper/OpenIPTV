@@ -11,6 +11,7 @@ import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Profile overview screen — shows the active profile and lets the user
 /// manage settings, PIN, kids mode, and other profiles.
@@ -521,10 +522,14 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
           children: [
             const Text('Name'),
             const SizedBox(height: 8),
-            TextField(
+            TvTextFieldGate(
+              autofocus: true,
+              builder: (context, fieldNode) => TextField(
+                focusNode: fieldNode,
               controller: _name,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _save(),
+            )
             ),
             const SizedBox(height: 16),
             const Text('Avatar'),
@@ -632,12 +637,16 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
           children: [
             const Text('Name'),
             const SizedBox(height: 8),
-            TextField(
+            TvTextFieldGate(
+              autofocus: true,
+              builder: (context, fieldNode) => TextField(
+                focusNode: fieldNode,
               controller: _name,
               decoration:
                   const InputDecoration(hintText: 'e.g. Kids, Living Room'),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _create(),
+            )
             ),
             const SizedBox(height: 16),
             const Text('Avatar'),
@@ -779,7 +788,10 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
             if (widget.profile.hasPin) ...[
               const Text('Current PIN'),
               const SizedBox(height: 6),
-              TextField(
+              TvTextFieldGate(
+                autofocus: true,
+                builder: (context, fieldNode) => TextField(
+                  focusNode: fieldNode,
                 controller: _current,
                 keyboardType: TextInputType.number,
                 obscureText: _obscureCurrent,
@@ -793,18 +805,23 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                         setState(() => _obscureCurrent = !_obscureCurrent),
                   ),
                 ),
+              )
               ),
               const SizedBox(height: 4),
             ],
             const Text('New PIN'),
             const SizedBox(height: 6),
-            TextField(
+            TvTextFieldGate(
+              autofocus: !widget.profile.hasPin,
+              builder: (context, fieldNode) => TextField(
+                focusNode: fieldNode,
               controller: _newPin,
               keyboardType: TextInputType.number,
               obscureText: _obscureNew,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 8,
-              autofocus: !widget.profile.hasPin,
+              autofocus:
+                  !widget.profile.hasPin && !PlatformHelper.isTV(context),
               decoration: InputDecoration(
                 hintText: '4–8 digits',
                 suffixIcon: _obscureToggle(
@@ -812,11 +829,14 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                   onToggle: () => setState(() => _obscureNew = !_obscureNew),
                 ),
               ),
+            )
             ),
             const SizedBox(height: 4),
             const Text('Confirm PIN'),
             const SizedBox(height: 6),
-            TextField(
+            TvTextFieldGate(
+              builder: (context, fieldNode) => TextField(
+                focusNode: fieldNode,
               controller: _confirm,
               keyboardType: TextInputType.number,
               obscureText: _obscureConfirm,
@@ -831,6 +851,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                 ),
               ),
               onSubmitted: (_) => _save(),
+            )
             ),
             if (_error != null) ...[
               const SizedBox(height: 8),

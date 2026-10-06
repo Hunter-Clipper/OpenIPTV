@@ -88,6 +88,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   // keyboard. Focusing the field itself on TV popped Google TV's keyboard
   // over the screen every time the tab opened (#38).
   final FocusNode _searchFocusNode = FocusNode();
+  // The clear (X) button inside the box: on TV, Right from the outline.
+  final FocusNode _clearNode = FocusNode();
   // Wraps everything below the search bar; Down from the field goes to its
   // first item (the first result or recent-search chip) — directional
   // search picked whichever card sat geometrically closest instead.
@@ -113,6 +115,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void dispose() {
     _searchFocusNode.dispose();
+    _clearNode.dispose();
     _belowBarNode.dispose();
     _controller.dispose();
     _debounce?.cancel();
@@ -122,6 +125,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    final tv = PlatformHelper.isTV(context);
+    // TV: the clear button sits inside the outline, where directional
+    // search can't reach it — Right/Left move between the two.
+    if (tv && key == LogicalKeyboardKey.arrowRight &&
+        _searchFocusNode.hasPrimaryFocus && _controller.text.isNotEmpty) {
+      _clearNode.requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (tv && key == LogicalKeyboardKey.arrowLeft && _clearNode.hasPrimaryFocus) {
+      _searchFocusNode.requestFocus();
+      return KeyEventResult.handled;
+    }
     // From the outline (TV) Left always goes to the menu; inside the field
     // it moves the caret unless there's nothing to move through.
     if (key == LogicalKeyboardKey.arrowLeft &&
@@ -165,9 +180,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _clearSearch() {
+    final hadFocus = _clearNode.hasFocus;
     _controller.clear();
     ref.read(_searchQueryProvider.notifier).state = '';
     setState(() {});
+    // The button goes away with the text; keep the remote on the box.
+    if (hadFocus) _searchFocusNode.requestFocus();
   }
 
   /// Keeps the current query in the recent list once it led somewhere.
@@ -208,6 +226,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: _SearchBar(
                 controller: _controller,
                 focusNode: _searchFocusNode,
+                clearNode: _clearNode,
                 onChanged: _onChanged,
                 onSubmitted: (q) {
                   _search(q);
@@ -265,6 +284,7 @@ class _SearchBar extends StatelessWidget {
   const _SearchBar({
     required this.controller,
     required this.focusNode,
+    required this.clearNode,
     required this.onChanged,
     required this.onSubmitted,
     required this.onClear,
@@ -272,6 +292,7 @@ class _SearchBar extends StatelessWidget {
 
   final TextEditingController controller;
   final FocusNode focusNode;
+  final FocusNode clearNode;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
@@ -317,6 +338,7 @@ class _SearchBar extends StatelessWidget {
           suffixIcon: controller.text.isEmpty
               ? null
               : TvFocusable(
+                  focusNode: clearNode,
                   onTap: onClear,
                   borderRadius: BorderRadius.circular(20),
                   child: const Padding(
