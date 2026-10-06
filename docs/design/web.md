@@ -49,6 +49,21 @@ Desktop-style: the TV layout's side rail, mouse hover, scroll-wheel rows,
 keyboard shortcuts in the player — shared with the Windows client (#27).
 Narrow windows fall back to the phone layout.
 
+## Updates and releases (applies to every client)
+
+Each client must only ever update from **its own** file, never another
+platform's:
+
+- One GitHub release per version, carrying a file per platform with a
+  fixed name: `app-release.apk` (Android — fixed forever, old installs and
+  the TV Downloader code depend on it), `OpenIPTV-windows.zip`, and later
+  others. The updater matches its file by exact name and ignores a
+  release that doesn't include it (done for Android in 0.10.128).
+- Because only the newest release is kept, a release must still carry the
+  current Android APK even when only another platform changed — otherwise
+  the Downloader code and older Android updaters lose their download.
+- The web client never self-updates; the page is always the latest.
+
 ## Phases
 
 - **6a — runs in a browser:** `flutter build web`, deployed to GitHub Pages;
