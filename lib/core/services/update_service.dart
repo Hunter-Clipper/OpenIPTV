@@ -18,9 +18,12 @@ const _updateFeedUrl = String.fromEnvironment(
       'https://api.github.com/repos/Hunter-Clipper/OpenIPTV/releases/latest',
 );
 
-/// Stable link to the newest APK — used if a release lists no APK asset.
-const latestApkUrl =
-    'https://github.com/Hunter-Clipper/OpenIPTV/releases/latest/download/app-release.apk';
+/// The release file this build installs from. Every client (Android, and
+/// later Windows, web…) looks only for its own file in a release, so a
+/// release made for another platform is never offered here. Android's name
+/// is fixed: installs already in the field and the TV Downloader code look
+/// for exactly `app-release.apk`.
+const androidReleaseAsset = 'app-release.apk';
 
 const _playStoreInstaller = 'com.android.vending';
 
@@ -76,21 +79,25 @@ class UpdateInfo {
   });
 
   /// Builds from a GitHub `releases/latest` response. Returns null if it has
-  /// no usable version tag.
-  static UpdateInfo? fromGitHubJson(Map<String, dynamic> json) {
+  /// no usable version tag, or doesn't include this client's file
+  /// ([assetName]) — e.g. a release made only for another platform.
+  static UpdateInfo? fromGitHubJson(
+    Map<String, dynamic> json, {
+    String assetName = androidReleaseAsset,
+  }) {
     final version = AppVersion.tryParse(json['tag_name'] as String?);
     if (version == null) return null;
-    String apkUrl = latestApkUrl;
+    String? apkUrl;
     int? apkSize;
     for (final a in (json['assets'] as List<dynamic>? ?? const [])) {
       final asset = a as Map<String, dynamic>;
-      final name = (asset['name'] as String? ?? '').toLowerCase();
-      if (name.endsWith('.apk')) {
-        apkUrl = asset['browser_download_url'] as String? ?? apkUrl;
+      if (asset['name'] == assetName) {
+        apkUrl = asset['browser_download_url'] as String?;
         apkSize = (asset['size'] as num?)?.toInt();
         break;
       }
     }
+    if (apkUrl == null) return null;
     return UpdateInfo(
       version: version,
       title: (json['name'] as String?)?.trim().isNotEmpty == true

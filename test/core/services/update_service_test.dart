@@ -45,11 +45,37 @@ void main() {
       expect(info.apkSize, 1234);
     });
 
-    test('falls back to the stable latest-APK link without an asset', () {
-      final info = UpdateInfo.fromGitHubJson(
-          {'tag_name': 'v0.10.46', 'name': '', 'assets': []})!;
-      expect(info.apkUrl, latestApkUrl);
-      expect(info.title, 'v0.10.46');
+    test('ignores a release without this client\'s file', () {
+      // A release made only for another platform: never offered here.
+      expect(
+          UpdateInfo.fromGitHubJson({
+            'tag_name': 'v0.11.0',
+            'assets': [
+              {
+                'name': 'OpenIPTV-windows.zip',
+                'browser_download_url': 'https://x/w.zip',
+              },
+              {'name': 'other.apk', 'browser_download_url': 'https://x/o.apk'},
+            ],
+          }),
+          isNull);
+      expect(
+          UpdateInfo.fromGitHubJson(
+              {'tag_name': 'v0.10.46', 'name': '', 'assets': []}),
+          isNull);
+    });
+
+    test('picks only its own file from a release with every platform', () {
+      final info = UpdateInfo.fromGitHubJson({
+        'tag_name': 'v0.11.0',
+        'name': '',
+        'assets': [
+          {'name': 'OpenIPTV-windows.zip', 'browser_download_url': 'https://x/w'},
+          {'name': 'app-release.apk', 'browser_download_url': 'https://x/a'},
+        ],
+      })!;
+      expect(info.apkUrl, 'https://x/a');
+      expect(info.title, 'v0.11.0');
     });
 
     test('rejects releases without a version tag', () {
