@@ -110,7 +110,7 @@
 | 5 | Windows + macOS | 📋 Planned |
 | 6 | Web browser | 📋 Planned |
 
-**Next up:** Android Auto (audio, in testing), promoting a profile to admin, deep links and a reworked full-screen TV guide. Plans for the other platforms are in [`docs/design`](docs/design).
+**Next up:** Android Auto (audio, in testing), promoting a profile to admin, deep links and a reworked full-screen TV guide. Plans for the other platforms: [iOS](https://github.com/Hunter-Clipper/OpenIPTV/pull/42), [Windows](https://github.com/Hunter-Clipper/OpenIPTV/pull/43) and [web](https://github.com/Hunter-Clipper/OpenIPTV/pull/45).
 
 ---
 
