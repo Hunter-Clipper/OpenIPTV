@@ -80,9 +80,9 @@ dependencies {
     // Custom native video engine (see NativeVideoPlayer.kt) replacing
     // media_kit/mpv — ExoPlayer's hardware-decoder handling is far more
     // battle-tested across the fragmented Android device landscape.
-    implementation("androidx.media3:media3-exoplayer:1.11.0")
-    implementation("androidx.media3:media3-exoplayer-hls:1.11.0")
-    implementation("androidx.media3:media3-extractor:1.11.0")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
+    implementation("androidx.media3:media3-extractor:1.11.1")
     // Casting to Chromecast / Google TV (CastController.kt): Google Cast
     // framework + MediaRouter for device discovery.
     implementation("com.google.android.gms:play-services-cast-framework:22.3.1")

@@ -178,7 +178,7 @@ android/app/src/main/kotlin/com/openiptv/app/
 - **No analytics, telemetry or accounts.** The app only contacts the playlists and guides you add, plus GitHub for update checks.
 - **Plain-English errors.** Never show stack traces, HTTP codes or library error strings to users.
 - **Open dependencies:** the only proprietary library is the Google Cast framework, used for casting from phones. Everything else is open source, so an F-Droid build without casting remains possible.
-- **Performance targets:** cold start to channel list under 3 s, channel tap to video under 2 s, search results under 300 ms.
+- **Performance targets:** cold start to channel list under 3 s, channel tap to video under 2 s.
 
 ---
 
