@@ -22,13 +22,6 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
-// Read by _ShellState (app.dart) when the native Back-button channel fires
-// while sitting on the Search tab, to decide whether Back should refocus the
-// nav rail (search field was focused) or leave the tab entirely. A plain
-// ValueNotifier rather than Riverpod/InheritedWidget plumbing since it only
-// ever needs a one-off synchronous read at the exact moment Back fires, not
-// a rebuild-driving subscription.
-final ValueNotifier<bool> searchFieldFocused = ValueNotifier<bool>(false);
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -123,7 +116,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _belowBarNode.dispose();
     _controller.dispose();
     _debounce?.cancel();
-    searchFieldFocused.value = false;
     super.dispose();
   }
 
@@ -208,13 +200,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           children: [
             // Sees the arrows before the field's own caret handling, from
-            // the field or (TV) its outline; also tells the shell's Back
-            // handler that the search bar has the remote.
+            // the field or (TV) its outline.
             Focus(
               canRequestFocus: false,
               skipTraversal: true,
               onKeyEvent: _handleKey,
-              onFocusChange: (f) => searchFieldFocused.value = f,
               child: _SearchBar(
                 controller: _controller,
                 focusNode: _searchFocusNode,

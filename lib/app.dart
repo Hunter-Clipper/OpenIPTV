@@ -316,8 +316,9 @@ class _Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<_Shell> {
-  // Remembers which tab was active before the user navigated to Search.
-  int _previousTabIndex = 0;
+  // When the first Back on the home tab asked "press again to exit".
+  DateTime? _exitArmedAt;
+  static const _exitWindow = Duration(seconds: 2);
 
   // Root-tab back handling is done via a native MethodChannel rather than
   // Flutter's PopScope/OnBackInvokedCallback: empirically, a PopScope
@@ -333,15 +334,25 @@ class _ShellState extends State<_Shell> {
   static const _backChannel = MethodChannel('openiptv/back');
   bool? _lastReportedBlocked;
 
-  // The currently-active tab's rail item — explicitly refocused as a
-  // fallback when arrow-left has nowhere left to go within the content pane
-  // (see EdgeAwareDirectionalFocusAction in tv_focusable.dart), rather than relying on
-  // Flutter's default directional traversal to find it on its own — it
-  // doesn't reliably jump from the content pane (often inside its own
-  // scrollable grid/list) across into a separate sibling column like this
-  // rail.
-  final FocusNode _activeRailItemFocusNode =
-      FocusNode(debugLabel: 'NavRailActiveItem');
+  // One node per rail item, each bound to its item for good. (A single
+  // "active item" node handed from item to item on every tab change lost
+  // focus in the hand-over and left the old item's glow lit — #39.) The
+  // active tab's node is refocused explicitly when arrow-left has nowhere
+  // left to go within the content pane (EdgeAwareDirectionalFocusAction)
+  // and by Back, rather than relying on Flutter's directional traversal to
+  // jump from a scrollable page across into this separate column.
+  final List<FocusNode> _railNodes = [
+    for (final d in _kNavDestinations)
+      FocusNode(debugLabel: 'NavRail ${d.label}'),
+  ];
+  FocusNode get _activeRailNode => _railNodes[_navIndexForLocation(context)];
+
+  // Set when Back sends the remote to the rail. Until the user leaves the
+  // rail themselves (Right into the page, or picking a tab), focus that
+  // the shell's pages take on their own — a route being pushed, a first
+  // item autofocusing once its data loads — is handed back to the rail.
+  bool _holdRail = false;
+  FocusNode? _lastRailFocus;
 
   @override
   void initState() {
@@ -362,7 +373,9 @@ class _ShellState extends State<_Shell> {
   void dispose() {
     FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);
-    _activeRailItemFocusNode.dispose();
+    for (final n in _railNodes) {
+      n.dispose();
+    }
     super.dispose();
   }
 
@@ -374,18 +387,45 @@ class _ShellState extends State<_Shell> {
 
   void _trackContentFocus() {
     final f = FocusManager.instance.primaryFocus;
-    if (f == null || f is FocusScopeNode) return;
-    if (f.context?.findAncestorWidgetOfExactType<_TvNavRail>() != null) return;
-    _lastContentFocus = f;
+    if (f == null) return;
+    if (f.context?.findAncestorWidgetOfExactType<_TvNavRail>() != null) {
+      _lastRailFocus = f;
+      return;
+    }
+    if (f is! FocusScopeNode) _lastContentFocus = f;
+    if (_holdRail && _inShellPage(f)) {
+      // Still remembered above: what the page focused first is where Right
+      // from the rail goes.
+      scheduleMicrotask(() {
+        if (mounted && _holdRail) {
+          (_lastRailFocus ?? _activeRailNode).requestFocus();
+        }
+      });
+    }
+  }
+
+  // In one of the tab pages (not a dialog, sheet or page on the root
+  // navigator above them).
+  bool _inShellPage(FocusNode f) {
+    final c = f.context;
+    return c != null &&
+        Navigator.maybeOf(c) == _shellNavigatorKey.currentState;
   }
 
   bool _focusContent() {
+    _holdRail = false;
     final f = _lastContentFocus;
     if (f == null || f.context == null || !f.canRequestFocus) return false;
     f.requestFocus();
     return true;
   }
 
+  // Back on a tab root, the same on phones and TVs (#39):
+  //  1. anything stacked on top (page, sheet, dialog, menu) closes;
+  //  2. TV: focus inside the page moves to the side menu first;
+  //  3. Movies, Series or Search go to the home tab (Live TV);
+  //  4. on Live TV the first press asks "press again to exit", and a
+  //     second press within two seconds leaves the app.
   void _handleNativeBackPressed() {
     if (!mounted) return;
     // Native blocks Back based on the shell's own location, which stays on
@@ -400,29 +440,50 @@ class _ShellState extends State<_Shell> {
         return;
       }
     }
-    if (GoRouterState.of(context).uri.path != '/search') {
-      // Live/Movies/Series root: absorb the press entirely — there's nowhere
-      // for "back" to mean anything on a root tab.
+    final tv = PlatformHelper.isTV(context);
+    if (tv && !_railHasFocus()) {
+      _exitArmedAt = null;
+      _holdRail = true;
+      _activeRailNode.requestFocus();
       return;
     }
-    if (searchFieldFocused.value) {
-      // The search field itself was focused — hand focus to the rail
-      // instead of leaving the tab outright.
-      _activeRailItemFocusNode.requestFocus();
+    if (_navIndexForLocation(context) != 0) {
+      _exitArmedAt = null;
+      context.go(_kNavDestinations.first.path);
+      if (tv) {
+        // The rail keeps the remote, on Live TV's item.
+        _holdRail = true;
+        _railNodes.first.requestFocus();
+      }
       return;
     }
-    // Search tab: go back to whichever tab was active before it.
-    context.go(_kNavDestinations[_previousTabIndex].path);
+    final messenger = ScaffoldMessenger.of(context);
+    final armed = _exitArmedAt;
+    if (armed != null && DateTime.now().difference(armed) < _exitWindow) {
+      _exitArmedAt = null;
+      messenger.hideCurrentSnackBar();
+      // Like Android's own Back on a launcher activity: to the background,
+      // state kept (not finished — the shared audio_service engine
+      // outlives the activity anyway).
+      unawaited(_backChannel.invokeMethod('moveToBack'));
+      return;
+    }
+    _exitArmedAt = DateTime.now();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('Press Back again to exit'),
+        duration: _exitWindow,
+      ));
   }
+
+  bool _railHasFocus() =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<_TvNavRail>() !=
+      null;
 
   @override
   Widget build(BuildContext context) {
-    void onBeforeNavigate(int currentIndex, int newIndex) {
-      if (newIndex == 3 && currentIndex != 3) {
-        setState(() => _previousTabIndex = currentIndex);
-      }
-    }
-
     // True only when sitting exactly at one of the tab roots (not a pushed
     // sub-route like /movies/genre/action, which the shell's own nested
     // Navigator still pops normally — native only intervenes when told to).
@@ -439,19 +500,19 @@ class _ShellState extends State<_Shell> {
           actions: {
             DirectionalFocusIntent: EdgeAwareDirectionalFocusAction(
               directions: {TraversalDirection.left},
-              onNoMove: () => _activeRailItemFocusNode.requestFocus(),
+              onNoMove: () => _activeRailNode.requestFocus(),
             ),
           },
           child: Row(
             children: [
               _TvNavRail(
-                onBeforeNavigate: onBeforeNavigate,
-                activeItemFocusNode: _activeRailItemFocusNode,
+                nodes: _railNodes,
                 onEnterContent: _focusContent,
+                onSelect: () => _holdRail = false,
               ),
               Expanded(
                 child: TvNavRailFocus(
-                  focusNode: _activeRailItemFocusNode,
+                  focusNode: _activeRailNode,
                   child: widget.child,
                 ),
               ),
@@ -463,12 +524,12 @@ class _ShellState extends State<_Shell> {
 
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: Column(
+      bottomNavigationBar: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // "Now casting" bar while something plays on a cast device.
-          const CastMiniBar(),
-          _BottomNav(onBeforeNavigate: onBeforeNavigate),
+          CastMiniBar(),
+          _BottomNav(),
         ],
       ),
     );
@@ -508,9 +569,7 @@ int _navIndexForLocation(BuildContext context) {
 }
 
 class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.onBeforeNavigate});
-
-  final void Function(int currentIndex, int newIndex) onBeforeNavigate;
+  const _BottomNav();
 
   @override
   Widget build(BuildContext context) {
@@ -520,10 +579,7 @@ class _BottomNav extends StatelessWidget {
     // filled icon when selected.
     return NavigationBar(
       selectedIndex: index,
-      onDestinationSelected: (i) {
-        onBeforeNavigate(index, i);
-        context.go(_kNavDestinations[i].path);
-      },
+      onDestinationSelected: (i) => context.go(_kNavDestinations[i].path),
       destinations: [
         for (final d in _kNavDestinations)
           NavigationDestination(
@@ -545,40 +601,25 @@ class _BottomNav extends StatelessWidget {
 
 class _TvNavRail extends StatefulWidget {
   const _TvNavRail({
-    required this.onBeforeNavigate,
-    required this.activeItemFocusNode,
+    required this.nodes,
     required this.onEnterContent,
+    required this.onSelect,
   });
 
   // Moves focus back into the content pane; false if there's nowhere known.
   final bool Function() onEnterContent;
 
-  final void Function(int currentIndex, int newIndex) onBeforeNavigate;
-  // Attached to whichever destination is currently active, so the shell can
-  // explicitly refocus the rail (arrow-left from the content pane) without
-  // depending on Flutter's default directional traversal finding it.
-  final FocusNode activeItemFocusNode;
+  // Called when a destination is picked, before navigating.
+  final VoidCallback onSelect;
+
+  // The shell's node for each destination, in _kNavDestinations order.
+  final List<FocusNode> nodes;
 
   @override
   State<_TvNavRail> createState() => _TvNavRailState();
 }
 
 class _TvNavRailState extends State<_TvNavRail> {
-  // Nodes for the non-active items (the active one uses the shell's shared
-  // activeItemFocusNode instead).
-  final _itemNodes = List.generate(
-      _kNavDestinations.length, (i) => FocusNode(debugLabel: 'NavRail$i'));
-
-  @override
-  void dispose() {
-    for (final n in _itemNodes) {
-      n.dispose();
-    }
-    super.dispose();
-  }
-
-  FocusNode _nodeFor(int i, int activeIndex) =>
-      i == activeIndex ? widget.activeItemFocusNode : _itemNodes[i];
 
   // Up/Down move between rail items only. Left to Flutter's directional
   // search, Down from an item could land in a *covered* page of the shell
@@ -600,14 +641,10 @@ class _TvNavRailState extends State<_TvNavRail> {
             ? -1
             : 0;
     if (delta == 0) return KeyEventResult.ignored;
-    final activeIndex = _navIndexForLocation(context);
-    final current = [
-      for (var i = 0; i < _kNavDestinations.length; i++)
-        if (_nodeFor(i, activeIndex).hasPrimaryFocus) i,
-    ].firstOrNull;
-    if (current == null) return KeyEventResult.ignored;
-    final target = (current + delta).clamp(0, _kNavDestinations.length - 1);
-    _nodeFor(target, activeIndex).requestFocus();
+    final current = widget.nodes.indexWhere((n) => n.hasPrimaryFocus);
+    if (current < 0) return KeyEventResult.ignored;
+    final target = (current + delta).clamp(0, widget.nodes.length - 1);
+    widget.nodes[target].requestFocus();
     return KeyEventResult.handled;
   }
 
@@ -615,7 +652,6 @@ class _TvNavRailState extends State<_TvNavRail> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final index = _navIndexForLocation(context);
-    final onBeforeNavigate = widget.onBeforeNavigate;
 
     return Focus(
       canRequestFocus: false,
@@ -638,28 +674,14 @@ class _TvNavRailState extends State<_TvNavRail> {
                     // Only the very first item auto-claims focus, and only on
                     // the rail's initial mount (cold app start, landing on
                     // Live TV) — NOT `i == index`, which would re-fire
-                    // autofocus on every navigation. `activeItemFocusNode` is
-                    // still wired up below so the explicit arrow-left "escape
-                    // to rail" fallback (EdgeAwareDirectionalFocusAction) can
-                    // requestFocus() it on demand.
+                    // autofocus on every navigation.
                     autofocus: i == 0,
-                    focusNode: _nodeFor(i, index),
+                    focusNode: widget.nodes[i],
                     onTap: () {
-                      // Explicitly drop focus from whichever rail item the
-                      // user actually pressed select on — that item currently
-                      // holds real focus on its OWN internal FocusNode (from
-                      // D-pad navigation), separate from `activeItemFocusNode`.
-                      // The moment this item becomes "active" a few lines
-                      // above, its `focusNode` prop is swapped from that
-                      // internal node onto the shared `activeItemFocusNode`
-                      // instance — and Flutter's Focus widget carries a live
-                      // "hasFocus" over across a focusNode swap by design, so
-                      // without this the rail keeps real focus (and its glow
-                      // pill lit) even after the destination screen autofocuses
-                      // its own first item. Dropping focus first, before that
-                      // swap/rebuild happens, leaves nothing to carry over.
+                      // Picking a tab hands the remote to that page: drop
+                      // focus so its first item's autofocus takes it.
+                      widget.onSelect();
                       FocusManager.instance.primaryFocus?.unfocus();
-                      onBeforeNavigate(index, i);
                       context.go(_kNavDestinations[i].path);
                     },
                   ),

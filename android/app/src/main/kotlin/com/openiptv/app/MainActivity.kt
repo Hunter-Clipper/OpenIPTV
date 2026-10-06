@@ -84,6 +84,13 @@ class MainActivity : AudioServiceActivity() {
                     backBlocked = call.arguments as? Boolean ?: false
                     result.success(null)
                 }
+                // Second Back on the home tab: leave the app the way Android
+                // does for a launcher activity — to the background, not
+                // finished.
+                "moveToBack" -> {
+                    moveTaskToBack(true)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
