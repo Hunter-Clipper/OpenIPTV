@@ -58,6 +58,12 @@ class NowPlayingHandler extends BaseAudioHandler {
   Timer? _carProgressTimer;
 
   bool _enabled = true;
+
+  // The car needs the session to know what's playing — without it Android
+  // Auto shows "Could not load your selection". So playback started from
+  // the car is always published; the "Media Notification" setting only
+  // governs playback started on the phone.
+  bool get _publishing => _enabled || _carItem != null;
   // Starts true (nothing playing yet). Guards against the player's state
   // stream re-pushing a non-idle PlaybackState after stop() — its
   // playing/buffering updates can arrive after our idle state, which would
@@ -68,7 +74,9 @@ class NowPlayingHandler extends BaseAudioHandler {
 
   void setEnabled(bool enabled) {
     _enabled = enabled;
-    if (!enabled) {
+    // The car's session stays up whatever this setting says (see
+    // [_publishing]).
+    if (!enabled && _carItem == null) {
       mediaItem.add(null);
       playbackState.add(PlaybackState(
         controls: const [],
@@ -105,7 +113,7 @@ class NowPlayingHandler extends BaseAudioHandler {
   }
 
   void _broadcastState() {
-    if (!_enabled || _stopped) return;
+    if (!_publishing || _stopped) return;
     final state = _playbackService.lastState;
     // A movie / episode's length is only known once it starts playing:
     // update the item so the car shows the real total time.
@@ -259,7 +267,7 @@ class NowPlayingHandler extends BaseAudioHandler {
     _stopped = false;
     final item = _toItem(p);
     _lastMediaItem = item;
-    if (_enabled) mediaItem.add(item);
+    mediaItem.add(item);
     debugPrint('[OTV-auto] play ${p.kind} ${p.contentId}');
     await _playbackService.play(p.streamUrl, startPosition: p.resumeAt);
     _broadcastState();
@@ -297,10 +305,21 @@ class NowPlayingHandler extends BaseAudioHandler {
   }
 
   void _endCarSession() {
+    final wasCar = _carItem != null;
     _carProgressTimer?.cancel();
     _carProgressTimer = null;
     _carItem = null;
     _carQueue = const [];
+    // The car session was published regardless of the notification
+    // setting; with the setting off, take it down again.
+    if (wasCar && !_enabled) {
+      mediaItem.add(null);
+      playbackState.add(PlaybackState(
+        controls: const [],
+        processingState: AudioProcessingState.idle,
+        playing: false,
+      ));
+    }
   }
 
   MediaItem _toItem(CarPlayable p) => MediaItem(
