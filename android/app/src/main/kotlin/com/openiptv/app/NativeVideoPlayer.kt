@@ -48,6 +48,9 @@ class NativeVideoPlayer(
     context: Context,
     private val texture: TextureRegistry.SurfaceTextureEntry,
     private val onPlayingChanged: (Boolean) -> Unit = {},
+    // The main player owns media audio focus; the TV guide's muted preview
+    // must not take it away.
+    audioFocus: Boolean = true,
 ) {
     // A SurfaceTexture, not a SurfaceProducer: on Android 10+ the producer
     // is ImageReader-backed and Flutter draws the whole decoder buffer,
@@ -74,6 +77,23 @@ class NativeVideoPlayer(
                 )
                 .build()
         )
+        // Declared as media audio and holding audio focus, like any media
+        // app: Android Auto only opens the car's media audio channel for the
+        // app that holds focus (without it the car showed the channel but
+        // played no sound), and calls / navigation prompts pause or duck it.
+        .setAudioAttributes(
+            androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            audioFocus,
+        )
+        // Pause when headphones / the car disconnect instead of blaring
+        // from the phone speaker.
+        .setHandleAudioBecomingNoisy(audioFocus)
+        // Keep the CPU and Wi-Fi awake while playing with the screen off
+        // (listening in the car with the phone locked).
+        .setWakeMode(if (audioFocus) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
         .build()
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -96,6 +116,7 @@ class NativeVideoPlayer(
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) = emitState()
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
+            override fun onPlaybackSuppressionReasonChanged(reason: Int) = emitState()
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onPlayingChanged(isPlaying)
                 emitState()
@@ -345,6 +366,10 @@ class NativeVideoPlayer(
             // which is also false while stalled. Dart tells a freeze from a
             // pause with this.
             "playWhenReady" to exoPlayer.playWhenReady,
+            // Held back by the system (a phone call took audio focus): like
+            // a pause, not a stall.
+            "suppressed" to (exoPlayer.playbackSuppressionReason !=
+                Player.PLAYBACK_SUPPRESSION_REASON_NONE),
             "buffering" to (exoPlayer.playbackState == Player.STATE_BUFFERING),
             "completed" to (exoPlayer.playbackState == Player.STATE_ENDED),
             "videoWidth" to videoWidth,
@@ -399,9 +424,10 @@ class NativeVideoPlayerManager(
             "create" -> {
                 val texture = textureRegistry.createSurfaceTexture()
                 val id = texture.id()
-                val player = NativeVideoPlayer(context, texture) { isPlaying ->
+                val audioFocus = call.argument<Boolean>("audioFocus") ?: true
+                val player = NativeVideoPlayer(context, texture, { isPlaying ->
                     setPlaying(id, isPlaying)
-                }
+                }, audioFocus)
                 val eventChannel = EventChannel(messenger, "openiptv/video_player_events/$id")
                 eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
                     override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {

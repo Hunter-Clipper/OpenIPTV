@@ -6,6 +6,7 @@ NativeVideoPlayerState _s({
   int posMs = 0,
   bool playing = true,
   bool playWhenReady = true,
+  bool suppressed = false,
   bool buffering = false,
   bool completed = false,
   bool video = true,
@@ -15,6 +16,7 @@ NativeVideoPlayerState _s({
       duration: Duration.zero,
       playing: playing,
       playWhenReady: playWhenReady,
+      suppressed: suppressed,
       buffering: buffering,
       completed: completed,
       videoWidth: video ? 1920 : 0,
@@ -239,6 +241,15 @@ void main() {
     expect(h.dog.loading, isTrue);
     h.pos += 500;
     h.tick(_s(posMs: h.pos)); // first frame
+    expect(h.dog.loading, isFalse);
+  });
+
+  test('a phone call holding the audio is not a stall', () {
+    final h = _Harness()..play(5);
+    for (var i = 0; i < 60; i++) {
+      expect(h.tick(_s(posMs: h.pos, playing: false, suppressed: true)),
+          WatchdogAction.none);
+    }
     expect(h.dog.loading, isFalse);
   });
 }

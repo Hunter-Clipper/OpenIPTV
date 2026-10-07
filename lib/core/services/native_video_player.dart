@@ -9,6 +9,7 @@ class NativeVideoPlayerState {
     required this.duration,
     required this.playing,
     this.playWhenReady = false,
+    this.suppressed = false,
     required this.buffering,
     required this.completed,
     required this.videoWidth,
@@ -24,6 +25,10 @@ class NativeVideoPlayerState {
   /// The player is meant to be playing — false only when paused. Together
   /// with [playing] this tells a freeze from a pause.
   final bool playWhenReady;
+
+  /// Held back by the system although [playWhenReady] (e.g. a phone call
+  /// took audio focus). Not a stall.
+  final bool suppressed;
   final bool buffering;
   final bool completed;
   // First real decoded frame's size — 0 until one has actually rendered,
@@ -122,8 +127,11 @@ class NativeVideoPlayer {
   Stream<NativePlaybackError> get errorStream => _errorController.stream;
   Stream<List<NativeVideoTrack>> get tracksStream => _tracksController.stream;
 
-  Future<int> create() async {
-    final id = await _control.invokeMethod<int>('create');
+  /// [audioFocus]: this player is the app's media audio (holds focus, so
+  /// Android Auto routes it to the car). False for silent previews.
+  Future<int> create({bool audioFocus = true}) async {
+    final id = await _control
+        .invokeMethod<int>('create', {'audioFocus': audioFocus});
     _textureId = id;
     final events = EventChannel('openiptv/video_player_events/$id');
     _eventSub = events.receiveBroadcastStream().listen((event) {
@@ -148,6 +156,7 @@ class NativeVideoPlayer {
             duration: Duration(milliseconds: map['duration'] as int),
             playing: map['playing'] as bool,
             playWhenReady: map['playWhenReady'] as bool? ?? false,
+            suppressed: map['suppressed'] as bool? ?? false,
             buffering: map['buffering'] as bool,
             completed: map['completed'] as bool? ?? false,
             videoWidth: map['videoWidth'] as int? ?? 0,
