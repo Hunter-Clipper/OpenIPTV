@@ -15,6 +15,7 @@ import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.TimestampAdjuster
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
@@ -58,7 +59,22 @@ class NativeVideoPlayer(
     private val surface = android.view.Surface(texture.surfaceTexture())
 
     private val appContext = context.applicationContext
-    val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
+    // Resume quickly after a hiccup: by default ExoPlayer waits for 5 s of
+    // fresh data before playing again after a rebuffer (2.5 s at start),
+    // which turned a one-second network blip into a long freeze. Dart's
+    // stream watchdog reconnects if data stops altogether.
+    val exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
+        .setLoadControl(
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                    DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+                    /* bufferForPlaybackMs = */ 1_000,
+                    /* bufferForPlaybackAfterRebufferMs = */ 2_000,
+                )
+                .build()
+        )
+        .build()
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var eventSink: EventChannel.EventSink? = null
@@ -79,6 +95,7 @@ class NativeVideoPlayer(
         exoPlayer.setVideoSurface(surface)
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) = emitState()
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onPlayingChanged(isPlaying)
                 emitState()
@@ -324,6 +341,10 @@ class NativeVideoPlayer(
             "position" to exoPlayer.currentPosition,
             "duration" to exoPlayer.duration.coerceAtLeast(0L),
             "playing" to exoPlayer.isPlaying,
+            // What the user asked for (play vs pause) — unlike "playing",
+            // which is also false while stalled. Dart tells a freeze from a
+            // pause with this.
+            "playWhenReady" to exoPlayer.playWhenReady,
             "buffering" to (exoPlayer.playbackState == Player.STATE_BUFFERING),
             "completed" to (exoPlayer.playbackState == Player.STATE_ENDED),
             "videoWidth" to videoWidth,

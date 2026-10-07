@@ -38,6 +38,11 @@ class PlaybackService {
   );
   Future<int>? _createFuture;
 
+  /// Bumped on every [play] — lets the stream watchdog tell a fresh
+  /// connection (still connecting) from one that has been playing.
+  int get openCount => _openCount;
+  int _openCount = 0;
+
   // One ExoPlayer instance lives for the whole app session (same lifetime
   // media_kit's single global Player had) — this creates its texture once,
   // on first use, and every later play() just reuses it.
@@ -114,6 +119,7 @@ class PlaybackService {
     // duration and seek afterwards (an mpv-era workaround that briefly
     // played from 0 before jumping).
     _speed = 1;
+    _openCount++;
     await _player.open(streamUrl,
         streamTypeHint: _streamTypeHint(streamUrl),
         startPosition: startPosition);
@@ -123,8 +129,10 @@ class PlaybackService {
 
   Future<void> pause() => _player.pause();
   Future<void> resume() => _player.play();
+  // Follows what the user asked for, not whether frames are moving: tapping
+  // during a stall pauses rather than "resuming" an already-playing stream.
   Future<void> togglePlayPause() =>
-      _lastState.playing ? pause() : resume();
+      _lastState.playWhenReady ? pause() : resume();
 
   Future<void> seek(Duration position) => _player.seekTo(position);
 

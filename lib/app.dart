@@ -90,7 +90,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           ref.read(pipActiveProvider.notifier).state = isInPip,
     );
     void pushPipAvailability() {
-      final playing = ref.read(playbackServiceProvider).lastState.playing;
+      final playing = ref.read(playbackServiceProvider).lastState.playWhenReady;
       updatePipAvailability(ref.read(pipEnabledProvider) && playing);
     }
 

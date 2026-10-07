@@ -19,6 +19,7 @@ import 'package:open_iptv/features/player/channel_switcher.dart';
 import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
+import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -126,12 +127,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // immediately triggers completion (skipping the new episode entirely).
   bool _playbackStarted = false;
 
-  // Auto-recovery: stall detection + reconnect.
-  static const _stallTimeout = Duration(seconds: 5);
-  static const _maxRetries = 5;
-  int _retryCount = 0;
+  // Auto-recovery: the watchdog notices a stream that should be playing
+  // but isn't (buffering, frozen, dropped) and this screen reconnects it.
+  final _watchdog = StreamWatchdog();
+  Timer? _watchdogTimer;
+  bool _reconnecting = false;
+  // The watchdog stopped trying (a stream that never played).
+  bool _gaveUp = false;
   bool _isRecovering = false;
-  Timer? _stallTimer;
 
   // Live pause/rewind. _currentUrl tracks whatever URL is actually open right
   // now (the plain live stream, or a dynamically-built catch-up window) —
@@ -178,7 +181,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // drives that UI once _liveDvrActive can flip either way.
   // The error screen has its own buttons (Try again / Channels / Go back);
   // the regular controls would draw over it.
-  bool get _playbackGaveUp => _retryCount >= _maxRetries;
+  bool get _playbackGaveUp => _gaveUp || _playbackFailed;
   bool get _showOverlayControls =>
       _controlsVisible && !_playbackGaveUp && !_casting;
 
@@ -227,11 +230,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // else reconnects now instead of waiting for the stall timer.
     _errorSub = _playbackService.errorStream.listen((e) {
       if (!mounted || _casting) return;
-      _cancelStallTimer();
       if (e.isPermanent) {
         setState(() {
           _playbackFailed = true;
-          _retryCount = _maxRetries;
           _isRecovering = false;
           _isBuffering = true;
           _errorMessage = e.httpStatus == 401 || e.httpStatus == 403
@@ -240,28 +241,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ? "This channel isn't available from your provider right now."
                   : "This title isn't available from your provider right now.";
         });
-      } else {
-        setState(() => _isBuffering = true);
-        unawaited(_onStall());
+      } else if (!_reconnecting && !_playbackGaveUp) {
+        _applyWatchdog(_watchdog.onError(DateTime.now()));
       }
     });
     _stateSub = _playbackService.stateStream.listen((s) {
       if (!mounted || _casting) return;
       if (_playbackFailed) return;
-      if (s.buffering && !s.hasVideo) {
-        if (!_isBuffering) setState(() => _isBuffering = true);
-        _startStallTimer();
-      } else if (_isBuffering && (s.playing || s.hasVideo)) {
-        // Only real playback clears the overlay and the retry count — an
-        // idle engine after a failed attempt isn't "recovered", and treating
-        // it as such reset _retryCount every time, so retries never ended.
-        _cancelStallTimer();
-        _retryCount = 0;
-        setState(() {
-          _isBuffering = false;
-          _isRecovering = false;
-        });
-      }
+      _runWatchdog();
 
       // Ignore stale state events until play() has actually started the new
       // media. Without this guard the new PlayerScreen picks up the previous
@@ -283,6 +270,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
     });
 
+    // The engine goes quiet when a stream freezes, so the watchdog also runs
+    // on a timer rather than only on state updates.
+    _watchdogTimer = Timer.periodic(
+        const Duration(milliseconds: 500), (_) => _runWatchdog());
+
     _cueSub = _playbackService.cueStream.listen((text) {
       if (mounted) setState(() => _cueText = text);
     });
@@ -297,32 +289,64 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
 
-  void _startStallTimer() {
-    _stallTimer?.cancel();
-    _stallTimer = Timer(_stallTimeout, _onStall);
+  void _runWatchdog() {
+    if (!mounted) return;
+    _applyWatchdog(_watchdog.check(
+      _playbackService.lastState,
+      now: DateTime.now(),
+      openCount: _playbackService.openCount,
+      live: _isPlainLive,
+      active: _playbackStarted &&
+          !_casting &&
+          !_reconnecting &&
+          !_playbackGaveUp,
+    ));
   }
 
-  void _cancelStallTimer() {
-    _stallTimer?.cancel();
-    _stallTimer = null;
-  }
-
-  Future<void> _onStall() async {
-    if (!mounted || _casting) return;
-    if (_retryCount >= _maxRetries) {
-      // Give up — show a permanent error state via the buffering overlay.
-      setState(() {
-        _isRecovering = false;
-        _isBuffering = true;
-      });
-      return;
+  void _applyWatchdog(WatchdogAction action) {
+    if (!mounted || _casting || _playbackGaveUp) return;
+    switch (action) {
+      case WatchdogAction.giveUp:
+        debugPrint('[OTV-recovery] giving up after ${_watchdog.attempts} '
+            'attempts (never played)');
+        setState(() {
+          _gaveUp = true;
+          _isRecovering = false;
+          _isBuffering = true;
+        });
+        return;
+      case WatchdogAction.reconnect:
+        unawaited(_reconnect());
+        return;
+      case WatchdogAction.none:
+        final loading = _watchdog.loading;
+        if (loading != _isBuffering ||
+            (!loading && _isRecovering && !_reconnecting)) {
+          setState(() {
+            _isBuffering = loading;
+            if (!loading) _isRecovering = false;
+          });
+        }
     }
-    _retryCount++;
-    setState(() => _isRecovering = true);
-    debugPrint(
-        '[OTV-recovery] stall detected — attempt $_retryCount/$_maxRetries');
+  }
+
+  // Reopens the current stream: live at the live edge, VOD/catch-up where
+  // it was.
+  Future<void> _reconnect() async {
+    if (_reconnecting || !mounted || _casting) return;
+    _reconnecting = true;
+    setState(() {
+      _isRecovering = true;
+      _isBuffering = true;
+    });
+    debugPrint('[OTV-recovery] reconnecting — attempt ${_watchdog.attempts}'
+        ' (live=$_isPlainLive, played=${_watchdog.everPlayed})');
     final position = _isPlainLive ? null : _lastKnownPosition;
-    await _playbackService.play(_currentUrl, startPosition: position);
+    try {
+      await _playbackService.play(_currentUrl, startPosition: position);
+    } finally {
+      _reconnecting = false;
+    }
     if (_isPlainLive && _liveOffset > Duration.zero) {
       // Reconnecting a plain live stream always lands back at the live edge —
       // any local-buffer rewind offset no longer applies.
@@ -330,8 +354,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _livePausedAt = null;
       if (mounted) setState(() => _isBehindLive = false);
     }
-    // Restart stall timer for the new attempt.
-    _startStallTimer();
   }
 
   // Best-effort — only needed to know whether this channel supports catch-up
@@ -365,7 +387,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       await _enterLiveDvr(startPaused: true);
       return;
     }
-    final playing = _playbackService.lastState.playing;
+    final playing = _playbackService.lastState.playWhenReady;
     if (playing) {
       _livePausedAt = DateTime.now();
       await _playbackService.pause();
@@ -599,7 +621,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     _hideTimer?.cancel();
-    _stallTimer?.cancel();
+    _watchdogTimer?.cancel();
     _stateSub?.cancel();
     _errorSub?.cancel();
     _cueSub?.cancel();
@@ -727,7 +749,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       "${s.device ?? 'this device'}. Stop casting to watch it here.";
 
   Future<void> _startCasting(Duration? start) async {
-    _cancelStallTimer();
     setState(() {
       _casting = true;
       _castMessage = null;
@@ -767,11 +788,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _casting = false;
       _castMessage = null;
       _isBuffering = true;
-      _retryCount = 0;
+      _gaveUp = false;
       _playbackFailed = false;
     });
+    _watchdog.reset();
     unawaited(_playbackService.play(_currentUrl, startPosition: resumeAt));
-    _startStallTimer();
     _showControls();
   }
 
@@ -936,7 +957,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Like mainstream players, keep the controls up while paused (the
       // user is likely about to act on them); re-check until playback
       // resumes, then hide as normal.
-      if (!_playbackService.lastState.playing && !_isBuffering) {
+      if (!_playbackService.lastState.playWhenReady && !_isBuffering) {
         _resetHideTimer();
         return;
       }
@@ -1061,9 +1082,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 child: IgnorePointer(
                   ignoring: !_isBuffering,
                   child: Container(
-                    color: Colors.black,
+                    // Before the first picture: solid, hiding decoder
+                    // warm-up. Reconnecting mid-stream: the last frame
+                    // stays visible, dimmed.
+                    color: _watchdog.everPlayed && !_playbackGaveUp
+                        ? Colors.black54
+                        : Colors.black,
                     child: Center(
-                      child: _retryCount >= _maxRetries
+                      child: _playbackGaveUp
                           ? _ErrorOverlay(
                               title: widget.title,
                               message: _errorMessage,
@@ -1073,8 +1099,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   ? _openChannels
                                   : null,
                               onRetry: () {
+                                _watchdog.reset();
                                 setState(() {
-                                  _retryCount = 0;
+                                  _gaveUp = false;
                                   _isRecovering = false;
                                   _errorMessage = null;
                                   _playbackFailed = false;
@@ -1088,7 +1115,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               visible: !_controlsVisible,
                               title: widget.title,
                               status: _isRecovering
-                                  ? 'Reconnecting… ($_retryCount of $_maxRetries)'
+                                  ? _watchdog.everPlayed
+                                      ? 'Reconnecting…'
+                                      : 'Reconnecting… (${_watchdog.attempts} '
+                                          'of ${_watchdog.maxAttemptsBeforePlaying})'
                                   : null,
                             ),
                     ),
@@ -1145,8 +1175,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             isBehindLive: _isBehindLive,
                             playPauseFocusNode: _playPauseFocusNode,
                             backFocusNode: _backFocusNode,
-                            buffering: _isBuffering &&
-                                _retryCount < _maxRetries,
+                            buffering: _isBuffering && !_playbackGaveUp,
                             onChannels: _isChannelPlayback &&
                                     widget.contentId != null
                                 ? _openChannels

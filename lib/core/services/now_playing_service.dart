@@ -84,12 +84,12 @@ class NowPlayingHandler extends BaseAudioHandler {
     final state = _playbackService.lastState;
     playbackState.add(PlaybackState(
       controls: [
-        state.playing ? MediaControl.pause : MediaControl.play,
+        state.playWhenReady ? MediaControl.pause : MediaControl.play,
         MediaControl.stop,
       ],
       systemActions: const {MediaAction.seek},
       androidCompactActionIndices: const [0, 1],
-      playing: state.playing,
+      playing: state.playWhenReady,
       processingState: state.buffering
           ? AudioProcessingState.buffering
           : AudioProcessingState.ready,

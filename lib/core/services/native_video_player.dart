@@ -8,6 +8,7 @@ class NativeVideoPlayerState {
     required this.position,
     required this.duration,
     required this.playing,
+    this.playWhenReady = false,
     required this.buffering,
     required this.completed,
     required this.videoWidth,
@@ -17,7 +18,12 @@ class NativeVideoPlayerState {
 
   final Duration position;
   final Duration duration;
+  /// Frames are actually moving (false while paused *or* stalled).
   final bool playing;
+
+  /// The player is meant to be playing — false only when paused. Together
+  /// with [playing] this tells a freeze from a pause.
+  final bool playWhenReady;
   final bool buffering;
   final bool completed;
   // First real decoded frame's size — 0 until one has actually rendered,
@@ -141,6 +147,7 @@ class NativeVideoPlayer {
             position: Duration(milliseconds: map['position'] as int),
             duration: Duration(milliseconds: map['duration'] as int),
             playing: map['playing'] as bool,
+            playWhenReady: map['playWhenReady'] as bool? ?? false,
             buffering: map['buffering'] as bool,
             completed: map['completed'] as bool? ?? false,
             videoWidth: map['videoWidth'] as int? ?? 0,

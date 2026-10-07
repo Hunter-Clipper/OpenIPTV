@@ -531,7 +531,9 @@ class _Transport extends ConsumerWidget {
           stream: service.stateStream,
           initialData: service.lastState,
           builder: (context, snap) {
-            final playing = snap.data?.playing ?? false;
+            // The user's play/pause choice: a stalled stream shows Pause
+            // with the loading ring, never a "paused" Play button.
+            final playing = snap.data?.playWhenReady ?? false;
             final loading = _Buffering.of(context);
             return Stack(
               alignment: Alignment.center,
