@@ -9,7 +9,8 @@ import 'package:open_iptv/core/services/playback_service.dart';
 /// focused."
 class GuidePreviewController {
   GuidePreviewController() {
-    _createFuture = _player.create().then((id) {
+    // A preview: never takes the app's audio focus.
+    _createFuture = _player.create(audioFocus: false).then((id) {
       _ready = true;
       return id;
     });

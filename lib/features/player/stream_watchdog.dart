@@ -119,9 +119,9 @@ class StreamWatchdog {
       return _reconnect(now);
     }
 
-    if (!s.playWhenReady) {
-      // Paused by the user: nothing is wrong, and the clock restarts on
-      // resume.
+    if (!s.playWhenReady || s.suppressed) {
+      // Paused by the user, or held by the system (a phone call has the
+      // audio): nothing is wrong, and the clock restarts on resume.
       _movedAt = now;
       _smoothSince = null;
       _lastPosition = s.position;
