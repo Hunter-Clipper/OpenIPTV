@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
+import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/pin_field.dart';
 import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -114,6 +116,9 @@ class ProfileScreen extends ConsumerWidget {
                       onTap: onTap,
                     ),
                   ),
+                  // Fingerprint / face for admin PIN prompts (#47): the
+                  // admin's own profile, on phones with strong biometrics.
+                  if (profile.isAdmin) _AdminBiometricTile(profile: profile),
                 ]),
 
               // ── All Profiles (admin only) ─────────────────────────
@@ -942,6 +947,96 @@ class _EmojiPicker extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// "Unlock with Fingerprint or Face" under Security (#47). Hidden where the
+/// device can't do strong biometrics (and on TVs).
+class _AdminBiometricTile extends ConsumerStatefulWidget {
+  const _AdminBiometricTile({required this.profile});
+
+  final Profile profile;
+
+  @override
+  ConsumerState<_AdminBiometricTile> createState() =>
+      _AdminBiometricTileState();
+}
+
+class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
+  void _say(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Turning it on takes the admin PIN — never a scan — and then a scan to
+  /// set up the device key. Turning it off needs nothing.
+  Future<void> _set(AppPreferences prefs, bool on) async {
+    final biometric = ref.read(adminBiometricProvider);
+    if (!on) {
+      await biometric.disable();
+      await prefs.setAdminBiometricUnlock(false);
+      if (mounted) setState(() {});
+      return;
+    }
+    final pin = await showPinEntryDialog(
+      context,
+      title: 'Enter admin PIN',
+      message: 'To turn on fingerprint and face unlock',
+      confirmLabel: 'Continue',
+    );
+    if (pin == null || !mounted) return;
+    if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
+      _say('Incorrect PIN');
+      return;
+    }
+    final outcome = await biometric.enable();
+    if (outcome == BiometricOutcome.success) {
+      await prefs.setAdminBiometricUnlock(true);
+      _say('Fingerprint and face unlock is on');
+    } else if (outcome != BiometricOutcome.fallback) {
+      _say("Couldn't turn on fingerprint and face unlock on this device.");
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final available =
+        ref.watch(adminBiometricAvailableProvider).valueOrNull ?? false;
+    if (prefs == null || !available) return const SizedBox.shrink();
+
+    final hasPin = widget.profile.hasPin;
+    final on = prefs.adminBiometricUnlock && hasPin;
+    return InfoTooltipScope(
+      controller: InfoTooltipController(),
+      child: InfoTooltip(
+        id: 'admin_biometric',
+        title: 'Unlock with Fingerprint or Face',
+        body: 'Use your fingerprint or face wherever the admin PIN is '
+            'asked for on this device. Anyone whose fingerprint or face is '
+            'set up on this device can use it, so only turn it on if that '
+            'is just you. Adding a new fingerprint or face turns it off '
+            'until you turn it on again. Other profiles still use their '
+            'own PINs.',
+        child: TvActivatable(
+          onTap: hasPin ? () => _set(prefs, !on) : null,
+          builder: (_) => SwitchListTile(
+            secondary: const IconBadge(icon: Icons.fingerprint),
+            title: const Text('Unlock with Fingerprint or Face'),
+            subtitle: Text(
+              hasPin
+                  ? 'Use it instead of typing the admin PIN'
+                  : 'Set a PIN first',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            value: on,
+            onChanged: hasPin ? (v) => _set(prefs, v) : null,
+          ),
+        ),
+      ),
     );
   }
 }

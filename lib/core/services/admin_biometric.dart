@@ -91,7 +91,7 @@ final adminBiometricAvailableProvider = FutureProvider<bool>(
 
 const kBiometricResetNotice = 'A new fingerprint or face was added to this '
     'device, so fingerprint and face unlock was turned off. Use the admin '
-    'PIN, then turn it back on in Parental Controls.';
+    'PIN, then turn it back on in Settings → your profile → Security.';
 
 /// Tries a fingerprint / face scan for an admin prompt about [action].
 /// True only on a real match; false means "ask for the admin PIN". When
