@@ -74,7 +74,7 @@
 - Add an **M3U link**, an **M3U file saved on your device**, or an **Xtream Codes** login in a friendly setup wizard. No account needed.
 - Add as many playlists as you like and browse one at a time or all together.
 - **Edit a playlist** when your provider changes its server address or your login — the new details are checked before they're saved, and your favourites and watch progress carry over.
-- **Refresh everything with one tap** — every playlist's channels, movies, series and TV guide — or set it to happen in the background.
+- **Refresh everything with one tap** — every playlist's channels, movies, series and TV guide — or set it to happen in the background. If your provider has a hiccup mid-refresh, your playlist stays exactly as it was.
 - Your logins are **stored encrypted** on the device, with a key only the app can use.
 
 **Watch**
