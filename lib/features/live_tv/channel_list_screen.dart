@@ -10,7 +10,6 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -27,6 +26,7 @@ import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -56,14 +56,13 @@ final _nowNextProvider = FutureProvider.autoDispose
   return (now, next);
 });
 
-/// Re-fetches channels for every source, then reloads [allChannelsProvider].
+/// Re-fetches channels for the browsed playlist(s), then reloads
+/// [allChannelsProvider].
 /// Shared pull-to-refresh handler for the category list and category screens.
-Future<void> _refreshAllChannels(WidgetRef ref) async {
+Future<void> _refreshAllChannels(BuildContext context, WidgetRef ref) async {
   try {
-    final sources = await ref.read(allSourcesProvider.future);
-    for (final s in sources) {
-      await ref.read(sourceManagerProvider).refreshChannels(s);
-    }
+    await refreshBrowsedPlaylists(
+        context, ref, (manager, s) => manager.refreshChannels(s));
   } finally {
     ref.invalidate(allChannelsProvider);
     await ref.read(allChannelsProvider.future);
@@ -178,7 +177,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             }
           }
           return RefreshIndicator(
-            onRefresh: () => _refreshAllChannels(ref),
+            onRefresh: () => _refreshAllChannels(context, ref),
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
@@ -349,7 +348,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
               AppLayout.tv => 4,
             };
             return RefreshIndicator(
-              onRefresh: () => _refreshAllChannels(ref),
+              onRefresh: () => _refreshAllChannels(context, ref),
               child: LayoutBuilder(builder: (context, c) {
                 const pad = 16.0, gap = 12.0;
                 final w = (c.maxWidth - pad * 2 - gap * (cols - 1)) / cols;
@@ -392,7 +391,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
             );
           }
           return RefreshIndicator(
-            onRefresh: () => _refreshAllChannels(ref),
+            onRefresh: () => _refreshAllChannels(context, ref),
             child: ListView.builder(
               key: ValueKey('${widget.category}_list'),
               itemCount: channels.length,

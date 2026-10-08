@@ -5,9 +5,11 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/models/source.dart';
+import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:sqlite3/open.dart';
 
 /// An Xtream panel whose catalog grows by one title per refresh, and whose
@@ -123,5 +125,13 @@ void main() {
     panel.failMovies = true;
     await expectLater(manager.refreshMovies(source), throwsA(anything));
     expect((await db.getAllMovies()).single.title, 'Movie 1');
+  });
+
+  test('a provider server error reads as a provider problem, not a bad link',
+      () {
+    expect(friendlySourceErrorMessage(const XtreamException('http_502')),
+        contains('having trouble'));
+    expect(friendlySourceErrorMessage(const XtreamException('http_404')),
+        contains('Check the URL'));
   });
 }

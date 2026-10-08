@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
-import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -25,6 +24,7 @@ import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -57,12 +57,10 @@ final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
       : movies.where((m) => m.sourceId == sourceId).toList());
 });
 
-Future<void> _refreshMovies(WidgetRef ref) async {
+Future<void> _refreshMovies(BuildContext context, WidgetRef ref) async {
   try {
-    final sources = await ref.read(allSourcesProvider.future);
-    for (final s in sources) {
-      await ref.read(sourceManagerProvider).refreshMovies(s);
-    }
+    await refreshBrowsedPlaylists(
+        context, ref, (manager, s) => manager.refreshMovies(s));
   } finally {
     ref.invalidate(_allMoviesProvider);
     await ref.read(_allMoviesProvider.future);
@@ -181,7 +179,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         loading: () => const SkeletonList(leadingSize: 28),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load movies. Try again.",
-          onRetry: () => _refreshMovies(ref),
+          onRetry: () => _refreshMovies(context, ref),
         ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
@@ -212,7 +210,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           final firstSectionIsGenres =
               !firstSectionIsContinueWatching && !firstSectionIsFavorites;
           return RefreshIndicator(
-            onRefresh: () => _refreshMovies(ref),
+            onRefresh: () => _refreshMovies(context, ref),
             child: CustomScrollView(
               slivers: [
                 if (inProgress.isNotEmpty)
@@ -410,7 +408,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
         loading: () => const SkeletonList(leadingSize: 48),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load movies. Try again.",
-          onRetry: () => _refreshMovies(ref),
+          onRetry: () => _refreshMovies(context, ref),
         ),
         data: (all) {
           final filtered = _filtered(all);
@@ -418,7 +416,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
             filtered.sort((a, b) => a.title.compareTo(b.title));
           }
           return RefreshIndicator(
-            onRefresh: () => _refreshMovies(ref),
+            onRefresh: () => _refreshMovies(context, ref),
             child: CustomScrollView(
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [

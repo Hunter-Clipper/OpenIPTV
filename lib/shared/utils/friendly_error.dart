@@ -37,6 +37,9 @@ String friendlySourceErrorMessage(Object error) {
       // ClientException whose message never mentions SocketException.
       error is http.ClientException) {
     return "Couldn't reach this server. Check your internet connection and try again.";
+  } else if (RegExp(r'http_5\d\d').hasMatch(msg)) {
+    // The provider's own server failed — the link and login are fine.
+    return "The provider's server is having trouble right now. Try again later.";
   } else if (msg.contains('http_')) {
     return "This link doesn't look like a valid channel list. Check the URL with your provider.";
   }

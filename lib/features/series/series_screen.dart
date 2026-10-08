@@ -8,7 +8,6 @@ import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
-import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -26,6 +25,7 @@ import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -55,12 +55,10 @@ final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
       : eps.where((e) => e.sourceId == sourceId).toList());
 });
 
-Future<void> _refreshSeries(WidgetRef ref) async {
+Future<void> _refreshSeries(BuildContext context, WidgetRef ref) async {
   try {
-    final sources = await ref.read(allSourcesProvider.future);
-    for (final s in sources) {
-      await ref.read(sourceManagerProvider).refreshSeries(s);
-    }
+    await refreshBrowsedPlaylists(
+        context, ref, (manager, s) => manager.refreshSeries(s));
   } finally {
     ref.invalidate(_allSeriesProvider);
     await ref.read(_allSeriesProvider.future);
@@ -180,7 +178,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
         loading: () => const SkeletonList(leadingSize: 28),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load series. Try again.",
-          onRetry: () => _refreshSeries(ref),
+          onRetry: () => _refreshSeries(context, ref),
         ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
@@ -214,7 +212,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
           final firstSectionIsGenres =
               !firstSectionIsFavorites && !firstSectionIsContinueWatching;
           return RefreshIndicator(
-            onRefresh: () => _refreshSeries(ref),
+            onRefresh: () => _refreshSeries(context, ref),
             child: CustomScrollView(
               slivers: [
                 if (visibleInProgress.isNotEmpty)
@@ -405,7 +403,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
         loading: () => const SkeletonList(leadingSize: 48),
         error: (_, __) => ErrorStateView(
           message: "Couldn't load series. Try again.",
-          onRetry: () => _refreshSeries(ref),
+          onRetry: () => _refreshSeries(context, ref),
         ),
         data: (all) {
           final filtered = _filtered(all);
@@ -413,7 +411,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
             filtered.sort((a, b) => a.title.compareTo(b.title));
           }
           return RefreshIndicator(
-            onRefresh: () => _refreshSeries(ref),
+            onRefresh: () => _refreshSeries(context, ref),
             child: CustomScrollView(
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
