@@ -77,6 +77,9 @@ class MainActivity : AudioServiceActivity() {
         updatesChannel?.setMethodCallHandler(AppUpdater(this))
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/files")
             .setMethodCallHandler(FileSaver(this))
+        // Fingerprint / face in place of the admin PIN (#47).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/biometric")
+            .setMethodCallHandler(AdminBiometric(this))
 
         // The video player and device channels are registered on every
         // engine by EngineChannels (so Android Auto can play with the app

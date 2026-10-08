@@ -100,11 +100,14 @@ class ProfileService {
     }
   }
 
-  Future<bool> switchToProfile(String id, {String? pin}) async {
+  /// [pinVerified]: the admin was already confirmed by fingerprint / face
+  /// (admin profiles only — see AdminBiometric).
+  Future<bool> switchToProfile(String id,
+      {String? pin, bool pinVerified = false}) async {
     final profile = await db.getProfileById(id);
     if (profile == null) return false;
 
-    if (profile.hasPin) {
+    if (profile.hasPin && !(pinVerified && profile.isAdmin)) {
       if (pin == null || _hashPin(pin) != profile.pinHash) return false;
     }
 
