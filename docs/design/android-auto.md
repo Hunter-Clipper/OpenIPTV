@@ -1,6 +1,8 @@
 # Android Auto (and parked video)
 
-Status: **phase 1 built, in review** — tracks [#33](https://github.com/Hunter-Clipper/OpenIPTV/issues/33).
+Status: **phase 1 shipped in v0.11.0** (browse and listen in the car; tested
+on a real Android Auto head unit) — tracks [#33](https://github.com/Hunter-Clipper/OpenIPTV/issues/33).
+Parked video is on hold (see the findings at the end).
 
 ## Goal
 
@@ -132,3 +134,21 @@ RAM (as with the TV emulator) — build first, then boot the emulator.
 4. Movies / Series browsing with resume.
 5. README section on enabling it for sideloaded installs.
 6. (Optional, dev-only) parked-video prototype in the Automotive emulator.
+
+## Findings (2026-10-07/08)
+
+- **Car audio needs audio focus.** The first car test showed the channel but
+  played no sound: the player held no audio focus, so Android Auto never
+  opened the car's media channel. The main player now uses media audio
+  attributes with focus handling (calls pause it, navigation ducks it).
+  Confirmed on a real head unit.
+- **Parked video, official:** Android 17+ phones, compatible cars and apps
+  Google approves (interest form). Not available to a sideloaded app today.
+- **Parked video, unofficial:** an Activity tagged `CAR_LAUNCHER` +
+  `androidx.car.app.category.NAVIGATION` + `APP_MAPS` in an app declaring
+  `android:appCategory="game"` is accepted as a full-screen "native" car
+  app (otherwise `CAR.VALIDATOR: Package DENIED; Not allowed native app`).
+  A probe played video full screen on the car display. But Android Auto
+  shows one entry per app and OpenIPTV's is the media app, so this would
+  need a separate companion app. **On hold** — more work than it's worth
+  for now.

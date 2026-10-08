@@ -82,6 +82,7 @@
 - **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
 - **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour on phones and a slim bar along the bottom on TV, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
 - **Search** across channels, movies, series and what's on right now, with recent searches one tap away.
+- **Android Auto:** browse Live TV, Movies and Series on your car's screen and listen while you drive, with play, pause, next and previous on the car display. Your place in movies and episodes is saved.
 - **Cast to your TV** from your phone: send a channel, movie or episode to a Chromecast or Google TV and keep using the phone as the remote (play, pause, seek, switch channels, volume). Your place in movies and episodes is saved while you cast.
 
 **For the whole household**
@@ -110,7 +111,7 @@
 | 5 | Windows + macOS | 📋 Planned |
 | 6 | Web browser | 📋 Planned |
 
-**Next up:** Android Auto (audio, in testing), promoting a profile to admin, deep links and a reworked full-screen TV guide. Plans for the other platforms: [iOS](https://github.com/Hunter-Clipper/OpenIPTV/pull/42), [Windows](https://github.com/Hunter-Clipper/OpenIPTV/pull/43) and [web](https://github.com/Hunter-Clipper/OpenIPTV/pull/45).
+**Next up:** promoting a profile to admin, deep links and a reworked full-screen TV guide. Plans for the other platforms: [iOS](https://github.com/Hunter-Clipper/OpenIPTV/pull/42), [Windows](https://github.com/Hunter-Clipper/OpenIPTV/pull/43) and [web](https://github.com/Hunter-Clipper/OpenIPTV/pull/45).
 
 ---
 
