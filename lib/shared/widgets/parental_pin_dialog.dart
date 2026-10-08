@@ -13,7 +13,7 @@ Future<String?> showParentalPinEntry(BuildContext context, String title) =>
     showPinEntryDialog(context, title: title);
 
 /// Fingerprint / face in place of the admin PIN, when the admin turned it
-/// on for this device (Parental Controls). True only on a real match;
+/// on for this device (profile → Security). True only on a real match;
 /// false means "ask for the PIN". [action] is shown under the prompt.
 Future<bool> tryAdminBiometric(
     BuildContext context, WidgetRef ref, String action) async {

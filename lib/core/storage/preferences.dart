@@ -86,7 +86,7 @@ class AppPreferences {
       _prefs.setStringList(_kParentalLockedCats, cats);
 
   /// Fingerprint / face may stand in for the admin PIN on this device
-  /// (#47). Turned on in Parental Controls with the admin PIN.
+  /// (#47). Turned on under profile → Security with the admin PIN.
   bool get adminBiometricUnlock =>
       _prefs.getBool(_kAdminBiometricUnlock) ?? false;
   Future<void> setAdminBiometricUnlock(bool v) =>
