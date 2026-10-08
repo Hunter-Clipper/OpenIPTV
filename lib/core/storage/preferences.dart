@@ -14,6 +14,8 @@ const _kViewModeSeries = 'view_mode_series';   // 'list' | 'grid'
 const _kParentalProtectionEnabled = 'parental_protection_enabled';
 const _kParentalLockedCats = 'parental_locked_cats';
 const _kParentalScanDone = 'parental_scan_done';
+// Device-only (never in backups): fingerprint / face in place of the admin PIN.
+const _kAdminBiometricUnlock = 'admin_biometric_unlock';
 const _kRefreshIntervalHours = 'refresh_interval_hours'; // 0 = off
 const _kLastRegisteredRefreshIntervalHours = 'last_registered_refresh_interval_hours';
 const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
@@ -82,6 +84,13 @@ class AppPreferences {
       _prefs.getStringList(_kParentalLockedCats) ?? [];
   Future<void> setParentalLockedCategories(List<String> cats) =>
       _prefs.setStringList(_kParentalLockedCats, cats);
+
+  /// Fingerprint / face may stand in for the admin PIN on this device
+  /// (#47). Turned on in Parental Controls with the admin PIN.
+  bool get adminBiometricUnlock =>
+      _prefs.getBool(_kAdminBiometricUnlock) ?? false;
+  Future<void> setAdminBiometricUnlock(bool v) =>
+      _prefs.setBool(_kAdminBiometricUnlock, v);
 
   bool get parentalScanDone => _prefs.getBool(_kParentalScanDone) ?? false;
   Future<void> setParentalScanDone(bool v) =>

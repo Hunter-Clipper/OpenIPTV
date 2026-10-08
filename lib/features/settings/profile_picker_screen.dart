@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
+import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
 import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -86,7 +87,16 @@ class ProfilePickerScreen extends ConsumerWidget {
 
   Future<void> _selectProfile(
       BuildContext context, WidgetRef ref, Profile profile) async {
-    if (profile.hasPin) {
+    // The admin's own profile counts as an admin PIN prompt (#47): a
+    // fingerprint / face may stand in for it. Other profiles' PINs don't.
+    if (profile.hasPin &&
+        profile.isAdmin &&
+        await tryAdminBiometric(context, ref, 'Switch to ${profile.name}')) {
+      await ref
+          .read(profileServiceProvider)
+          .switchToProfile(profile.id, pinVerified: true);
+    } else if (profile.hasPin) {
+      if (!context.mounted) return;
       final pin = await _showPinDialog(context, profile.name);
       if (pin == null) return;
       final ok = await ref
