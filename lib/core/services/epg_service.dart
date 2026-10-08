@@ -167,7 +167,8 @@ class EpgService {
           '[EPG] Done — $totalWritten total in ${sw.elapsedMilliseconds}ms (remap complete)');
     } catch (e, st) {
       sw.stop();
-      debugPrint('[EPG] Error after ${sw.elapsedMilliseconds}ms: $e\n$st');
+      debugPrint('[EPG] Error after ${sw.elapsedMilliseconds}ms: '
+          '${redactUrl('$e')}\n$st');
       // Callers report it ("TV guide isn't available"); swallowing it here
       // made every failed guide refresh look like a success.
       rethrow;

@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
+import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -219,6 +220,7 @@ class SourceManager {
       updated = await playlistFuture;
     } catch (e) {
       playlistError = e;
+      _logRefreshError(source, 'playlist', e);
     }
 
     Object? epgError;
@@ -267,6 +269,7 @@ class SourceManager {
         await db.updateSourceRefreshTime(source.id, DateTime.now());
       } catch (e) {
         playlistError = e;
+        _logRefreshError(source, 'playlist', e);
       }
     }
     Object? epgError;
@@ -275,7 +278,7 @@ class SourceManager {
         // The playlist refresh may have just found (or changed) the URL.
         await epgService.refreshEpg(current);
       } catch (e) {
-        epgError = e;
+        epgError = e; // EpgService logs it.
       }
     }
     return SourceRefreshResult(
@@ -289,10 +292,15 @@ class SourceManager {
   /// Refreshes only the playlist (channels/movies/series) — no EPG.
   /// Used by the "Refresh Playlist" button in Settings.
   Future<void> refreshPlaylist(Source source) async {
-    if (source.type == SourceType.m3u) {
-      await _refreshM3u(source);
-    } else {
-      await _refreshXtream(source);
+    try {
+      if (source.type == SourceType.m3u) {
+        await _refreshM3u(source);
+      } else {
+        await _refreshXtream(source);
+      }
+    } catch (e) {
+      _logRefreshError(source, 'playlist', e);
+      rethrow;
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
   }
@@ -313,13 +321,11 @@ class SourceManager {
       if (source.epgUrl == null && result.epgUrl != null) {
         await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
       }
-      await db.deleteChannelsForSource(source.id);
-      if (result.channels.isNotEmpty) await db.upsertChannels(result.channels);
+      await db.replaceChannelsForSource(source.id, result.channels);
     } else {
       await _withXtream(source, (client) async {
-        await db.deleteChannelsForSource(source.id);
         final channels = await client.getLiveStreams();
-        if (channels.isNotEmpty) await db.upsertChannels(channels);
+        await db.replaceChannelsForSource(source.id, channels);
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
@@ -333,13 +339,11 @@ class SourceManager {
       final url = source.m3uUrl;
       if (url == null) return;
       final result = await _fetchM3u(url, source.id);
-      await db.deleteMoviesForSource(source.id);
-      if (result.movies.isNotEmpty) await db.upsertMovies(result.movies);
+      await db.replaceMoviesForSource(source.id, result.movies);
     } else {
       await _withXtream(source, (client) async {
-        await db.deleteMoviesForSource(source.id);
         final movies = await client.getVodStreams();
-        if (movies.isNotEmpty) await db.upsertMovies(movies);
+        await db.replaceMoviesForSource(source.id, movies);
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
@@ -351,13 +355,11 @@ class SourceManager {
       final url = source.m3uUrl;
       if (url == null) return;
       final result = await _fetchM3u(url, source.id);
-      await db.deleteSeriesForSource(source.id);
-      if (result.series.isNotEmpty) await db.upsertSeries(result.series);
+      await db.replaceSeriesForSource(source.id, result.series);
     } else {
       await _withXtream(source, (client) async {
-        await db.deleteSeriesForSource(source.id);
         final seriesList = await client.getAllSeries();
-        if (seriesList.isNotEmpty) await db.upsertSeries(seriesList);
+        await db.replaceSeriesForSource(source.id, seriesList);
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
@@ -543,6 +545,13 @@ class SourceManager {
     return M3uParser.parse(response.body, sourceId);
   }
 
+  /// Logs why a refresh failed — the summary the user sees only says that
+  /// it did. Provider logins in the error (e.g. a request URL) are masked.
+  void _logRefreshError(Source source, String phase, Object e) {
+    debugPrint('[Source] ${source.nickname}: $phase refresh failed: '
+        '${redactUrl('$e')}');
+  }
+
   /// Runs [fn] with an [XtreamClient] for [source], disposing it afterwards.
   Future<T> _withXtream<T>(
     Source source,
@@ -580,15 +589,10 @@ class SourceManager {
     }
 
     onProgress?.call('Saving to database…');
-    await db.deleteChannelsForSource(source.id);
-    await db.deleteMoviesForSource(source.id);
-    await db.deleteSeriesForSource(source.id);
-    await db.deleteEpisodesForSource(source.id);
-
-    if (result.channels.isNotEmpty) await db.upsertChannels(result.channels);
-    if (result.movies.isNotEmpty) await db.upsertMovies(result.movies);
-    if (result.series.isNotEmpty) await db.upsertSeries(result.series);
-    if (result.episodes.isNotEmpty) await db.upsertEpisodes(result.episodes);
+    await db.replaceChannelsForSource(source.id, result.channels);
+    await db.replaceMoviesForSource(source.id, result.movies);
+    await db.replaceSeriesForSource(source.id, result.series);
+    await db.replaceEpisodesForSource(source.id, result.episodes);
     return updated;
   }
 
@@ -605,38 +609,39 @@ class SourceManager {
         await db.upsertSource(updated);
       }
 
+      // Everything is downloaded before anything is replaced: a provider
+      // that drops out halfway leaves the playlist as it was instead of
+      // empty.
       onProgress?.call('Connecting to provider…');
-      await db.deleteChannelsForSource(source.id);
-      await db.deleteMoviesForSource(source.id);
-      await db.deleteSeriesForSource(source.id);
-      await db.deleteEpisodesForSource(source.id);
-
       onProgress?.call('Fetching channels…');
       var t = DateTime.now();
       final channels = await client.getLiveStreams();
       debugPrint('[Source] channels: ${channels.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
-      if (channels.isNotEmpty) {
-        onProgress?.call('Saving ${channels.length} channels…');
-        await db.upsertChannels(channels);
-      }
 
       onProgress?.call('Fetching movies…');
       t = DateTime.now();
       final movies = await client.getVodStreams();
       debugPrint('[Source] movies: ${movies.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
-      if (movies.isNotEmpty) {
-        onProgress?.call('Saving ${movies.length} movies…');
-        await db.upsertMovies(movies);
-      }
 
       onProgress?.call('Fetching series…');
       t = DateTime.now();
       final seriesList = await client.getAllSeries();
       debugPrint('[Source] series: ${seriesList.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
-      if (seriesList.isNotEmpty) {
-        onProgress?.call('Saving ${seriesList.length} series…');
-        await db.upsertSeries(seriesList);
-      }
+
+      t = DateTime.now();
+      onProgress?.call('Saving ${channels.length} channels…');
+      await db.replaceChannelsForSource(source.id, channels);
+      debugPrint('[Source] saved channels in ${DateTime.now().difference(t).inMilliseconds}ms');
+      t = DateTime.now();
+      onProgress?.call('Saving ${movies.length} movies…');
+      await db.replaceMoviesForSource(source.id, movies);
+      debugPrint('[Source] saved movies in ${DateTime.now().difference(t).inMilliseconds}ms');
+      t = DateTime.now();
+      onProgress?.call('Saving ${seriesList.length} series…');
+      await db.replaceSeriesForSource(source.id, seriesList);
+      debugPrint('[Source] saved series in ${DateTime.now().difference(t).inMilliseconds}ms');
+      // Episodes are fetched per series when one is opened.
+      await db.deleteEpisodesForSource(source.id);
       return updated;
     });
   }

@@ -487,6 +487,17 @@ class AppDatabase extends _$AppDatabase {
     await (delete(channels)..where((t) => t.sourceId.equals(sourceId))).go();
   }
 
+  /// Swaps a playlist's channels for a freshly downloaded list in one
+  /// transaction, so the list is never seen empty or half-saved. The
+  /// `replace*ForSource` methods below do the same for the other tables.
+  Future<void> replaceChannelsForSource(
+      String sourceId, List<model.Channel> channelList) {
+    return transaction(() async {
+      await deleteChannelsForSource(sourceId);
+      await upsertChannels(channelList);
+    });
+  }
+
   Future<List<model.Channel>> getAllChannels({String? profileId}) async {
     final rows = await select(channels).get();
     return _withChannelProgress(rows.map(_channelFromRow).toList(), profileId);
@@ -988,6 +999,14 @@ class AppDatabase extends _$AppDatabase {
     await (delete(movies)..where((t) => t.sourceId.equals(sourceId))).go();
   }
 
+  Future<void> replaceMoviesForSource(
+      String sourceId, List<model.Movie> movieList) {
+    return transaction(() async {
+      await deleteMoviesForSource(sourceId);
+      await upsertMovies(movieList);
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Series DAOs
   // ---------------------------------------------------------------------------
@@ -1043,6 +1062,14 @@ class AppDatabase extends _$AppDatabase {
     await (delete(seriesEntries)
           ..where((t) => t.sourceId.equals(sourceId)))
         .go();
+  }
+
+  Future<void> replaceSeriesForSource(
+      String sourceId, List<model.Series> seriesList) {
+    return transaction(() async {
+      await deleteSeriesForSource(sourceId);
+      await upsertSeries(seriesList);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -1107,6 +1134,14 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteEpisodesForSource(String sourceId) async {
     await (delete(episodes)..where((t) => t.sourceId.equals(sourceId))).go();
+  }
+
+  Future<void> replaceEpisodesForSource(
+      String sourceId, List<model.Episode> episodeList) {
+    return transaction(() async {
+      await deleteEpisodesForSource(sourceId);
+      await upsertEpisodes(episodeList);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -1360,9 +1395,12 @@ class AppDatabase extends _$AppDatabase {
 
 // Top-level so Isolate.spawn can send it across isolate boundaries.
 void _dbSetup(Database db) {
-  // Wait up to 5s for any transient external lock (OS backup, WAL recovery)
-  // before failing with SQLITE_BUSY. Must be set before migrations run.
-  db.execute('PRAGMA busy_timeout = 5000;');
+  // Wait for another connection's write before failing with SQLITE_BUSY:
+  // the background auto-refresh swaps a playlist's list in one transaction
+  // (~10 s for 76k movies on a phone, longer on a TV), and the app's
+  // progress saves must queue behind it, not fail. Reads never wait (WAL).
+  // Must be set before migrations run.
+  db.execute('PRAGMA busy_timeout = 60000;');
 }
 
 /// The app database, encrypted on disk (see db_encryption.dart). The
