@@ -792,6 +792,13 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
   final _refreshingPlaylist = <String>{};
   final _refreshingEpg = <String>{};
 
+  /// The sheet's own messenger: a snackbar sent to the Settings page would
+  /// sit behind this modal sheet, where the result can't be read.
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  void _showMessage(String text) =>
+      _messenger.currentState?.showSnackBar(SnackBar(content: Text(text)));
+
   Future<void> _refreshPlaylist(String id) async {
     if (_refreshingPlaylist.contains(id) || _refreshingEpg.contains(id)) return;
     setState(() => _refreshingPlaylist.add(id));
@@ -801,17 +808,12 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       await ref.read(sourceManagerProvider).refreshPlaylist(source);
       ref.invalidate(allSourcesProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${source.nickname}" playlist refreshed.')),
-        );
+        _showMessage('"${source.nickname}" playlist refreshed.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Playlist refresh failed: ${friendlySourceErrorMessage(e)}')),
-        );
+        _showMessage(
+            'Playlist refresh failed: ${friendlySourceErrorMessage(e)}');
       }
     } finally {
       if (mounted) setState(() => _refreshingPlaylist.remove(id));
@@ -837,18 +839,12 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       source = sources.firstWhere((s) => s.id == id);
       await ref.read(sourceManagerProvider).refreshEpgOnly(source);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${source.nickname}" TV guide refreshed.')),
-        );
+        _showMessage('"${source.nickname}" TV guide refreshed.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  "${source?.nickname ?? 'This playlist'}'s TV guide isn't "
-                  'available right now. Try again later.')),
-        );
+        _showMessage("${source?.nickname ?? 'This playlist'}'s TV guide "
+            "isn't available right now. Try again later.");
       }
     } finally {
       if (mounted) setState(() => _refreshingEpg.remove(id));
@@ -946,7 +942,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       expand: false,
       initialChildSize: 0.6,
       maxChildSize: 0.9,
-      builder: (context, controller) => Column(
+      builder: (context, controller) => _withMessenger(Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -1027,8 +1023,10 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                     final isBusy = isPlaylistRefreshing || isEpgRefreshing;
                     return TvRevealOnFocus(
                       child: TvActivatable(
-                        onTap: multiSource && !isActive && !isBusy
-                            ? () => _switchSource(context, s)
+                        // A busy row stays focusable (doing nothing), or the
+                        // remote's focus on its refresh button is lost.
+                        onTap: multiSource && !isActive
+                            ? (isBusy ? () {} : () => _switchSource(context, s))
                             : null,
                         builder: (onTap) => ListTile(
                           leading: _PlaylistBadge(
@@ -1076,9 +1074,14 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
+
+  Widget _withMessenger(Widget child) => ScaffoldMessenger(
+        key: _messenger,
+        child: Scaffold(backgroundColor: Colors.transparent, body: child),
+      );
 }
 
 /// A playlist's icon in a tinted circle; the one being browsed gets a
@@ -1183,19 +1186,22 @@ class _SourceAction extends StatelessWidget {
     return SizedBox(
       width: 36,
       height: 36,
-      child: busy
-          ? const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : TvActivatable(
-              onTap: onTap,
-              builder: (onTap) => IconButton(
-                icon: Icon(icon, size: 20),
-                tooltip: tooltip,
-                onPressed: onTap,
-              ),
-            ),
+      // The same (enabled, no-op) button shows the spinner while busy:
+      // swapping it for a bare spinner removed the node the remote's focus
+      // was on, and focus jumped back to another playlist's row.
+      child: TvActivatable(
+        onTap: busy ? () {} : onTap,
+        builder: (onTap) => IconButton(
+          icon: busy
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(icon, size: 20),
+          tooltip: tooltip,
+          onPressed: onTap,
+        ),
+      ),
     );
   }
 }
