@@ -134,4 +134,20 @@ void main() {
     expect(friendlySourceErrorMessage(const XtreamException('http_404')),
         contains('Check the URL'));
   });
+
+  test('every catalog table has a source index for refresh deletes',
+      () async {
+    final rows = await db
+        .customSelect("SELECT name FROM sqlite_master WHERE type='index'")
+        .get();
+    final names = rows.map((r) => r.read<String>('name')).toSet();
+    expect(
+        names,
+        containsAll([
+          'idx_channels_source',
+          'idx_movies_source',
+          'idx_series_entries_source',
+          'idx_episodes_source',
+        ]));
+  });
 }

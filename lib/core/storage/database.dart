@@ -189,7 +189,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -273,6 +273,7 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           if (from < 9) await _createSearchIndexes();
+          if (from < 10) await _createSourceIndexes();
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -314,6 +315,18 @@ class AppDatabase extends _$AppDatabase {
       'ON watch_progress (profile_id, content_type)',
     );
     await _createSearchIndexes();
+    await _createSourceIndexes();
+  }
+
+  // A playlist refresh or removal deletes that playlist's rows from each
+  // catalog table. Without these, every delete scanned the whole table:
+  // ~10 s on a TV for a 2-title playlist, holding the write lock throughout.
+  Future<void> _createSourceIndexes() async {
+    for (final table in ['channels', 'movies', 'series_entries', 'episodes']) {
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_${table}_source ON $table (source_id)',
+      );
+    }
   }
 
   // Search scans these narrow indexes instead of whole rows (#38): reading
