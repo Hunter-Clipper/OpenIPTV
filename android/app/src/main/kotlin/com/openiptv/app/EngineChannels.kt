@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.openiptv.engine_hooks.EngineHooksPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodChannel
@@ -48,6 +50,7 @@ object EngineChannels {
                         ?.activityInfo?.packageName
                     result.success(handler != null && !handler.contains("frameworkpackagestubs"))
                 }
+                "networkInfo" -> result.success(networkInfo(context))
                 else -> result.notImplemented()
             }
         }
@@ -56,6 +59,40 @@ object EngineChannels {
             messenger,
             binding.textureRegistry,
         ) { anyPlaying -> onAnyPlayingChanged?.invoke(anyPlaying) }
+    }
+
+    /**
+     * The active connection, for Settings → Power User Tools: transport
+     * (wifi / ethernet / cellular / other / none), whether a VPN carries
+     * it, the device's own addresses on it and its DNS servers.
+     */
+    fun networkInfo(context: Context): Map<String, Any?> {
+        val cm = context.getSystemService(ConnectivityManager::class.java)
+            ?: return mapOf("transport" to "none")
+        val network = cm.activeNetwork ?: return mapOf("transport" to "none")
+        val caps = cm.getNetworkCapabilities(network)
+        val link = cm.getLinkProperties(network)
+        val transport = when {
+            caps == null -> "other"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+            else -> "other"
+        }
+        // A VPN is its own network on top of the real one; ask every
+        // network, since the active one may already be the tunnel.
+        val vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true ||
+            cm.allNetworks.any {
+                cm.getNetworkCapabilities(it)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+            }
+        return mapOf(
+            "transport" to transport,
+            "vpn" to vpn,
+            "addresses" to (link?.linkAddresses?.mapNotNull { it.address?.hostAddress } ?: emptyList()),
+            "dns" to (link?.dnsServers?.mapNotNull { it.hostAddress } ?: emptyList()),
+            "interface" to link?.interfaceName,
+        )
     }
 
     /** TV mode (Android TV, Google TV, Fire TV), or Leanback hardware. */
