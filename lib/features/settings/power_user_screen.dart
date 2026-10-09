@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +9,9 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/network_info.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/speed_test.dart';
+import 'package:open_iptv/core/services/vpn_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -26,10 +31,117 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   bool _checkingPublicIp = false;
   bool _publicIpFailed = false;
 
+  final _vpn = VpnService();
+  VpnProfile? _vpnProfile;
+  VpnStatus _vpnStatus = const VpnStatus();
+  bool _vpnBusy = false;
+  Timer? _vpnTimer;
+
   @override
   void initState() {
     super.initState();
     _refresh();
+    _loadVpn();
+    // Live tunnel status (traffic, last handshake) while this screen is up.
+    _vpnTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pollVpn());
+  }
+
+  @override
+  void dispose() {
+    _vpnTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadVpn() async {
+    final p = await _vpn.loadProfile();
+    if (!mounted) return;
+    setState(() => _vpnProfile = p);
+    await _pollVpn();
+  }
+
+  Future<void> _pollVpn() async {
+    if (_vpnProfile == null) return;
+    final st = await _vpn.status();
+    if (!mounted) return;
+    final changed = st.up != _vpnStatus.up;
+    setState(() => _vpnStatus = st);
+    // The connection details (VPN on/off, addresses) change with it.
+    if (changed) unawaited(_refresh());
+  }
+
+  Future<void> _importVpn() async {
+    final file = await pickDeviceFile(context,
+        title: 'Choose a WireGuard profile', extensions: const ['conf']);
+    if (file == null || !mounted) return;
+    final text = utf8.decode(file.bytes, allowMalformed: true);
+    final problem = await _vpn.validate(text);
+    if (!mounted) return;
+    if (problem != null) {
+      _say(problem);
+      return;
+    }
+    final name = file.name.replaceAll(RegExp(r'\.conf$'), '');
+    final profile = VpnProfile(name: name, config: text);
+    await _vpn.saveProfile(profile);
+    if (!mounted) return;
+    setState(() => _vpnProfile = profile);
+    _say('Profile "$name" added');
+  }
+
+  Future<void> _toggleVpn() async {
+    final profile = _vpnProfile;
+    if (profile == null || _vpnBusy) return;
+    setState(() => _vpnBusy = true);
+    if (_vpnStatus.up) {
+      await _vpn.disconnect();
+    } else {
+      final prefs = ref.read(appPreferencesProvider).valueOrNull;
+      final r = await _vpn.connect(profile, route: prefs?.vpnRoute ?? 'app');
+      if (mounted) _say(vpnConnectMessage(r));
+    }
+    await _pollVpn();
+    if (mounted) setState(() => _vpnBusy = false);
+  }
+
+  Future<void> _removeVpn() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove VPN profile?'),
+        content: const Text('The VPN disconnects and the profile is deleted '
+            'from this device. You can import it again later.'),
+        actions: [
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(ctx).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
+          ),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(true),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Remove')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _vpn.deleteProfile();
+    // Nothing left to auto-connect to.
+    await ref.read(appPreferencesProvider).valueOrNull?.setVpnAutoConnect(false);
+    if (!mounted) return;
+    setState(() {
+      _vpnProfile = null;
+      _vpnStatus = const VpnStatus();
+    });
+    unawaited(_refresh());
+  }
+
+  void _say(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _refresh() async {
@@ -134,6 +246,14 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                         onTap: _copier('Device IP address',
                             net.orderedAddresses.firstOrNull),
                       ),
+                    if (net.vpn && net.vpnAddresses.isNotEmpty)
+                      _InfoRow(
+                        icon: Icons.vpn_lock_outlined,
+                        label: 'VPN address',
+                        value: net.vpnAddresses.join('\n'),
+                        onTap: _copier(
+                            'VPN address', net.vpnAddresses.firstOrNull),
+                      ),
                     if (net.connected) _publicIpRow(theme),
                     if (net.connected && net.dns.isNotEmpty)
                       _InfoRow(
@@ -143,11 +263,126 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                       ),
                   ],
           ),
+          _vpnGroup(),
           _speedGroup(),
           _bufferGroup(),
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // VPN
+  // ---------------------------------------------------------------------------
+
+  Widget _vpnGroup() {
+    final theme = Theme.of(context);
+    final profile = _vpnProfile;
+    final st = _vpnStatus;
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final route = prefs?.vpnRoute ?? 'app';
+
+    String statusText() {
+      if (profile == null) {
+        return 'Import a WireGuard profile (.conf file) from your VPN '
+            'provider to send OpenIPTV through it.';
+      }
+      final where = profile.endpoint == null ? '' : ' · ${profile.endpoint}';
+      if (!st.up) return 'Off — ${profile.name}$where';
+      final hs = st.lastHandshake;
+      final ago = hs == null
+          ? 'waiting for the server to answer'
+          : 'server answered ${_ago(hs)}';
+      return 'Connected — ${profile.name}$where\n'
+          '↓ ${formatBytes(st.rxBytes)}  ↑ ${formatBytes(st.txBytes)} · $ago';
+    }
+
+    return SettingsGroup(
+      title: 'VPN',
+      description: 'A built-in WireGuard VPN. Handy when your internet '
+          'provider blocks or slows down your IPTV provider.',
+      children: [
+        _InfoRow(
+          icon: st.up ? Icons.vpn_lock : Icons.vpn_key_outlined,
+          label: 'WireGuard',
+          value: statusText(),
+          trailing: TvActivatable(
+            // A no-op while busy, so TV focus stays put.
+            onTap: _vpnBusy
+                ? () {}
+                : (profile == null ? _importVpn : _toggleVpn),
+            builder: (onTap) => TextButton(
+              onPressed: onTap,
+              child: Text(profile == null
+                  ? 'Import'
+                  : st.up
+                      ? 'Disconnect'
+                      : 'Connect'),
+            ),
+          ),
+        ),
+        if (profile != null) ...[
+          for (final (id, label, sub) in const [
+            ('app', 'Only OpenIPTV', 'Other apps keep your normal connection'),
+            ('device', 'Whole device', 'Everything on this device uses the VPN'),
+          ])
+            TvActivatable(
+              onTap: () async {
+                await prefs?.setVpnRoute(id);
+                if (!mounted) return;
+                setState(() {});
+                if (_vpnStatus.up) {
+                  _say('Reconnect the VPN to apply this.');
+                }
+              },
+              builder: (tap) => ListTile(
+                leading: Icon(
+                  route == id
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: route == id ? theme.colorScheme.primary : null,
+                ),
+                title: Text(label),
+                subtitle: Text(sub, style: theme.textTheme.bodySmall),
+                onTap: tap,
+              ),
+            ),
+          TvActivatable(
+            onTap: () async {
+              await prefs?.setVpnAutoConnect(!(prefs.vpnAutoConnect));
+              if (mounted) setState(() {});
+            },
+            builder: (tap) => SwitchListTile(
+              secondary: const IconBadge(icon: Icons.play_circle_outline),
+              title: const Text('Connect when OpenIPTV opens'),
+              value: prefs?.vpnAutoConnect ?? false,
+              onChanged: tap == null ? null : (_) => tap(),
+            ),
+          ),
+          TvActivatable(
+            onTap: _removeVpn,
+            builder: (tap) => ListTile(
+              leading: const IconBadge(icon: Icons.delete_outline),
+              title: const Text('Remove profile'),
+              onTap: tap,
+            ),
+          ),
+        ],
+        const _InfoRow(
+          icon: Icons.info_outline,
+          label: 'OpenVPN',
+          value: 'OpenVPN profiles (.ovpn) aren\'t built in yet. Import '
+              'them into an OpenVPN app and choose "Whole device" there.',
+        ),
+      ],
+    );
+  }
+
+  static String _ago(DateTime t) {
+    final s = DateTime.now().difference(t).inSeconds;
+    if (s < 5) return 'just now';
+    if (s < 60) return '${s}s ago';
+    return '${s ~/ 60} min ago';
   }
 
   // ---------------------------------------------------------------------------

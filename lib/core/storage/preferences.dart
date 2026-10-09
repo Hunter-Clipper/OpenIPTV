@@ -26,6 +26,8 @@ const _kCleanNames = 'clean_names';
 const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
+const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
+const _kVpnAutoConnect = 'vpn_auto_connect';
 const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
 const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
@@ -135,6 +137,14 @@ class AppPreferences {
   String? get bufferPreset => _prefs.getString(_kBufferPreset);
   Future<void> setBufferPreset(String v) =>
       _prefs.setString(_kBufferPreset, v);
+
+  /// Built-in VPN: send only OpenIPTV ('app', default) or the whole device
+  /// ('device') through the tunnel; and whether to connect on app start.
+  String get vpnRoute => _prefs.getString(_kVpnRoute) ?? 'app';
+  Future<void> setVpnRoute(String v) => _prefs.setString(_kVpnRoute, v);
+  bool get vpnAutoConnect => _prefs.getBool(_kVpnAutoConnect) ?? false;
+  Future<void> setVpnAutoConnect(bool v) =>
+      _prefs.setBool(_kVpnAutoConnect, v);
 
   // Search: the last few queries that led somewhere, newest first.
   List<String> get recentSearches =>
