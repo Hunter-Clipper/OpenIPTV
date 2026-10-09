@@ -86,7 +86,7 @@
 - **Cast to your TV** from your phone: send a channel, movie or episode to a Chromecast or Google TV and keep using the phone as the remote (play, pause, seek, switch channels, volume). Your place in movies and episodes is saved while you cast.
 
 **For the whole household**
-- Profiles with a "Who's watching?" screen, optional PINs (typed on your device's own number keyboard) and admin/standard roles.
+- Profiles with a "Who's watching?" screen, optional PINs (typed on your device's own number keyboard) and admin/standard roles. On phones, the admin can use their **fingerprint or face** instead of typing the admin PIN.
 - **Parental controls** that lock adult categories behind the admin PIN everywhere (without false alarms like "Adult Swim"). Kids profiles hide adult content entirely.
 - **Backup & Restore** of profiles, playlists and settings as one `.zip`, optionally password-protected.
 
