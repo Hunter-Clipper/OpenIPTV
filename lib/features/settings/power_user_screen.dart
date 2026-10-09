@@ -403,7 +403,10 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       // below the screen yet. The page is short, so building it all is cheap.
       body: SingleChildScrollView(
         controller: _scroll,
-        padding: const EdgeInsets.only(bottom: 32),
+        // Room for the system navigation bar (a ListView adds this itself;
+        // a SingleChildScrollView with its own padding doesn't).
+        padding: EdgeInsets.only(
+            bottom: 32 + MediaQuery.paddingOf(context).bottom),
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
