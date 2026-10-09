@@ -83,6 +83,11 @@ Future<void> syncAutoRefreshRegistration(AppPreferences prefs) async {
     _kAutoRefreshUniqueName,
     _kAutoRefreshTaskName,
     frequency: Duration(hours: desired),
+    // First run one interval from now, not straight away: registration
+    // happens right after a restore (or turning the setting on), when the
+    // playlists have just been loaded — an immediate run downloaded every
+    // playlist a second time, at the same time as the restore (#50).
+    initialDelay: Duration(hours: desired),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
     constraints: Constraints(networkType: NetworkType.connected),
   );
