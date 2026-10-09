@@ -64,4 +64,17 @@ void main() {
           isNull);
     });
   });
+
+  test('a VPN keeps the real device address and lists its own', () {
+    final info = NetworkInfo.fromMap({
+      'transport': 'wifi',
+      'vpn': true,
+      'addresses': ['10.0.1.52'],
+      'vpnAddresses': ['10.99.77.2'],
+      'vpnDns': ['10.99.77.1'],
+    });
+    expect(info.orderedAddresses, ['10.0.1.52']);
+    expect(info.vpnAddresses, ['10.99.77.2']);
+    expect(info.vpnDns, ['10.99.77.1']);
+  });
 }

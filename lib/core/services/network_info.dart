@@ -10,6 +10,8 @@ class NetworkInfo {
     this.vpn = false,
     this.addresses = const [],
     this.dns = const [],
+    this.vpnAddresses = const [],
+    this.vpnDns = const [],
   });
 
   factory NetworkInfo.fromMap(Map<Object?, Object?> m) => NetworkInfo(
@@ -20,11 +22,15 @@ class NetworkInfo {
           for (final a in (m['addresses'] as List?) ?? const [])
             if (a is String && !a.toLowerCase().startsWith('fe80')) a,
         ],
-        dns: [
-          for (final a in (m['dns'] as List?) ?? const [])
-            if (a is String) a,
-        ],
+        dns: _strings(m['dns']),
+        vpnAddresses: _strings(m['vpnAddresses']),
+        vpnDns: _strings(m['vpnDns']),
       );
+
+  static List<String> _strings(Object? list) => [
+        for (final a in (list as List?) ?? const [])
+          if (a is String) a,
+      ];
 
   /// 'wifi' | 'ethernet' | 'cellular' | 'other' | 'none'.
   final String transport;
@@ -33,6 +39,10 @@ class NetworkInfo {
   /// The device's own addresses on the active network.
   final List<String> addresses;
   final List<String> dns;
+
+  /// The device's address inside the VPN tunnel, and the DNS it uses.
+  final List<String> vpnAddresses;
+  final List<String> vpnDns;
 
   bool get connected => transport != 'none';
 
