@@ -42,8 +42,38 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
         override fun onStateChange(newState: Tunnel.State) {}
     }
 
-    // A connect waiting for the user to allow the VPN.
+    // A connect waiting for the user to allow the VPN (WireGuard or OpenVPN).
     private var pending: Pair<MethodCall, MethodChannel.Result>? = null
+
+    /** Shows Android's VPN prompt if needed; true when allowed already. */
+    private fun allowed(call: MethodCall, result: MethodChannel.Result): Boolean {
+        val ask: Intent = VpnService.prepare(activity) ?: return true
+        pending?.second?.success("denied")
+        pending = call to result
+        activity.startActivityForResult(ask, PERMISSION_REQUEST)
+        return false
+    }
+
+    private fun ovpnConnect(call: MethodCall, result: MethodChannel.Result) {
+        if (!allowed(call, result)) return
+        // One VPN at a time: bring WireGuard down first.
+        work(result) {
+            if (backend.getState(tunnel) == Tunnel.State.UP) {
+                backend.setState(tunnel, Tunnel.State.DOWN, null)
+            }
+            OpenVpnService.pending = OpenVpnService.Request(
+                profile = call.argument<String>("config") ?: "",
+                user = call.argument<String>("user"),
+                pass = call.argument<String>("pass"),
+                appOnly = (call.argument<String>("route") ?: "app") == "app",
+            )
+            activity.startService(
+                Intent(activity, OpenVpnService::class.java)
+                    .setAction(OpenVpnService.ACTION_CONNECT)
+            )
+            "ok"
+        }
+    }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -54,6 +84,27 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
                 "ok"
             }
             "status" -> work(result) { status() }
+            // OpenVPN (OpenVPN 3 core, OpenVpnService).
+            "ovpnValidate" -> work(result) {
+                OpenVpnNative.validate(call.argument<String>("config") ?: "")
+            }
+            "ovpnConnect" -> ovpnConnect(call, result)
+            "ovpnDisconnect" -> {
+                activity.startService(
+                    Intent(activity, OpenVpnService::class.java)
+                        .setAction(OpenVpnService.ACTION_DISCONNECT)
+                )
+                result.success("ok")
+            }
+            "ovpnStatus" -> {
+                val stats = OpenVpnNative.stats()
+                result.success(mapOf(
+                    "state" to OpenVpnService.state,
+                    "error" to OpenVpnService.lastError,
+                    "rx" to stats[0],
+                    "tx" to stats[1],
+                ))
+            }
             else -> result.notImplemented()
         }
     }
@@ -70,16 +121,15 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
 
     private fun connect(call: MethodCall, result: MethodChannel.Result) {
         // Android asks the user once to allow OpenIPTV to set up a VPN.
-        val ask: Intent? = VpnService.prepare(activity)
-        if (ask != null) {
-            pending?.second?.success("denied")
-            pending = call to result
-            activity.startActivityForResult(ask, PERMISSION_REQUEST)
-            return
-        }
+        if (!allowed(call, result)) return
         val text = call.argument<String>("config") ?: ""
         val route = call.argument<String>("route") ?: "app"
         work(result) {
+            // One VPN at a time: stop OpenVPN first.
+            if (OpenVpnService.state != "off") {
+                OpenVpnNative.stop()
+                Thread.sleep(500)
+            }
             val config = Config.parse(BufferedReader(StringReader(routed(text, route))))
             // Up again with new settings: take it down first.
             if (backend.getState(tunnel) == Tunnel.State.UP) {
@@ -94,7 +144,11 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
     fun onPermissionResult(granted: Boolean) {
         val (call, result) = pending ?: return
         pending = null
-        if (granted) connect(call, result) else result.success("denied")
+        when {
+            !granted -> result.success("denied")
+            call.method == "ovpnConnect" -> ovpnConnect(call, result)
+            else -> connect(call, result)
+        }
     }
 
     private fun status(): Map<String, Any?> {
