@@ -20,7 +20,8 @@ val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
 android {
     namespace = "com.openiptv.app"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    // Pinned: the OpenVPN native build is tested with this NDK.
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -38,6 +39,24 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Built-in OpenVPN (Power User Tools, #41): OpenVPN 3 core + mbed TLS,
+        // compiled from pinned sources fetched by android/openvpn-deps.sh.
+        externalNativeBuild {
+            cmake {
+                arguments += listOf(
+                    "-DOVPN_DEPS=${rootProject.file(".ovpn-deps").absolutePath}",
+                    "-DANDROID_STL=c++_static",
+                )
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     signingConfigs {
@@ -64,6 +83,15 @@ android {
         }
     }
 }
+
+// Fetch the OpenVPN sources (once; the script exits early when ready)
+// before CMake configures.
+val fetchOpenVpnDeps by tasks.registering(Exec::class) {
+    commandLine("bash", rootProject.file("openvpn-deps.sh").absolutePath)
+    outputs.file(rootProject.file(".ovpn-deps/.ready"))
+}
+tasks.matching { it.name.startsWith("configureCMake") || it.name.startsWith("buildCMake") }
+    .configureEach { dependsOn(fetchOpenVpnDeps) }
 
 kotlin {
     compilerOptions {
