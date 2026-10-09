@@ -496,6 +496,29 @@ class AppDatabase extends _$AppDatabase {
         (b, chunk) => b.insertAllOnConflictUpdate(channels, chunk));
   }
 
+  /// A few stream links from [sourceId] (every playlist when null) for the
+  /// speed test (Power User Tools): movies first — a file downloads at full
+  /// speed — then live channels. Bounded, index-backed queries; never the
+  /// whole catalog.
+  Future<List<({bool movie, String url})>> speedTestCandidates(
+      String? sourceId,
+      {int each = 3}) async {
+    final m = selectOnly(movies)..addColumns([movies.streamUrl]);
+    final c = selectOnly(channels)..addColumns([channels.streamUrl]);
+    if (sourceId != null) {
+      m.where(movies.sourceId.equals(sourceId));
+      c.where(channels.sourceId.equals(sourceId));
+    }
+    m.limit(each);
+    c.limit(each);
+    return [
+      for (final r in await m.get())
+        (movie: true, url: r.read(movies.streamUrl)!),
+      for (final r in await c.get())
+        (movie: false, url: r.read(channels.streamUrl)!),
+    ];
+  }
+
   Future<void> deleteChannelsForSource(String sourceId) async {
     await (delete(channels)..where((t) => t.sourceId.equals(sourceId))).go();
   }
