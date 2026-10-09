@@ -69,9 +69,21 @@ object EngineChannels {
     fun networkInfo(context: Context): Map<String, Any?> {
         val cm = context.getSystemService(ConnectivityManager::class.java)
             ?: return mapOf("transport" to "none")
-        val network = cm.activeNetwork ?: return mapOf("transport" to "none")
-        val caps = cm.getNetworkCapabilities(network)
-        val link = cm.getLinkProperties(network)
+        fun isVpn(n: android.net.Network) = cm.getNetworkCapabilities(n)
+            ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        // With a VPN up, the app's "active" network is the tunnel. Report
+        // the real Wi-Fi / Ethernet / mobile network as the connection and
+        // device address, and the tunnel's address on its own.
+        val vpnNet = cm.allNetworks.firstOrNull { isVpn(it) }
+        val active = cm.activeNetwork
+        val real = active?.takeIf { !isVpn(it) } ?: cm.allNetworks.firstOrNull {
+            val c = cm.getNetworkCapabilities(it)
+            c != null && !c.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }
+        if (real == null && vpnNet == null) return mapOf("transport" to "none")
+        val caps = real?.let { cm.getNetworkCapabilities(it) }
+        val link = real?.let { cm.getLinkProperties(it) }
         val transport = when {
             caps == null -> "other"
             caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
@@ -79,19 +91,14 @@ object EngineChannels {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
             else -> "other"
         }
-        // A VPN is its own network on top of the real one; ask every
-        // network, since the active one may already be the tunnel.
-        val vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true ||
-            cm.allNetworks.any {
-                cm.getNetworkCapabilities(it)
-                    ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-            }
+        val vpnLink = vpnNet?.let { cm.getLinkProperties(it) }
         return mapOf(
             "transport" to transport,
-            "vpn" to vpn,
+            "vpn" to (vpnNet != null),
             "addresses" to (link?.linkAddresses?.mapNotNull { it.address?.hostAddress } ?: emptyList()),
             "dns" to (link?.dnsServers?.mapNotNull { it.hostAddress } ?: emptyList()),
-            "interface" to link?.interfaceName,
+            "vpnAddresses" to (vpnLink?.linkAddresses?.mapNotNull { it.address?.hostAddress } ?: emptyList()),
+            "vpnDns" to (vpnLink?.dnsServers?.mapNotNull { it.hostAddress } ?: emptyList()),
         )
     }
 
