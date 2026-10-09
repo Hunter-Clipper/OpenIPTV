@@ -22,6 +22,7 @@ class MainActivity : AudioServiceActivity() {
     private var backChannel: MethodChannel? = null
     private var updatesChannel: MethodChannel? = null
     private var castController: CastController? = null
+    private var vpnController: VpnController? = null
 
     // Updated proactively by Dart via pip_service.dart's updatePipAvailability()
     // whenever "PiP enabled AND actively playing" changes. Read synchronously
@@ -80,6 +81,11 @@ class MainActivity : AudioServiceActivity() {
         // Fingerprint / face in place of the admin PIN (#47).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/biometric")
             .setMethodCallHandler(AdminBiometric(this))
+        // Built-in WireGuard VPN (Power User Tools, #41).
+        vpnController = VpnController(this).also {
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/vpn")
+                .setMethodCallHandler(it)
+        }
 
         // The video player and device channels are registered on every
         // engine by EngineChannels (so Android Auto can play with the app
@@ -144,5 +150,13 @@ class MainActivity : AudioServiceActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         pipChannel?.invokeMethod("onPipModeChanged", isInPictureInPictureMode)
+    }
+
+    @Deprecated("Activity result for the VPN permission prompt")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == VpnController.PERMISSION_REQUEST) {
+            vpnController?.onPermissionResult(resultCode == RESULT_OK)
+        }
     }
 }

@@ -87,4 +87,7 @@ dependencies {
     // framework + MediaRouter for device discovery.
     implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
+    // Built-in WireGuard VPN (VpnController.kt, Power User Tools #41).
+    // Official userspace tunnel library, Apache-2.0.
+    implementation("com.wireguard.android:tunnel:1.0.20260102")
 }
