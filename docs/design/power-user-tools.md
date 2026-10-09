@@ -41,16 +41,20 @@ Two measurements, both on tap:
 2. **General internet** — 25 MB from `speed.cloudflare.com` (named on
    screen; it refuses larger single downloads).
 
-## Phase 4 — Built-in VPN (WireGuard ✅, OpenVPN pending)
+## Phase 4 — Built-in VPN (WireGuard ✅, OpenVPN ✅)
 
 - **WireGuard ✅:** import a `.conf` file, connect/disconnect, live
   traffic + last handshake, route only OpenIPTV (default) or the whole
   device, connect when the app opens. `VpnController.kt` + the official
   `com.wireguard.android:tunnel` (Apache-2.0). Profile in secure storage.
   Adds ~11 MB to the universal APK. QR import: not yet.
-- **OpenVPN:** the common Android library (ics-openvpn) is GPL-2.0-only,
-  which can't be combined with this GPL-3.0 app. Options: OpenVPN 3 core
-  (AGPL/commercial), handing `.ovpn` files to the official OpenVPN Connect
-  app, or WireGuard only. **Owner decision needed.**
+- **OpenVPN ✅:** OpenVPN 3 core under its MPL-2.0 option (ics-openvpn is
+  GPL-2.0-only, so not usable), mbed TLS, built from pinned sources by
+  `android/openvpn-deps.sh` + CMake (`android/app/src/main/cpp`), JNI bridge
+  → `OpenVpnService` (VpnService). Import .ovpn, optional username/password
+  (secure storage, "Change OpenVPN login"), same routing and auto-connect
+  as WireGuard; one VPN at a time. ~10 MB more APK; the first build fetches
+  the sources and compiles for ~6 min (cached after). Licences:
+  `docs/THIRD_PARTY_NATIVE.md`.
 - TVs: VpnService works on Android TV; import via file (adb/Downloads) since
   TVs can't scan QR codes.
