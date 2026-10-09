@@ -55,4 +55,42 @@ void main() {
     expect(vpnConnectMessage('denied'), contains('permission'));
     expect(vpnConnectMessage('anything'), contains("Couldn't connect"));
   });
+
+  group('OpenVPN', () {
+    const ovpn = '''
+client
+dev tun
+proto udp
+remote vpn.example.org 1194
+auth-user-pass
+<ca>
+-----BEGIN CERTIFICATE-----
+MIIB
+-----END CERTIFICATE-----
+</ca>
+''';
+
+    test('recognises a profile and finds its server', () {
+      expect(OpenVpnProfile.looksLikeOpenVpn(ovpn), isTrue);
+      expect(const OpenVpnProfile(name: 'x', config: ovpn).endpoint,
+          'vpn.example.org:1194');
+    });
+
+    test('WireGuard and playlists are not mistaken for one', () {
+      expect(OpenVpnProfile.looksLikeOpenVpn(_conf), isFalse);
+      expect(OpenVpnProfile.looksLikeOpenVpn('#EXTM3U'), isFalse);
+    });
+
+    test('status from the native map', () {
+      final s = OpenVpnStatus.fromMap(
+          {'state': 'connected', 'rx': 4096, 'tx': 100, 'error': null});
+      expect(s.up, isTrue);
+      expect(s.rxBytes, 4096);
+      // The native side reports -1 when no session is running.
+      final off = OpenVpnStatus.fromMap({'state': 'off', 'rx': -1, 'tx': -1});
+      expect(off.up, isFalse);
+      expect(off.rxBytes, 0);
+      expect(OpenVpnStatus.fromMap({'state': 'connecting'}).busy, isTrue);
+    });
+  });
 }

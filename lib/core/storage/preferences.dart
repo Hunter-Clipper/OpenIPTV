@@ -28,6 +28,7 @@ const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
 const _kVpnAutoConnect = 'vpn_auto_connect';
+const _kVpnKind = 'vpn_kind'; // 'wireguard' | 'openvpn' (last connected)
 const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
 const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
@@ -145,6 +146,8 @@ class AppPreferences {
   bool get vpnAutoConnect => _prefs.getBool(_kVpnAutoConnect) ?? false;
   Future<void> setVpnAutoConnect(bool v) =>
       _prefs.setBool(_kVpnAutoConnect, v);
+  String get vpnKind => _prefs.getString(_kVpnKind) ?? 'wireguard';
+  Future<void> setVpnKind(String v) => _prefs.setString(_kVpnKind, v);
 
   // Search: the last few queries that led somewhere, newest first.
   List<String> get recentSearches =>

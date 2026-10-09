@@ -37,6 +37,9 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   bool _vpnBusy = false;
   Timer? _vpnTimer;
 
+  OpenVpnProfile? _ovpn;
+  OpenVpnStatus _ovpnStatus = const OpenVpnStatus();
+
   @override
   void initState() {
     super.initState();
@@ -54,19 +57,178 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Future<void> _loadVpn() async {
     final p = await _vpn.loadProfile();
+    final o = await _vpn.loadOpenVpn();
     if (!mounted) return;
-    setState(() => _vpnProfile = p);
+    setState(() {
+      _vpnProfile = p;
+      _ovpn = o;
+    });
     await _pollVpn();
   }
 
   Future<void> _pollVpn() async {
-    if (_vpnProfile == null) return;
-    final st = await _vpn.status();
+    if (_vpnProfile == null && _ovpn == null) return;
+    final st = _vpnProfile == null ? const VpnStatus() : await _vpn.status();
+    final os =
+        _ovpn == null ? const OpenVpnStatus() : await _vpn.openVpnStatus();
     if (!mounted) return;
-    final changed = st.up != _vpnStatus.up;
-    setState(() => _vpnStatus = st);
+    final changed = st.up != _vpnStatus.up || os.up != _ovpnStatus.up;
+    final failed = os.state == 'error' && _ovpnStatus.state != 'error';
+    setState(() {
+      _vpnStatus = st;
+      _ovpnStatus = os;
+    });
+    if (failed) _say(_openVpnError(os.error));
     // The connection details (VPN on/off, addresses) change with it.
     if (changed) unawaited(_refresh());
+  }
+
+  static String _openVpnError(String? e) {
+    final t = (e ?? '').toLowerCase();
+    if (t.contains('auth')) {
+      return 'The VPN server rejected the username or password. Use '
+          '"Change OpenVPN login" to fix it.';
+    }
+    if (t.contains('timeout') ||
+        t.contains('resolve') ||
+        t.contains('network')) {
+      return "Couldn't reach the VPN server. Check the profile and your "
+          'connection.';
+    }
+    return "The VPN couldn't connect. Check the profile and try again.";
+  }
+
+  Future<void> _importOpenVpn() async {
+    final file = await pickDeviceFile(context,
+        title: 'Choose an OpenVPN profile', extensions: const ['ovpn', 'conf']);
+    if (file == null || !mounted) return;
+    final text = utf8.decode(file.bytes, allowMalformed: true);
+    final problem = await _vpn.validateOpenVpn(text);
+    if (!mounted) return;
+    String? user;
+    String? pass;
+    if (problem == 'needs_login') {
+      final login = await _askLogin();
+      if (login == null || !mounted) return;
+      (user, pass) = login;
+    } else if (problem != null) {
+      _say(problem);
+      return;
+    }
+    final name = file.name.replaceAll(RegExp(r'\.(ovpn|conf)$'), '');
+    final profile =
+        OpenVpnProfile(name: name, config: text, user: user, pass: pass);
+    await _vpn.saveOpenVpn(profile);
+    if (!mounted) return;
+    setState(() => _ovpn = profile);
+    _say('Profile "$name" added');
+  }
+
+  /// Username and password for a profile that asks for them.
+  Future<(String, String)?> _askLogin() async {
+    final user = TextEditingController();
+    final pass = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('VPN login'),
+        scrollable: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('This profile needs the username and password from '
+                'your VPN provider. They are stored encrypted on this '
+                'device.'),
+            const SizedBox(height: 12),
+            TvTextFieldGate(
+              autofocus: true,
+              builder: (context, node) => TextField(
+                focusNode: node,
+                controller: user,
+                decoration: const InputDecoration(labelText: 'Username'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TvTextFieldGate(
+              builder: (context, node) => TextField(
+                focusNode: node,
+                controller: pass,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
+          ),
+          TvActivatable(
+            onTap: () => Navigator.of(ctx).pop(true),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Save')),
+          ),
+        ],
+      ),
+    );
+    final result = ok == true && user.text.isNotEmpty
+        ? (user.text, pass.text)
+        : null;
+    user.dispose();
+    pass.dispose();
+    return result;
+  }
+
+  Future<void> _toggleOpenVpn() async {
+    final profile = _ovpn;
+    if (profile == null || _vpnBusy) return;
+    setState(() => _vpnBusy = true);
+    if (_ovpnStatus.state != 'off' && _ovpnStatus.state != 'error') {
+      await _vpn.disconnectOpenVpn();
+    } else {
+      final prefs = ref.read(appPreferencesProvider).valueOrNull;
+      // One VPN at a time.
+      if (_vpnStatus.up) await _vpn.disconnect();
+      await prefs?.setVpnKind('openvpn');
+      final r =
+          await _vpn.connectOpenVpn(profile, route: prefs?.vpnRoute ?? 'app');
+      if (mounted) _say(vpnConnectMessage(r == 'ok' ? 'starting' : r));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await _pollVpn();
+    if (mounted) setState(() => _vpnBusy = false);
+  }
+
+  Future<void> _changeOpenVpnLogin() async {
+    final profile = _ovpn;
+    if (profile == null) return;
+    final login = await _askLogin();
+    if (login == null || !mounted) return;
+    final updated = OpenVpnProfile(
+        name: profile.name,
+        config: profile.config,
+        user: login.$1,
+        pass: login.$2);
+    await _vpn.saveOpenVpn(updated);
+    if (!mounted) return;
+    setState(() => _ovpn = updated);
+    _say('VPN login saved');
+  }
+
+  Future<void> _removeOpenVpn() async {
+    if (await _confirmRemove() != true) return;
+    await _vpn.deleteOpenVpn();
+    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    if (_vpnProfile == null) await prefs?.setVpnAutoConnect(false);
+    if (prefs?.vpnKind == 'openvpn') await prefs?.setVpnKind('wireguard');
+    if (!mounted) return;
+    setState(() {
+      _ovpn = null;
+      _ovpnStatus = const OpenVpnStatus();
+    });
+    unawaited(_refresh());
   }
 
   Future<void> _importVpn() async {
@@ -96,6 +258,9 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       await _vpn.disconnect();
     } else {
       final prefs = ref.read(appPreferencesProvider).valueOrNull;
+      // One VPN at a time.
+      if (_ovpnStatus.state != 'off') await _vpn.disconnectOpenVpn();
+      await prefs?.setVpnKind('wireguard');
       final r = await _vpn.connect(profile, route: prefs?.vpnRoute ?? 'app');
       if (mounted) _say(vpnConnectMessage(r));
     }
@@ -103,8 +268,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     if (mounted) setState(() => _vpnBusy = false);
   }
 
-  Future<void> _removeVpn() async {
-    final ok = await showDialog<bool>(
+  Future<bool?> _confirmRemove() => showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove VPN profile?'),
@@ -125,10 +289,16 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         ],
       ),
     );
-    if (ok != true) return;
+
+  Future<void> _removeVpn() async {
+    if (await _confirmRemove() != true) return;
     await _vpn.deleteProfile();
+    final prefs = ref.read(appPreferencesProvider).valueOrNull;
     // Nothing left to auto-connect to.
-    await ref.read(appPreferencesProvider).valueOrNull?.setVpnAutoConnect(false);
+    if (_ovpn == null) await prefs?.setVpnAutoConnect(false);
+    if (prefs?.vpnKind == 'wireguard' && _ovpn != null) {
+      await prefs?.setVpnKind('openvpn');
+    }
     if (!mounted) return;
     setState(() {
       _vpnProfile = null;
@@ -279,13 +449,15 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     final theme = Theme.of(context);
     final profile = _vpnProfile;
     final st = _vpnStatus;
+    final ovpn = _ovpn;
+    final os = _ovpnStatus;
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final route = prefs?.vpnRoute ?? 'app';
 
-    String statusText() {
+    String wgText() {
       if (profile == null) {
         return 'Import a WireGuard profile (.conf file) from your VPN '
-            'provider to send OpenIPTV through it.';
+            'provider.';
       }
       final where = profile.endpoint == null ? '' : ' · ${profile.endpoint}';
       if (!st.up) return 'Off — ${profile.name}$where';
@@ -297,31 +469,61 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           '↓ ${formatBytes(st.rxBytes)}  ↑ ${formatBytes(st.txBytes)} · $ago';
     }
 
+    String ovpnText() {
+      if (ovpn == null) {
+        return 'Import an OpenVPN profile (.ovpn file) from your VPN '
+            'provider.';
+      }
+      final where = ovpn.endpoint == null ? '' : ' · ${ovpn.endpoint}';
+      return switch (os.state) {
+        'connected' => 'Connected — ${ovpn.name}$where\n'
+            '↓ ${formatBytes(os.rxBytes)}  ↑ ${formatBytes(os.txBytes)}',
+        'connecting' => 'Connecting — ${ovpn.name}$where',
+        'error' => "Couldn't connect — ${ovpn.name}$where",
+        _ => 'Off — ${ovpn.name}$where',
+      };
+    }
+
+    Widget actionButton(String label, VoidCallback onRun) => TvActivatable(
+          // A no-op while busy, so TV focus stays put.
+          onTap: _vpnBusy ? () {} : onRun,
+          builder: (onTap) =>
+              TextButton(onPressed: onTap, child: Text(label)),
+        );
+
+    final ovpnOn = os.state == 'connected' || os.state == 'connecting';
+
     return SettingsGroup(
       title: 'VPN',
-      description: 'A built-in WireGuard VPN. Handy when your internet '
-          'provider blocks or slows down your IPTV provider.',
+      description: 'A built-in VPN — WireGuard or OpenVPN. Handy when your '
+          'internet provider blocks or slows down your IPTV provider. One '
+          'connects at a time.',
       children: [
         _InfoRow(
           icon: st.up ? Icons.vpn_lock : Icons.vpn_key_outlined,
           label: 'WireGuard',
-          value: statusText(),
-          trailing: TvActivatable(
-            // A no-op while busy, so TV focus stays put.
-            onTap: _vpnBusy
-                ? () {}
-                : (profile == null ? _importVpn : _toggleVpn),
-            builder: (onTap) => TextButton(
-              onPressed: onTap,
-              child: Text(profile == null
+          value: wgText(),
+          trailing: actionButton(
+              profile == null
                   ? 'Import'
                   : st.up
                       ? 'Disconnect'
-                      : 'Connect'),
-            ),
-          ),
+                      : 'Connect',
+              profile == null ? _importVpn : _toggleVpn),
         ),
-        if (profile != null) ...[
+        _InfoRow(
+          icon: os.up ? Icons.vpn_lock : Icons.lock_outline,
+          label: 'OpenVPN',
+          value: ovpnText(),
+          trailing: actionButton(
+              ovpn == null
+                  ? 'Import'
+                  : ovpnOn
+                      ? 'Disconnect'
+                      : 'Connect',
+              ovpn == null ? _importOpenVpn : _toggleOpenVpn),
+        ),
+        if (profile != null || ovpn != null) ...[
           for (final (id, label, sub) in const [
             ('app', 'Only OpenIPTV', 'Other apps keep your normal connection'),
             ('device', 'Whole device', 'Everything on this device uses the VPN'),
@@ -331,7 +533,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                 await prefs?.setVpnRoute(id);
                 if (!mounted) return;
                 setState(() {});
-                if (_vpnStatus.up) {
+                if (_vpnStatus.up || _ovpnStatus.up) {
                   _say('Reconnect the VPN to apply this.');
                 }
               },
@@ -355,25 +557,42 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
             builder: (tap) => SwitchListTile(
               secondary: const IconBadge(icon: Icons.play_circle_outline),
               title: const Text('Connect when OpenIPTV opens'),
+              subtitle: Text('Uses the VPN you connected last',
+                  style: theme.textTheme.bodySmall),
               value: prefs?.vpnAutoConnect ?? false,
               onChanged: tap == null ? null : (_) => tap(),
             ),
           ),
-          TvActivatable(
-            onTap: _removeVpn,
-            builder: (tap) => ListTile(
-              leading: const IconBadge(icon: Icons.delete_outline),
-              title: const Text('Remove profile'),
-              onTap: tap,
+          if (profile != null)
+            TvActivatable(
+              onTap: _removeVpn,
+              builder: (tap) => ListTile(
+                leading: const IconBadge(icon: Icons.delete_outline),
+                title: const Text('Remove WireGuard profile'),
+                onTap: tap,
+              ),
             ),
-          ),
+          if (ovpn != null && ovpn.user != null)
+            TvActivatable(
+              onTap: _changeOpenVpnLogin,
+              builder: (tap) => ListTile(
+                leading: const IconBadge(icon: Icons.password),
+                title: const Text('Change OpenVPN login'),
+                subtitle: Text('Signed in as ${ovpn.user}',
+                    style: theme.textTheme.bodySmall),
+                onTap: tap,
+              ),
+            ),
+          if (ovpn != null)
+            TvActivatable(
+              onTap: _removeOpenVpn,
+              builder: (tap) => ListTile(
+                leading: const IconBadge(icon: Icons.delete_outline),
+                title: const Text('Remove OpenVPN profile'),
+                onTap: tap,
+              ),
+            ),
         ],
-        const _InfoRow(
-          icon: Icons.info_outline,
-          label: 'OpenVPN',
-          value: 'OpenVPN profiles (.ovpn) aren\'t built in yet. Import '
-              'them into an OpenVPN app and choose "Whole device" there.',
-        ),
       ],
     );
   }
