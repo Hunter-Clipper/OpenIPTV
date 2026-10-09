@@ -141,7 +141,14 @@ class OpenVpnService : VpnService() {
             for (i in 0 until dns.length()) b.addDnsServer(dns.getString(i))
             val domains = s.getJSONArray("domains")
             for (i in 0 until domains.length()) b.addSearchDomain(domains.getString(i))
-            if (appOnly) b.addAllowedApplication(packageName)
+            if (appOnly) {
+                b.addAllowedApplication(packageName)
+            } else {
+                // Whole device: keep Android Auto's car link out of the tunnel.
+                for (pkg in VpnExclusions.installed(this@OpenVpnService)) {
+                    b.addDisallowedApplication(pkg)
+                }
+            }
             val pfd = b.establish()
             pfd?.detachFd() ?: -1
         } catch (e: Exception) {

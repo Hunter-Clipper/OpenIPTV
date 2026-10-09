@@ -558,7 +558,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         if (profile != null || ovpn != null) ...[
           for (final (id, label, sub) in const [
             ('app', 'Only OpenIPTV', 'Other apps keep your normal connection'),
-            ('device', 'Whole device', 'Everything on this device uses the VPN'),
+            ('device', 'Whole device',
+                'Every app uses the VPN, except Android Auto\'s car link'),
           ])
             TvActivatable(
               onTap: () async {

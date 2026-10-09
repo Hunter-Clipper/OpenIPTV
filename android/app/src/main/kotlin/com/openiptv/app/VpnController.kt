@@ -26,6 +26,26 @@ import java.util.concurrent.Executors
  * Route "app" sends only OpenIPTV through the tunnel (other apps keep the
  * normal connection); "device" sends everything.
  */
+/**
+ * Apps kept outside the tunnel in "Whole device" mode (#41): Android
+ * Auto's link to the car (Wi-Fi Direct or the head unit's hotspot, local
+ * traffic) breaks when a system-wide VPN captures it. Only installed apps
+ * are listed — Android refuses to exclude one that isn't.
+ */
+object VpnExclusions {
+    private val packages = listOf("com.google.android.projection.gearhead")
+
+    fun installed(context: android.content.Context): List<String> =
+        packages.filter {
+            try {
+                context.packageManager.getPackageInfo(it, 0)
+                true
+            } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                false
+            }
+        }
+}
+
 class VpnController(private val activity: Activity) : MethodChannel.MethodCallHandler {
 
     companion object {
@@ -180,6 +200,13 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
                 out.appendLine(line)
                 if (inInterface && route == "app") {
                     out.appendLine("IncludedApplications = ${activity.packageName}")
+                }
+                // Whole device: keep Android Auto's car link out of the tunnel.
+                if (inInterface && route != "app") {
+                    val keepOut = VpnExclusions.installed(activity)
+                    if (keepOut.isNotEmpty()) {
+                        out.appendLine("ExcludedApplications = ${keepOut.joinToString(", ")}")
+                    }
                 }
                 continue
             }
