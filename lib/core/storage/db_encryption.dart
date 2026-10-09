@@ -34,14 +34,15 @@ class DbKeyStore {
 
   /// The database key (64 hex characters), creating it on first use.
   Future<String> obtain() async =>
-      await read() ?? await _create();
+      await read() ?? await create();
 
   Future<String?> read() async {
     final key = await _storage.read(key: _keyName);
     return key != null && isValidKey(key) ? key : null;
   }
 
-  Future<String> _create() async {
+  /// Writes a new random key (replacing any stored one) and returns it.
+  Future<String> create() async {
     final key = newKey();
     await _storage.write(key: _keyName, value: key);
     return key;
@@ -99,8 +100,8 @@ enum DbOpenState {
   /// Conversion failed this time; opened unencrypted, retried next launch.
   plaintext,
 
-  /// The key didn't match the file (lost from the Keystore); the old
-  /// database was deleted and a fresh one created.
+  /// The key couldn't be read or didn't match the file; the old database
+  /// was moved aside (see [lostSuffix]) and a fresh one created.
   reset,
 }
 
@@ -108,12 +109,21 @@ enum DbOpenState {
 /// database first when [migrate] is true. Background isolates (auto-refresh)
 /// pass false: they never convert, and never touch an unconverted file
 /// ([DatabaseNotReadyException]).
+/// The old database files keep this suffix when a reset sets them aside
+/// (only the latest set is kept). Nothing reads them yet; they exist so a
+/// reset never destroys data outright (#51).
+const lostSuffix = '.lost';
+
 Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   File file, {
   required DbKeyStore keys,
   required void Function(Database db) setup,
   bool migrate = true,
+  // Tests swap these: whether a key opens the file, and the retry pause.
+  Future<bool> Function(String path, String key)? keyOpens,
+  Duration retryDelay = const Duration(milliseconds: 300),
 }) async {
+  keyOpens ??= (path, key) => Isolate.run(() => _keyOpens(path, key));
   _useSqlCipher();
   await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
 
@@ -135,24 +145,29 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
     }
   }
 
-  var key = await keys.read();
+  var key = await _readKey(keys, retryDelay);
   if (file.existsSync()) {
-    final ok = key != null &&
-        await Isolate.run(() => _keyOpens(file.path, key!));
+    final ok = key != null && await keyOpens(file.path, key);
     if (!ok) {
-      // Unrecoverable without the key — start clean (the user can restore
-      // one of their own backups from the setup screen).
-      debugPrint('[OTV-db] database key missing or wrong — resetting');
-      for (final suffix in ['', '-wal', '-shm', '-journal']) {
-        final f = File('${file.path}$suffix');
-        if (f.existsSync()) f.deleteSync();
-      }
+      // A background isolate never resets: the app will look at it on its
+      // next launch (#51 — a passing Keystore hiccup in the auto-refresh
+      // must not wipe the user's data).
+      if (!migrate) throw const DatabaseNotReadyException();
+      // Unusable without the key — start clean, but set the old files
+      // aside instead of deleting them (the user can also restore one of
+      // their own backups from the setup screen).
+      debugPrint('[OTV-db] database key '
+          '${key == null ? 'unreadable' : 'does not match'} — setting the '
+          'old database aside and starting fresh');
+      _setAside(file);
       await keys.delete();
       key = null;
       state = DbOpenState.reset;
     }
   }
-  key ??= await keys.obtain();
+  // Every read came back empty (or the key was just set aside): make a new
+  // one directly — reading again could keep failing and stop the app.
+  key ??= await keys.create();
 
   final sqlKey = _sqlKey(key);
   return (
@@ -166,6 +181,36 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
     ),
     state,
   );
+}
+
+/// Reads the key, retrying: Android's secure storage can fail for a
+/// moment (seen on a Chromecast at start-up), and a failed read must not
+/// be mistaken for a lost key. Null only if every attempt finds nothing.
+Future<String?> _readKey(DbKeyStore keys, Duration delay) async {
+  const attempts = 5;
+  for (var i = 1; i <= attempts; i++) {
+    try {
+      final key = await keys.read();
+      if (key != null) return key;
+    } catch (e) {
+      debugPrint('[OTV-db] key read failed ($i/$attempts): ${e.runtimeType}');
+    }
+    if (i < attempts) await Future<void>.delayed(delay);
+  }
+  return null;
+}
+
+/// Moves the database files to `<name>.lost…`, replacing any older set.
+void _setAside(File file) {
+  const suffixes = ['', '-wal', '-shm', '-journal'];
+  for (final s in suffixes) {
+    final old = File('${file.path}$lostSuffix$s');
+    if (old.existsSync()) old.deleteSync();
+  }
+  for (final s in suffixes) {
+    final f = File('${file.path}$s');
+    if (f.existsSync()) f.renameSync('${file.path}$lostSuffix$s');
+  }
 }
 
 QueryExecutor _plain(File file, void Function(Database) setup) =>
