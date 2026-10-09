@@ -182,13 +182,18 @@ class NativeVideoPlayer {
   Future<void> clearTextTrack() =>
       _control.invokeMethod('clearTextTrack', {'id': _textureId});
 
+  /// [bufferPreset]: a [BufferPreset] id; the native player rebuilds its
+  /// buffer settings when it changes.
   Future<void> open(String url,
-      {String? streamTypeHint, Duration? startPosition}) {
+      {String? streamTypeHint,
+      Duration? startPosition,
+      String bufferPreset = 'fast'}) {
     return _control.invokeMethod('open', {
       'id': _textureId,
       'url': url,
       'streamTypeHint': streamTypeHint,
       'startPositionMs': startPosition?.inMilliseconds ?? 0,
+      'bufferPreset': bufferPreset,
     });
   }
 

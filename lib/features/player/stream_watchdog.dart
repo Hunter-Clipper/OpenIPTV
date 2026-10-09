@@ -172,7 +172,9 @@ class StreamWatchdog {
     if (_everPlayed && _attempts > 3) {
       final extra = Duration(seconds: 2 * (_attempts - 3));
       final limit = connectLimit + extra;
-      return limit > maxBackoff ? maxBackoff : limit;
+      // Never below the connect window (a bigger buffer setting needs it).
+      final cap = maxBackoff > connectLimit ? maxBackoff : connectLimit;
+      return limit > cap ? cap : limit;
     }
     return connectLimit;
   }

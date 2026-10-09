@@ -25,6 +25,7 @@ const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
 const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
+const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
 const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
@@ -129,6 +130,11 @@ class AppPreferences {
   // Player: how the picture fits the screen.
   String get videoFit => _prefs.getString(_kVideoFit) ?? 'fit';
   Future<void> setVideoFit(String v) => _prefs.setString(_kVideoFit, v);
+
+  /// Player buffer size (Power User Tools); null = the default.
+  String? get bufferPreset => _prefs.getString(_kBufferPreset);
+  Future<void> setBufferPreset(String v) =>
+      _prefs.setString(_kBufferPreset, v);
 
   // Search: the last few queries that led somewhere, newest first.
   List<String> get recentSearches =>
