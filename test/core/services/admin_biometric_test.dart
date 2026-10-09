@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -22,6 +23,14 @@ class _FakeBiometric extends AdminBiometric {
     asked.add(action);
     return outcome;
   }
+}
+
+/// A scan prompt that stays up until [answer] completes.
+class _SlowBiometric extends AdminBiometric {
+  final answer = Completer<BiometricOutcome>();
+
+  @override
+  Future<BiometricOutcome> authenticate(String action) => answer.future;
 }
 
 void main() {
@@ -55,7 +64,7 @@ void main() {
     final prefs = AppPreferences(await SharedPreferences.getInstance());
     final bio = _FakeBiometric(BiometricOutcome.success);
     expect(await unlockAdminWithBiometric(prefs, bio, 'Unlock "Adult"'),
-        isFalse);
+        AdminScanResult.usePin);
     expect(bio.asked, isEmpty);
   });
 
@@ -63,7 +72,7 @@ void main() {
     final prefs = await prefsWith(biometricOn: true);
     final bio = _FakeBiometric(BiometricOutcome.success);
     expect(await unlockAdminWithBiometric(prefs, bio, 'Unlock "Adult"'),
-        isTrue);
+        AdminScanResult.unlocked);
     expect(bio.asked, ['Unlock "Adult"']);
   });
 
@@ -75,7 +84,7 @@ void main() {
     ]) {
       final prefs = await prefsWith(biometricOn: true);
       expect(await unlockAdminWithBiometric(prefs, _FakeBiometric(o), 'x'),
-          isFalse,
+          AdminScanResult.usePin,
           reason: '$o');
       expect(prefs.adminBiometricUnlock, isTrue, reason: '$o');
     }
@@ -88,7 +97,7 @@ void main() {
     final ok = await unlockAdminWithBiometric(
         prefs, _FakeBiometric(BiometricOutcome.invalidated), 'x',
         onNotice: notices.add);
-    expect(ok, isFalse);
+    expect(ok, AdminScanResult.usePin);
     expect(prefs.adminBiometricUnlock, isFalse);
     expect(notices.single, kBiometricResetNotice);
   });
@@ -100,9 +109,42 @@ void main() {
         await unlockAdminWithBiometric(
             prefs, _FakeBiometric(BiometricOutcome.notEnabled), 'x',
             onNotice: notices.add),
-        isFalse);
+        AdminScanResult.usePin);
     expect(prefs.adminBiometricUnlock, isFalse);
     expect(notices, isEmpty);
+  });
+
+  test('a double tap shows one scan prompt, not two', () async {
+    final prefs = await prefsWith(biometricOn: true);
+    final bio = _SlowBiometric();
+    final first = unlockAdminWithBiometric(prefs, bio, 'x');
+    expect(await unlockAdminWithBiometric(prefs, bio, 'x'),
+        AdminScanResult.alreadyShowing);
+    bio.answer.complete(BiometricOutcome.success);
+    expect(await first, AdminScanResult.unlocked);
+    // Once it closes, the next prompt works again.
+    expect(
+        await unlockAdminWithBiometric(
+            prefs, _FakeBiometric(BiometricOutcome.success), 'x'),
+        AdminScanResult.unlocked);
+  });
+
+  test('a prompt whose answer never comes blocks nobody after 60 s',
+      () async {
+    final prefs = await prefsWith(biometricOn: true);
+    final lost = _SlowBiometric(); // never answers
+    final t0 = DateTime(2026, 1, 1, 12);
+    unawaited(unlockAdminWithBiometric(prefs, lost, 'x', now: () => t0));
+    expect(
+        await unlockAdminWithBiometric(
+            prefs, _FakeBiometric(BiometricOutcome.success), 'x',
+            now: () => t0.add(const Duration(seconds: 59))),
+        AdminScanResult.alreadyShowing);
+    expect(
+        await unlockAdminWithBiometric(
+            prefs, _FakeBiometric(BiometricOutcome.success), 'x',
+            now: () => t0.add(const Duration(seconds: 61))),
+        AdminScanResult.unlocked);
   });
 
   group('switching profiles after a scan', () {
@@ -122,6 +164,15 @@ void main() {
       expect(await service.switchToProfile(admin.id), isFalse);
       expect(await service.switchToProfile(admin.id, pinVerified: true),
           isTrue);
+    });
+
+    test('removing the admin PIN turns fingerprint / face unlock off',
+        () async {
+      final admin = await service.createProfile(
+          name: 'Admin', pin: '0001', isAdmin: true);
+      expect(service.prefs!.adminBiometricUnlock, isTrue);
+      await service.clearPin(admin.id, currentPin: '0001');
+      expect(service.prefs!.adminBiometricUnlock, isFalse);
     });
 
     test("a scan never stands in for another profile's PIN", () async {

@@ -90,34 +90,65 @@ final adminBiometricAvailableProvider = FutureProvider<bool>(
 );
 
 const kBiometricResetNotice = 'A new fingerprint or face was added to this '
-    'device, so fingerprint and face unlock was turned off. Use the admin '
-    'PIN, then turn it back on in Settings → your profile → Security.';
+    'device, so fingerprint and face unlock was turned off. You can turn it '
+    "back on in your profile's Security settings.";
+
+/// What an admin prompt should do after trying fingerprint / face.
+enum AdminScanResult {
+  /// A real match: let the admin in.
+  unlocked,
+
+  /// Ask for the admin PIN.
+  usePin,
+
+  /// Another scan prompt is already up (a double tap): do nothing.
+  alreadyShowing,
+}
+
+/// How long a scan prompt counts as "already showing". A double tap mustn't
+/// stack a second prompt, but if a result were ever lost the guard must
+/// not block the admin for good — so it lapses on its own.
+const kScanPromptGuard = Duration(seconds: 60);
+
+DateTime? _scanShowingSince;
 
 /// Tries a fingerprint / face scan for an admin prompt about [action].
-/// True only on a real match; false means "ask for the admin PIN". When
-/// the device's key is gone (a new fingerprint or face was enrolled, or the
-/// key is missing) the setting is switched off and [onNotice] explains why.
-Future<bool> unlockAdminWithBiometric(
+/// [AdminScanResult.unlocked] only on a real match. When the device's key
+/// is gone (a new fingerprint or face was enrolled, or the key is missing)
+/// the setting is switched off and [onNotice] explains why.
+Future<AdminScanResult> unlockAdminWithBiometric(
   AppPreferences prefs,
   AdminBiometric biometric,
   String action, {
   void Function(String message)? onNotice,
+  DateTime Function() now = DateTime.now,
 }) async {
-  if (!prefs.adminBiometricUnlock) return false;
-  final outcome = await biometric.authenticate(action);
+  if (!prefs.adminBiometricUnlock) return AdminScanResult.usePin;
+  final started = now();
+  final showing = _scanShowingSince;
+  if (showing != null && started.difference(showing) < kScanPromptGuard) {
+    return AdminScanResult.alreadyShowing;
+  }
+  _scanShowingSince = started;
+  final BiometricOutcome outcome;
+  try {
+    outcome = await biometric.authenticate(action);
+  } finally {
+    if (identical(_scanShowingSince, started)) _scanShowingSince = null;
+  }
   switch (outcome) {
     case BiometricOutcome.success:
-      return true;
+      return AdminScanResult.unlocked;
     case BiometricOutcome.invalidated:
       await prefs.setAdminBiometricUnlock(false);
       onNotice?.call(kBiometricResetNotice);
-      return false;
+      return AdminScanResult.usePin;
     case BiometricOutcome.notEnabled:
       await prefs.setAdminBiometricUnlock(false);
-      return false;
+      return AdminScanResult.usePin;
     case BiometricOutcome.fallback:
     case BiometricOutcome.unavailable:
     case BiometricOutcome.error:
-      return false;
+      return AdminScanResult.usePin;
   }
 }

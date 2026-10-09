@@ -1009,7 +1009,9 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
     if (prefs == null || !available) return const SizedBox.shrink();
 
     final hasPin = widget.profile.hasPin;
-    final on = prefs.adminBiometricUnlock && hasPin;
+    final on = prefs.adminBiometricUnlock;
+    // Turning it off is always allowed; turning it on needs the PIN.
+    final canToggle = hasPin || on;
     return InfoTooltipScope(
       controller: InfoTooltipController(),
       child: InfoTooltip(
@@ -1022,7 +1024,7 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
             'until you turn it on again. Other profiles still use their '
             'own PINs.',
         child: TvActivatable(
-          onTap: hasPin ? () => _set(prefs, !on) : null,
+          onTap: canToggle ? () => _set(prefs, !on) : null,
           builder: (_) => SwitchListTile(
             secondary: const IconBadge(icon: Icons.fingerprint),
             title: const Text('Unlock with Fingerprint or Face'),
@@ -1033,7 +1035,7 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             value: on,
-            onChanged: hasPin ? (v) => _set(prefs, v) : null,
+            onChanged: canToggle ? (v) => _set(prefs, v) : null,
           ),
         ),
       ),

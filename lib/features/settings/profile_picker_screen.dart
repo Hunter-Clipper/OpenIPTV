@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
+import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
@@ -89,15 +90,19 @@ class ProfilePickerScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, Profile profile) async {
     // The admin's own profile counts as an admin PIN prompt (#47): a
     // fingerprint / face may stand in for it. Other profiles' PINs don't.
-    if (profile.hasPin &&
-        profile.isAdmin &&
-        await tryAdminBiometric(context, ref, 'Switch to ${profile.name}')) {
+    String? notice;
+    final scan = profile.hasPin && profile.isAdmin
+        ? await tryAdminBiometric(ref, 'Switch to ${profile.name}',
+            onNotice: (m) => notice = m)
+        : AdminScanResult.usePin;
+    if (scan == AdminScanResult.alreadyShowing) return;
+    if (scan == AdminScanResult.unlocked) {
       await ref
           .read(profileServiceProvider)
           .switchToProfile(profile.id, pinVerified: true);
     } else if (profile.hasPin) {
       if (!context.mounted) return;
-      final pin = await _showPinDialog(context, profile.name);
+      final pin = await _showPinDialog(context, profile.name, notice);
       if (pin == null) return;
       final ok = await ref
           .read(profileServiceProvider)
@@ -117,8 +122,10 @@ class ProfilePickerScreen extends ConsumerWidget {
     onPicked();
   }
 
-  Future<String?> _showPinDialog(BuildContext context, String name) =>
-      showPinEntryDialog(context, title: 'Enter PIN for $name');
+  Future<String?> _showPinDialog(
+          BuildContext context, String name, String? message) =>
+      showPinEntryDialog(context,
+          title: 'Enter PIN for $name', message: message);
 }
 
 class _ProfileCard extends StatefulWidget {
