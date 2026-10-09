@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/services/buffer_preset.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/network_info.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/speed_test.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Settings → Advanced → Power User Tools (#41). Phase 1: what the device's
 /// connection looks like right now, for diagnosing provider problems.
-class PowerUserScreen extends StatefulWidget {
+class PowerUserScreen extends ConsumerStatefulWidget {
   const PowerUserScreen({super.key});
 
   @override
-  State<PowerUserScreen> createState() => _PowerUserScreenState();
+  ConsumerState<PowerUserScreen> createState() => _PowerUserScreenState();
 }
 
-class _PowerUserScreenState extends State<PowerUserScreen> {
+class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   NetworkInfo? _network;
   String? _publicIp;
   bool _checkingPublicIp = false;
@@ -137,8 +143,172 @@ class _PowerUserScreenState extends State<PowerUserScreen> {
                       ),
                   ],
           ),
+          _speedGroup(),
+          _bufferGroup(),
         ],
       ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Speed test
+  // ---------------------------------------------------------------------------
+
+  _SpeedRun _provider = const _SpeedRun();
+  _SpeedRun _internet = const _SpeedRun();
+
+  /// Downloads from the browsed playlist's own server: a movie file if
+  /// there is one (full speed), else a live channel (shows whether the
+  /// connection keeps up). Tries a few links, since some may be dead.
+  Future<void> _testProvider() async {
+    if (_provider.running || _internet.running) return;
+    setState(() => _provider = const _SpeedRun(running: true));
+    final db = ref.read(appDatabaseProvider);
+    final candidates =
+        await db.speedTestCandidates(ref.read(activeSourceIdProvider));
+    SpeedResult? result;
+    for (final c in candidates) {
+      final uri = Uri.tryParse(c.url);
+      if (uri == null || !uri.hasScheme) continue;
+      try {
+        result = await measureDownload(uri,
+            paced: !c.movie,
+            onProgress: (m) => _live(m, provider: true));
+        break;
+      } catch (_) {
+        continue; // dead link: try the next one
+      }
+    }
+    if (!mounted) return;
+    setState(() => _provider = result == null
+        ? _SpeedRun(
+            error: candidates.isEmpty
+                ? 'This playlist has nothing to test with yet.'
+                : "Couldn't download from your provider. It may be busy, "
+                    'or your plan may allow only one connection at a time.')
+        : _SpeedRun(result: result));
+  }
+
+  Future<void> _testInternet() async {
+    if (_provider.running || _internet.running) return;
+    setState(() => _internet = const _SpeedRun(running: true));
+    SpeedResult? result;
+    try {
+      result = await measureDownload(internetSpeedUrl(),
+          onProgress: (m) => _live(m, provider: false));
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _internet = result == null
+        ? const _SpeedRun(error: "Couldn't run the test. Check your "
+            'connection and try again.')
+        : _SpeedRun(result: result));
+  }
+
+  DateTime _lastProgress = DateTime(0);
+  void _live(double mbps, {required bool provider}) {
+    final now = DateTime.now();
+    if (!mounted || now.difference(_lastProgress).inMilliseconds < 250) return;
+    _lastProgress = now;
+    setState(() {
+      final run = _SpeedRun(running: true, liveMbps: mbps);
+      provider ? _provider = run : _internet = run;
+    });
+  }
+
+  Widget _speedGroup() {
+    return SettingsGroup(
+      title: 'Speed test',
+      description: 'Measures how fast video arrives. The provider test uses '
+          'one connection to your provider — if your plan allows only one '
+          'at a time, stop watching on other devices first.',
+      children: [
+        _speedRow(
+          icon: Icons.speed,
+          label: 'Speed to your provider',
+          idle: 'Downloads from the playlist you are browsing for a few '
+              'seconds.',
+          run: _provider,
+          onRun: _testProvider,
+        ),
+        _speedRow(
+          icon: Icons.language,
+          label: 'General internet speed',
+          idle: 'Downloads a test file from $kInternetSpeedHost.',
+          run: _internet,
+          onRun: _testInternet,
+        ),
+      ],
+    );
+  }
+
+  Widget _speedRow({
+    required IconData icon,
+    required String label,
+    required String idle,
+    required _SpeedRun run,
+    required VoidCallback onRun,
+  }) {
+    final r = run.result;
+    final String value;
+    if (run.running) {
+      value = run.liveMbps == null
+          ? 'Connecting…'
+          : 'Testing… ${run.liveMbps!.toStringAsFixed(1)} Mbit/s';
+    } else if (r != null) {
+      value = '${r.mbps.toStringAsFixed(1)} Mbit/s — ${r.verdict}\n'
+          'Response time ${r.firstByte.inMilliseconds} ms'
+          '${r.paced ? '\nMeasured on a live channel, which arrives at '
+              'playback speed — this shows it keeps up, not your top '
+              'speed.' : ''}';
+    } else {
+      value = run.error ?? idle;
+    }
+    return _InfoRow(
+      icon: icon,
+      label: label,
+      value: value,
+      // Stays enabled while running (a no-op) so TV focus doesn't jump.
+      trailing: TvActivatable(
+        onTap: run.running ? () {} : onRun,
+        builder: (onTap) => TextButton(
+          onPressed: onTap,
+          child: Text(r == null && run.error == null ? 'Run' : 'Run again'),
+        ),
+      ),
+    );
+  }
+
+  Widget _bufferGroup() {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final current = BufferPreset.fromId(prefs?.bufferPreset);
+    return SettingsGroup(
+      title: 'Playback buffer',
+      description: 'How much video the player keeps in reserve. A bigger '
+          'reserve rides out a shaky connection but takes longer to start. '
+          'Applies from the next channel or video you open.',
+      children: [
+        for (final preset in BufferPreset.values)
+          TvActivatable(
+            onTap: () async {
+              await prefs?.setBufferPreset(preset.id);
+              if (mounted) setState(() {});
+            },
+            builder: (tap) => ListTile(
+              leading: Icon(
+                preset == current
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: preset == current
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              title: Text(preset.label),
+              subtitle: Text(preset.description,
+                  style: Theme.of(context).textTheme.bodySmall),
+              onTap: tap,
+            ),
+          ),
+      ],
     );
   }
 
@@ -208,4 +378,18 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SpeedRun {
+  const _SpeedRun({
+    this.running = false,
+    this.liveMbps,
+    this.result,
+    this.error,
+  });
+
+  final bool running;
+  final double? liveMbps;
+  final SpeedResult? result;
+  final String? error;
 }
