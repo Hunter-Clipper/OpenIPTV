@@ -40,9 +40,32 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   OpenVpnProfile? _ovpn;
   OpenVpnStatus _ovpnStatus = const OpenVpnStatus();
 
+  final _scroll = ScrollController();
+
+  /// TV: the page scrolls only as the remote's focus moves. Keep the
+  /// focused row a little below the top, so the section title and
+  /// description above it stay in view (they're never focused themselves),
+  /// and reach the very top/bottom at the first/last row.
+  void _followFocus() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null || !ctx.mounted) return;
+    if (Scrollable.maybeOf(ctx)?.position != _scroll.positions.firstOrNull) {
+      return; // not on this page (a dialog, the app bar)
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !ctx.mounted) return;
+      Scrollable.ensureVisible(ctx,
+          alignment: 0.35,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addListener(_followFocus);
     _refresh();
     _loadVpn();
     // Live tunnel status (traffic, last handshake) while this screen is up.
@@ -51,6 +74,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_followFocus);
+    _scroll.dispose();
     _vpnTimer?.cancel();
     super.dispose();
   }
@@ -373,8 +398,14 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           ),
         ],
       ),
-      body: ListView(
+      // A plain scroll view, not a lazy ListView: on TV the remote can only
+      // move to rows that exist, and a lazy list hadn't built the ones
+      // below the screen yet. The page is short, so building it all is cheap.
+      body: SingleChildScrollView(
+        controller: _scroll,
         padding: const EdgeInsets.only(bottom: 32),
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SettingsGroup(
             title: 'Network',
@@ -437,6 +468,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _speedGroup(),
           _bufferGroup(),
         ],
+      ),
       ),
     );
   }
@@ -816,8 +848,12 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // On TV every row is a stop for the remote (read-only ones do nothing
+    // when pressed), so moving up and down walks the whole page and nothing
+    // scrolls out of reach. A row with its own button uses the button.
+    final tv = PlatformHelper.isTV(context);
     return TvActivatable(
-      onTap: onTap,
+      onTap: onTap ?? (tv && trailing == null ? () {} : null),
       builder: (tap) => ListTile(
         leading: IconBadge(icon: icon),
         title: Text(label),
