@@ -58,3 +58,17 @@ Two measurements, both on tap:
   `docs/THIRD_PARTY_NATIVE.md`.
 - TVs: VpnService works on Android TV; import via file (adb/Downloads) since
   TVs can't scan QR codes.
+
+## Since then
+
+- **TV scrolling:** every row is a remote stop (read-only rows do nothing on
+  OK), the page is a plain scroll view, and a focus listener keeps the
+  focused row ~35 % down so section titles stay visible.
+- **Android Auto + VPN:** "Whole device" leaves Android Auto
+  (`com.google.android.projection.gearhead`) outside the tunnel —
+  WireGuard `ExcludedApplications`, OpenVPN `addDisallowedApplication`
+  (`VpnExclusions`). Needs the `<queries>` package entry (Android 11
+  visibility). "Only OpenIPTV" never included it. Owner's in-car test
+  pending.
+- **Outside services:** api.ipify.org (public IP) and speed.cloudflare.com
+  (speed test), only on tap, both named on screen.
