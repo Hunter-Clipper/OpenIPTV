@@ -252,4 +252,32 @@ void main() {
     }
     expect(h.dog.loading, isFalse);
   });
+
+  test('a long connect window is never cut short by the back-off cap', () {
+    final dog = StreamWatchdog(
+        connectLimit: const Duration(seconds: 16),
+        maxBackoff: const Duration(seconds: 15));
+    var now = DateTime(2026, 1, 1);
+    var open = 1;
+    // Play, then keep failing to reconnect so the back-off kicks in.
+    for (var i = 1; i <= 6; i++) {
+      now = now.add(const Duration(milliseconds: 500));
+      dog.check(_s(posMs: i * 500), now: now, openCount: open, live: true);
+    }
+    for (var round = 0; round < 8; round++) {
+      final start = now;
+      WatchdogAction a = WatchdogAction.none;
+      while (a == WatchdogAction.none) {
+        now = now.add(const Duration(milliseconds: 500));
+        a = dog.check(_s(posMs: 0, playing: false, buffering: true),
+            now: now, openCount: open, live: true);
+      }
+      if (round > 0) {
+        expect(now.difference(start),
+            greaterThanOrEqualTo(const Duration(seconds: 16)),
+            reason: 'round $round');
+      }
+      open++;
+    }
+  });
 }

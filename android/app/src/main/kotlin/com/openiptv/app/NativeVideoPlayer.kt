@@ -62,39 +62,72 @@ class NativeVideoPlayer(
     private val surface = android.view.Surface(texture.surfaceTexture())
 
     private val appContext = context.applicationContext
-    // Resume quickly after a hiccup: by default ExoPlayer waits for 5 s of
-    // fresh data before playing again after a rebuffer (2.5 s at start),
-    // which turned a one-second network blip into a long freeze. Dart's
-    // stream watchdog reconnects if data stops altogether.
-    val exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
-        .setLoadControl(
-            DefaultLoadControl.Builder()
-                .setBufferDurationsMs(
-                    DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-                    DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
-                    /* bufferForPlaybackMs = */ 1_000,
-                    /* bufferForPlaybackAfterRebufferMs = */ 2_000,
-                )
-                .build()
-        )
-        // Declared as media audio and holding audio focus, like any media
-        // app: Android Auto only opens the car's media audio channel for the
-        // app that holds focus (without it the car showed the channel but
-        // played no sound), and calls / navigation prompts pause or duck it.
-        .setAudioAttributes(
-            androidx.media3.common.AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build(),
-            audioFocus,
-        )
-        // Pause when headphones / the car disconnect instead of blaring
-        // from the phone speaker.
-        .setHandleAudioBecomingNoisy(audioFocus)
-        // Keep the CPU and Wi-Fi awake while playing with the screen off
-        // (listening in the car with the phone locked).
-        .setWakeMode(if (audioFocus) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
-        .build()
+    private val audioFocus = audioFocus
+
+    // Buffer settings (Settings → Power User Tools). ExoPlayer can't change
+    // its LoadControl after it's built, so a different preset rebuilds the
+    // player at the next open() — between streams, where nothing is lost.
+    private var bufferPreset = "fast"
+
+    var exoPlayer: ExoPlayer = buildPlayer(context, bufferPreset)
+        private set
+
+    private fun buildPlayer(context: Context, preset: String): ExoPlayer =
+        ExoPlayer.Builder(context)
+            .setLoadControl(loadControlFor(preset))
+            // Declared as media audio and holding audio focus, like any
+            // media app: Android Auto only opens the car's media audio
+            // channel for the app that holds focus (without it the car
+            // showed the channel but played no sound), and calls /
+            // navigation prompts pause or duck it.
+            .setAudioAttributes(
+                androidx.media3.common.AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                audioFocus,
+            )
+            // Pause when headphones / the car disconnect instead of blaring
+            // from the phone speaker.
+            .setHandleAudioBecomingNoisy(audioFocus)
+            // Keep the CPU and Wi-Fi awake while playing with the screen off
+            // (listening in the car with the phone locked).
+            .setWakeMode(if (audioFocus) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
+            .build()
+
+    private fun loadControlFor(preset: String): DefaultLoadControl {
+        // (min buffer, max buffer, before first play, after a rebuffer), ms.
+        val (minMs, maxMs, startMs, rebufferMs) = when (preset) {
+            "balanced" -> listOf(50_000, 50_000, 2_500, 5_000)
+            "smooth" -> listOf(50_000, 120_000, 4_000, 8_000)
+            // Fast start: resume quickly after a hiccup — by default
+            // ExoPlayer waits for 5 s of fresh data after a rebuffer, which
+            // turned a one-second network blip into a long freeze. Dart's
+            // stream watchdog reconnects if data stops altogether.
+            else -> listOf(
+                DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+                1_000,
+                2_000,
+            )
+        }
+        return DefaultLoadControl.Builder()
+            .setBufferDurationsMs(minMs, maxMs, startMs, rebufferMs)
+            .build()
+    }
+
+    /** Rebuilds the player with [preset]'s buffer if it differs. */
+    private fun applyBufferPreset(preset: String) {
+        if (preset == bufferPreset) return
+        val old = exoPlayer
+        old.removeListener(playerListener)
+        old.release()
+        bufferPreset = preset
+        exoPlayer = buildPlayer(appContext, preset)
+        exoPlayer.setVideoSurface(surface)
+        exoPlayer.addListener(playerListener)
+        android.util.Log.i("OTV-exo", "buffer preset: $preset")
+    }
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var eventSink: EventChannel.EventSink? = null
@@ -111,9 +144,7 @@ class NativeVideoPlayer(
         }
     }
 
-    init {
-        exoPlayer.setVideoSurface(surface)
-        exoPlayer.addListener(object : Player.Listener {
+    private val playerListener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) = emitState()
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
             override fun onPlaybackSuppressionReasonChanged(reason: Int) = emitState()
@@ -161,7 +192,11 @@ class NativeVideoPlayer(
                 val text = cueGroup.cues.joinToString("\n") { it.text?.toString() ?: "" }
                 eventSink?.success(mapOf("type" to "cues", "text" to text))
             }
-        })
+        }
+
+    init {
+        exoPlayer.setVideoSurface(surface)
+        exoPlayer.addListener(playerListener)
         mainHandler.post(positionUpdater)
     }
 
@@ -181,7 +216,13 @@ class NativeVideoPlayer(
         DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true),
     )
 
-    fun open(url: String, streamTypeHint: String?, startPositionMs: Long = 0L) {
+    fun open(
+        url: String,
+        streamTypeHint: String?,
+        startPositionMs: Long = 0L,
+        bufferPreset: String = this.bufferPreset,
+    ) {
+        applyBufferPreset(bufferPreset)
         currentUrl = url
         currentHint = streamTypeHint
         hlsRetried = false
@@ -445,6 +486,7 @@ class NativeVideoPlayerManager(
                     call.argument<String>("url") ?: "",
                     call.argument<String>("streamTypeHint"),
                     call.argument<Number>("startPositionMs")?.toLong() ?: 0L,
+                    call.argument<String>("bufferPreset") ?: "fast",
                 )
                 result.success(null)
             }

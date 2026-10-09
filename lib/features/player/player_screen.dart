@@ -129,7 +129,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   // Auto-recovery: the watchdog notices a stream that should be playing
   // but isn't (buffering, frozen, dropped) and this screen reconnects it.
-  final _watchdog = StreamWatchdog();
+  // Its patience follows the buffer setting: a bigger buffer takes longer
+  // to refill, and reconnecting mid-refill would throw it away.
+  late final _watchdog = () {
+    final preset = ref.read(playbackServiceProvider).bufferPreset;
+    return StreamWatchdog(
+        freezeLimit: preset.freezeLimit, connectLimit: preset.connectLimit);
+  }();
   Timer? _watchdogTimer;
   bool _reconnecting = false;
   // The watchdog stopped trying (a stream that never played).
