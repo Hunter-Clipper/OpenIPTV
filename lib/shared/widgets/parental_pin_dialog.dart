@@ -9,26 +9,28 @@ import 'package:open_iptv/shared/widgets/pin_field.dart';
 
 /// Asks for a PIN with the system number keyboard. Returns the entered
 /// PIN, or null if the user cancelled.
-Future<String?> showParentalPinEntry(BuildContext context, String title) =>
-    showPinEntryDialog(context, title: title);
+Future<String?> showParentalPinEntry(BuildContext context, String title,
+        {String? message}) =>
+    showPinEntryDialog(context, title: title, message: message);
 
 /// Fingerprint / face in place of the admin PIN, when the admin turned it
-/// on for this device (profile → Security). True only on a real match;
-/// false means "ask for the PIN". [action] is shown under the prompt.
-Future<bool> tryAdminBiometric(
-    BuildContext context, WidgetRef ref, String action) async {
+/// on for this device (profile → Security). [action] is shown under the
+/// prompt.
+/// [onNotice] gets the reason when the feature had to switch itself off —
+/// callers show it inside the PIN box that follows, where it can be read
+/// (a snackbar sat behind the dialog and expired unseen).
+Future<AdminScanResult> tryAdminBiometric(
+  WidgetRef ref,
+  String action, {
+  void Function(String message)? onNotice,
+}) async {
   final prefs = ref.read(appPreferencesProvider).valueOrNull;
-  if (prefs == null) return false;
+  if (prefs == null) return AdminScanResult.usePin;
   return unlockAdminWithBiometric(
     prefs,
     ref.read(adminBiometricProvider),
     action,
-    onNotice: (message) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
-      }
-    },
+    onNotice: onNotice,
   );
 }
 
@@ -45,9 +47,18 @@ String _actionFrom(String title) {
 /// entry. Returns true only for the admin.
 Future<bool> promptAdminPin(
     BuildContext context, WidgetRef ref, String title) async {
-  if (await tryAdminBiometric(context, ref, _actionFrom(title))) return true;
+  String? notice;
+  switch (await tryAdminBiometric(ref, _actionFrom(title),
+      onNotice: (m) => notice = m)) {
+    case AdminScanResult.unlocked:
+      return true;
+    case AdminScanResult.alreadyShowing:
+      return false;
+    case AdminScanResult.usePin:
+      break;
+  }
   if (!context.mounted) return false;
-  final pin = await showParentalPinEntry(context, title);
+  final pin = await showParentalPinEntry(context, title, message: notice);
   if (pin == null || !context.mounted) return false;
   if (await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
     return true;

@@ -139,6 +139,9 @@ class ProfileService {
     await db.upsertProfile(
       profile.copyWith(clearPin: true, updatedAt: DateTime.now()),
     );
+    // Fingerprint / face stands in for the admin PIN — with no PIN left,
+    // it has nothing to stand in for (#47).
+    if (profile.isAdmin) await prefs?.setAdminBiometricUnlock(false);
   }
 
   bool verifyPin(Profile profile, String pin) =>
