@@ -24,6 +24,7 @@ import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/features/settings/parental_screen.dart';
+import 'package:open_iptv/features/settings/power_user_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
@@ -253,6 +254,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             GoRoute(
               path: 'parental',
               builder: (_, __) => const ParentalScreen(),
+            ),
+            GoRoute(
+              path: 'power-tools',
+              builder: (_, __) => const PowerUserScreen(),
             ),
           ],
         ),
