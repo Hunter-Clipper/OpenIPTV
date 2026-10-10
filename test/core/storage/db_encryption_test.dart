@@ -67,6 +67,76 @@ void main() {
     expect(isPlaintextSqlite(plain), isTrue, reason: 'left untouched');
   });
 
+  group('a key that cannot be read (#51)', () {
+    late Directory dir;
+    late File db;
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('otv_db');
+      db = File('${dir.path}/open_iptv.db')
+        ..writeAsBytesSync(List<int>.generate(4096, (i) => (i * 37) % 251));
+      File('${db.path}-wal').writeAsStringSync('wal');
+      FlutterSecureStorage.setMockInitialValues({});
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    Future<bool> anyKeyOpens(String path, String key) async => true;
+
+    test('a passing read failure is retried, and nothing is reset', () async {
+      final keys = _FlakyKeys(failures: 3, key: DbKeyStore.newKey());
+      final (_, state) = await openEncryptedDatabase(db,
+          keys: keys,
+          setup: (_) {},
+          keyOpens: anyKeyOpens,
+          retryDelay: Duration.zero);
+      expect(state, DbOpenState.encrypted);
+      expect(keys.reads, 4);
+      expect(db.existsSync(), isTrue);
+      expect(File('${db.path}$lostSuffix').existsSync(), isFalse);
+    });
+
+    test('the background refresh never resets the database', () async {
+      final keys = _FlakyKeys(failures: 99);
+      await expectLater(
+        openEncryptedDatabase(db,
+            keys: keys,
+            setup: (_) {},
+            migrate: false,
+            keyOpens: anyKeyOpens,
+            retryDelay: Duration.zero),
+        throwsA(isA<DatabaseNotReadyException>()),
+      );
+      expect(db.existsSync(), isTrue, reason: 'left untouched');
+    });
+
+    test('a lost key sets the old database aside instead of deleting it',
+        () async {
+      final before = db.readAsBytesSync();
+      final keys = _FlakyKeys(failures: 99);
+      final (_, state) = await openEncryptedDatabase(db,
+          keys: keys,
+          setup: (_) {},
+          keyOpens: anyKeyOpens,
+          retryDelay: Duration.zero);
+      expect(state, DbOpenState.reset);
+      expect(File('${db.path}$lostSuffix').readAsBytesSync(), before);
+      expect(File('${db.path}$lostSuffix-wal').existsSync(), isTrue);
+      expect(db.existsSync(), isFalse);
+    });
+
+    test('a key that does not match also sets it aside; one set is kept',
+        () async {
+      File('${db.path}$lostSuffix').writeAsStringSync('older');
+      final keys = _FlakyKeys(failures: 0, key: DbKeyStore.newKey());
+      final (_, state) = await openEncryptedDatabase(db,
+          keys: keys,
+          setup: (_) {},
+          keyOpens: (_, __) async => false,
+          retryDelay: Duration.zero);
+      expect(state, DbOpenState.reset);
+      expect(File('${db.path}$lostSuffix').lengthSync(), 4096);
+    });
+  });
+
   group('redactUrl', () {
     test('masks Xtream path logins', () {
       expect(redactUrl('http://h:80/live/alice/s3cr3t/42.ts'),
@@ -86,4 +156,20 @@ void main() {
       expect(redactUrl(url), url);
     });
   });
+}
+
+/// A key store whose first [failures] reads throw.
+class _FlakyKeys extends DbKeyStore {
+  _FlakyKeys({required this.failures, this.key});
+
+  final int failures;
+  final String? key;
+  int reads = 0;
+
+  @override
+  Future<String?> read() async {
+    reads++;
+    if (reads <= failures) throw Exception('keystore busy');
+    return key;
+  }
 }

@@ -411,6 +411,25 @@ class SettingsScreen extends ConsumerWidget {
                 }),
               ),
             ]),
+            // --------------- ADVANCED (admin only, last) ---------------
+            if (isAdmin)
+              SettingsGroup(title: 'Advanced', children: [
+                InfoTooltip(
+                  id: 'settings_power_tools',
+                  title: 'Power User Tools',
+                  body: 'Tools for checking and tuning your connection: '
+                      'your device and public IP addresses, connection '
+                      'type, VPN and DNS — handy when a provider has '
+                      'trouble reaching you.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.tune),
+                    title: 'Power User Tools',
+                    subtitle: Text('Network info for troubleshooting',
+                        style: theme.textTheme.bodySmall),
+                    onTap: () => context.push('/settings/power-tools'),
+                  ),
+                ),
+              ]),
             const SizedBox(height: 32),
           ],
         ),

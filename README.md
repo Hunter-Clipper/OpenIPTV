@@ -96,7 +96,14 @@
 - Works with a TV remote: a side navigation rail, a clear white focus ring, the TV's own on-screen keyboard for search, logins and PINs, and Android TV launcher support.
 - Background refresh of playlists and guides on a schedule you choose.
 - **In-app updates** for sideloaded installs.
-- **No ads, no telemetry, no accounts.**
+
+**Power User Tools** (Settings → Advanced, admin profiles)
+- **Network info:** connection type, your device's IP address, DNS servers, whether a VPN is on, and — only when you tap Check — the public IP address your provider sees.
+- **Built-in VPN:** import a **WireGuard** (`.conf`) or **OpenVPN** (`.ovpn`) profile from your VPN provider and send only OpenIPTV — or the whole device, except Android Auto's car link — through it.
+- **Speed test:** how fast video arrives from your provider, plus a general internet test.
+- **Playback buffer:** Fast start, Balanced or Smooth, for steady or shaky connections.
+
+- **No ads, no telemetry, no accounts.** The only outside services OpenIPTV ever contacts on its own are your playlists and GitHub (update checks); the public-IP and speed tests contact api.ipify.org and speed.cloudflare.com only when you tap them.
 
 ---
 

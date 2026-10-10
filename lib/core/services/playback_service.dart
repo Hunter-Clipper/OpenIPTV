@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:open_iptv/core/services/buffer_preset.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -14,17 +16,26 @@ enum StreamType { hls, mpegTs, progressive, auto }
 @Riverpod(keepAlive: true)
 PlaybackService playbackService(PlaybackServiceRef ref) {
   final db = ref.watch(appDatabaseProvider);
-  final service = PlaybackService(db: db);
+  final service = PlaybackService(
+    db: db,
+    bufferPreset: () => BufferPreset.fromId(
+        ref.read(appPreferencesProvider).valueOrNull?.bufferPreset),
+  );
   ref.onDispose(service.dispose);
   return service;
 }
 
 class PlaybackService {
-  PlaybackService({required this.db}) {
+  PlaybackService({required this.db, BufferPreset Function()? bufferPreset})
+      : _bufferPreset = bufferPreset ?? (() => BufferPreset.fast) {
     _stateSub = _player.stateStream.listen((s) => _lastState = s);
   }
 
   final AppDatabase db;
+  final BufferPreset Function() _bufferPreset;
+
+  /// The buffer setting new streams open with (Power User Tools).
+  BufferPreset get bufferPreset => _bufferPreset();
   final NativeVideoPlayer _player = NativeVideoPlayer();
   late final StreamSubscription<NativeVideoPlayerState> _stateSub;
   NativeVideoPlayerState _lastState = const NativeVideoPlayerState(
@@ -122,7 +133,8 @@ class PlaybackService {
     _openCount++;
     await _player.open(streamUrl,
         streamTypeHint: _streamTypeHint(streamUrl),
-        startPosition: startPosition);
+        startPosition: startPosition,
+        bufferPreset: bufferPreset.id);
     await _player.play();
     debugPrint('[OTV-play] open()/play() done');
   }

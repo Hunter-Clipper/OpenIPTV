@@ -25,6 +25,10 @@ const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
 const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
+const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
+const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
+const _kVpnAutoConnect = 'vpn_auto_connect';
+const _kVpnKind = 'vpn_kind'; // 'wireguard' | 'openvpn' (last connected)
 const _kHomeLayoutMovies = 'home_layout_movies'; // 'posters' | 'compact'
 const _kHomeLayoutSeries = 'home_layout_series'; // 'posters' | 'compact'
 const _kLastUpdateCheckMs = 'last_update_check_ms';
@@ -129,6 +133,21 @@ class AppPreferences {
   // Player: how the picture fits the screen.
   String get videoFit => _prefs.getString(_kVideoFit) ?? 'fit';
   Future<void> setVideoFit(String v) => _prefs.setString(_kVideoFit, v);
+
+  /// Player buffer size (Power User Tools); null = the default.
+  String? get bufferPreset => _prefs.getString(_kBufferPreset);
+  Future<void> setBufferPreset(String v) =>
+      _prefs.setString(_kBufferPreset, v);
+
+  /// Built-in VPN: send only OpenIPTV ('app', default) or the whole device
+  /// ('device') through the tunnel; and whether to connect on app start.
+  String get vpnRoute => _prefs.getString(_kVpnRoute) ?? 'app';
+  Future<void> setVpnRoute(String v) => _prefs.setString(_kVpnRoute, v);
+  bool get vpnAutoConnect => _prefs.getBool(_kVpnAutoConnect) ?? false;
+  Future<void> setVpnAutoConnect(bool v) =>
+      _prefs.setBool(_kVpnAutoConnect, v);
+  String get vpnKind => _prefs.getString(_kVpnKind) ?? 'wireguard';
+  Future<void> setVpnKind(String v) => _prefs.setString(_kVpnKind, v);
 
   // Search: the last few queries that led somewhere, newest first.
   List<String> get recentSearches =>
