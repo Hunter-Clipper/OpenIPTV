@@ -2,7 +2,8 @@
 
 Status: **phase 1 shipped in v0.11.0** (browse and listen in the car; tested
 on a real Android Auto head unit) — tracks [#33](https://github.com/Hunter-Clipper/OpenIPTV/issues/33).
-Parked video is on hold (see the findings at the end).
+Parked video: built as the **OpenIPTV Video** add-on (2026-10-11, PR #49) —
+see "Parked video — the add-on" at the end.
 
 ## Goal
 
@@ -152,3 +153,45 @@ RAM (as with the TV emulator) — build first, then boot the emulator.
   shows one entry per app and OpenIPTV's is the media app, so this would
   need a separate companion app. **On hold** — more work than it's worth
   for now.
+
+## Parked video — the add-on (2026-10-11, PR #49)
+
+Owner asked to try AABrowser's route after all. Confirmed again on the
+desktop head unit: inside one package Android Auto lists only the media
+entry — `GH.AvailableAppFinder: Skipping ProjectionApp(…CarVideoActivity…,
+isParkedOnly=true …) due to a conflicting driving optimized app`. Android
+Auto also creates the car display (`NativeDisplay:<component>`, owned by
+gearhead) only when *it* launches an app from its grid, so the media app
+can't push an activity onto the car screen itself. Hence a second, tiny
+package:
+
+- **`android/carvideo`** → `com.openiptv.app.carvideo` ("OpenIPTV Video",
+  car label "IPTV Video", ~1 MB, no dependencies). `appCategory="game"`,
+  one `CAR_LAUNCHER` + `NAVIGATION` + `APP_MAPS` activity. It has **no
+  player**: it binds OpenIPTV's `CarVideoService` (signature permission
+  `com.openiptv.app.permission.CAR_VIDEO`, so only apps signed with
+  OpenIPTV's key) and hands over its `SurfaceView`'s `Surface` (plain
+  Binder: ATTACH with the surface + a callback binder, DETACH synchronous
+  so the player lets go before the surface is destroyed). OpenIPTV's main
+  ExoPlayer switches its video output to that surface (`CarVideo`,
+  `NativeVideoPlayer.setExternalSurface`) — same stream, one connection,
+  the car's media controls, watchdog and progress saving unchanged.
+  Picture size comes back over the callback (letterboxed, never
+  stretched); title and Previous / Play-Pause / Next come from OpenIPTV's
+  media session (`MediaBrowser` → `MediaController`).
+- **Only car-started streams go to the car screen**: `open(carScreen:)` is
+  true only from `NowPlayingHandler`; anything opened on the phone stays
+  on the phone and the add-on says "Playing on your phone".
+- **Driving:** Android Auto marks the add-on parked-only. With `restrict
+  all` on the DHU it closes the add-on, greys its icon and refuses to
+  open it; the sound keeps playing; parking brings video back.
+- **Install:** Settings → Playback → **Video in the Car** (admin, phones)
+  shows the add-on's state and installs / updates it from the latest
+  release's `OpenIPTV-car-video.apk` (same updater code). Bump
+  `carVideoAddonVersion` (update_service.dart) together with the add-on's
+  `versionCode` when the add-on must be updated. Build:
+  `cd android && ./gradlew :carvideo:assembleRelease` →
+  `build/carvideo/outputs/apk/release/carvideo-release.apk`.
+- Sideloaded apps only show in the car with Android Auto's developer
+  setting "Unknown sources" on (same as OpenIPTV itself).
+
