@@ -3,10 +3,10 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.11.30)
+## Unreleased (0.11.31)
 
 **Watch in the car while parked** — Android Auto
-- Pick a channel, movie or episode in OpenIPTV on the car screen, then open **OpenIPTV Video** to see the picture full screen. It shows what OpenIPTV is already playing, so there's no second connection to your provider.
+- Pick a channel, movie or episode in OpenIPTV on the car screen, then open **Video** (the second OpenIPTV icon) to see the picture full screen. It shows what OpenIPTV is already playing, so there's no second connection to your provider.
 - Parked only: Android Auto closes the picture as soon as you start driving, and the sound keeps playing.
 - Needs a small add-on app (about 1 MB). Install it from **Settings → Playback → Video in the Car**. If it doesn't show up in the car, turn on "Unknown sources" in Android Auto's developer settings.
 

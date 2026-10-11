@@ -192,7 +192,7 @@ class _CarVideoAddonDialogState extends ConsumerState<_CarVideoAddonDialog>
           'Android Auto closes the picture when you start driving; the '
           'sound keeps playing.\n\n'
           'How to watch: pick a channel, movie or episode in OpenIPTV on '
-          'the car screen, then open OpenIPTV Video.\n\n'
+          'the car screen, then open Video — the second OpenIPTV icon.\n\n'
           '${installed ? 'The add-on is installed.' : widget.status == CarVideoAddonStatus.outdated ? 'A newer version of the add-on is available.' : 'This needs a small add-on app, OpenIPTV Video (about 1 MB).'}'
           '\n\nIf it doesn\'t show up in the car: in the Android Auto app on '
           'your phone, turn on developer settings and "Unknown sources".',
