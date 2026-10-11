@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.11.27)
+## Unreleased (0.11.29)
 
 **Power User Tools** — Settings → Advanced, at the very bottom (admin profiles)
 - **Network info:** see how your device is connected — Wi-Fi or Ethernet, its IP address, DNS servers and whether a VPN is on. Tap **Check** to see the public IP address your provider sees. Handy when a provider has trouble reaching you.
@@ -15,6 +15,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 **Fixes**
 - Your data is safer: if the phone or TV briefly fails to unlock OpenIPTV's encrypted storage at start-up, OpenIPTV now tries again instead of starting over empty.
 - Restoring a backup, or changing the Auto-Refresh setting, no longer starts a second full download of every playlist in the background.
+- Closing OpenIPTV (swiping it away from recent apps) now also turns off its built-in VPN. Pressing Home or listening in the car keeps it on.
+- Android Auto: picking something on the car screen now always plays what you picked — before, it could switch back to what the phone had played first.
+- Android Auto: if a channel freezes, the car reconnects by itself, and a title that can't play shows a short message instead of sitting at 0:00.
 
 ## 0.11.13 — 2026-10-09
 
