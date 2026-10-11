@@ -46,21 +46,85 @@ object VpnExclusions {
         }
 }
 
+/** The one WireGuard backend + tunnel, shared with [VpnCloseWatcher]. */
+object WireGuardEngine {
+    private var backend: GoBackend? = null
+
+    val tunnel = object : Tunnel {
+        override fun getName() = "openiptv"
+        override fun onStateChange(newState: Tunnel.State) {}
+    }
+
+    @Synchronized
+    fun backend(context: android.content.Context): GoBackend =
+        backend ?: GoBackend(context.applicationContext).also { backend = it }
+
+    fun isUp(context: android.content.Context): Boolean = try {
+        backend(context).getState(tunnel) == Tunnel.State.UP
+    } catch (e: Exception) {
+        false
+    }
+}
+
+/**
+ * Turns the built-in VPN off when OpenIPTV is closed (swiped away from
+ * recent apps). Runs only while a VPN is connected; `stopWithTask="false"`
+ * makes Android call [onTaskRemoved] instead of stopping it silently. A VPN
+ * keeps running while the app is just in the background (e.g. playing in
+ * the car), and stops if the app's process ends.
+ */
+class VpnCloseWatcher : android.app.Service() {
+    companion object {
+        fun start(context: android.content.Context) {
+            try {
+                context.startService(Intent(context, VpnCloseWatcher::class.java))
+            } catch (e: Exception) {
+                // Background start not allowed: nothing to watch from here.
+            }
+        }
+
+        fun stop(context: android.content.Context) {
+            context.stopService(Intent(context, VpnCloseWatcher::class.java))
+        }
+
+        /** Disconnects whichever VPN is up. Blocking; call off the main thread. */
+        fun stopAll(context: android.content.Context) {
+            if (WireGuardEngine.isUp(context)) {
+                try {
+                    WireGuardEngine.backend(context)
+                        .setState(WireGuardEngine.tunnel, Tunnel.State.DOWN, null)
+                } catch (e: Exception) {
+                    android.util.Log.w("OTV-vpn", "wireguard down: ${e.javaClass.simpleName}")
+                }
+            }
+            if (OpenVpnService.state != "off") OpenVpnNative.stop()
+        }
+    }
+
+    override fun onBind(intent: Intent?): android.os.IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int =
+        START_NOT_STICKY
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        android.util.Log.i("OTV-vpn", "app closed — disconnecting the VPN")
+        Thread {
+            stopAll(this)
+            stopSelf()
+        }.start()
+    }
+}
+
 class VpnController(private val activity: Activity) : MethodChannel.MethodCallHandler {
 
     companion object {
         const val PERMISSION_REQUEST = 4712
-        private const val TUNNEL_NAME = "openiptv"
     }
 
-    private val backend by lazy { GoBackend(activity.applicationContext) }
+    private val backend get() = WireGuardEngine.backend(activity)
+    private val tunnel = WireGuardEngine.tunnel
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
-
-    private val tunnel = object : Tunnel {
-        override fun getName() = TUNNEL_NAME
-        override fun onStateChange(newState: Tunnel.State) {}
-    }
 
     // A connect waiting for the user to allow the VPN (WireGuard or OpenVPN).
     private var pending: Pair<MethodCall, MethodChannel.Result>? = null
@@ -91,6 +155,7 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
                 Intent(activity, OpenVpnService::class.java)
                     .setAction(OpenVpnService.ACTION_CONNECT)
             )
+            VpnCloseWatcher.start(activity)
             "ok"
         }
     }
@@ -101,6 +166,7 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
             "connect" -> connect(call, result)
             "disconnect" -> work(result) {
                 backend.setState(tunnel, Tunnel.State.DOWN, null)
+                VpnCloseWatcher.stop(activity)
                 "ok"
             }
             "status" -> work(result) { status() }
@@ -114,6 +180,7 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
                     Intent(activity, OpenVpnService::class.java)
                         .setAction(OpenVpnService.ACTION_DISCONNECT)
                 )
+                VpnCloseWatcher.stop(activity)
                 result.success("ok")
             }
             "ovpnStatus" -> {
@@ -156,6 +223,7 @@ class VpnController(private val activity: Activity) : MethodChannel.MethodCallHa
                 backend.setState(tunnel, Tunnel.State.DOWN, null)
             }
             backend.setState(tunnel, Tunnel.State.UP, config)
+            VpnCloseWatcher.start(activity)
             "ok"
         }
     }
