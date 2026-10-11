@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OpenIPTV Video</string>
-    <!-- Android Auto cuts labels at about 9 characters. -->
-    <string name="car_label">IPTV Video</string>
+    <!-- Android Auto shows this under the OpenIPTV icon and cuts labels at about 8 characters. -->
+    <string name="car_label">Video</string>
     <string name="hint_pick">Choose a channel, movie or episode in OpenIPTV\'s car menu, then come back here to watch it.</string>
     <string name="hint_error">%1$s\n\nTry another one in OpenIPTV\'s car menu, or press Next.</string>
     <string name="hint_on_phone">Playing on your phone. To watch here, choose something in OpenIPTV\'s car menu.</string>

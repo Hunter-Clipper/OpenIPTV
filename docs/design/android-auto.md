@@ -166,7 +166,7 @@ can't push an activity onto the car screen itself. Hence a second, tiny
 package:
 
 - **`android/carvideo`** → `com.openiptv.app.carvideo` ("OpenIPTV Video",
-  car label "IPTV Video", ~1 MB, no dependencies). `appCategory="game"`,
+  car label "Video", ~1 MB, no dependencies). `appCategory="game"`,
   one `CAR_LAUNCHER` + `NAVIGATION` + `APP_MAPS` activity. It has **no
   player**: it binds OpenIPTV's `CarVideoService` (signature permission
   `com.openiptv.app.permission.CAR_VIDEO`, so only apps signed with
