@@ -296,7 +296,7 @@ class NowPlayingHandler extends BaseAudioHandler {
     mediaItem.add(item);
     debugPrint('[OTV-auto] play ${p.kind} ${p.contentId}');
     await _playbackService.play(p.streamUrl,
-        startPosition: p.resumeAt, owner: this);
+        startPosition: p.resumeAt, owner: this, carScreen: true);
     if (pick != _carPick) return;
     _broadcastState();
     final profileId = await currentProfileId?.call();
@@ -410,7 +410,9 @@ class NowPlayingHandler extends BaseAudioHandler {
         '(attempt ${_carDog?.attempts})');
     try {
       await _playbackService.play(p.streamUrl,
-          startPosition: p.isLive ? null : _carLastPosition, owner: this);
+          startPosition: p.isLive ? null : _carLastPosition,
+          owner: this,
+          carScreen: true);
     } finally {
       _carReconnecting = false;
     }

@@ -18,10 +18,12 @@ void main() {
 
   late AppDatabase db;
   final opened = <String>[];
+  final carScreen = <bool?>[];
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     opened.clear();
+    carScreen.clear();
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
@@ -29,6 +31,7 @@ void main() {
       if (call.method == 'create') return 1;
       if (call.method == 'open') {
         opened.add((call.arguments as Map)['url'] as String);
+        carScreen.add((call.arguments as Map)['carScreen'] as bool?);
       }
       return null;
     });
@@ -53,6 +56,14 @@ void main() {
     expect(service.owner, same(car));
     expect(identical(service.owner, phone), isFalse);
     expect(opened, ['http://example.test/phone.ts', 'http://example.test/car.ts']);
+  });
+
+  test('only car-started streams go to the car screen', () async {
+    final service = PlaybackService(db: db);
+    await service.play('http://example.test/phone.ts', owner: Object());
+    await service.play('http://example.test/car.ts',
+        owner: Object(), carScreen: true);
+    expect(carScreen, [false, true]);
   });
 
   test('a play() without an owner clears the previous one', () async {
