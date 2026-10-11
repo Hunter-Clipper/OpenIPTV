@@ -416,7 +416,15 @@ class CarVideoActivity : Activity(), SurfaceHolder.Callback {
     }
 
     private fun showOverlay() {
-        if (title.text.isNullOrEmpty()) return
+        // Nothing to control (stopped, or playing on the phone): no controls.
+        val state = controller?.playbackState?.state
+        if (title.text.isNullOrEmpty() || onPhone ||
+            !(isActive() || state == PlaybackState.STATE_ERROR)
+        ) {
+            main.removeCallbacks(hideOverlay)
+            overlay.visibility = View.GONE
+            return
+        }
         overlay.visibility = View.VISIBLE
         main.removeCallbacks(hideOverlay)
         main.postDelayed(hideOverlay, 5000)

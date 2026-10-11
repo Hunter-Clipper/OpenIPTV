@@ -46,13 +46,18 @@ object CarVideo {
         route()
     }
 
+    /** The stream started or stopped: the car screen's "playing on your phone" follows it. */
+    fun streamStateChanged(p: NativeVideoPlayer) {
+        if (p === player && surface != null && !toCar) sendElsewhere(p.hasStream)
+    }
+
     /** Points the player at the car screen or back at the app, and tells the car screen. */
     private fun route() {
         val p = player ?: return
         val s = surface
         p.setExternalSurface(if (s != null && toCar) s else null)
         if (s == null) return
-        sendElsewhere(!toCar)
+        sendElsewhere(!toCar && p.hasStream)
         if (toCar) p.currentVideoSize.let { (w, h, r) -> sendSize(w, h, r) }
     }
 
