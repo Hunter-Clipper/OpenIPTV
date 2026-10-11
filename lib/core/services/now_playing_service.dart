@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/services/car_library.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/features/player/stream_watchdog.dart';
 
 late final NowPlayingHandler nowPlayingHandler;
 
@@ -41,6 +43,7 @@ Future<void> initNowPlayingService(PlaybackService playbackService) async {
 class NowPlayingHandler extends BaseAudioHandler {
   NowPlayingHandler(this._playbackService) {
     _playbackService.stateStream.listen((_) => _broadcastState());
+    _playbackService.errorStream.listen(_onCarError);
   }
 
   final PlaybackService _playbackService;
@@ -56,6 +59,14 @@ class NowPlayingHandler extends BaseAudioHandler {
   CarPlayable? _carItem;
   List<String> _carQueue = const [];
   Timer? _carProgressTimer;
+
+  // The car has no player screen, so it gets the screen's freeze detector
+  // and error handling here: a frozen stream reconnects, and one that can't
+  // play shows a message in the car instead of spinning at 0:00.
+  StreamWatchdog? _carDog;
+  Timer? _carDogTimer;
+  String? _carError;
+  Duration _carLastPosition = Duration.zero;
 
   bool _enabled = true;
 
@@ -113,7 +124,7 @@ class NowPlayingHandler extends BaseAudioHandler {
   }
 
   void _broadcastState() {
-    if (!_publishing || _stopped) return;
+    if (!_publishing || _stopped || _carError != null) return;
     final state = _playbackService.lastState;
     // A movie / episode's length is only known once it starts playing:
     // update the item so the car shows the real total time.
@@ -153,7 +164,14 @@ class NowPlayingHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<void> play() => _playbackService.resume();
+  Future<void> play() async {
+    // Play after a failed car stream = try it again.
+    final failed = _carItem;
+    if (_carError != null && failed != null) {
+      return _playCar(failed.mediaId, _carQueue);
+    }
+    await _playbackService.resume();
+  }
 
   @override
   Future<void> pause() async {
@@ -257,19 +275,29 @@ class NowPlayingHandler extends BaseAudioHandler {
     await _playCar(next, _carQueue);
   }
 
+  // Bumped by every pick: a slow earlier pick that finishes resolving after
+  // a newer one must not start playing over it.
+  int _carPick = 0;
+
   Future<void> _playCar(String mediaId, List<String> queue) async {
+    final pick = ++_carPick;
     final p = await library?.resolve(mediaId);
-    if (p == null) return;
+    if (p == null || pick != _carPick) return;
     await _saveCarProgress();
     _carProgressTimer?.cancel();
     _carItem = p;
     _carQueue = queue;
     _stopped = false;
+    _carError = null;
+    _carLastPosition = p.resumeAt ?? Duration.zero;
+    _startCarWatchdog();
     final item = _toItem(p);
     _lastMediaItem = item;
     mediaItem.add(item);
     debugPrint('[OTV-auto] play ${p.kind} ${p.contentId}');
-    await _playbackService.play(p.streamUrl, startPosition: p.resumeAt);
+    await _playbackService.play(p.streamUrl,
+        startPosition: p.resumeAt, owner: this);
+    if (pick != _carPick) return;
     _broadcastState();
     final profileId = await currentProfileId?.call();
     if (profileId != null && p.isLive) {
@@ -308,6 +336,10 @@ class NowPlayingHandler extends BaseAudioHandler {
     final wasCar = _carItem != null;
     _carProgressTimer?.cancel();
     _carProgressTimer = null;
+    _carDogTimer?.cancel();
+    _carDogTimer = null;
+    _carDog = null;
+    _carError = null;
     _carItem = null;
     _carQueue = const [];
     // The car session was published regardless of the notification
@@ -320,6 +352,110 @@ class NowPlayingHandler extends BaseAudioHandler {
         playing: false,
       ));
     }
+  }
+
+  /// The car owns the player while [_carItem] is set and nothing else
+  /// (the phone's player screen) has opened a stream since.
+  bool get _carOwnsPlayer =>
+      _carItem != null && identical(_playbackService.owner, this);
+
+  void _startCarWatchdog() {
+    final preset = _playbackService.bufferPreset;
+    _carDog = StreamWatchdog(
+        freezeLimit: preset.freezeLimit, connectLimit: preset.connectLimit);
+    _carDogTimer?.cancel();
+    _carDogTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      final dog = _carDog;
+      final p = _carItem;
+      if (dog == null || p == null) return;
+      if (!_carOwnsPlayer) {
+        // The phone took over: it watches its own stream.
+        _carDogTimer?.cancel();
+        return;
+      }
+      if (_carError != null || _carReconnecting) return;
+      final state = _playbackService.lastState;
+      if (!p.isLive && state.position > Duration.zero) {
+        _carLastPosition = state.position;
+      }
+      _applyCarWatchdog(dog.check(state,
+          now: DateTime.now(),
+          openCount: _playbackService.openCount,
+          live: p.isLive));
+    });
+  }
+
+  bool _carReconnecting = false;
+
+  void _applyCarWatchdog(WatchdogAction action) {
+    final p = _carItem;
+    if (p == null) return;
+    switch (action) {
+      case WatchdogAction.none:
+        return;
+      case WatchdogAction.giveUp:
+        _carFail(p.isLive
+            ? "This channel isn't available right now."
+            : "This title isn't available right now.");
+        return;
+      case WatchdogAction.reconnect:
+        unawaited(_carReconnect(p));
+    }
+  }
+
+  Future<void> _carReconnect(CarPlayable p) async {
+    if (_carReconnecting) return;
+    _carReconnecting = true;
+    debugPrint('[OTV-auto] reconnecting ${p.kind} ${p.contentId} '
+        '(attempt ${_carDog?.attempts})');
+    try {
+      await _playbackService.play(p.streamUrl,
+          startPosition: p.isLive ? null : _carLastPosition, owner: this);
+    } finally {
+      _carReconnecting = false;
+    }
+  }
+
+  void _onCarError(NativePlaybackError e) {
+    if (!_carOwnsPlayer || _carError != null) return;
+    final p = _carItem!;
+    if (e.isPermanent) {
+      _carFail(e.httpStatus == 401 || e.httpStatus == 403
+          ? "Your provider didn't allow this stream."
+          : p.isLive
+              ? "This channel isn't available from your provider right now."
+              : "This title isn't available from your provider right now.");
+      return;
+    }
+    final dog = _carDog;
+    if (dog != null && !_carReconnecting) {
+      _applyCarWatchdog(dog.onError(DateTime.now()));
+    }
+  }
+
+  /// Shows [message] in the car and stops trying (frees the provider
+  /// connection). Play tries again.
+  void _carFail(String message) {
+    debugPrint('[OTV-auto] giving up: $message');
+    _carError = message;
+    _carDogTimer?.cancel();
+    unawaited(_playbackService.stop());
+    final hasQueue = _carQueue.length > 1;
+    playbackState.add(PlaybackState(
+      controls: [
+        if (hasQueue) MediaControl.skipToPrevious,
+        MediaControl.play,
+        if (hasQueue) MediaControl.skipToNext,
+      ],
+      systemActions: const {
+        MediaAction.playFromMediaId,
+        MediaAction.playFromSearch,
+      },
+      processingState: AudioProcessingState.error,
+      playing: false,
+      errorCode: 1,
+      errorMessage: message,
+    ));
   }
 
   MediaItem _toItem(CarPlayable p) => MediaItem(
