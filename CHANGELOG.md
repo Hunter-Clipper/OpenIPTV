@@ -3,19 +3,21 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.11.31)
+## 0.12.0 — 2026-10-11
 
-**Watch in the car while parked** — Android Auto
-- Pick a channel, movie or episode in OpenIPTV on the car screen, then open **Video** (the second OpenIPTV icon) to see the picture full screen. It shows what OpenIPTV is already playing, so there's no second connection to your provider.
-- Parked only: Android Auto closes the picture as soon as you start driving, and the sound keeps playing.
-- Needs a small add-on app (about 1 MB). Install it from **Settings → Playback → Video in the Car**. If it doesn't show up in the car, turn on "Unknown sources" in Android Auto's developer settings.
+**Power User Update**
 
 **Power User Tools** — Settings → Advanced, at the very bottom (admin profiles)
 - **Network info:** see how your device is connected — Wi-Fi or Ethernet, its IP address, DNS servers and whether a VPN is on. Tap **Check** to see the public IP address your provider sees. Handy when a provider has trouble reaching you.
 - **Built-in VPN:** import a WireGuard (`.conf`) or OpenVPN (`.ovpn`) profile from your VPN provider, then connect with one tap. Choose **Only OpenIPTV** (other apps keep your normal connection) or **Whole device** (everything except Android Auto's link to your car). It can connect automatically when OpenIPTV opens. The first time, Android asks to allow a VPN connection — that's normal.
 - **Speed test:** how fast video arrives from your provider, and a general internet test, each with a plain-English verdict (SD, HD, 4K).
 - **Playback buffer:** **Fast start** (as before), **Balanced** or **Smooth** — a bigger reserve rides out a shaky connection but takes longer to start.
-- Works with a TV remote, and nothing is sent anywhere unless you tap a button that says where it goes.
+- Works with a TV remote, and nothing is sent anywhere unless you tap a button that says where it goes: **Check** asks api.ipify.org for your public IP address, and the general speed test downloads a file from speed.cloudflare.com.
+
+**Watch in the car while parked** — Android Auto
+- Pick a channel, movie or episode in OpenIPTV on the car screen, then open **Video** (the second OpenIPTV icon) to see the picture full screen. It shows what OpenIPTV is already playing, so there's no second connection to your provider.
+- Made for when you're parked: cars that limit apps while driving close the picture, and the sound keeps playing.
+- Needs a small add-on app (about 1 MB). Install it from **Settings → Playback → Video in the Car**. If it doesn't show up in the car, turn on "Unknown sources" in Android Auto's developer settings.
 
 **Fixes**
 - Your data is safer: if the phone or TV briefly fails to unlock OpenIPTV's encrypted storage at start-up, OpenIPTV now tries again instead of starting over empty.
