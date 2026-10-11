@@ -158,7 +158,10 @@ class NativeVideoPlayer(
     }
 
     private val playerListener = object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) = emitState()
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                CarVideo.streamStateChanged(this@NativeVideoPlayer)
+                emitState()
+            }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
             override fun onPlaybackSuppressionReasonChanged(reason: Int) = emitState()
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -440,6 +443,10 @@ class NativeVideoPlayer(
     }
 
     val currentVideoSize get() = Triple(videoWidth, videoHeight, pixelRatio)
+
+    /** A stream is open (loading, playing or paused) — not stopped or finished. */
+    val hasStream get() =
+        exoPlayer.playbackState != Player.STATE_IDLE && exoPlayer.playbackState != Player.STATE_ENDED
 
     fun dispose() {
         CarVideo.playerGone(this)
