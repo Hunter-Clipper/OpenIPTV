@@ -25,6 +25,11 @@ class AppUpdater(private val activity: Activity) : MethodChannel.MethodCallHandl
             // which manages updates itself, so the in-app updater stays out of it.
             "installerPackage" -> result.success(installerPackage())
             "canInstallPackages" -> result.success(canInstallPackages())
+            // Installed version (versionCode) of another app, e.g. the car
+            // video add-on; null when it isn't installed.
+            "packageVersion" -> result.success(
+                packageVersion(call.argument<String>("package") ?: ""),
+            )
             "openInstallPermissionSettings" -> {
                 openInstallPermissionSettings()
                 result.success(null)
@@ -53,6 +58,18 @@ class AppUpdater(private val activity: Activity) : MethodChannel.MethodCallHandl
         } else {
             @Suppress("DEPRECATION")
             pm.getInstallerPackageName(activity.packageName)
+        }
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun packageVersion(pkg: String): Long? = try {
+        val info = activity.packageManager.getPackageInfo(pkg, 0)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            info.versionCode.toLong()
         }
     } catch (_: Exception) {
         null

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/settings/car_video_addon.dart';
 import 'package:open_iptv/features/settings/edit_playlist_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/refresh_all.dart';
@@ -24,6 +26,7 @@ import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -267,6 +270,10 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 );
               }),
+              // Android Auto video add-on (phones; installing apps is
+              // an admin job).
+              if (isAdmin && Platform.isAndroid && !PlatformHelper.isTVDevice)
+                const CarVideoAddonTile(),
               Consumer(builder: (context, ref, _) {
                 final sort = ref.watch(contentSortProvider);
                 return InfoTooltip(

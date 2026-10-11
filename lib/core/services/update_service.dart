@@ -25,6 +25,15 @@ const _updateFeedUrl = String.fromEnvironment(
 /// for exactly `app-release.apk`.
 const androidReleaseAsset = 'app-release.apk';
 
+/// "OpenIPTV Video", the add-on that shows the picture on the Android Auto
+/// screen (android/carvideo). Attached to each release under this name.
+const carVideoAddonAsset = 'OpenIPTV-car-video.apk';
+const carVideoAddonPackage = 'com.openiptv.app.carvideo';
+
+/// The add-on version (versionCode) this app works with; older installs
+/// are offered an update.
+const carVideoAddonVersion = 1;
+
 const _playStoreInstaller = 'com.android.vending';
 
 /// A semantic version (major.minor.patch); anything after the numbers
@@ -143,9 +152,10 @@ class UpdateService {
     }
   }
 
-  /// The latest release, or null if the check failed. Anonymous request — no
-  /// device or user identifiers are sent.
-  Future<UpdateInfo?> fetchLatest() async {
+  /// The latest release, or null if the check failed (or it doesn't include
+  /// [assetName]). Anonymous request — no device or user identifiers are sent.
+  Future<UpdateInfo?> fetchLatest(
+      {String assetName = androidReleaseAsset}) async {
     try {
       final response = await _client.get(
         Uri.parse(_updateFeedUrl),
@@ -156,7 +166,8 @@ class UpdateService {
       ).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return null;
       return UpdateInfo.fromGitHubJson(
-          jsonDecode(response.body) as Map<String, dynamic>);
+          jsonDecode(response.body) as Map<String, dynamic>,
+          assetName: assetName);
     } catch (e) {
       debugPrint('[OTV-update] check failed: $e');
       return null;
@@ -178,17 +189,30 @@ class UpdateService {
     }
   }
 
+  /// The installed version (versionCode) of another app, or null if it
+  /// isn't installed.
+  Future<int?> packageVersion(String package) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await _channel
+          .invokeMethod<int>('packageVersion', {'package': package});
+    } on PlatformException {
+      return null;
+    }
+  }
+
   Future<void> openInstallPermissionSettings() =>
       _channel.invokeMethod('openInstallPermissionSettings');
 
   /// Downloads the update APK into the app cache (the directory the native
   /// FileProvider exposes), reporting progress as 0..1 when the size is known.
   Future<File> download(UpdateInfo info,
-      {void Function(double? progress)? onProgress}) async {
+      {void Function(double? progress)? onProgress,
+      String fileName = 'OpenIPTV'}) async {
     final dir = Directory('${(await getTemporaryDirectory()).path}/updates');
     if (dir.existsSync()) dir.deleteSync(recursive: true); // stale downloads
     dir.createSync(recursive: true);
-    final file = File('${dir.path}/OpenIPTV-${info.version}.apk');
+    final file = File('${dir.path}/$fileName-${info.version}.apk');
 
     final response = await _client
         .send(http.Request('GET', Uri.parse(info.apkUrl)))
