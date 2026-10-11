@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/services/update_service.dart';
+import 'package:open_iptv/features/settings/car_video_addon.dart';
 
 void main() {
   group('AppVersion', () {
@@ -81,5 +82,30 @@ void main() {
     test('rejects releases without a version tag', () {
       expect(UpdateInfo.fromGitHubJson({'tag_name': 'nightly'}), isNull);
     });
+
+    test('finds the car video add-on, and the app never takes it', () {
+      final release = {
+        'tag_name': 'v0.11.30',
+        'assets': [
+          {'name': carVideoAddonAsset, 'browser_download_url': 'https://x/c'},
+          {'name': 'app-release.apk', 'browser_download_url': 'https://x/a'},
+        ],
+      };
+      expect(
+          UpdateInfo.fromGitHubJson(release, assetName: carVideoAddonAsset)!
+              .apkUrl,
+          'https://x/c');
+      expect(UpdateInfo.fromGitHubJson(release)!.apkUrl, 'https://x/a');
+    });
+  });
+
+  test('car video add-on status follows its installed version', () {
+    expect(carVideoAddonStatus(null), CarVideoAddonStatus.missing);
+    expect(carVideoAddonStatus(carVideoAddonVersion - 1),
+        CarVideoAddonStatus.outdated);
+    expect(carVideoAddonStatus(carVideoAddonVersion),
+        CarVideoAddonStatus.installed);
+    expect(carVideoAddonStatus(carVideoAddonVersion + 1),
+        CarVideoAddonStatus.installed);
   });
 }
