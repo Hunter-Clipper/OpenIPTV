@@ -122,7 +122,16 @@ class PlaybackService {
   // Playback control
   // ---------------------------------------------------------------------------
 
-  Future<void> play(String streamUrl, {Duration? startPosition}) async {
+  /// Who opened the current stream (a player screen, Android Auto…). Lets
+  /// a player screen notice that something else took over the shared
+  /// player, and stop managing it (#41 car bug: the phone's screen kept
+  /// "reconnecting" to its own channel over what the car had picked).
+  Object? get owner => _owner;
+  Object? _owner;
+
+  Future<void> play(String streamUrl,
+      {Duration? startPosition, Object? owner}) async {
+    _owner = owner;
     await ensureTexture();
     debugPrint('[OTV-play] opening url=${redactUrl(streamUrl.split('?').first)}, '
         'startPosition=${startPosition?.inSeconds}s');

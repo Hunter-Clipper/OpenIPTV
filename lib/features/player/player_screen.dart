@@ -295,8 +295,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
 
+  /// Something else (Android Auto) opened a stream on the shared player.
+  bool _takenOver = false;
+
   void _runWatchdog() {
-    if (!mounted) return;
+    if (!mounted || _takenOver) return;
+    if (_playbackStarted &&
+        !_casting &&
+        _playbackService.owner != null &&
+        !identical(_playbackService.owner, this)) {
+      _onTakenOver();
+      return;
+    }
     _applyWatchdog(_watchdog.check(
       _playbackService.lastState,
       now: DateTime.now(),
@@ -336,10 +346,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  /// The car (or another screen) now owns the player: stop watching and
+  /// reconnecting this screen's stream, and close it without stopping
+  /// what's playing now.
+  void _onTakenOver() {
+    debugPrint('[OTV-play] another player took over — closing this screen');
+    _takenOver = true;
+    _watchdogTimer?.cancel();
+    _saveProgressIfNeeded();
+    if (mounted && context.canPop()) context.pop();
+  }
+
   // Reopens the current stream: live at the live edge, VOD/catch-up where
   // it was.
   Future<void> _reconnect() async {
-    if (_reconnecting || !mounted || _casting) return;
+    if (_reconnecting || !mounted || _casting || _takenOver) return;
+    if (_playbackService.owner != null &&
+        !identical(_playbackService.owner, this)) {
+      _onTakenOver();
+      return;
+    }
     _reconnecting = true;
     setState(() {
       _isRecovering = true;
@@ -349,7 +375,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ' (live=$_isPlainLive, played=${_watchdog.everPlayed})');
     final position = _isPlainLive ? null : _lastKnownPosition;
     try {
-      await _playbackService.play(_currentUrl, startPosition: position);
+      await _playbackService.play(_currentUrl,
+          startPosition: position, owner: this);
     } finally {
       _reconnecting = false;
     }
@@ -450,7 +477,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _liveOffset = Duration.zero;
     _livePausedAt = null;
     _currentUrl = widget.streamUrl;
-    await _playbackService.play(widget.streamUrl);
+    await _playbackService.play(widget.streamUrl, owner: this);
     if (mounted) setState(() => _isBehindLive = false);
   }
 
@@ -495,6 +522,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     await _playbackService.play(
       url,
       startPosition: tail.isNegative ? Duration.zero : tail,
+      owner: this,
     );
     _playbackStarted = true;
     if (startPaused) await _playbackService.pause();
@@ -514,7 +542,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _currentUrl = liveUrl;
     setState(() => _liveDvrActive = false);
     debugPrint('[OTV-dvr] _goLive: _liveDvrActive set to false');
-    await _playbackService.play(liveUrl);
+    await _playbackService.play(liveUrl, owner: this);
     _playbackStarted = true;
   }
 
@@ -659,11 +687,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // regressed catch-up playback into running forever in the background
     // (see _profileId's ref-after-dispose note above).
     try {
-      _saveProgressIfNeeded();
+      if (!_takenOver) _saveProgressIfNeeded();
     } catch (e) {
       debugPrint('[OTV-save] _saveProgressIfNeeded failed: $e');
     }
-    if (!skipTeardown) {
+    // Taken over by the car: the screen closes as usual, but the car's
+    // playback must keep going.
+    if (!skipTeardown && !_takenOver) {
       _playbackService.stop();
       nowPlayingHandler.stop();
     }
@@ -722,7 +752,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_cast.status.connected) {
       await _startCasting(start);
     } else {
-      await _playbackService.play(widget.streamUrl, startPosition: start);
+      await _playbackService.play(widget.streamUrl,
+          startPosition: start, owner: this);
     }
   }
 
@@ -798,7 +829,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _playbackFailed = false;
     });
     _watchdog.reset();
-    unawaited(_playbackService.play(_currentUrl, startPosition: resumeAt));
+    unawaited(_playbackService.play(_currentUrl,
+        startPosition: resumeAt, owner: this));
     _showControls();
   }
 
