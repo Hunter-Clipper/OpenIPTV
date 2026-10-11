@@ -129,8 +129,10 @@ class PlaybackService {
   Object? get owner => _owner;
   Object? _owner;
 
+  /// [carScreen]: started from Android Auto, so the picture may go to the
+  /// car screen (the "OpenIPTV Video" add-on); otherwise it stays here.
   Future<void> play(String streamUrl,
-      {Duration? startPosition, Object? owner}) async {
+      {Duration? startPosition, Object? owner, bool carScreen = false}) async {
     _owner = owner;
     await ensureTexture();
     debugPrint('[OTV-play] opening url=${redactUrl(streamUrl.split('?').first)}, '
@@ -143,7 +145,8 @@ class PlaybackService {
     await _player.open(streamUrl,
         streamTypeHint: _streamTypeHint(streamUrl),
         startPosition: startPosition,
-        bufferPreset: bufferPreset.id);
+        bufferPreset: bufferPreset.id,
+        carScreen: carScreen);
     await _player.play();
     debugPrint('[OTV-play] open()/play() done');
   }

@@ -61,6 +61,19 @@ class NativeVideoPlayer(
     // engine applies on every backend.
     private val surface = android.view.Surface(texture.surfaceTexture())
 
+    // Where the video goes: the Flutter texture, or the car screen while
+    // CarVideoActivity shows it (Android Auto).
+    private var output: android.view.Surface = surface
+
+    /** Sends the picture to [external] (the car screen), or back to the app with null. */
+    fun setExternalSurface(external: android.view.Surface?) {
+        output = external ?: surface
+        exoPlayer.setVideoSurface(output)
+    }
+
+    /** The current picture's display size (width, height × pixel ratio), for the car screen. */
+    var onVideoSize: ((Int, Int, Float) -> Unit)? = null
+
     private val appContext = context.applicationContext
     private val audioFocus = audioFocus
 
@@ -124,7 +137,7 @@ class NativeVideoPlayer(
         old.release()
         bufferPreset = preset
         exoPlayer = buildPlayer(appContext, preset)
-        exoPlayer.setVideoSurface(surface)
+        exoPlayer.setVideoSurface(output)
         exoPlayer.addListener(playerListener)
         android.util.Log.i("OTV-exo", "buffer preset: $preset")
     }
@@ -177,6 +190,7 @@ class NativeVideoPlayer(
                 videoWidth = videoSize.width
                 videoHeight = videoSize.height
                 pixelRatio = videoSize.pixelWidthHeightRatio
+                onVideoSize?.invoke(videoWidth, videoHeight, pixelRatio)
                 emitState()
             }
             override fun onTracksChanged(tracks: Tracks) {
@@ -221,8 +235,12 @@ class NativeVideoPlayer(
         streamTypeHint: String?,
         startPositionMs: Long = 0L,
         bufferPreset: String = this.bufferPreset,
+        carScreen: Boolean = false,
     ) {
         applyBufferPreset(bufferPreset)
+        // Only what the car started goes to the car screen; a stream opened
+        // on the phone shows on the phone.
+        CarVideo.routeToCar(this, carScreen)
         currentUrl = url
         currentHint = streamTypeHint
         hlsRetried = false
@@ -234,6 +252,7 @@ class NativeVideoPlayer(
         videoWidth = 0
         videoHeight = 0
         pixelRatio = 1f
+        onVideoSize?.invoke(0, 0, 1f)
         // Captions start off for every stream (the app's default). Without
         // this, ExoPlayer auto-selects any text track matching the device
         // language — e.g. HLS streams declaring an English CC rendition.
@@ -420,7 +439,10 @@ class NativeVideoPlayer(
         eventSink?.success(state)
     }
 
+    val currentVideoSize get() = Triple(videoWidth, videoHeight, pixelRatio)
+
     fun dispose() {
+        CarVideo.playerGone(this)
         mainHandler.removeCallbacks(positionUpdater)
         onPlayingChanged(false)
         exoPlayer.release()
@@ -469,6 +491,9 @@ class NativeVideoPlayerManager(
                 val player = NativeVideoPlayer(context, texture, { isPlaying ->
                     setPlaying(id, isPlaying)
                 }, audioFocus)
+                // The app's main player (it holds media audio focus) is the
+                // one the car screen shows.
+                if (audioFocus) CarVideo.setPlayer(player)
                 val eventChannel = EventChannel(messenger, "openiptv/video_player_events/$id")
                 eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
                     override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {
@@ -487,6 +512,7 @@ class NativeVideoPlayerManager(
                     call.argument<String>("streamTypeHint"),
                     call.argument<Number>("startPositionMs")?.toLong() ?: 0L,
                     call.argument<String>("bufferPreset") ?: "fast",
+                    call.argument<Boolean>("carScreen") ?: false,
                 )
                 result.success(null)
             }

@@ -187,13 +187,15 @@ class NativeVideoPlayer {
   Future<void> open(String url,
       {String? streamTypeHint,
       Duration? startPosition,
-      String bufferPreset = 'fast'}) {
+      String bufferPreset = 'fast',
+      bool carScreen = false}) {
     return _control.invokeMethod('open', {
       'id': _textureId,
       'url': url,
       'streamTypeHint': streamTypeHint,
       'startPositionMs': startPosition?.inMilliseconds ?? 0,
       'bufferPreset': bufferPreset,
+      'carScreen': carScreen,
     });
   }
 
