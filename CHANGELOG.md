@@ -3,6 +3,29 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.12.2 — 2026-10-12
+
+**Settings is now a tab**
+- Settings has moved from the small gear in the top corner to the menu with Live TV, Movies, Series and Search — at the bottom on phones and tablets, on the left on TVs.
+
+**Typing on a TV**
+- The on-screen keyboard now sits in a full-width tray that slides up smoothly, instead of cutting the screen off on both sides of it. The menu on the left stays in place.
+- The field you're typing in, with its label, is kept in view just above the keyboard.
+- A blinking cursor now shows where you're typing.
+- **Next** on the keyboard goes straight to the next field with the keyboard still open — no pressing OK on every field.
+- Search: pressing the keyboard's Search key takes you straight to the first result.
+- Change PIN no longer shows a "0/8" counter inside the highlight, and the backup password box is where the remote starts (one press used to export an unprotected backup). Entering a protected backup's password opens the keyboard straight away.
+- The Playlists panel now starts with the remote on Add Playlist instead of an off-screen row.
+- Edit Playlist starts with the remote on the first box (press OK to type).
+- In small windows (Change PIN, a new profile), the box you're typing in lines up neatly at the top — no more half-cut boxes above or below it.
+- Back on the add-playlist screens goes one step back instead of closing them, and the back arrow there is no longer cut off.
+
+**Storage**
+- OpenIPTV takes up less space. Every refresh left unused space inside its database that was never given back to your device. Now it's handed back after each refresh, and the first time you open this version OpenIPTV tidies up its database once (about half a minute on a TV — one TV went from 203 MB to 108 MB).
+- If your device is nearly full, OpenIPTV clears its TV guide first to make room for the tidy-up, then downloads the guide again. No reinstall needed.
+- Saving a TV guide does half the work it used to: each programme is saved once instead of twice, and guide entries for channels you don't have are no longer stored.
+- Removing a playlist now also removes its TV guide straight away.
+
 ## 0.12.0 — 2026-10-11
 
 **Power User Update**

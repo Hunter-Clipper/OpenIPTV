@@ -383,11 +383,11 @@ Stream URL
 ## UI Layout
 
 ### Navigation (Phone/Tablet)
-Bottom navigation bar — 4 items only:
+Bottom navigation bar — 5 items:
 ```
-[ 📺 Live TV ]  [ 🎬 Movies ]  [ 📺 Series ]  [ 🔍 Search ]
+[ 📺 Live TV ]  [ 🎬 Movies ]  [ 📺 Series ]  [ 🔍 Search ]  [ ⚙️ Settings ]
 ```
-Settings accessible via gear icon in top-right of any screen. No hamburger menus.
+Settings is a tab (since 0.12.2 — the gear in the top corner confused people). No hamburger menus.
 
 ### Navigation (TV)
 Top navigation rail (horizontal), D-pad navigable:
