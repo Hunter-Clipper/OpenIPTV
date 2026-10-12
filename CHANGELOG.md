@@ -3,6 +3,15 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.13.1 — 2026-10-12
+
+**Fixes**
+- In multi-view, some channels could keep loading forever in an added tile while playing fine full screen. Added channels now open every kind of stream the same way the full-screen player does.
+- In multi-view, channel names on the tiles and in the options now follow **Clean Up Names**, like the rest of the app.
+
+**Behind the scenes**
+- Tidier multi-view code: the tiles redraw less often (easier on TV sticks) and the sound switches between channels with less work.
+
 ## 0.13.0 — 2026-10-12
 
 **Multi-view — watch several channels at once**
