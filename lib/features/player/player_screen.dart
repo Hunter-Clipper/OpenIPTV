@@ -350,11 +350,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   /// reconnecting this screen's stream, and close it without stopping
   /// what's playing now.
   void _onTakenOver() {
-    debugPrint('[OTV-play] another player took over — closing this screen');
     _takenOver = true;
     _watchdogTimer?.cancel();
+    // This screen handed over to the next channel / episode itself: the
+    // "other" player is its successor — nothing to do, and popping would
+    // close the new screen that replaced this one.
+    if (_navigatingToNext) return;
+    debugPrint('[OTV-play] another player took over — closing this screen');
     _saveProgressIfNeeded();
-    if (mounted && context.canPop()) context.pop();
+    // Only ever close this screen, and only while it's the one showing.
+    if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+      context.pop();
+    }
   }
 
   // Reopens the current stream: live at the live edge, VOD/catch-up where
@@ -569,6 +576,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _tuneTo(Channel next) {
     if (next.id == widget.contentId && !_liveDvrActive) return;
     _playbackService.markTransitioning();
+    _navigatingToNext = true;
+    _watchdogTimer?.cancel();
     context.pushReplacement('/player', extra: {
       'streamUrl': next.streamUrl,
       'title': next.name,
@@ -672,8 +681,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // orientation/UI reset and stop() so the new screen's landscape lock and
     // just-started playback aren't undone by this dispose() running after
     // the new screen's initState() already took over the shared engine.
-    final skipTeardown =
-        _navigatingToNext || _playbackService.consumeTransitioning();
+    // Always consume the flag (it's set for exactly one hand-over).
+    final transitioning = _playbackService.consumeTransitioning();
+    final skipTeardown = _navigatingToNext || transitioning;
     if (!skipTeardown) {
       // A TV has no portrait mode at all — restoring one here would
       // letterbox the whole app into a small portrait compat box on every
