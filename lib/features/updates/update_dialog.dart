@@ -11,34 +11,56 @@ import 'package:open_iptv/features/updates/release_notes.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
-// Set once this launch's check has run, so moving around the app (which can
-// rebuild the shell) doesn't check again until the app is next opened.
-bool _checkedThisLaunch = false;
+// When the last automatic check ran (this process). Android keeps the app
+// alive in the background, so "opening" it from the home screen is often a
+// resume, not a fresh start: the check also runs on resume, at most every
+// [_recheckAfter] (and never twice at once).
+DateTime? _lastAutoCheck;
+bool _autoCheckRunning = false;
+const _recheckAfter = Duration(
+    seconds: int.fromEnvironment('OPENIPTV_UPDATE_RECHECK_SECONDS',
+        defaultValue: 15 * 60));
 
-/// Launch-time check: every fresh start of the app offers a newer release
-/// (a once-a-day throttle meant reopening the app right after a release
-/// showed nothing). Only for admin profiles (installing replaces the app for
-/// every profile on the device), never for Play Store installs, and never
-/// for a version the user chose to skip.
-Future<void> maybePromptForUpdate(BuildContext context) async {
-  if (_checkedThisLaunch) return;
-  final container = ProviderScope.containerOf(context, listen: false);
-  final service = container.read(updateServiceProvider);
-  final prefs = await container.read(appPreferencesProvider.future);
-  if (!prefs.autoUpdateCheck) return;
-  if (!await service.isSelfUpdatable()) return;
-  final profile = await container.read(activeProfileProvider.future);
-  // Not marked as checked: if a kid profile is in use at launch, switching
-  // to an admin profile still gets the check.
-  if (profile?.isAdmin != true) return;
+/// Automatic check, on launch and when the app comes back to the
+/// foreground: offers a newer release. Only for admin profiles (installing
+/// replaces the app for every profile on the device), never for Play Store
+/// installs, never for a version the user chose to skip, and never over a
+/// video that's playing ([busy]) — the next time the app is opened checks
+/// again.
+Future<void> maybePromptForUpdate(BuildContext context,
+    {bool Function()? busy}) async {
+  final last = _lastAutoCheck;
+  if (_autoCheckRunning ||
+      (last != null && DateTime.now().difference(last) < _recheckAfter)) {
+    return;
+  }
+  if (busy?.call() ?? false) return;
+  _autoCheckRunning = true;
+  try {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final service = container.read(updateServiceProvider);
+    final prefs = await container.read(appPreferencesProvider.future);
+    if (!prefs.autoUpdateCheck) return;
+    if (!await service.isSelfUpdatable()) return;
+    final profile = await container.read(activeProfileProvider.future);
+    // Not marked as checked: if a kid profile is in use, switching to an
+    // admin profile still gets the check.
+    if (profile?.isAdmin != true) return;
 
-  _checkedThisLaunch = true;
-  final update = await service.checkForUpdate();
-  await prefs.setLastUpdateCheck(DateTime.now());
-  if (update == null) return;
-  if (prefs.skippedUpdateVersion == update.version.toString()) return;
-  if (!context.mounted) return;
-  await showUpdateDialog(context, update);
+    _lastAutoCheck = DateTime.now();
+    final update = await service.checkForUpdate();
+    await prefs.setLastUpdateCheck(DateTime.now());
+    if (update == null) return;
+    if (prefs.skippedUpdateVersion == update.version.toString()) return;
+    if (!context.mounted || (busy?.call() ?? false)) {
+      // Started watching meanwhile: offer it next time instead.
+      _lastAutoCheck = null;
+      return;
+    }
+    await showUpdateDialog(context, update);
+  } finally {
+    _autoCheckRunning = false;
+  }
 }
 
 /// Settings → "Check for updates": always checks now and reports the result.

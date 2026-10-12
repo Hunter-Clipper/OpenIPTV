@@ -52,6 +52,10 @@ class PlayerScreen extends ConsumerStatefulWidget {
   // Only set for episodes — used to load the next episode on completion.
   final String? seriesId;
 
+  /// How many player screens exist (a channel switch briefly has two):
+  /// above zero, something is being watched — e.g. the update prompt waits.
+  static int openCount = 0;
+
   @override
   ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
 }
@@ -211,6 +215,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   void initState() {
+    PlayerScreen.openCount++;
     super.initState();
     _profileId = ref.read(activeProfileIdProvider);
     ref.listenManual<String?>(
@@ -730,6 +735,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   void dispose() {
+    PlayerScreen.openCount--;
     _hideTimer?.cancel();
     _watchdogTimer?.cancel();
     _stateSub?.cancel();
