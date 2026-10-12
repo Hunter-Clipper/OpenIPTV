@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
-import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// The AppBar actions shared by every browse screen (Live TV, Movies, Series
@@ -92,30 +90,6 @@ class HomeLayoutToggleAction extends ConsumerWidget {
         tooltip: posters ? 'Switch to compact view' : 'Switch to poster view',
         onPressed: onTap,
       ),
-    );
-  }
-}
-
-/// Opens the Settings screen — preceded by the Cast button on phones and
-/// tablets when a cast device is around, so every browse screen gets it.
-class SettingsAction extends StatelessWidget {
-  const SettingsAction({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const CastAction(),
-        TvActivatable(
-          onTap: () => context.push('/settings'),
-          builder: (onTap) => IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: onTap,
-          ),
-        ),
-      ],
     );
   }
 }

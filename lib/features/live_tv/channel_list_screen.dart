@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -152,7 +153,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         title: const Text('Live TV'),
         actions: const [
           SortToggleAction(),
-          SettingsAction(),
+          CastAction(),
         ],
       ),
       body: channelsAsync.when(
@@ -322,7 +323,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
             setMode: setViewModeLive,
           ),
           const SortToggleAction(),
-          const SettingsAction(),
+          const CastAction(),
         ],
       ),
       body: channelsAsync.when(

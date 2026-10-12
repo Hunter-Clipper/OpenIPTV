@@ -210,10 +210,34 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               path: '/search',
               builder: (_, __) => const SearchScreen(),
             ),
+            // A tab since 0.12.1 (the gear in the top corner confused
+            // people); its pages stay inside the shell, under the nav.
+            GoRoute(
+              path: '/settings',
+              builder: (_, __) => const SettingsScreen(),
+              routes: [
+                GoRoute(
+                  path: 'profiles',
+                  builder: (_, __) => const ProfileScreen(),
+                ),
+                GoRoute(
+                  path: 'backup',
+                  builder: (_, __) => const BackupScreen(),
+                ),
+                GoRoute(
+                  path: 'parental',
+                  builder: (_, __) => const ParentalScreen(),
+                ),
+                GoRoute(
+                  path: 'power-tools',
+                  builder: (_, __) => const PowerUserScreen(),
+                ),
+              ],
+            ),
           ],
         ),
         // Detail pages on the root navigator, outside the shell (same as
-        // Settings/Player).
+        // the player).
         GoRoute(
           path: '/movies/:id',
           builder: (_, state) => MovieDetailScreen(
@@ -243,28 +267,6 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               seriesId: extra['seriesId'] as String?,
             );
           },
-        ),
-        GoRoute(
-          path: '/settings',
-          builder: (_, __) => const SettingsScreen(),
-          routes: [
-            GoRoute(
-              path: 'profiles',
-              builder: (_, __) => const ProfileScreen(),
-            ),
-            GoRoute(
-              path: 'backup',
-              builder: (_, __) => const BackupScreen(),
-            ),
-            GoRoute(
-              path: 'parental',
-              builder: (_, __) => const ParentalScreen(),
-            ),
-            GoRoute(
-              path: 'power-tools',
-              builder: (_, __) => const PowerUserScreen(),
-            ),
-          ],
         ),
       ],
     );
@@ -577,6 +579,8 @@ const _kNavDestinations = [
       selectedIcon: Icons.video_library),
   _NavDestination(Icons.search, 'Search', '/search',
       selectedIcon: Icons.search),
+  _NavDestination(Icons.settings_outlined, 'Settings', '/settings',
+      selectedIcon: Icons.settings),
 ];
 
 int _navIndexForLocation(BuildContext context) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -171,7 +172,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             setLayout: setHomeLayoutSeries,
           ),
           const SortToggleAction(),
-          const SettingsAction(),
+          const CastAction(),
         ],
       ),
       body: allAsync.when(
@@ -396,7 +397,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
             setMode: setViewModeSeries,
           ),
           const SortToggleAction(),
-          const SettingsAction(),
+          const CastAction(),
         ],
       ),
       body: allAsync.when(
