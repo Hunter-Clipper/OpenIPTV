@@ -33,6 +33,7 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.playPauseFocusNode,
     this.backFocusNode,
     this.onChannels,
+    this.onAddChannel,
     this.onCast,
     this.buffering = false,
   });
@@ -64,6 +65,8 @@ class PlayerControls extends ConsumerStatefulWidget {
   final bool isBehindLive;
   // Live TV: opens the channel switcher.
   final VoidCallback? onChannels;
+  // Multi-view (#52): watch another channel alongside this one.
+  final VoidCallback? onAddChannel;
   // Opens the cast device picker; null hides the Cast button.
   final VoidCallback? onCast;
   // Stream is loading: the play button shows a spinner.
@@ -181,6 +184,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             playPauseFocusNode: widget.playPauseFocusNode,
             backFocusNode: widget.backFocusNode,
             onChannels: widget.onChannels,
+            onAddChannel: widget.onAddChannel,
             onCast: widget.onCast,
           )
         : _VodControls(
@@ -589,6 +593,7 @@ List<Widget> _actionButtons({
   required String? favoriteChannelId,
   required VoidCallback? onEpg,
   VoidCallback? onChannels,
+  VoidCallback? onAddChannel,
   VoidCallback? onCast,
 }) {
   final m = PlayerMetrics.of(context);
@@ -646,6 +651,13 @@ List<Widget> _actionButtons({
         onTap: onChannels,
         size: size,
       ),
+    if (onAddChannel != null)
+      PlayerButton(
+        icon: Icons.add_to_queue_rounded,
+        tooltip: 'Add a channel',
+        onTap: onAddChannel,
+        size: size,
+      ),
     PlayerButton(
       icon: Icons.settings_rounded,
       tooltip: 'Playback settings',
@@ -675,6 +687,7 @@ class _LiveControls extends ConsumerWidget {
     this.onForward,
     this.onGoLive,
     this.onChannels,
+    this.onAddChannel,
     this.onCast,
     this.isBehindLive = false,
     this.playPauseFocusNode,
@@ -695,6 +708,8 @@ class _LiveControls extends ConsumerWidget {
   final VoidCallback? onForward;
   final VoidCallback? onGoLive;
   final VoidCallback? onChannels;
+  // Multi-view (#52): watch another channel alongside this one.
+  final VoidCallback? onAddChannel;
   // Opens the cast device picker; null hides the Cast button.
   final VoidCallback? onCast;
   final bool isBehindLive;
@@ -714,6 +729,7 @@ class _LiveControls extends ConsumerWidget {
       favoriteChannelId: contentId,
       onEpg: onEpg,
       onChannels: onChannels,
+      onAddChannel: onAddChannel,
       onCast: onCast,
     );
     // LIVE badge doubles as a "back to live" button once the user has
