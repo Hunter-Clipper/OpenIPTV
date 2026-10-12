@@ -48,8 +48,12 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   // Playlist-only mode starts straight at the playlist-type page; the
   // profile pages before it are never shown.
   static const _playlistTypePage = 3;
-  late final _pageController = PageController(
-      initialPage: widget.addPlaylistOnly ? _playlistTypePage : 0);
+  late final _pageController = PageController(initialPage: _firstPage);
+
+  int get _firstPage => widget.addPlaylistOnly ? _playlistTypePage : 0;
+
+  // The page being shown — Back steps through these before leaving.
+  late int _page = _firstPage;
 
   // Profile state
   final _nameCtrl = TextEditingController();
@@ -170,6 +174,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   }
 
   void _goToPage(int page, {bool requestFocus = true}) {
+    setState(() => _page = page);
     _pageController.animateToPage(
       page,
       duration: const Duration(milliseconds: 380),
@@ -401,7 +406,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     // Step dots count only the pages this mode actually shows.
     final stepOffset = addOnly ? _playlistTypePage - 1 : 0;
     final totalSteps = addOnly ? 2 : 4;
-    return Scaffold(
+    // Back (remote, gesture, system button) goes one step back, like the
+    // on-screen arrow; only from the first page does it leave the wizard.
+    // Nothing happens while a playlist loads (page 5).
+    return PopScope(
+      canPop: _page == _firstPage,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _page >= 5 || _page <= _firstPage) return;
+        _goToPage(_page - 1);
+      },
+      child: Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       resizeToAvoidBottomInset: true,
       body: PageView(
@@ -506,6 +520,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -1227,9 +1242,11 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
 
   @override
   Widget build(BuildContext context) {
-    return TvFocusable(
+    // Only scrolls when a card is cut off (centring it pushed the page's
+    // back arrow off the top of the screen).
+    return TvRevealOnFocus(
+      child: TvFocusable(
       wrapsGesture: false,
-      ensureVisibleOnFocus: true,
       focusNode: widget.focusNode,
       borderRadius: BorderRadius.circular(20),
       onTap: widget.onTap,
@@ -1295,6 +1312,7 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
         ),
       ),
       ),
+    ),
     );
   }
 }
@@ -1409,7 +1427,8 @@ class _CredentialsPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
+              child: _TopFade(
+                child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(28, 20, 28, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1524,6 +1543,7 @@ class _CredentialsPage extends StatelessWidget {
                     const SizedBox(height: 16),
                   ],
                 ),
+              ),
               ),
             ),
           ],
@@ -2093,4 +2113,27 @@ class _GradientButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Fades content out as it scrolls under the page header, instead of a
+/// hard cut (the TV keyboard scrolls the form under it). Only the top
+/// [height] fades, which the form's own top padding covers at rest.
+class _TopFade extends StatelessWidget {
+  const _TopFade({required this.child});
+
+  static const height = 20.0;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (rect) => LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: const [Colors.transparent, Colors.black],
+          stops: [0, height / rect.height],
+        ).createShader(rect),
+        child: child,
+      );
 }
