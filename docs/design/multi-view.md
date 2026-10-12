@@ -1,5 +1,7 @@
 # Multi-view (issue #52)
 
+Status: **released in v0.13.0** (2026-10-12).
+
 Watch several live channels on one screen. The goal is that it stays out of
 the way for people who never use it, and feels effortless for those who do.
 
