@@ -140,8 +140,12 @@ class UpdateService {
       AppVersion.tryParse((await PackageInfo.fromPlatform()).version);
 
   /// Whether this install should self-update at all (false for Play Store
-  /// installs, and on non-Android platforms).
-  Future<bool> isSelfUpdatable() async {
+  /// installs, and on non-Android platforms). Asked once: the installer
+  /// can't change while the app runs.
+  Future<bool> isSelfUpdatable() => _selfUpdatable;
+  late final Future<bool> _selfUpdatable = _askSelfUpdatable();
+
+  Future<bool> _askSelfUpdatable() async {
     if (!Platform.isAndroid) return false;
     try {
       final installer =

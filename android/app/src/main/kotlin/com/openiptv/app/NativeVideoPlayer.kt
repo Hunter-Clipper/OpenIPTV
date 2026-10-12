@@ -80,6 +80,11 @@ class NativeVideoPlayer(
     // without it.
     private var audible = audioFocus
 
+    private val mediaAudioAttributes = androidx.media3.common.AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+        .build()
+
     // Buffer settings (Settings → Power User Tools). ExoPlayer can't change
     // its LoadControl after it's built, so a different preset rebuilds the
     // player at the next open() — between streams, where nothing is lost.
@@ -91,26 +96,8 @@ class NativeVideoPlayer(
     private fun buildPlayer(context: Context, preset: String): ExoPlayer =
         ExoPlayer.Builder(context)
             .setLoadControl(loadControlFor(preset))
-            // Declared as media audio and holding audio focus, like any
-            // media app: Android Auto only opens the car's media audio
-            // channel for the app that holds focus (without it the car
-            // showed the channel but played no sound), and calls /
-            // navigation prompts pause or duck it.
-            .setAudioAttributes(
-                androidx.media3.common.AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                    .build(),
-                audible,
-            )
-            // Pause when headphones / the car disconnect instead of blaring
-            // from the phone speaker.
-            .setHandleAudioBecomingNoisy(audible)
-            // Keep the CPU and Wi-Fi awake while playing with the screen off
-            // (listening in the car with the phone locked).
-            .setWakeMode(if (audible) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
             .build()
-            .also { it.volume = if (audible) 1f else 0f }
+            .also { applyAudible(it, audible) }
 
     /**
      * Makes this the player you hear (multi-view, #52): volume and media
@@ -120,16 +107,23 @@ class NativeVideoPlayer(
     fun setAudible(on: Boolean) {
         if (on == audible) return
         audible = on
-        exoPlayer.volume = if (on) 1f else 0f
-        exoPlayer.setAudioAttributes(
-            androidx.media3.common.AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build(),
-            on,
-        )
-        exoPlayer.setHandleAudioBecomingNoisy(on)
-        exoPlayer.setWakeMode(if (on) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
+        applyAudible(exoPlayer, on)
+    }
+
+    private fun applyAudible(player: ExoPlayer, on: Boolean) {
+        player.volume = if (on) 1f else 0f
+        // Declared as media audio and holding audio focus, like any
+        // media app: Android Auto only opens the car's media audio
+        // channel for the app that holds focus (without it the car
+        // showed the channel but played no sound), and calls /
+        // navigation prompts pause or duck it.
+        player.setAudioAttributes(mediaAudioAttributes, on)
+        // Pause when headphones / the car disconnect instead of blaring
+        // from the phone speaker.
+        player.setHandleAudioBecomingNoisy(on)
+        // Keep the CPU and Wi-Fi awake while playing with the screen off
+        // (listening in the car with the phone locked).
+        player.setWakeMode(if (on) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
     }
 
     private fun loadControlFor(preset: String): DefaultLoadControl {

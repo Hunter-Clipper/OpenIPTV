@@ -395,7 +395,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     unawaited(maybePromptForUpdate(
       context,
       // Never over a video that's playing.
-      busy: () => !mounted || PlayerScreen.openCount > 0,
+      busy: () => PlayerScreen.openCount > 0,
     ));
   }
 
