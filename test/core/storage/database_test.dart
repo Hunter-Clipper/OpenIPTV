@@ -96,4 +96,54 @@ void main() {
     expect(found.map((p) => (p.channelId, p.title)),
         [('a', 'The Simpsons')]);
   });
+
+  test('removing a playlist also removes its guide', () async {
+    await programme('src_ch_1', const Duration(days: -1));
+    await programme('src_ch_2', const Duration(days: -1));
+    await programme('other_ch_1', const Duration(days: -1));
+    // Not remapped yet (XMLTV id): not this playlist's to remove.
+    await programme('BBC1.uk', const Duration(days: -1));
+
+    await db.deleteProgrammesForSource('src');
+
+    final left = await db.select(db.programmes).get();
+    expect(left.map((p) => p.channelId).toSet(), {'other_ch_1', 'BBC1.uk'});
+  });
+
+  test('compact never throws, and keeps the data', () async {
+    await programme('src_ch_1', const Duration(days: -1));
+    await db.compact();
+    expect(await db.select(db.programmes).get(), hasLength(1));
+  });
+
+  test('the guide clean-up drops programmes for channels that don\'t exist',
+      () async {
+    await channel('kept');
+    await programme('kept', const Duration(days: -1));
+    await programme('BBC1.uk', const Duration(days: -1)); // never mapped
+    await db.deleteOldProgrammes();
+    final left = await db.select(db.programmes).get();
+    expect(left.map((p) => p.channelId), ['kept']);
+  });
+
+  test('guide ids map to this playlist\'s channels first', () async {
+    await db.into(db.sources).insert(
+        SourcesCompanion.insert(id: 'other', nickname: 'Other', type: 'm3u'));
+    Future<void> tvg(String id, String source, String tvg) =>
+        db.into(db.channels).insert(ChannelsCompanion.insert(
+              id: id,
+              sourceId: source,
+              name: id,
+              streamUrl: 'http://$id',
+              tvgId: Value(tvg),
+            ));
+    await tvg('other_1', 'other', 'BBC1.uk');
+    await tvg('src_1', 'src', 'BBC1.uk');
+    await tvg('other_2', 'other', 'CNN.us');
+
+    final ids = await db.channelIdsByTvgId('src');
+    expect(ids['BBC1.uk'], 'src_1');
+    expect(ids['CNN.us'], 'other_2');
+    expect(ids.containsKey('ITV.uk'), isFalse);
+  });
 }

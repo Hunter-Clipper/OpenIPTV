@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -281,10 +282,104 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
+  /// After a big write (a playlist swap, a guide import): hands freed space
+  /// back to the device and empties the write-ahead log. Never throws.
+  Future<void> compact() async {
+    try {
+      await customStatement('PRAGMA incremental_vacuum');
+      await customSelect('PRAGMA wal_checkpoint(TRUNCATE)').get();
+    } catch (e) {
+      debugPrint('[OTV-storage] compact failed: $e');
+    }
+  }
+
+  /// One-time clean-up for databases made before [compact] existed: they
+  /// can't hand space back until rebuilt once (VACUUM). The rebuild needs
+  /// room for a copy of the data actually in use (plus its log), not of
+  /// the whole file. On a device too full even for that, the TV guide —
+  /// the biggest table, and downloaded again on the next refresh — is
+  /// cleared first. Returns true when it did that, so the caller can fetch
+  /// the guide again. Never throws.
+  Future<bool> compactIfBloated({required int freeDiskBytes}) async {
+    try {
+      Future<int> one(String sql) async =>
+          int.parse('${(await customSelect(sql).getSingle()).data.values.first}');
+      if (await one('PRAGMA auto_vacuum') == 2) {
+        await compact();
+        return false;
+      }
+      final pageSize = await one('PRAGMA page_size');
+      Future<int> inUse() async =>
+          (await one('PRAGMA page_count') - await one('PRAGMA freelist_count')) *
+          pageSize;
+      final size = await one('PRAGMA page_count') * pageSize;
+      bool roomFor(int bytes) => freeDiskBytes > bytes * 2.5 + (32 << 20);
+      var guideCleared = false;
+      if (!roomFor(await inUse())) {
+        debugPrint('[OTV-storage] not enough room to tidy up: clearing the '
+            'TV guide first (it downloads again)');
+        await customStatement('DELETE FROM programmes');
+        guideCleared = true;
+        if (!roomFor(await inUse())) {
+          debugPrint('[OTV-storage] still not enough room — skipped');
+          return guideCleared;
+        }
+      }
+      debugPrint('[OTV-storage] rebuilding the database once '
+          '(${size >> 20} MB, ${(await inUse()) >> 20} MB in use)');
+      final sw = Stopwatch()..start();
+      await customStatement('VACUUM');
+      await customSelect('PRAGMA wal_checkpoint(TRUNCATE)').get();
+      debugPrint('[OTV-storage] rebuilt in ${sw.elapsedMilliseconds} ms: '
+          '${(await one('PRAGMA page_count') * pageSize) >> 20} MB');
+      return guideCleared;
+    } catch (e) {
+      debugPrint('[OTV-storage] rebuild failed: $e');
+      return false;
+    }
+  }
+
+  /// Pages used vs free and the big tables' row counts, for
+  /// `adb logcat | grep OTV-storage`.
+  Future<void> logStorageStats() async {
+    try {
+      Future<int> one(String sql) async =>
+          int.parse('${(await customSelect(sql).getSingle()).data.values.first}');
+      final pageSize = await one('PRAGMA page_size');
+      final pages = await one('PRAGMA page_count');
+      final free = await one('PRAGMA freelist_count');
+      final counts = <String>[];
+      for (final t in [
+        'channels',
+        'movies',
+        'series_entries',
+        'episodes',
+        'programmes',
+      ]) {
+        counts.add('$t ${await one('SELECT COUNT(*) FROM $t')}');
+      }
+      debugPrint('[OTV-storage] db: '
+          '${(pages * pageSize / (1 << 20)).toStringAsFixed(1)} MB, '
+          'free pages ${(free * pageSize / (1 << 20)).toStringAsFixed(1)} MB; '
+          '${counts.join(', ')}');
+      // Rows per playlist, by nickname; "(gone)" = rows whose playlist no
+      // longer exists.
+      for (final t in ['channels', 'movies', 'series_entries']) {
+        final rows = await customSelect(
+          "SELECT COALESCE(s.nickname, '(gone)') AS n, COUNT(*) AS c "
+          'FROM $t x LEFT JOIN sources s ON s.id = x.source_id '
+          'GROUP BY x.source_id',
+        ).get();
+        final parts = rows.map((r) => '${r.data['n']} ${r.data['c']}');
+        debugPrint('[OTV-storage] $t by playlist: ${parts.join(', ')}');
+      }
+    } catch (e) {
+      debugPrint('[OTV-storage] db stats failed: $e');
+    }
+  }
+
   Future<void> _createIndexes() async {
-    // channels.tvg_id: makes remapProgrammeChannelIds() go from O(n²) → O(n log m)
-    // Without this index the remap of 147k programmes against 18k channels takes ~37s
-    // and holds the write lock the entire time, blocking any concurrent DB writes.
+    // channels.tvg_id: guide lookups by XMLTV id.
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_channels_tvg_id ON channels (tvg_id)',
     );
@@ -471,6 +566,17 @@ class AppDatabase extends _$AppDatabase {
     await (delete(sources)..where((t) => t.id.equals(id))).go();
   }
 
+  /// The guide rows of [sourceId]'s channels (their ids start with
+  /// "<sourceId>_ch_"). Without this a removed playlist's guide stayed until
+  /// it had aired — days of catch-up history for some providers.
+  Future<void> deleteProgrammesForSource(String sourceId) async {
+    final prefix = '${sourceId}_ch_';
+    await customStatement(
+      'DELETE FROM programmes WHERE substr(channel_id, 1, ?) = ?',
+      [prefix.length, prefix],
+    );
+  }
+
   Future<void> updateSourceRefreshTime(String id, DateTime time) async {
     await (update(sources)..where((t) => t.id.equals(id))).write(
       SourcesCompanion(lastRefreshed: Value(time)),
@@ -646,25 +752,25 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// Remaps programme channelId values from XMLTV IDs (e.g. 'BBC1.uk') to the
-  /// app's internal channel IDs (e.g. '{sourceId}_ch_30581') by joining on
-  /// channels.tvg_id. Must be called after EPG import.
-  Future<void> remapProgrammeChannelIds() async {
-    // OR REPLACE: if two different tvg_ids both resolve to the same internal
-    // channel and happen to share a programme start time, this update would
-    // otherwise violate idx_programmes_unique and abort the whole statement.
-    // REPLACE keeps the row being written and drops the pre-existing one it
-    // collided with — consistent with "last write wins" everywhere else here.
-    await customStatement(
-      'UPDATE OR REPLACE programmes '
-      'SET channel_id = ('
-      '  SELECT id FROM channels WHERE tvg_id = programmes.channel_id LIMIT 1'
-      ') '
-      'WHERE channel_id IN ('
-      '  SELECT tvg_id FROM channels WHERE tvg_id IS NOT NULL'
-      ')',
-    );
+  /// XMLTV channel id (`tvg-id`) → the app's channel id, for storing a
+  /// guide under the channels it belongs to. Channels of [preferSourceId]
+  /// (the playlist whose guide this is) win when several playlists share
+  /// an id; otherwise the first one found, as before.
+  Future<Map<String, String>> channelIdsByTvgId(String preferSourceId) async {
+    final rows = await (selectOnly(channels)
+          ..addColumns([channels.id, channels.tvgId, channels.sourceId])
+          ..where(channels.tvgId.isNotNull() & channels.tvgId.equals('').not()))
+        .get();
+    final map = <String, String>{};
+    for (final own in [true, false]) {
+      for (final r in rows) {
+        if ((r.read(channels.sourceId) == preferSourceId) != own) continue;
+        map.putIfAbsent(r.read(channels.tvgId)!, () => r.read(channels.id)!);
+      }
+    }
+    return map;
   }
+
 
   /// Channels without catch-up keep only a short grace window (so "now" EPG
   /// lookups have a little slack); catch-up-enabled channels keep their own
@@ -681,6 +787,14 @@ class AppDatabase extends _$AppDatabase {
         selectOnly(channels)
           ..addColumns([channels.id])
           ..where(filter);
+
+    // Programmes for channels that don't exist (stored under their XMLTV
+    // id by versions before 0.12.1, or left by a removed playlist) are
+    // never shown: drop them whatever their time.
+    await (delete(programmes)
+          ..where((t) =>
+              t.channelId.isNotInQuery(selectOnly(channels)..addColumns([channels.id]))))
+        .go();
 
     // Non-catch-up channels keep only the last hour.
     await (delete(programmes)
@@ -1437,6 +1551,14 @@ void _dbSetup(Database db) {
   // progress saves must queue behind it, not fail. Reads never wait (WAL).
   // Must be set before migrations run.
   db.execute('PRAGMA busy_timeout = 60000;');
+  // The write-ahead log grows to the size of the biggest write (a playlist
+  // swap, a guide import) and SQLite never shrinks it on its own — on a TV
+  // it reached over a gigabyte. Cap what it keeps after each checkpoint.
+  db.execute('PRAGMA journal_size_limit = 33554432;');
+  // Space freed by a refresh can be handed back to the device ([compact]).
+  // Takes effect on a new database right away; an existing one switches
+  // over once, in [compactIfBloated].
+  db.execute('PRAGMA auto_vacuum = INCREMENTAL;');
 }
 
 /// The app database, encrypted on disk (see db_encryption.dart). The
@@ -1453,6 +1575,37 @@ QueryExecutor _openConnection({bool migrate = true}) {
       migrate: migrate,
     );
     debugPrint('[OTV-db] opened (${state.name})');
+    if (migrate) unawaited(_logStorage(dbFolder));
     return executor;
   });
+}
+
+/// Logs every file over 1 MB in the app's folders (sizes only), so storage
+/// growth on a device can be traced with `adb logcat | grep OTV-storage`.
+Future<void> _logStorage(Directory documents) async {
+  try {
+    final dirs = <Directory>{
+      documents,
+      await getApplicationSupportDirectory(),
+      await getTemporaryDirectory(),
+    };
+    for (final dir in dirs) {
+      var total = 0;
+      final big = <String>[];
+      await for (final e in dir.list(recursive: true, followLinks: false)) {
+        if (e is! File) continue;
+        final size = await e.length();
+        total += size;
+        if (size > 1 << 20) {
+          big.add('${p.relative(e.path, from: dir.path)} '
+              '${(size / (1 << 20)).toStringAsFixed(1)} MB');
+        }
+      }
+      debugPrint('[OTV-storage] ${p.basename(dir.path)}: '
+          '${(total / (1 << 20)).toStringAsFixed(1)} MB'
+          '${big.isEmpty ? '' : ' — ${big.join(', ')}'}');
+    }
+  } catch (e) {
+    debugPrint('[OTV-storage] report failed: $e');
+  }
 }

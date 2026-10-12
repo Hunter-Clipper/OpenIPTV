@@ -180,6 +180,8 @@ class SourceManager {
       updated = await _refreshXtream(source, onProgress: onProgress);
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
     // Pass the updated source so the auto-set EPG URL is included.
     // Background: a failed guide is logged, and mustn't fail the playlist.
     unawaited(epgService.refreshEpg(updated).catchError((Object _) {}));
@@ -240,6 +242,8 @@ class SourceManager {
 
     if (updated != null) {
       await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
     }
 
     return SourceRefreshResult(
@@ -267,6 +271,8 @@ class SourceManager {
             ? await _refreshM3u(source)
             : await _refreshXtream(source);
         await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
       } catch (e) {
         playlistError = e;
         _logRefreshError(source, 'playlist', e);
@@ -303,6 +309,8 @@ class SourceManager {
       rethrow;
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
   }
 
 
@@ -329,6 +337,8 @@ class SourceManager {
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
     // Background: a failed guide is logged, and mustn't fail the playlist.
     unawaited(epgService.refreshEpg(source).catchError((Object _) {}));
   }
@@ -347,6 +357,8 @@ class SourceManager {
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
   }
 
   /// Refreshes only series for a source.
@@ -363,6 +375,8 @@ class SourceManager {
       });
     }
     await db.updateSourceRefreshTime(source.id, DateTime.now());
+    // Hand back the space the swap freed (the old lists).
+    await db.compact();
   }
 
   // Fetches episodes for a single series on demand (Xtream only).
@@ -511,7 +525,9 @@ class SourceManager {
     await db.deleteMoviesForSource(sourceId);
     await db.deleteSeriesForSource(sourceId);
     await db.deleteEpisodesForSource(sourceId);
+    await db.deleteProgrammesForSource(sourceId);
     await db.deleteSource(sourceId);
+    await db.compact();
   }
 
   // ---------------------------------------------------------------------------

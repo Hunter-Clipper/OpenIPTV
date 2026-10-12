@@ -38,6 +38,11 @@ object EngineChannels {
         MethodChannel(messenger, "openiptv/device").setMethodCallHandler { call, result ->
             when (call.method) {
                 "isTelevision" -> result.success(isTelevision(context))
+                // Free space where the app keeps its data (database
+                // maintenance needs room for a temporary copy).
+                "freeDiskBytes" -> result.success(
+                    android.os.StatFs(context.filesDir.path).availableBytes,
+                )
                 // Google TV / Fire TV often ship without a document picker:
                 // OPEN_DOCUMENT resolves to a framework stub that just
                 // cancels, so "choose a file" silently does nothing.

@@ -29,6 +29,15 @@ Future<bool> isTelevisionDevice({
   }
 }
 
+/// Free bytes where the app keeps its data, or null if unknown.
+Future<int?> freeDiskBytes() async {
+  try {
+    return await _channel.invokeMethod<int>('freeDiskBytes');
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Whether the device has a real document picker. Google TV / Fire TV often
 /// don't (the request goes to a stub that cancels at once), so file pickers
 /// need a fallback there. Assumes yes if the question can't be asked.

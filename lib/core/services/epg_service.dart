@@ -145,26 +145,42 @@ class EpgService {
       debugPrint(
           '[EPG] Parsed ${programmes.length} programmes in ${sw.elapsedMilliseconds}ms');
 
+      // Stored straight under the app's own channel ids, so a refresh
+      // updates the rows already there. (It used to store every programme
+      // under its XMLTV id and then rewrite them all — twice the writing,
+      // 11 minutes on a TV stick — and kept programmes for channels the
+      // playlist doesn't have.)
+      final ids = await db.channelIdsByTvgId(source.id);
+      final mapped = [
+        for (final p in programmes)
+          if (ids[p.channelId] case final id?)
+            Programme(
+              channelId: id,
+              start: p.start,
+              end: p.end,
+              title: p.title,
+              description: p.description,
+              category: p.category,
+              episodeNum: p.episodeNum,
+            ),
+      ];
+
       var totalWritten = 0;
-      for (var i = 0; i < programmes.length; i += 1000) {
-        final batch =
-            programmes.sublist(i, (i + 1000).clamp(0, programmes.length));
+      for (var i = 0; i < mapped.length; i += 1000) {
+        final batch = mapped.sublist(i, (i + 1000).clamp(0, mapped.length));
         await db.upsertProgrammes(batch);
         totalWritten += batch.length;
         onProgress?.call('Loading TV guide… ($totalWritten programs)');
       }
 
-      debugPrint(
-          '[EPG] Wrote $totalWritten programmes in ${sw.elapsedMilliseconds}ms');
-
-      if (totalWritten > 0) {
-        onProgress?.call('Mapping guide to channels…');
-        await db.remapProgrammeChannelIds();
-      }
+      debugPrint('[EPG] Wrote $totalWritten programmes '
+          '(${programmes.length - mapped.length} for channels not in any '
+          'playlist skipped) in ${sw.elapsedMilliseconds}ms');
+      await db.compact();
 
       sw.stop();
       debugPrint(
-          '[EPG] Done — $totalWritten total in ${sw.elapsedMilliseconds}ms (remap complete)');
+          '[EPG] Done — $totalWritten total in ${sw.elapsedMilliseconds}ms');
     } catch (e, st) {
       sw.stop();
       debugPrint('[EPG] Error after ${sw.elapsedMilliseconds}ms: '

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:open_iptv/core/models/profile.dart';
+import 'package:open_iptv/core/services/device_info_channel.dart';
+import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -224,7 +226,24 @@ class ProfileService {
 
 // Provider for the AppDatabase — kept here to avoid circular imports.
 @Riverpod(keepAlive: true)
-AppDatabase appDatabase(AppDatabaseRef ref) => AppDatabase();
+AppDatabase appDatabase(AppDatabaseRef ref) {
+  final db = AppDatabase();
+  // Well after start (counting the big tables takes seconds on a TV):
+  // report storage, then the one-time rebuild of an older, bloated file.
+  Future.delayed(const Duration(seconds: 20), () async {
+    await db.logStorageStats();
+    final free = await freeDiskBytes();
+    if (free == null) return;
+    if (await db.compactIfBloated(freeDiskBytes: free)) {
+      // The guide was cleared to make room: fetch it again.
+      final epg = ref.read(epgServiceProvider);
+      for (final source in await db.getAllSources()) {
+        await epg.refreshEpg(source).catchError((Object _) {});
+      }
+    }
+  });
+  return db;
+}
 
 /// Just the active profile's id. Watch this instead of [activeProfileProvider]
 /// when only the id matters, so favorite toggles (which invalidate
