@@ -3,6 +3,21 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.13.0 — 2026-10-12
+
+**Multi-view — watch several channels at once**
+- While watching a live channel, tap **Add a channel** (next to the channel list) and pick another. The screen splits so you can watch both — and you can keep adding more.
+- The layout follows how many channels you're watching: two side by side, three as one big with two smaller, four in a grid, and so on. Choose **Equal grid** or **One big** any time.
+- Sound comes from the channel you highlight (move with the remote, or tap it on a phone); the others stay quiet and slightly dimmed, and a speaker shows which one you're hearing.
+- Press OK (or tap the highlighted channel) for its options: **Full screen**, **Swap channel**, **Add a channel**, **Layout** and **Remove**.
+- **Back** keeps the highlighted channel playing full screen.
+- Works with every playlist. If a provider won't allow another stream, or a channel isn't available, that tile says so in plain English and the others keep playing.
+- Phones show multi-view sideways, like the full-screen player.
+
+**Fixes**
+- Picking a channel from the channel list in the player could close the player and drop you back to the list. It now switches channel as it should.
+- Opening OpenIPTV from the home screen now checks for updates again. Before, the check only ran when the app had been fully closed, so a new version could go unnoticed. It checks at most every 15 minutes, and never interrupts a video you're watching.
+
 ## 0.12.2 — 2026-10-12
 
 **Settings is now a tab**
