@@ -16,6 +16,7 @@ import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/channel_switcher.dart';
+import 'package:open_iptv/features/player/multi_view.dart';
 import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
@@ -93,6 +94,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Set when the provider says a stream doesn't exist / isn't allowed —
   // shown instead of the generic "Stream unavailable".
   String? _errorMessage;
+
+  // Multi-view (#52): the channel added alongside this one (null = off).
+  // While it's on, MultiView owns the screen; this screen keeps running the
+  // main player (its watchdog included) for the first tile.
+  Channel? _multiAdded;
+  final _multiKey = GlobalKey<MultiViewState>();
+  // Multi-view removed the first tile: the main player is stopped and must
+  // not be "reconnected".
+  bool _mainParked = false;
   // True once the provider has refused this stream (see _errorSub). The
   // engine keeps emitting idle, non-buffering state afterwards, which would
   // otherwise read as "recovered" and hide the error overlay immediately.
@@ -299,7 +309,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _takenOver = false;
 
   void _runWatchdog() {
-    if (!mounted || _takenOver) return;
+    if (!mounted || _takenOver || _mainParked) return;
     if (_playbackStarted &&
         !_casting &&
         _playbackService.owner != null &&
@@ -586,6 +596,61 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
   }
 
+  // Multi-view: pick a channel to watch alongside this one.
+  Future<void> _addChannel() async {
+    final id = widget.contentId;
+    if (_liveChannel == null || id == null) return;
+    _hideTimer?.cancel();
+    final picked = await showChannelSwitcher(context, id);
+    if (!mounted) return;
+    if (picked == null || picked.id == id) {
+      _showControls();
+      return;
+    }
+    setState(() {
+      _multiAdded = picked;
+      _controlsVisible = false;
+    });
+    // Every tile plays (a paused channel would sit frozen in its tile).
+    if (!_playbackService.lastState.playWhenReady) {
+      unawaited(_playbackService.resume());
+    }
+  }
+
+  // Multi-view swapped (or restarted) the channel on the main player.
+  void _playOnMain(Channel channel) {
+    _watchdog.reset();
+    setState(() {
+      _liveChannel = channel;
+      _currentUrl = channel.streamUrl;
+      _mainParked = false;
+      _gaveUp = false;
+      _playbackFailed = false;
+      _errorMessage = null;
+      _isBuffering = true;
+    });
+    unawaited(_playbackService.play(channel.streamUrl, owner: this));
+  }
+
+  void _parkMain() {
+    _mainParked = true;
+    unawaited(_playbackService.stop());
+  }
+
+  // Back (or Full screen) in multi-view: [channel] plays full screen.
+  void _leaveMultiView(Channel channel, {required bool onMainPlayer}) {
+    setState(() => _multiAdded = null);
+    if (channel.id != widget.contentId) {
+      _tuneTo(channel);
+      return;
+    }
+    // This screen's own channel: carry on (restarting it if multi-view had
+    // stopped or swapped it).
+    if (!onMainPlayer || _mainParked || _currentUrl != channel.streamUrl) {
+      _playOnMain(channel);
+    }
+  }
+
   // Slides in the channel list over the video; picking one tunes to it.
   Future<void> _openChannels() async {
     final id = widget.contentId;
@@ -604,6 +669,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Multi-view handles its own keys.
+    if (_multiAdded != null) return KeyEventResult.ignored;
     final key = event.logicalKey;
 
     // This only fires while the root Focus itself holds primary focus —
@@ -1083,6 +1150,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final castAvailable = ref.watch(castStatusProvider
         .select((a) => a.valueOrNull?.available ?? false));
     final inPip = ref.watch(pipActiveProvider);
+    final added = _multiAdded;
+    final main = _liveChannel;
+    if (added != null && main != null && !inPip) {
+      return PopScope(
+        // Back leaves multi-view: the highlighted channel full screen.
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _multiKey.currentState?.leave();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: MultiView(
+            key: _multiKey,
+            playbackService: _playbackService,
+            mainChannel: main,
+            firstAdded: added,
+            mainLoading: _isBuffering && !_playbackGaveUp,
+            mainMessage: _playbackGaveUp
+                ? (_errorMessage ?? "This channel isn't available right now.")
+                : null,
+            onSwapMain: _playOnMain,
+            onRemoveMain: _parkMain,
+            onLeave: _leaveMultiView,
+          ),
+        ),
+      );
+    }
     if (inPip) {
       // Bare video surface only — no controls/overlays fit the tiny PiP window.
       return Scaffold(
@@ -1227,6 +1321,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             onChannels: _isChannelPlayback &&
                                     widget.contentId != null
                                 ? _openChannels
+                                : null,
+                            // Plain live only (not catch-up), once the
+                            // channel is known.
+                            onAddChannel: _isPlainLive && _liveChannel != null
+                                ? _addChannel
                                 : null,
                             // Casting is a phone/tablet feature (a TV is
                             // itself the screen), shown once a device is
