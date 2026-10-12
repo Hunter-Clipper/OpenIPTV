@@ -200,6 +200,11 @@ class NativeVideoPlayer {
   }
 
   Future<void> play() => _control.invokeMethod('play', {'id': _textureId});
+
+  /// Whether this is the player you hear: full volume and media audio
+  /// focus, or muted without focus (multi-view's other tiles).
+  Future<void> setAudible(bool on) =>
+      _control.invokeMethod('setAudible', {'id': _textureId, 'on': on});
   Future<void> setSpeed(double speed) => _control
       .invokeMethod('setSpeed', {'id': _textureId, 'speed': speed});
   Future<void> pause() => _control.invokeMethod('pause', {'id': _textureId});

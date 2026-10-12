@@ -169,6 +169,10 @@ class PlaybackService {
 
   Future<void> stop() => _player.stop();
 
+  /// Multi-view: mutes the main player (and gives up audio focus) while
+  /// another tile is the one you hear.
+  Future<void> setAudible(bool on) => _player.setAudible(on);
+
   /// Playback speed of the current stream; reset to 1 by every [play].
   double get speed => _speed;
   double _speed = 1;
