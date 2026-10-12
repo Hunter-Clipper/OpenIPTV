@@ -49,4 +49,46 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect((taps, longPresses), (0, 1));
   });
+
+  testWidgets(
+      'holding OK to open a sheet does not click its autofocused option',
+      (tester) async {
+    var removed = 0;
+    final key = GlobalKey();
+    await tester.pumpWidget(MaterialApp(
+      shortcuts: appShortcuts,
+      home: Scaffold(
+        body: TvFocusable(
+          key: key,
+          autofocus: true,
+          wrapsGesture: false,
+          onTap: () {},
+          onLongPress: () => showModalBottomSheet<void>(
+            context: key.currentContext!,
+            builder: (_) => ListTile(
+              autofocus: true,
+              title: const Text('Remove'),
+              onTap: () => removed++,
+            ),
+          ),
+          child: const SizedBox(width: 100, height: 100),
+        ),
+      ),
+    ));
+    await tester.pump();
+    await simulateKeyDownEvent(LogicalKeyboardKey.select);
+    await simulateKeyRepeatEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove'), findsOneWidget);
+    // The remote keeps repeating until OK is let go.
+    await simulateKeyRepeatEvent(LogicalKeyboardKey.select);
+    await simulateKeyRepeatEvent(LogicalKeyboardKey.select);
+    await simulateKeyUpEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(removed, 0);
+    // A fresh press still picks it.
+    await simulateKeyDownEvent(LogicalKeyboardKey.select);
+    await simulateKeyUpEvent(LogicalKeyboardKey.select);
+    expect(removed, 1);
+  });
 }

@@ -269,6 +269,20 @@ class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
   }
 }
 
+/// The app's shortcuts: Flutter's defaults, except that OK / Enter / select
+/// activate once per press. Flutter's own activation shortcuts also fire on
+/// key *repeats*, so holding OK on a remote to open a sheet (the first
+/// repeat is [TvFocusable]'s long-press) went on to click whatever the sheet
+/// autofocused while the key was still down.
+final Map<ShortcutActivator, Intent> appShortcuts = {
+      for (final e in WidgetsApp.defaultShortcuts.entries)
+        if (e.key case final SingleActivator a
+            when a.includeRepeats && e.value is ActivateIntent)
+          SingleActivator(a.trigger, includeRepeats: false): e.value
+        else
+          e.key: e.value,
+    };
+
 class TvActivatable extends StatelessWidget {
   const TvActivatable({
     super.key,

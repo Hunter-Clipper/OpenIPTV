@@ -288,6 +288,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     if (_needsProfilePick) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
+        shortcuts: appShortcuts,
         theme: AppTheme.dark(accent),
         darkTheme: AppTheme.dark(accent),
         themeMode: ThemeMode.dark,
@@ -306,6 +307,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         themeMode: ThemeMode.dark,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
+        shortcuts: appShortcuts,
         builder: (context, child) => DisplayNames(
           enabled: ref.watch(cleanNamesProvider),
           child: TvKeyboardInset(
