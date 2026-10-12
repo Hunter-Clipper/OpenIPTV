@@ -75,7 +75,10 @@ class NativeVideoPlayer(
     var onVideoSize: ((Int, Int, Float) -> Unit)? = null
 
     private val appContext = context.applicationContext
-    private val audioFocus = audioFocus
+    // Whether this player is what you hear: media audio focus + full volume.
+    // Multi-view (#52) moves it between tiles; the TV guide preview starts
+    // without it.
+    private var audible = audioFocus
 
     // Buffer settings (Settings → Power User Tools). ExoPlayer can't change
     // its LoadControl after it's built, so a different preset rebuilds the
@@ -98,15 +101,36 @@ class NativeVideoPlayer(
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                     .build(),
-                audioFocus,
+                audible,
             )
             // Pause when headphones / the car disconnect instead of blaring
             // from the phone speaker.
-            .setHandleAudioBecomingNoisy(audioFocus)
+            .setHandleAudioBecomingNoisy(audible)
             // Keep the CPU and Wi-Fi awake while playing with the screen off
             // (listening in the car with the phone locked).
-            .setWakeMode(if (audioFocus) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
+            .setWakeMode(if (audible) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
             .build()
+            .also { it.volume = if (audible) 1f else 0f }
+
+    /**
+     * Makes this the player you hear (multi-view, #52): volume and media
+     * audio focus move together, so a call or a navigation prompt still
+     * pauses / ducks the channel you're listening to, and never a muted one.
+     */
+    fun setAudible(on: Boolean) {
+        if (on == audible) return
+        audible = on
+        exoPlayer.volume = if (on) 1f else 0f
+        exoPlayer.setAudioAttributes(
+            androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            on,
+        )
+        exoPlayer.setHandleAudioBecomingNoisy(on)
+        exoPlayer.setWakeMode(if (on) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
+    }
 
     private fun loadControlFor(preset: String): DefaultLoadControl {
         // (min buffer, max buffer, before first play, after a rebuffer), ms.
@@ -539,6 +563,10 @@ class NativeVideoPlayerManager(
                 val pos = players[idArg(call)]
                     ?.seekTo((call.argument<Number>("positionMs") ?: 0).toLong())
                 result.success(pos)
+            }
+            "setAudible" -> {
+                players[idArg(call)]?.setAudible(call.argument<Boolean>("on") ?: true)
+                result.success(null)
             }
             "setSpeed" -> {
                 players[idArg(call)]?.setSpeed((call.argument<Number>("speed") ?: 1).toFloat())
