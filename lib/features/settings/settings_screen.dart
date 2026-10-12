@@ -978,6 +978,10 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                 Text('Playlists',
                     style: Theme.of(context).textTheme.titleLarge),
                 TvActivatable(
+                  // TV: something in the sheet must hold the remote, or the
+                  // first key lands on an off-screen row. This is the one
+                  // harmless choice (a row would switch playlists on OK).
+                  autofocus: true,
                   onTap: () {
                     // Grab the router before popping — this sheet's context
                     // is torn down by the pop.

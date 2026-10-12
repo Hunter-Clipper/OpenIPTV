@@ -160,7 +160,12 @@ class TvTextInput(
         et.setOnEditorActionListener { _, _, _ ->
             if (open) {
                 channel.invokeMethod("action", null)
-                finish("action")
+                // "Next" keeps the keyboard up: Dart moves to the next field
+                // and reopens the box there (or closes it if the next stop
+                // isn't a field) — no hide-and-show between fields.
+                val next = (et.imeOptions and EditorInfo.IME_MASK_ACTION) ==
+                    EditorInfo.IME_ACTION_NEXT
+                if (!next) finish("action")
             }
             true
         }

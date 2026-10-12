@@ -501,6 +501,24 @@ class TvTextFieldGate extends StatefulWidget {
 }
 
 class _TvTextFieldGateState extends State<TvTextFieldGate> {
+  // Set when the keyboard's "Next" moves the remote on: the next field's
+  // gate opens the keyboard as soon as it takes focus, so typing carries on
+  // without pressing OK on every field.
+  static bool _continueTyping = false;
+
+  // Room kept above and below the field when it's brought into view: its
+  // label above, its helper / error line below.
+  static const _labelRoom = 28.0;
+  static const _helperRoom = 28.0;
+
+  // In a dialog the keyboard squeezes the content to a strip: the field
+  // being typed in is lined up with its label at the top of that strip,
+  // and this much room is added below it so even the last field can be —
+  // otherwise slivers of the neighbouring fields showed above or below.
+  static const _dialogTypingRoom = 160.0;
+
+  bool get _inDialog => ModalRoute.of(context) is PopupRoute;
+
   FocusNode? _ownGate;
   FocusNode get _gate => widget.focusNode ?? (_ownGate ??= FocusNode());
   // The TextField's own node. On TV it's never focused (that would open
@@ -533,9 +551,12 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
     super.dispose();
   }
 
-  // Scrolls only the nearest *vertical* scrollable. Scrollable.ensureVisible
-  // would also move every scrollable above it — in the setup wizard that's
-  // the sideways page view, which jolted the page left on each move.
+  // Brings the field into view together with its label above and helper
+  // line below, with the smallest scroll that does it (a field already in
+  // view doesn't move). Only the nearest *vertical* scrollable moves:
+  // Scrollable.ensureVisible would also move every scrollable above it — in
+  // the setup wizard that's the sideways page view, which jolted the page
+  // left on each move.
   void _reveal() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -546,13 +567,23 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
           scrollable.axisDirection != AxisDirection.up) {
         scrollable = Scrollable.maybeOf(scrollable.context);
       }
-      if (box == null || scrollable == null) return;
-      scrollable.position.ensureVisible(
-        box,
-        alignment: 0.3,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
+      if (box is! RenderBox || !box.hasSize || scrollable == null) return;
+      final viewport = RenderAbstractViewport.maybeOf(box);
+      if (viewport == null) return;
+      final position = scrollable.position;
+      final area = Rect.fromLTRB(0, -_labelRoom, box.size.width,
+          box.size.height + _helperRoom);
+      final showTop = viewport.getOffsetToReveal(box, 0, rect: area).offset;
+      final showBottom = viewport.getOffsetToReveal(box, 1, rect: area).offset;
+      // Taller than the space (a squeezed dialog): the label and field win
+      // over the helper line. Typing in a dialog: label at the top.
+      final target = (showBottom > showTop || (_typing && _inDialog)
+              ? showTop
+              : position.pixels.clamp(showBottom, showTop))
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      if ((target - position.pixels).abs() < 1) return;
+      position.animateTo(target,
+          duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
     });
   }
 
@@ -601,9 +632,27 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
       onChanged: tf.onChanged,
       onAction: () {
         tf.onSubmitted?.call(controller.text);
-        if (tf.textInputAction == TextInputAction.next && mounted) {
-          _gate.nextFocus();
+        if (tf.textInputAction != TextInputAction.next) return;
+        // The keyboard stays up on "Next" (native): carry on in the next
+        // field, or put it away if the next stop isn't a field.
+        if (!mounted) {
+          TvTextInput.close();
+          return;
         }
+        setState(() => _typing = false);
+        _continueTyping = true;
+        // After the next layout: "next" is picked by position, and while
+        // typing in a dialog this field has extra room below it that would
+        // put the following field after the dialog's buttons.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            _continueTyping = false;
+            TvTextInput.close();
+            return;
+          }
+          _gate.nextFocus();
+          _afterNext(0);
+        });
       },
       onClosed: (how) {
         if (!mounted) return;
@@ -623,6 +672,25 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
     );
   }
 
+  // After "Next": focus changes are applied in a microtask, so look once
+  // they have. Still inside this field (its show-password button): move on
+  // again. Another field took the remote: it has reopened the keyboard
+  // (and cleared [_continueTyping]). Anything else: put the keyboard away.
+  void _afterNext(int tries) {
+    Future.microtask(() {
+      final now = FocusManager.instance.primaryFocus;
+      if (mounted && tries < 4 && now != null && now != _gate &&
+          _gate.hasFocus) {
+        now.nextFocus();
+        _afterNext(tries + 1);
+        return;
+      }
+      if (!_continueTyping) return;
+      _continueTyping = false;
+      TvTextInput.close();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!PlatformHelper.isTV(context)) {
@@ -637,9 +705,21 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
       onKeyEvent: _onGateKey,
       onFocusChange: (f) {
         setState(() => _gateFocused = f);
-        if (f) _reveal();
+        if (!f) return;
+        _reveal();
+        // Only when the field itself takes the remote — not one of its own
+        // buttons (show password): Next passes through those.
+        if (_continueTyping && _gate.hasPrimaryFocus) {
+          _continueTyping = false;
+          _startTyping();
+        }
       },
-      child: Container(
+      child: Padding(
+        // Always here (only its size changes): swapping widgets around the
+        // field would rebuild it and close the keyboard.
+        padding: EdgeInsets.only(
+            bottom: _typing && _inDialog ? _dialogTypingRoom : 0),
+        child: Container(
         foregroundDecoration: BoxDecoration(
           border: Border.all(
               color: _typing
@@ -650,7 +730,21 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
               width: 3),
           borderRadius: widget.borderRadius,
         ),
-        child: built,
+        // The field never has focus on TV (typing goes through the native
+        // box), so it draws no cursor of its own: show one while typing.
+        child: Stack(children: [
+          built,
+          if (_typing && _textField?.controller != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _TvCaret(
+                  controller: _textField!.controller!,
+                  color: scheme.primary,
+                ),
+              ),
+            ),
+        ]),
+      ),
       ),
     );
   }
@@ -699,5 +793,105 @@ class TvRevealOnFocus extends StatelessWidget {
       position.animateTo(target,
           duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
     });
+  }
+}
+
+/// A blinking text cursor at the end of the text field in the same Stack
+/// (see [TvTextFieldGate]). Placed from the field's own text layout
+/// (RenderEditable), so it follows the font, padding and password dots.
+class _TvCaret extends StatefulWidget {
+  const _TvCaret({required this.controller, required this.color});
+
+  final TextEditingController controller;
+  final Color color;
+
+  @override
+  State<_TvCaret> createState() => _TvCaretState();
+}
+
+class _TvCaretState extends State<_TvCaret> {
+  Timer? _blink;
+  bool _on = true;
+  Rect? _rect;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_moved);
+    _restartBlink();
+    _place();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_moved);
+    _blink?.cancel();
+    super.dispose();
+  }
+
+  // Typing shows the cursor steadily; it blinks again when idle.
+  void _moved() {
+    _restartBlink();
+    _place();
+  }
+
+  void _restartBlink() {
+    _blink?.cancel();
+    if (mounted) setState(() => _on = true);
+    _blink = Timer.periodic(const Duration(milliseconds: 530), (_) {
+      if (mounted) setState(() => _on = !_on);
+    });
+  }
+
+  void _place() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Up to the gate's Stack (this sits in it, fills it, at 0,0), then
+      // down to the field's text layout.
+      RenderObject? stack = context.findRenderObject()?.parent;
+      while (stack != null && stack is! RenderStack) {
+        stack = stack.parent;
+      }
+      if (stack is! RenderStack || !stack.hasSize) return;
+      RenderEditable? editable;
+      void find(RenderObject o) {
+        if (editable != null) return;
+        if (o is RenderEditable) {
+          editable = o;
+          return;
+        }
+        o.visitChildren(find);
+      }
+      stack.visitChildren(find);
+      final e = editable;
+      if (e == null || !e.hasSize) return;
+      final local = e.getLocalRectForCaret(
+          TextPosition(offset: widget.controller.text.length));
+      final topLeft = e.localToGlobal(local.topLeft, ancestor: stack);
+      // Long text runs past the end of an unfocused field: keep the cursor
+      // inside the box.
+      final maxX =
+          e.localToGlobal(Offset(e.size.width, 0), ancestor: stack).dx;
+      final rect = Rect.fromLTWH(
+          topLeft.dx.clamp(0, maxX), topLeft.dy, 2, local.height);
+      if (rect != _rect) setState(() => _rect = rect);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = _rect;
+    if (r == null || !_on) return const SizedBox.expand();
+    return Stack(children: [
+      Positioned.fromRect(
+        rect: r,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: widget.color,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+      ),
+    ]);
   }
 }

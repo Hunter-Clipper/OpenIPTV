@@ -291,9 +291,9 @@ class BackupScreen extends ConsumerWidget {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        title: const Text('Protect This Backup?'),
         // Scrolls when the TV keyboard leaves little room.
         scrollable: true,
-        title: const Text('Protect This Backup?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,6 +305,9 @@ class BackupScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             TvTextFieldGate(
+              // TV: the remote starts on the password (OK types one), not on
+              // Export — one press used to export an unprotected backup.
+              autofocus: true,
               builder: (context, fieldNode) => TextField(
                 focusNode: fieldNode,
               controller: controller,
@@ -323,14 +326,10 @@ class BackupScreen extends ConsumerWidget {
                 TextButton(onPressed: onTap, child: const Text('Skip')),
           ),
           TvActivatable(
-            // A plain autofocus TextField above this would otherwise trap
-            // D-pad focus permanently: Flutter's EditableText consumes
-            // vertical arrow keys for its own (single-line, no-op) caret
-            // movement, so DirectionalFocusIntent never bubbles up to move
-            // focus onto Skip/Export. Landing here by default keeps the
-            // dialog fully navigable; typing a password still works by
-            // pressing up into the field first.
-            autofocus: true,
+            // Phones: the default button (a plain autofocus TextField would
+            // pop the keyboard for an optional password). TV starts on the
+            // field above.
+            autofocus: !PlatformHelper.isTV(ctx),
             onTap: () => Navigator.of(ctx).pop(controller.text),
             builder: (onTap) =>
                 FilledButton(onPressed: onTap, child: const Text('Export')),
@@ -345,9 +344,9 @@ class BackupScreen extends ConsumerWidget {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        title: const Text('Backup is Protected'),
         // Scrolls when the TV keyboard leaves little room.
         scrollable: true,
-        title: const Text('Backup is Protected'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,6 +357,8 @@ class BackupScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             TvTextFieldGate(
+              // TV: the password is required, so the keyboard opens at once.
+              openOnShow: true,
               builder: (context, fieldNode) => TextField(
                 focusNode: fieldNode,
               controller: controller,
@@ -375,9 +376,8 @@ class BackupScreen extends ConsumerWidget {
                 TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
           TvActivatable(
-            // See the matching comment in _promptSetPassword: autofocusing
-            // the TextField instead would trap D-pad focus there permanently.
-            autofocus: true,
+            // Phones: the default button. TV opens the field's keyboard.
+            autofocus: !PlatformHelper.isTV(ctx),
             onTap: () => Navigator.of(ctx).pop(controller.text),
             builder: (onTap) =>
                 FilledButton(onPressed: onTap, child: const Text('Restore')),

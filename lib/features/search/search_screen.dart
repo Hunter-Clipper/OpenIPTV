@@ -95,6 +95,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   // search picked whichever card sat geometrically closest instead.
   final FocusNode _belowBarNode =
       FocusNode(canRequestFocus: false, skipTraversal: true);
+  // TV: the keyboard's Search key was pressed — hand the remote to the
+  // first result as soon as there is one (results can take a moment).
+  bool _jumpToResults = false;
 
   @override
   void initState() {
@@ -211,6 +214,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final query = ref.watch(_searchQueryProvider);
     final resultsAsync = ref.watch(_searchResultsProvider);
+    if (_jumpToResults) {
+      if (query.length < SearchService.minQueryLength ||
+          resultsAsync.hasError ||
+          (resultsAsync.hasValue && !resultsAsync.isLoading &&
+              resultsAsync.requireValue.isEmpty)) {
+        _jumpToResults = false;
+      } else if (resultsAsync.hasValue && !resultsAsync.isLoading) {
+        _jumpToResults = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Only if the remote is still on the box (not moved meanwhile).
+          if (!mounted || !_searchFocusNode.hasPrimaryFocus) return;
+          _belowBarNode.traversalDescendants.firstOrNull?.requestFocus();
+        });
+      }
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -230,9 +248,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 onChanged: _onChanged,
                 onSubmitted: (q) {
                   _search(q);
-                  // Keyboard closed: give the remote back to the outline.
                   if (PlatformHelper.isTV(context)) {
+                    // Keyboard closed: the remote goes to the first result
+                    // (or stays on the box if there's nothing to pick).
                     _searchFocusNode.requestFocus();
+                    _jumpToResults = true;
                   }
                 },
                 onClear: _clearSearch,

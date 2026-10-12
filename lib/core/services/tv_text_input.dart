@@ -117,32 +117,80 @@ class _Session {
 
 /// Reserves the bottom of the screen for the TV keyboard while it's open,
 /// as a bottom view inset — dialogs and scaffolds then move their content
-/// above it, as they would for a phone keyboard. Google TV's Gboard
-/// (letters and number pad) covers the bottom ~42% of the screen.
+/// above it, as they would for a phone keyboard — and draws a full-width
+/// tray behind it. Google TV's Gboard is narrower than the screen, so
+/// without the tray the page was cut off in a hard line on both sides of
+/// the keyboard. The tray is Gboard's own panel colour and height, so the
+/// two read as one keyboard; it slides in with the inset.
 class TvKeyboardInset extends StatelessWidget {
   const TvKeyboardInset({super.key, required this.child});
 
   final Widget child;
 
-  static const _keyboardFraction = 0.43;
+  /// Gboard's letter keyboard (with its suggestion strip) on a 1080p TV:
+  /// its top edge is 600 px from the top. The number pad is a little
+  /// shorter and sits inside the tray.
+  static const keyboardFraction = 0.445;
+
+  /// Gboard's panel colour on Google TV.
+  static const trayColor = Color(0xFF191D23);
+
+  static const _slide = Duration(milliseconds: 220);
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
         valueListenable: TvTextInput.showing,
-        builder: (context, showing, child) {
-          if (!showing) return child!;
-          final mq = MediaQuery.of(context);
-          final inset = mq.size.height * _keyboardFraction;
-          return MediaQuery(
-            data: mq.copyWith(
-              viewInsets: mq.viewInsets.copyWith(
-                  bottom: inset > mq.viewInsets.bottom
-                      ? inset
-                      : mq.viewInsets.bottom),
-            ),
-            child: child!,
-          );
-        },
+        builder: (context, showing, child) => TweenAnimationBuilder<double>(
+          tween: Tween(end: showing ? 1 : 0),
+          duration: _slide,
+          curve: Curves.easeOutCubic,
+          child: child,
+          builder: (context, t, child) {
+            if (t == 0) return child!;
+            final mq = MediaQuery.of(context);
+            final tray = mq.size.height * keyboardFraction * t;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                MediaQuery(
+                  data: mq.copyWith(
+                    viewInsets: mq.viewInsets.copyWith(
+                        bottom: tray > mq.viewInsets.bottom
+                            ? tray
+                            : mq.viewInsets.bottom),
+                  ),
+                  child: child!,
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: tray,
+                  child: const IgnorePointer(child: _KeyboardTray()),
+                ),
+              ],
+            );
+          },
+        ),
         child: child,
+      );
+}
+
+class _KeyboardTray extends StatelessWidget {
+  const _KeyboardTray();
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+        decoration: BoxDecoration(
+          color: TvKeyboardInset.trayColor,
+          border: Border(top: BorderSide(color: Color(0x14FFFFFF))),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x99000000),
+              blurRadius: 32,
+              offset: Offset(0, -6),
+            ),
+          ],
+        ),
       );
 }

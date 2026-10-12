@@ -509,6 +509,12 @@ class _ShellState extends State<_Shell> {
 
     if (PlatformHelper.isTV(context)) {
       return Scaffold(
+        // The TV keyboard floats over the middle of the screen, never over
+        // the rail: the rail keeps its full height (it used to shrink to
+        // the space above the keyboard — icons jumped up and its background
+        // stopped halfway). Pages inside still make room for the keyboard
+        // with their own Scaffolds.
+        resizeToAvoidBottomInset: false,
         body: Actions(
           actions: {
             DirectionalFocusIntent: EdgeAwareDirectionalFocusAction(

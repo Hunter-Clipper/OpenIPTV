@@ -6,7 +6,6 @@ import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/features/settings/refresh_all.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
-import 'package:open_iptv/ui/platform_helper.dart';
 
 /// Edit a playlist: its name, and — when a provider moves server or changes
 /// your login — the server address, username, password or playlist link.
@@ -126,6 +125,8 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
               ctrl: _name,
               hint: widget.source.nickname,
               enabled: !_saving,
+              // TV: the remote starts here (OK opens the keyboard).
+              autofocus: true,
             ),
             if (_isXtream) ...[
               _Field(
@@ -224,9 +225,6 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
               )
             else
               TvActivatable(
-                // TV: start on Save (Up reaches the fields) — focusing a
-                // field would pop the on-screen keyboard straight away.
-                autofocus: PlatformHelper.isTV(context),
                 onTap: _save,
                 borderRadius: BorderRadius.circular(28),
                 builder: (onTap) => FilledButton(
@@ -254,6 +252,7 @@ class _Field extends StatelessWidget {
     this.obscure = false,
     this.suffix,
     this.enabled = true,
+    this.autofocus = false,
   });
 
   final String label;
@@ -263,6 +262,7 @@ class _Field extends StatelessWidget {
   final bool obscure;
   final Widget? suffix;
   final bool enabled;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -277,6 +277,7 @@ class _Field extends StatelessWidget {
                   .copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 6),
           TvTextFieldGate(
+            autofocus: autofocus,
             builder: (context, fieldNode) => TextField(
             controller: ctrl,
             focusNode: fieldNode,

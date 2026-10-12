@@ -802,8 +802,11 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                 obscureText: _obscureCurrent,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 maxLength: 8,
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   hintText: 'Current PIN',
+                  // TV: the "0/8" sat inside the focus outline.
+                  counterText: PlatformHelper.isTV(context) ? '' : null,
                   suffixIcon: _obscureToggle(
                     obscured: _obscureCurrent,
                     onToggle: () =>
@@ -827,8 +830,10 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               maxLength: 8,
               autofocus:
                   !widget.profile.hasPin && !PlatformHelper.isTV(context),
+              textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 hintText: '4–8 digits',
+                counterText: PlatformHelper.isTV(context) ? '' : null,
                 suffixIcon: _obscureToggle(
                   obscured: _obscureNew,
                   onToggle: () => setState(() => _obscureNew = !_obscureNew),
@@ -849,6 +854,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               maxLength: 8,
               decoration: InputDecoration(
                 hintText: 'Repeat new PIN',
+                counterText: PlatformHelper.isTV(context) ? '' : null,
                 suffixIcon: _obscureToggle(
                   obscured: _obscureConfirm,
                   onToggle: () =>
