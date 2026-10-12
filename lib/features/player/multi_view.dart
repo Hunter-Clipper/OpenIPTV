@@ -10,6 +10,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/features/player/channel_switcher.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -63,8 +64,8 @@ enum _TileAction { fullScreen, swap, add, remove }
 
 class MultiViewState extends State<MultiView> {
   late final List<_Tile> _tiles = [
-    _Tile.main(widget.mainChannel),
-    _Tile.extra(widget.firstAdded, widget.playbackService, _changed),
+    _Tile.main(widget.mainChannel, widget.playbackService),
+    _Tile.extra(widget.firstAdded, widget.playbackService.bufferPreset, _changed),
   ];
   // The channel just added is the one you see highlighted and hear.
   int _highlight = 1;
@@ -119,7 +120,7 @@ class MultiViewState extends State<MultiView> {
       final t = _tiles[i];
       final on = i == _highlight;
       if (t.isMain) {
-        if (!t.removed) unawaited(widget.playbackService.setAudible(on));
+        unawaited(widget.playbackService.setAudible(on));
       } else {
         t.extra!.setAudible(on);
       }
@@ -138,7 +139,7 @@ class MultiViewState extends State<MultiView> {
     if (_left) return;
     _left = true;
     final t = _tiles[_highlight];
-    widget.onLeave(t.channel, onMainPlayer: t.isMain && !t.removed);
+    widget.onLeave(t.channel, onMainPlayer: t.isMain);
   }
 
   Future<void> _openOptions(int i) async {
@@ -147,7 +148,7 @@ class MultiViewState extends State<MultiView> {
     final action = await showPlayerSheet<_TileAction>(
       context,
       (ctx) => PlayerSheet(
-        title: t.channel.name,
+        title: context.displayName(t.channel.name),
         children: [
           _OptionTile(
             icon: Icons.fullscreen_rounded,
@@ -211,11 +212,10 @@ class MultiViewState extends State<MultiView> {
     if (picked == null || !mounted || picked.id == t.channel.id) return;
     setState(() => t.channel = picked);
     if (t.isMain) {
-      t.removed = false;
       widget.onSwapMain(picked);
       _applySound();
     } else {
-      t.extra!.tune(picked);
+      t.extra!.tune(picked.streamUrl);
     }
     _showLabels();
   }
@@ -224,7 +224,8 @@ class MultiViewState extends State<MultiView> {
     final picked =
         await showChannelSwitcher(context, _tiles[_highlight].channel.id);
     if (picked == null || !mounted) return;
-    final tile = _Tile.extra(picked, widget.playbackService, _changed);
+    final tile =
+        _Tile.extra(picked, widget.playbackService.bufferPreset, _changed);
     setState(() {
       _tiles.add(tile);
       _highlight = _tiles.length - 1;
@@ -245,7 +246,6 @@ class MultiViewState extends State<MultiView> {
       // The main player belongs to the player screen: it stops, and the
       // tile goes.
       widget.onRemoveMain();
-      t.removed = true;
     } else {
       t.extra!.dispose();
     }
@@ -256,15 +256,12 @@ class MultiViewState extends State<MultiView> {
     t.node.dispose();
     if (_tiles.length == 1) {
       // One channel left: that's just the player.
-      _highlight = 0;
       leave();
       return;
     }
     _applySound();
     _showLabels();
   }
-
-  // --- layout -----------------------------------------------------------------
 
   // --- keys -------------------------------------------------------------------
 
@@ -296,8 +293,6 @@ class MultiViewState extends State<MultiView> {
     // At an edge nothing happens (and the key isn't passed on).
     return KeyEventResult.handled;
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -342,7 +337,6 @@ class MultiViewState extends State<MultiView> {
                       mainLoading: widget.mainLoading,
                       mainMessage: widget.mainMessage,
                       highlighted: i == _highlight,
-                      audible: i == _highlight,
                       showLabel: _labels,
                       tv: tv,
                     ),
@@ -420,33 +414,39 @@ int? multiViewNeighbour(List<Rect> rects, int i, Offset dir) {
 /// One tile: the main player's channel, or an added one with its own
 /// player.
 class _Tile {
-  _Tile.main(this.channel)
+  _Tile.main(this.channel, PlaybackService service)
       : isMain = true,
-        extra = null;
-  _Tile.extra(this.channel, PlaybackService service, VoidCallback onChange)
-      : isMain = false,
-        extra = null {
-    extra = _ExtraPlayer(channel, service.bufferPreset, onChange);
+        extra = null,
+        aspects = _aspects(service.stateStream);
+  factory _Tile.extra(
+      Channel channel, BufferPreset preset, VoidCallback onChange) {
+    final extra = _ExtraPlayer(channel.streamUrl, preset, onChange);
+    return _Tile._(channel, extra, _aspects(extra.stateStream));
   }
+  _Tile._(this.channel, this.extra, this.aspects) : isMain = false;
 
   Channel channel;
   final bool isMain;
-  _ExtraPlayer? extra;
-  // The main player's tile was removed (the main player is stopped).
-  bool removed = false;
+  final _ExtraPlayer? extra;
+  // The picture's shape, only when it changes (state events come twice a
+  // second).
+  final Stream<double?> aspects;
   final FocusNode node = FocusNode(debugLabel: 'MultiViewTile');
+
+  static Stream<double?> _aspects(Stream<NativeVideoPlayerState> states) =>
+      states.map((s) => s.aspectRatio).distinct();
 }
 
 /// An added channel's own player, with its own freeze check and
 /// plain-English messages.
 class _ExtraPlayer {
-  _ExtraPlayer(this.channel, this.preset, this.onChange)
+  _ExtraPlayer(this._url, this.preset, this.onChange)
       : _dog = StreamWatchdog(
           freezeLimit: preset.freezeLimit,
           connectLimit: preset.connectLimit,
         );
 
-  Channel channel;
+  String _url;
   final BufferPreset preset;
   final VoidCallback onChange;
   final StreamWatchdog _dog;
@@ -487,16 +487,14 @@ class _ExtraPlayer {
   Future<void> _open() async {
     if (_disposed || textureId == null) return;
     _openCount++;
-    final url = channel.streamUrl;
-    await _player.open(url,
-        streamTypeHint:
-            PlaybackService.detectStreamType(url) == StreamType.hls ? 'hls' : 'ts',
+    await _player.open(_url,
+        streamTypeHint: PlaybackService.streamTypeHint(_url),
         bufferPreset: preset.id);
     await _player.play();
   }
 
-  void tune(Channel next) {
-    channel = next;
+  void tune(String url) {
+    _url = url;
     message = null;
     _dog.reset();
     unawaited(_open());
@@ -504,6 +502,7 @@ class _ExtraPlayer {
   }
 
   void setAudible(bool on) {
+    if (on == _audible) return;
     _audible = on;
     if (textureId != null) unawaited(_player.setAudible(on));
   }
@@ -524,14 +523,9 @@ class _ExtraPlayer {
     final http = e.httpStatus;
     if (code.contains('DECODER') || code.contains('DECODING')) {
       _fail("This device can't play another channel at the same time.");
-    } else if (http == 401 ||
-        http == 403 ||
-        http == 429 ||
-        http == 458 ||
-        http == 509 ||
-        http == 551) {
+    } else if (const {401, 403, 429, 458, 509, 551}.contains(http)) {
       _fail("Your provider didn't allow another stream.");
-    } else if (http == 404 || http == 410) {
+    } else if (e.isPermanent) {
       _fail("This channel isn't available right now.");
     } else {
       _act(_dog.onError(DateTime.now()));
@@ -573,7 +567,6 @@ class _TileView extends StatelessWidget {
     required this.mainLoading,
     required this.mainMessage,
     required this.highlighted,
-    required this.audible,
     required this.showLabel,
     required this.tv,
   });
@@ -583,62 +576,53 @@ class _TileView extends StatelessWidget {
   final bool mainLoading;
   final String? mainMessage;
   final bool highlighted;
-  final bool audible;
   final bool showLabel;
   final bool tv;
 
   @override
   Widget build(BuildContext context) {
     final extra = tile.extra;
-    final Widget video;
+    final int? textureId;
+    final Stream<NativeVideoPlayerState> states;
+    final double? knownAspect;
     final bool loading;
     final String? message;
-    if (tile.isMain) {
-      video = playbackService.hasTexture
-          ? VideoSurface(
-              textureId: playbackService.textureId,
-              stateStream: playbackService.stateStream,
-              initialAspectRatio: playbackService.lastState.aspectRatio,
-            )
-          : const SizedBox.shrink();
-      loading = mainLoading && mainMessage == null;
+    if (extra == null) {
+      textureId = playbackService.hasTexture ? playbackService.textureId : null;
+      states = playbackService.stateStream;
+      knownAspect = playbackService.lastState.aspectRatio;
+      loading = mainLoading;
       message = mainMessage;
     } else {
-      video = extra!.textureId == null
-          ? const SizedBox.shrink()
-          : VideoSurface(
-              textureId: extra.textureId!,
-              stateStream: extra.stateStream,
-              initialAspectRatio: extra.last?.aspectRatio,
-            );
+      textureId = extra.textureId;
+      states = extra.stateStream;
+      knownAspect = extra.last?.aspectRatio;
       loading = extra.loading;
       message = extra.message;
     }
     final theme = Theme.of(context);
-    final Stream<NativeVideoPlayerState> states =
-        tile.isMain ? playbackService.stateStream : extra!.stateStream;
-    final double? knownAspect = tile.isMain
-        ? playbackService.lastState.aspectRatio
-        : extra!.last?.aspectRatio;
     return Stack(
       fit: StackFit.expand,
       children: [
-        video,
+        if (textureId != null)
+          VideoSurface(
+            textureId: textureId,
+            stateStream: states,
+            initialAspectRatio: knownAspect,
+          ),
         // Everything else follows the picture's own shape inside the tile
         // (the ring hugs the picture, not the black bars around it).
         Positioned.fill(
           child: LayoutBuilder(
-            builder: (context, box) =>
-                StreamBuilder<NativeVideoPlayerState>(
-              stream: states,
+            builder: (context, box) => StreamBuilder<double?>(
+              stream: tile.aspects,
               builder: (context, snap) {
-                final aspect =
-                    snap.data?.aspectRatio ?? knownAspect ?? 16 / 9;
+                final aspect = snap.data ?? knownAspect ?? 16 / 9;
                 final rect = _pictureRect(box.biggest, aspect);
                 return Stack(children: [
                   Positioned.fromRect(
                     rect: rect,
-                    child: _overlays(theme, loading, message),
+                    child: _overlays(context, theme, loading, message),
                   ),
                 ]);
               },
@@ -652,17 +636,13 @@ class _TileView extends StatelessWidget {
   /// The letterboxed picture inside a [size] tile.
   static Rect _pictureRect(Size size, double aspect) {
     if (size.isEmpty || aspect <= 0) return Offset.zero & size;
-    var w = size.width;
-    var h = w / aspect;
-    if (h > size.height) {
-      h = size.height;
-      w = h * aspect;
-    }
-    return Rect.fromLTWH(
-        (size.width - w) / 2, (size.height - h) / 2, w, h);
+    final fitted = applyBoxFit(BoxFit.contain, Size(aspect, 1), size);
+    return Alignment.center.inscribe(fitted.destination, Offset.zero & size);
   }
 
-  Widget _overlays(ThemeData theme, bool loading, String? message) => Stack(
+  Widget _overlays(
+          BuildContext context, ThemeData theme, bool loading, String? message) =>
+      Stack(
         fit: StackFit.expand,
         children: [
           if (loading)
@@ -704,7 +684,7 @@ class _TileView extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  tile.channel.name,
+                  context.displayName(tile.channel.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall!.copyWith(
@@ -714,7 +694,7 @@ class _TileView extends StatelessWidget {
             ),
           ),
           // The tile you hear.
-          if (audible)
+          if (highlighted)
             Positioned(
               top: 10,
               left: 10,

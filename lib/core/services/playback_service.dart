@@ -101,7 +101,9 @@ class PlaybackService {
     return StreamType.auto;
   }
 
-  static String? _streamTypeHint(String url) {
+  /// The extractor hint for [url]'s native `open()`: null lets ExoPlayer
+  /// pick.
+  static String? streamTypeHint(String url) {
     switch (detectStreamType(url)) {
       case StreamType.hls:
         return 'hls';
@@ -143,7 +145,7 @@ class PlaybackService {
     _speed = 1;
     _openCount++;
     await _player.open(streamUrl,
-        streamTypeHint: _streamTypeHint(streamUrl),
+        streamTypeHint: streamTypeHint(streamUrl),
         startPosition: startPosition,
         bufferPreset: bufferPreset.id,
         carScreen: carScreen);
