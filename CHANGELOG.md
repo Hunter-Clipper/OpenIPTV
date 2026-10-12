@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.13.2 — 2026-10-12
+
+**Fixes**
+- On a TV, holding OK on a channel to open its options could pick the first option by itself (for example, removing the channel from Recently Watched). Holding OK now only opens the options.
+
 ## 0.13.1 — 2026-10-12
 
 **Fixes**
