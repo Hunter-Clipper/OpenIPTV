@@ -330,7 +330,7 @@ class _Shell extends StatefulWidget {
   State<_Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<_Shell> {
+class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   // When the first Back on the home tab asked "press again to exit".
   DateTime? _exitArmedAt;
   static const _exitWindow = Duration(seconds: 2);
@@ -376,16 +376,32 @@ class _ShellState extends State<_Shell> {
     // Sideloaded installs have no store to update them — offer new GitHub
     // releases. Runs once the main UI is up (i.e. after setup and the
     // profile picker); throttled and admin-only inside.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(maybePromptForUpdate(context));
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+    // …and again when the app is brought back from the background (Android
+    // usually keeps it running, so that isn't a fresh launch).
+    WidgetsBinding.instance.addObserver(this);
     _backChannel.setMethodCallHandler((call) async {
       if (call.method == 'backPressed') _handleNativeBackPressed();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkForUpdate();
+  }
+
+  void _checkForUpdate() {
+    if (!mounted) return;
+    unawaited(maybePromptForUpdate(
+      context,
+      // Never over a video that's playing.
+      busy: () => !mounted || PlayerScreen.openCount > 0,
+    ));
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);
     for (final n in _railNodes) {
