@@ -9,6 +9,7 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -16,6 +17,7 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
+import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
@@ -260,13 +262,15 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   }
 
   Future<void> _activate(Channel channel, Programme? programme) async {
+    // An earlier programme plays from catch-up where the channel has it;
+    // anything else (on now, later, no catch-up) plays the channel live.
     final now = DateTime.now();
-    if (programme != null && !programme.end.isAfter(now)) {
+    if (programme != null &&
+        !programme.end.isAfter(now) &&
+        channel.hasCatchup) {
       await _playCatchup(channel, programme);
       return;
     }
-    // Later today: nothing to play yet.
-    if (programme != null && programme.start.isAfter(now)) return;
     if (_pane.playingId == channel.id) {
       // Already playing in the pane: full screen carries on with the same
       // stream, and Back hands it back here.
@@ -284,11 +288,6 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   }
 
   Future<void> _playCatchup(Channel channel, Programme programme) async {
-    if (!channel.hasCatchup) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Catch-up is not available for this programme.')));
-      return;
-    }
     final source =
         await ref.read(appDatabaseProvider).getSourceById(channel.sourceId);
     if (source == null || !mounted) return;
@@ -482,6 +481,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               scrollTimeBy: (dx) => _scrollTimeTo(_time.value + dx),
               canScrollBack: () => _time.value > 0.5,
               onExitLeft: _exitToCategories,
+              nowX: () =>
+                  DateTime.now().difference(_rangeStart).inSeconds /
+                      60 *
+                      _pxPerMinute -
+                  _time.value,
             ),
           },
           child: Stack(
@@ -529,13 +533,101 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 /// plays.
 class _PaneModel extends ChangeNotifier {
   _PaneModel(this.service) {
-    service.nowPlaying.addListener(notifyListeners);
+    service.nowPlaying.addListener(_onNowPlaying);
+    _stateSub = service.stateStream.listen((st) {
+      if (st.hasVideo != _hasVideo) {
+        _hasVideo = st.hasVideo;
+        if (!_disposed) notifyListeners();
+      }
+      _check();
+    });
+    _errorSub = service.errorStream.listen(_onError);
   }
 
   final PlaybackService service;
   Channel? channel;
   Programme? programme;
   bool _disposed = false;
+
+  // The preview's own freeze check, like the full-screen player's: a stuck
+  // or refused stream reconnects, and a dead one says so instead of
+  // staying black.
+  StreamWatchdog? _dog;
+  Timer? _timer;
+  late final StreamSubscription<NativeVideoPlayerState> _stateSub;
+  late final StreamSubscription<NativePlaybackError> _errorSub;
+  bool _wasPreviewing = false;
+  bool _hasVideo = false;
+
+  /// The new stream's first frame is in: until then the texture still holds
+  /// the last frame of whatever played before.
+  bool get showPicture => previewing && _hasVideo;
+
+  /// The preview that couldn't play, and why.
+  ({String channelId, String text})? failed;
+
+  /// The preview is (re)connecting.
+  bool get loading => previewing && (_dog?.loading ?? true);
+
+  void _onNowPlaying() {
+    final now = previewing;
+    // Started here, or handed back by the full-screen player: watch it
+    // afresh.
+    if (now && !_wasPreviewing) _watch();
+    if (!now) {
+      _timer?.cancel();
+      _timer = null;
+    }
+    _wasPreviewing = now;
+    notifyListeners();
+  }
+
+  void _watch() {
+    final preset = service.bufferPreset;
+    _dog = StreamWatchdog(
+        freezeLimit: preset.freezeLimit, connectLimit: preset.connectLimit);
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (_) => _check());
+  }
+
+  void _check() {
+    final dog = _dog;
+    if (!previewing || dog == null) return;
+    final wasLoading = dog.loading;
+    _act(dog.check(service.lastState,
+        now: DateTime.now(), openCount: service.openCount, live: true));
+    if (wasLoading != dog.loading && !_disposed) notifyListeners();
+  }
+
+  void _onError(NativePlaybackError e) {
+    final dog = _dog;
+    if (!previewing || dog == null) return;
+    if (e.isPermanent) {
+      _fail(e.httpStatus == 401 || e.httpStatus == 403
+          ? "Your provider didn't allow this stream."
+          : "This channel isn't available right now.");
+    } else {
+      _act(dog.onError(DateTime.now()));
+    }
+  }
+
+  void _act(WatchdogAction action) {
+    final url = service.nowPlaying.value?.url;
+    switch (action) {
+      case WatchdogAction.reconnect:
+        if (url != null) unawaited(service.play(url, owner: this));
+      case WatchdogAction.giveUp:
+        _fail("This channel isn't available right now.");
+      case WatchdogAction.none:
+        break;
+    }
+  }
+
+  void _fail(String text) {
+    final id = playingId;
+    if (id != null) failed = (channelId: id, text: text);
+    stopPreview();
+  }
 
   Map<String, Channel> _byUrl = const {};
   List<Channel>? _channels;
@@ -562,6 +654,7 @@ class _PaneModel extends ChangeNotifier {
   }
 
   void startPreview(Channel c) {
+    failed = null;
     // The texture exists once the player has opened.
     service.play(c.streamUrl, owner: this).then((_) {
       if (!_disposed) notifyListeners();
@@ -575,7 +668,10 @@ class _PaneModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    service.nowPlaying.removeListener(notifyListeners);
+    _timer?.cancel();
+    unawaited(_stateSub.cancel());
+    unawaited(_errorSub.cancel());
+    service.nowPlaying.removeListener(_onNowPlaying);
     stopPreview();
     super.dispose();
   }
@@ -617,16 +713,34 @@ class _TopPane extends ConsumerWidget {
                   child: ColoredBox(
                     color: Colors.black,
                     child: previewing
-                        ? VideoSurface(
-                            textureId: service.textureId,
-                            stateStream: service.stateStream,
-                            initialAspectRatio: service.lastState.aspectRatio,
-                          )
+                        ? Stack(fit: StackFit.expand, children: [
+                            if (model.showPicture)
+                              VideoSurface(
+                                textureId: service.textureId,
+                                stateStream: service.stateStream,
+                                initialAspectRatio:
+                                    service.lastState.aspectRatio,
+                              )
+                            else
+                              _PreviewPlaceholder(channel: model.playing),
+                            if (model.loading || !model.showPicture)
+                              const Center(
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white70),
+                                ),
+                              ),
+                          ])
                         : _PreviewPlaceholder(
                             channel: channel,
-                            hint: channel != null
-                                ? 'Press OK to preview'
-                                : null,
+                            hint: channel == null
+                                ? null
+                                : model.failed?.channelId == channel.id
+                                    ? model.failed!.text
+                                    : 'Press OK to preview',
                           ),
                   ),
                 ),
@@ -1254,8 +1368,11 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     required this.scrollTimeBy,
     required this.canScrollBack,
     required this.onExitLeft,
+    required this.nowX,
   });
 
+  /// Where now is, from the timeline's left edge (as scrolled).
+  final double Function() nowX;
   final FocusNode gridNode;
   final FocusNode columnNode;
   final bool Function() exitsLeft;
@@ -1264,6 +1381,36 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
   final VoidCallback onExitLeft;
 
   static const _step = 30 * _pxPerMinute;
+
+  // Up/Down: the cell in the next row at the same time — now, if the cell
+  // you're on is airing, else the start of its visible part. Flutter's own
+  // search went by the middle of the cell, so from a wide "No guide" cell
+  // it landed on a programme hours ahead.
+  FocusNode? _rowNeighbour(FocusNode from, {required bool down}) {
+    final timelineLeft = gridNode.rect.left + _channelWidth;
+    final now = timelineLeft + nowX();
+    final x = from.rect.left <= now && now < from.rect.right
+        ? now
+        : math.max(from.rect.left, timelineLeft) + 1;
+    final y = from.rect.center.dy + (down ? _rowHeight : -_rowHeight);
+    FocusNode? best;
+    var bestGap = double.infinity;
+    for (final n in gridNode.traversalDescendants) {
+      if (identical(n, from) || !n.canRequestFocus) continue;
+      final r = n.rect;
+      if ((r.center.dy - y).abs() > _rowHeight / 2) continue;
+      final gap = x < r.left
+          ? r.left - x
+          : x >= r.right
+              ? x - r.right
+              : 0.0;
+      if (gap < bestGap) {
+        best = n;
+        bestGap = gap;
+      }
+    }
+    return best;
+  }
 
   // Flutter's search for the next stop, with the categories left out: it
   // used to land on whichever category sat nearest — only for a moment,
@@ -1285,10 +1432,17 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     if (before == null) return true;
 
     if (dir == TraversalDirection.up || dir == TraversalDirection.down) {
-      if (_search(before, dir)) {
-        scheduleMicrotask(() {
-          if (!gridNode.hasFocus) before.requestFocus();
-        });
+      final next = _rowNeighbour(before, down: dir == TraversalDirection.down);
+      if (next != null) {
+        next.requestFocus();
+        final c = next.context;
+        if (c != null) {
+          Scrollable.ensureVisible(c,
+              duration: const Duration(milliseconds: 120),
+              alignmentPolicy: dir == TraversalDirection.down
+                  ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+                  : ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+        }
       }
       return true;
     }
