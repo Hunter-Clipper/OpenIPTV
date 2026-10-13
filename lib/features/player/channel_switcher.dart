@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
@@ -68,19 +69,13 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
     final profile = ref.watch(activeProfileProvider).valueOrNull;
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final unlocked = ref.watch(parentalSessionUnlockedProvider);
-    final hidden = (profile?.hiddenCategories ?? const []).toSet();
-    final isKid = profile?.isKidsProfile ?? false;
-    final seen = <String>{};
-    final cats = <String>[];
-    for (final c in all) {
-      for (final cat in c.categories) {
-        if (hidden.contains(cat) || !seen.add(cat)) continue;
-        if (isKid && isAdultCategory(cat)) continue;
-        if (prefs != null && isCategoryLocked(cat, prefs, unlocked)) continue;
-        cats.add(cat);
-      }
-    }
-    if (ref.watch(contentSortProvider) == 'az') cats.sort();
+    final cats = liveCategories(
+      all,
+      hidden: (profile?.hiddenCategories ?? const []).toSet(),
+      isKid: profile?.isKidsProfile ?? false,
+      az: ref.watch(contentSortProvider) == 'az',
+      skip: (cat) => prefs != null && isCategoryLocked(cat, prefs, unlocked),
+    );
     final hasFavs = (profile?.favoriteChannelIds ?? const []).isNotEmpty;
     return [if (hasFavs) _favorites, ...cats];
   }
