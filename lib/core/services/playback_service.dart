@@ -131,11 +131,25 @@ class PlaybackService {
   Object? get owner => _owner;
   Object? _owner;
 
+  /// What the shared player has open, and for whom (null once stopped). The
+  /// TV guide's preview pane follows it.
+  final nowPlaying = ValueNotifier<({String url, Object? owner})?>(null);
+
+  /// [owner] carries on with what's already playing — no reopening (the
+  /// TV guide's preview going full screen, and back).
+  void adopt(Object owner) {
+    final current = nowPlaying.value;
+    if (current == null) return;
+    _owner = owner;
+    nowPlaying.value = (url: current.url, owner: owner);
+  }
+
   /// [carScreen]: started from Android Auto, so the picture may go to the
   /// car screen (the "OpenIPTV Video" add-on); otherwise it stays here.
   Future<void> play(String streamUrl,
       {Duration? startPosition, Object? owner, bool carScreen = false}) async {
     _owner = owner;
+    nowPlaying.value = (url: streamUrl, owner: owner);
     await ensureTexture();
     debugPrint('[OTV-play] opening url=${redactUrl(streamUrl.split('?').first)}, '
         'startPosition=${startPosition?.inSeconds}s');
@@ -169,7 +183,10 @@ class PlaybackService {
     await _player.seekTo(target);
   }
 
-  Future<void> stop() => _player.stop();
+  Future<void> stop() {
+    nowPlaying.value = null;
+    return _player.stop();
+  }
 
   /// Multi-view: mutes the main player (and gives up audio focus) while
   /// another tile is the one you hear.

@@ -260,6 +260,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               resumePosition: extra['resumePosition'] as Duration?,
               confirmResume: extra['confirmResume'] as bool? ?? true,
               seriesId: extra['seriesId'] as String?,
+              continuePlaying: extra['continuePlaying'] as bool? ?? false,
+              handBackTo: extra['handBackTo'],
             );
           },
         ),
