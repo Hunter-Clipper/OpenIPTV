@@ -62,16 +62,18 @@ void main() {
     expect(await remaining(), ['cu1 2h', 'cu3 2h', 'cu3 30h']);
   });
 
-  test('guide range query handles more channels than SQLite can bind',
+  test('guide row query returns one channel\'s programmes in the window',
       () async {
     await channel('a');
+    await channel('b');
     await programme('a', const Duration(minutes: -30)); // ends in 30 min
-    final ids = ['a', for (var i = 0; i < 40000; i++) 'missing$i'];
+    await programme('a', const Duration(hours: 3)); // ended 3 h ago
+    await programme('b', const Duration(minutes: -30));
 
-    final result = await db.getProgrammesForChannelsInRange(
-        ids, now.subtract(const Duration(hours: 1)), now.add(const Duration(hours: 1)));
+    final result = await db.getProgrammesForChannelInRange('a',
+        now.subtract(const Duration(hours: 1)), now.add(const Duration(hours: 1)));
 
-    expect(result.map((p) => p.channelId), ['a']);
+    expect(result.map((p) => p.title), ['a 0h']);
   });
 
   test('searchCurrentProgrammes finds only what is airing now', () async {

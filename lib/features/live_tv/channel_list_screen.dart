@@ -14,6 +14,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
@@ -34,7 +35,7 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // Providers
 // ---------------------------------------------------------------------------
 
-final _recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
+final recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
   if (profileId == null) return const Stream.empty();
@@ -82,21 +83,6 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
-  List<String> _buildCategories(
-      List<Channel> channels, Set<String> hidden, String sort) {
-    // Preserve first-appearance order (channels are already in provider/sortOrder
-    // sequence from the DB), then either keep that or sort A-Z.
-    final seen = <String>{};
-    final cats = <String>[];
-    for (final c in channels) {
-      for (final cat in c.categories) {
-        if (!hidden.contains(cat) && seen.add(cat)) cats.add(cat);
-      }
-    }
-    if (sort == 'az') cats.sort();
-    return cats;
-  }
-
   void _showRemoveRecentSheet(Channel ch) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
@@ -136,6 +122,8 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // On TV, Live TV is the programme guide.
+    if (PlatformHelper.isTV(context)) return const TvGuideScreen();
     final channelsAsync = ref.watch(allChannelsProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
@@ -162,15 +150,14 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             message: "Couldn't load channels. Check your internet connection.",
             onRetry: () => ref.invalidate(allChannelsProvider)),
         data: (all) {
-          final cats = _buildCategories(all, hiddenCats, sort)
-              .where((c) => !isKid || !isAdultCategory(c))
-              .toList();
+          final cats = liveCategories(all,
+              hidden: hiddenCats, isKid: isKid, az: sort == 'az');
           final favorites = all
               .where((c) => favIds.contains(c.id))
               .where((c) => !isKid || !c.categories.any(isAdultCategory))
               .toList();
           final recent =
-              ref.watch(_recentChannelsProvider).valueOrNull ?? [];
+              ref.watch(recentChannelsProvider).valueOrNull ?? [];
           final catCounts = <String, int>{};
           for (final c in all) {
             for (final cat in c.categories) {
@@ -182,27 +169,22 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                // Labelled entry point rather than an icon-only app-bar
-                // button — the old grid icon looked like the list/grid view
-                // switch used elsewhere.
-                if (kTvGuideEnabled) const _TvGuideTile(),
                 if (favorites.isNotEmpty)
                   _ChannelRail(
                     title: 'Favorites',
-                    // The guide card normally takes the first D-pad focus.
-                    autofocusFirst: !kTvGuideEnabled,
+                    autofocusFirst: true,
                     channels: favorites.take(20).toList(),
                     onSeeAll: () => context.push(
                         '/live/category/${Uri.encodeComponent('Favorites')}'),
                     onLongPress: profileId == null
                         ? null
-                        : (ch) => _showChannelOptions(
+                        : (ch) => showChannelOptions(
                             context, ref, ch, profileId, true),
                   ),
                 if (recent.isNotEmpty)
                   _ChannelRail(
                     title: 'Recently Watched',
-                    autofocusFirst: !kTvGuideEnabled && favorites.isEmpty,
+                    autofocusFirst: favorites.isEmpty,
                     channels: recent,
                     onLongPress: (ch) => _showRemoveRecentSheet(ch),
                   ),
@@ -211,9 +193,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                 if (cats.isEmpty)
                   CategoryTile(
                     label: 'All',
-                    autofocus: !kTvGuideEnabled &&
-                        favorites.isEmpty &&
-                        recent.isEmpty,
+                    autofocus: favorites.isEmpty && recent.isEmpty,
                     count: all.length,
                     icon: Icons.live_tv_outlined,
                     onTap: () => context.push(
@@ -225,8 +205,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                       isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
                   return CategoryTile(
                     label: cat,
-                    autofocus: !kTvGuideEnabled &&
-                        favorites.isEmpty &&
+                    autofocus: favorites.isEmpty &&
                         recent.isEmpty &&
                         cat == cats.first,
                     count: count,
@@ -235,21 +214,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                     onTap: () => _tapCategory(cat),
                     onLongPress: profileId == null
                         ? null
-                        : () async {
-                            unawaited(HapticFeedback.mediumImpact());
-                            final hide = await showModalBottomSheet<bool>(
-                              context: context,
-                              useRootNavigator: true,
-                              builder: (sheetContext) =>
-                                  _CategoryOptionsSheet(label: cat),
-                            );
-                            if (hide == true && mounted) {
-                              await ref
-                                  .read(profileServiceProvider)
-                                  .hideCategory(profileId, cat);
-                              ref.invalidate(activeProfileProvider);
-                            }
-                          },
+                        : () => showCategoryOptions(context, ref, profileId, cat),
                   );
                 }),
               ],
@@ -372,7 +337,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
                       autofocus: i == 0,
                       onLongPress: profileId == null
                           ? null
-                          : () => _showChannelOptions(
+                          : () => showChannelOptions(
                               context, ref, ch, profileId, fav),
                       favoriteButton: StarButton(
                         isFavorite: fav,
@@ -417,7 +382,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
 // Channel tile actions (shared by grid card and list row)
 // ---------------------------------------------------------------------------
 
-void _playChannel(BuildContext context, Channel channel) {
+void playLiveChannel(BuildContext context, Channel channel) {
   context.push('/player', extra: {
     'streamUrl': channel.streamUrl,
     'title': channel.name,
@@ -426,7 +391,7 @@ void _playChannel(BuildContext context, Channel channel) {
   });
 }
 
-void _showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
+void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
     String profileId, bool isFavorite) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
@@ -472,10 +437,10 @@ class _ChannelRow extends ConsumerWidget {
     final guide = ref.watch(_nowNextProvider(channel.id)).valueOrNull;
     final now = guide?.$1;
     final next = guide?.$2;
-    void onTap() => _playChannel(context, channel);
+    void onTap() => playLiveChannel(context, channel);
     final onLongPress = profileId == null
         ? null
-        : () => _showChannelOptions(
+        : () => showChannelOptions(
             context, ref, channel, profileId!, isFavorite);
 
     return TvFocusable(
@@ -492,7 +457,7 @@ class _ChannelRow extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
           child: Row(
             children: [
-              _LogoTile(
+              LogoTile(
                 url: channel.logoUrl,
                 width: PlatformHelper.isTV(context) ? 120 : 96,
               ),
@@ -604,8 +569,8 @@ class _ChannelRow extends ConsumerWidget {
 
 /// A channel logo on a soft 16:10 tile — logos come in every shape and
 /// colour, and a uniform tile keeps the list tidy.
-class _LogoTile extends StatelessWidget {
-  const _LogoTile({required this.url, required this.width});
+class LogoTile extends StatelessWidget {
+  const LogoTile({super.key, required this.url, required this.width});
 
   final String? url;
   final double width;
@@ -644,6 +609,21 @@ String _hm(BuildContext context, DateTime t) =>
       TimeOfDay.fromDateTime(t),
       alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
     );
+
+/// Hold OK / long-press on a category: offer to hide it.
+Future<void> showCategoryOptions(BuildContext context, WidgetRef ref,
+    String profileId, String category) async {
+  unawaited(HapticFeedback.mediumImpact());
+  final hide = await showModalBottomSheet<bool>(
+    context: context,
+    useRootNavigator: true,
+    builder: (sheetContext) => _CategoryOptionsSheet(label: category),
+  );
+  if (hide == true) {
+    await ref.read(profileServiceProvider).hideCategory(profileId, category);
+    ref.invalidate(activeProfileProvider);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Category long-press options sheet
@@ -836,7 +816,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
       ensureVisibleOnFocus: true,
       showFocusRing: false,
       onFocusChange: (f) => setState(() => _focused = f),
-      onTap: () => _playChannel(context, ch),
+      onTap: () => playLiveChannel(context, ch),
       onLongPress: widget.onLongPress,
       child: SizedBox(
         width: widget.width,
@@ -936,67 +916,6 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// "TV Guide" entry at the top of Live TV: full-width, labelled and
-/// explained, so it can't be mistaken for anything else.
-class _TvGuideTile extends StatelessWidget {
-  const _TvGuideTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-      child: TvFocusable(
-        autofocus: true,
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => context.push('/live/guide'),
-        child: Material(
-          color: theme.colorScheme.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => context.push('/live/guide'),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.view_timeline_outlined,
-                        color: theme.colorScheme.primary),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('TV Guide',
-                            style: theme.textTheme.titleMedium!
-                                .copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 2),
-                        Text("See what's on now and next",
-                            style: theme.textTheme.bodySmall!.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right,
-                      color: theme.colorScheme.onSurfaceVariant),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );

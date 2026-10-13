@@ -1,67 +1,67 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
+import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/live_tv/guide_preview_controller.dart';
+import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
+import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
-import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 
 // ---------------------------------------------------------------------------
-// Layout constants
+// Layout
 // ---------------------------------------------------------------------------
 
 const _pxPerMinute = 4.0;
-// Loaded once per screen open — generous enough to browse without needing
-// to re-query on scroll. A dynamic "extend as you scroll" window is a
-// reasonable fast-follow if real usage wants a wider range.
+// Loaded once per visit: half an hour back, five and a half ahead.
 const _windowBefore = Duration(minutes: 30);
 const _windowAfter = Duration(hours: 5, minutes: 30);
-const _railWidth = 220.0;
-const _rowHeight = 76.0;
-const _minCellWidth = 90.0;
+const _categoryWidth = 200.0;
+const _channelWidth = 210.0;
+const _paneHeight = 164.0;
+const _headerHeight = 30.0;
+const _rowHeight = 48.0;
 
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
+// The column's fixed entries, ahead of the playlist's own categories.
+const _favorites = '\u0001favorites';
+const _recent = '\u0001recent';
+const _all = '\u0001all';
 
-typedef _GuideWindow = ({
-  List<String> channelIds,
-  DateTime rangeStart,
-  DateTime rangeEnd,
-});
+typedef _RowKey = ({String channelId, DateTime start, DateTime end});
 
-final _guideProgrammesProvider =
-    FutureProvider.autoDispose.family<List<Programme>, _GuideWindow>(
-  (ref, args) => ref
-      .read(epgServiceProvider)
-      .getProgrammesForChannelsInRange(
-          args.channelIds, args.rangeStart, args.rangeEnd),
-);
+// One row's programmes, loaded as the row comes into view.
+final _rowProgrammesProvider =
+    FutureProvider.autoDispose.family<List<Programme>, _RowKey>((ref, k) =>
+        ref
+            .read(epgServiceProvider)
+            .getProgrammesForChannelInRange(k.channelId, k.start, k.end));
+
+Programme? _airing(List<Programme> programmes) =>
+    programmes.where((p) => p.isLive).firstOrNull;
 
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
-/// TiviMate-style full-screen EPG grid: channel rail on the left, a
-/// time-proportional programme timeline scrolling in sync across every row,
-/// and a live mini-preview of whichever channel currently has focus.
-/// The full-screen TV guide is switched off while it's re-evaluated: its
-/// entry card is hidden from Live TV (the route and screen stay, so turning
-/// this back on restores it). The in-player guide panel is unaffected.
-const kTvGuideEnabled = false;
-
+/// Live TV on a TV: categories on the left, the focused programme (and, if
+/// turned on, a preview of the channel) at the top, and a channel × time
+/// guide below. Phones keep the Live TV lists.
 class TvGuideScreen extends ConsumerStatefulWidget {
   const TvGuideScreen({super.key});
 
@@ -69,94 +69,198 @@ class TvGuideScreen extends ConsumerStatefulWidget {
   ConsumerState<TvGuideScreen> createState() => _TvGuideScreenState();
 }
 
-class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
+class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  // The category you were in, for the next visit (this run of the app).
+  static String? _rememberedCategory;
+
   late final DateTime _rangeStart;
   late final DateTime _rangeEnd;
-  final _timeScrollController = ScrollController();
-  // Wraps the grid so the D-pad handler can tell whether focus is still
-  // inside the guide (vs. moved out to the nav rail).
-  final _guideFocusNode =
-      FocusNode(debugLabel: 'Guide', canRequestFocus: false, skipTraversal: true);
+  // How far the timeline is scrolled, in pixels; every row follows it.
+  late final AnimationController _time;
+  double _timelineWidth = 0;
   Timer? _nowTicker;
-  Timer? _previewDebounce;
-  GuidePreviewController? _preview;
-  // Cached so the provider family key keeps a stable identity across
-  // rebuilds (1-min ticker, row focus). The record holds a List, which
-  // compares by identity, so a freshly built key each build would create a
-  // new provider — re-querying and blanking the grid. Replaced only when the
-  // channel ids actually change.
-  _GuideWindow? _window;
-  List<Programme>? _groupedProgrammes;
-  Map<String, List<Programme>> _byChannel = const {};
+
+  String? _focusedCategory;
+  String? _shownCategory;
+  Timer? _categoryDebounce;
+  final Map<String, FocusNode> _categoryNodes = {};
+  final _columnNode = FocusNode(
+      debugLabel: 'GuideCategories', canRequestFocus: false, skipTraversal: true);
+  final _gridNode = FocusNode(
+      debugLabel: 'GuideGrid', canRequestFocus: false, skipTraversal: true);
+  final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
+  FocusNode? _lastGridFocus;
+  bool _onChannelCell = true;
+
+  final _pane = _PaneModel();
+
+  _RowKey _rowKey(Channel c) =>
+      (channelId: c.id, start: _rangeStart, end: _rangeEnd);
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    // Snap to the half hour so header ticks read 2:30 / 3:00 rather than
-    // 2:47 / 3:17, and open scrolled to the slot containing "now" so the
-    // programme already airing shows from its start (title visible) rather
-    // than clipped at the left edge.
-    final slotStart = DateTime(
+    // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
+    // with that half hour at the left edge.
+    final slot = DateTime(
         now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
-    _rangeStart = slotStart.subtract(_windowBefore);
-    _rangeEnd = slotStart.add(_windowAfter);
+    _rangeStart = slot.subtract(_windowBefore);
+    _rangeEnd = slot.add(_windowAfter);
+    _time = AnimationController.unbounded(
+        vsync: this, value: _windowBefore.inMinutes * _pxPerMinute);
     _nowTicker = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _timeScrollController.hasClients) {
-        _timeScrollController.jumpTo(_windowBefore.inMinutes * _pxPerMinute);
-      }
-    });
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nowTicker?.cancel();
-    _previewDebounce?.cancel();
-    _preview?.dispose();
-    _timeScrollController.dispose();
-    _guideFocusNode.dispose();
+    _categoryDebounce?.cancel();
+    _time.dispose();
+    _pane.dispose();
+    for (final n in _categoryNodes.values) {
+      n.dispose();
+    }
+    _columnNode.dispose();
+    _gridNode.dispose();
+    _firstRowNode.dispose();
     super.dispose();
   }
 
-  void _onRowFocused(Channel channel) {
-    _previewDebounce?.cancel();
-    _previewDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (!mounted) return;
-      _preview ??= GuidePreviewController();
-      setState(() {});
-      _preview!.tune(channel.streamUrl).then((_) {
-        if (mounted) setState(() {});
-      });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The preview's stream is let go while the app is out of sight.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _pane.stopPreview();
+    }
+  }
+
+  // ---- Timeline ----------------------------------------------------------
+
+  double get _maxOffset => math.max(
+      0,
+      _rangeEnd.difference(_rangeStart).inMinutes * _pxPerMinute -
+          _timelineWidth);
+
+  void _scrollTimeTo(double x) => _time.animateTo(x.clamp(0.0, _maxOffset),
+      duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+
+  // A programme cell came into focus: bring its start into view if it isn't.
+  void _revealTime(double x) {
+    final offset = _time.value;
+    if (x >= offset && x <= offset + _timelineWidth - 120) return;
+    _scrollTimeTo(x);
+  }
+
+  // ---- Categories --------------------------------------------------------
+
+  FocusNode _categoryNode(String key) => _categoryNodes.putIfAbsent(
+      key, () => FocusNode(debugLabel: 'GuideCategory'));
+
+  void _onCategoryFocused(String key) {
+    _focusedCategory = key;
+    if (key == _shownCategory) return;
+    // Scrolling through the list doesn't reload the guide on every step.
+    _categoryDebounce?.cancel();
+    _categoryDebounce =
+        Timer(const Duration(milliseconds: 300), () => _showCategory(key));
+  }
+
+  void _showCategory(String key) {
+    _categoryDebounce?.cancel();
+    if (!mounted || key == _shownCategory) return;
+    setState(() {
+      _shownCategory = key;
+      _rememberedCategory = key;
+      _lastGridFocus = null;
     });
   }
 
-  Future<void> _selectCell(Channel channel, Programme programme) async {
-    if (programme.isLive) {
-      await _preview?.pause();
-      if (!mounted) return;
-      unawaited(context.push('/player', extra: {
-        'streamUrl': channel.streamUrl,
-        'title': channel.name,
-        'contentType': 'live',
-        'contentId': channel.id,
-      }));
+  Future<void> _openCategory(String key) async {
+    if (_isRealCategory(key) &&
+        !await ensureCategoryUnlocked(context, ref, key)) {
       return;
     }
-    if (!programme.end.isBefore(DateTime.now())) return; // future — no-op
+    if (!mounted) return;
+    _showCategory(key);
+    _enterGrid();
+  }
+
+  // Right from the column (or OK on a category): into the guide, back to
+  // the channel you left there.
+  void _enterGrid() {
+    void focusGrid() {
+      if (!mounted) return;
+      final last = _lastGridFocus;
+      if (last != null && last.context != null && last.canRequestFocus) {
+        last.requestFocus();
+      } else if (_firstRowNode.context != null) {
+        _firstRowNode.requestFocus();
+      }
+    }
+
+    final key = _focusedCategory;
+    if (key == null || key == _shownCategory) return focusGrid();
+    // The guide changes first; its rows exist after the next frame.
+    _showCategory(key);
+    WidgetsBinding.instance.addPostFrameCallback((_) => focusGrid());
+  }
+
+  // Left out of the guide: to the category it's showing.
+  void _exitToCategories() {
+    final key = _shownCategory;
+    if (key != null) _categoryNode(key).requestFocus();
+  }
+
+  static bool _isRealCategory(String key) =>
+      key != _favorites && key != _recent && key != _all;
+
+  // ---- Grid --------------------------------------------------------------
+
+  void _onCellFocused(Channel channel, Programme? programme,
+      {required bool channelCell}) {
+    _onChannelCell = channelCell;
+    _lastGridFocus = FocusManager.instance.primaryFocus;
+    _pane.show(channel, programme);
+  }
+
+  Future<void> _activate(Channel channel, Programme? programme) async {
+    final now = DateTime.now();
+    if (programme != null && !programme.end.isAfter(now)) {
+      await _playCatchup(channel, programme);
+      return;
+    }
+    // Later today: nothing to play yet.
+    if (programme != null && programme.start.isAfter(now)) return;
+    if (!ref.read(guidePreviewProvider) || _pane.playingId == channel.id) {
+      _playFullScreen(channel);
+    } else {
+      _pane.startPreview(channel);
+    }
+  }
+
+  void _playFullScreen(Channel channel) {
+    // Its stream goes first: some plans allow only one at a time.
+    _pane.stopPreview();
+    playLiveChannel(context, channel);
+  }
+
+  Future<void> _playCatchup(Channel channel, Programme programme) async {
     if (!channel.hasCatchup) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text('Catch-up is not available for this programme.')));
+          content: Text('Catch-up is not available for this programme.')));
       return;
     }
-    final db = ref.read(appDatabaseProvider);
-    final source = await db.getSourceById(channel.sourceId);
+    final source =
+        await ref.read(appDatabaseProvider).getSourceById(channel.sourceId);
     if (source == null || !mounted) return;
-    await _preview?.pause();
-    if (!mounted) return;
+    _pane.stopPreview();
     await launchCatchup(
       context: context,
       ref: ref,
@@ -167,231 +271,658 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen> {
     );
   }
 
-  // ---- Timeline scrolling (shared by header + all rows) ---------------
-
-  double get _timelineMax => _timeScrollController.hasClients
-      ? _timeScrollController.positions.first.maxScrollExtent
-      : 0;
-
-  double get _timelineOffset => _timeScrollController.hasClients
-      ? _timeScrollController.positions.first.pixels
-      : 0;
-
-  void _stopTimelineScroll() {
-    if (_timeScrollController.hasClients) {
-      _timeScrollController.jumpTo(_timelineOffset);
-    }
-  }
-
-  void _scrollTimelineBy(double dx) {
-    if (!_timeScrollController.hasClients) return;
-    _timeScrollController
-        .jumpTo((_timelineOffset + dx).clamp(0.0, _timelineMax));
-  }
-
-  // A flick keeps gliding, like a normal scroll view: travel proportional
-  // to release speed, easing out.
-  void _flingTimeline(double velocity) {
-    if (!_timeScrollController.hasClients || velocity.abs() < 100) return;
-    final target =
-        (_timelineOffset - velocity * 0.35).clamp(0.0, _timelineMax);
-    _timeScrollController.animateTo(target,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.decelerate);
-  }
-
-  void _animateTimelineBy(double dx) {
-    if (!_timeScrollController.hasClients) return;
-    _timeScrollController.animateTo(
-        (_timelineOffset + dx).clamp(0.0, _timelineMax),
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut);
-  }
-
-  void _jumpToNow() {
-    if (!_timeScrollController.hasClients) return;
-    // Current half hour at the left edge, matching where the guide opens.
-    final now = DateTime.now();
-    final slot = DateTime(
-        now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
-    final x = slot.difference(_rangeStart).inMinutes * _pxPerMinute;
-    _timeScrollController.animateTo(x.clamp(0.0, _timelineMax),
-        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-  }
-
-  _GuideWindow _windowFor(List<Channel> channels) {
-    final ids = [for (final c in channels) c.id];
-    final current = _window;
-    if (current != null && listEquals(current.channelIds, ids)) return current;
-    return _window =
-        (channelIds: ids, rangeStart: _rangeStart, rangeEnd: _rangeEnd);
-  }
-
-  Map<String, List<Programme>> _groupByChannel(List<Programme> programmes) {
-    if (identical(programmes, _groupedProgrammes)) return _byChannel;
-    final byChannel = <String, List<Programme>>{};
-    for (final p in programmes) {
-      (byChannel[p.channelId] ??= []).add(p);
-    }
-    _groupedProgrammes = programmes;
-    return _byChannel = byChannel;
-  }
+  // ---- Build -------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(allChannelsProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('TV Guide'),
-        actions: [
-          // After scrolling through the timeline, one tap gets back to what's
-          // on now.
-          TvActivatable(
-            onTap: _jumpToNow,
-            builder: (onTap) => TextButton.icon(
-              onPressed: onTap,
-              icon: const Icon(Icons.schedule),
-              label: const Text('Now'),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: channelsAsync.when(
-        loading: () => const SkeletonList(leadingSize: 24),
+        loading: () => const SkeletonList(leadingSize: 28),
         error: (e, _) => ErrorStateView(
-          message: "Couldn't load the TV guide.",
+          message: "Couldn't load channels. Check your internet connection.",
           onRetry: () => ref.invalidate(allChannelsProvider),
         ),
-        data: (channels) {
-          if (channels.isEmpty) {
-            return const Center(child: Text('No channels yet.'));
-          }
-          final programmes = ref
-                  .watch(_guideProgrammesProvider(_windowFor(channels)))
-                  .valueOrNull ??
-              const <Programme>[];
-          final byChannel = _groupByChannel(programmes);
+        data: _buildGuide,
+      ),
+    );
+  }
 
-          return Stack(
+  Widget _buildGuide(List<Channel> all) {
+    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final unlocked = ref.watch(parentalSessionUnlockedProvider);
+    final az = ref.watch(contentSortProvider) == 'az';
+    final isKid = profile?.isKidsProfile ?? false;
+    final favIds = (profile?.favoriteChannelIds ?? const <String>[]).toSet();
+    bool allowed(Channel c) => !isKid || !c.categories.any(isAdultCategory);
+
+    final favorites = [
+      for (final c in all)
+        if (favIds.contains(c.id) && allowed(c)) c
+    ];
+    final recent = [
+      for (final c in ref.watch(recentChannelsProvider).valueOrNull ??
+          const <Channel>[])
+        if (allowed(c)) c
+    ];
+    final categories = [
+      if (favorites.isNotEmpty) _favorites,
+      if (recent.isNotEmpty) _recent,
+      _all,
+      ...liveCategories(all,
+          hidden: (profile?.hiddenCategories ?? const []).toSet(),
+          isKid: isKid,
+          az: az),
+    ];
+    if (_shownCategory == null || !categories.contains(_shownCategory)) {
+      _shownCategory = categories.contains(_rememberedCategory)
+          ? _rememberedCategory
+          : categories.first;
+      _focusedCategory = _shownCategory;
+    }
+    final shown = _shownCategory!;
+    bool locked(String key) =>
+        _isRealCategory(key) &&
+        prefs != null &&
+        isCategoryLocked(key, prefs, unlocked);
+
+    List<Channel> sorted(Iterable<Channel> list) {
+      final out = list.toList();
+      if (az) out.sort((a, b) => a.name.compareTo(b.name));
+      return out;
+    }
+
+    final channels = switch (shown) {
+      _favorites => sorted(favorites),
+      _recent => recent,
+      _all => sorted(all.where(allowed)),
+      _ => sorted(all.where((c) => c.categories.contains(shown))),
+    };
+
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ---- Category column ----
+        Container(
+          width: _categoryWidth,
+          color: theme.colorScheme.surfaceContainerLow,
+          child: Focus(
+            focusNode: _columnNode,
+            canRequestFocus: false,
+            skipTraversal: true,
+            child: Actions(
+              actions: {
+                DirectionalFocusIntent: _ColumnDirectionalAction(
+                  columnNode: _columnNode,
+                  onRight: _enterGrid,
+                  onLeft: () =>
+                      TvNavRailFocus.maybeOf(context)?.requestFocus(),
+                ),
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                itemCount: categories.length,
+                itemBuilder: (context, i) {
+                  final key = categories[i];
+                  return _CategoryItem(
+                    focusNode: _categoryNode(key),
+                    icon: switch (key) {
+                      _favorites => Icons.star_rounded,
+                      _recent => Icons.history_rounded,
+                      _all => Icons.live_tv_outlined,
+                      _ => genreIcon(key, fallback: Icons.folder_outlined),
+                    },
+                    label: switch (key) {
+                      _favorites => 'Favorites',
+                      _recent => 'Recently Watched',
+                      _all => 'All Channels',
+                      _ => context.displayName(key),
+                    },
+                    selected: key == shown,
+                    locked: locked(key),
+                    onFocus: () => _onCategoryFocused(key),
+                    onTap: () => _openCategory(key),
+                    onLongPress: _isRealCategory(key) && profile != null
+                        ? () => showCategoryOptions(
+                            context, ref, profile.id, key)
+                        : null,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        // ---- Programme pane + guide ----
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Sideways drag anywhere on the guide scrolls the timeline for
-              // the header and every row together. The rows' own scroll views
-              // stay non-draggable (dragging one would pull it out of line
-              // with the others); vertical drags still reach the channel list.
-              Focus(
-                focusNode: _guideFocusNode,
-                canRequestFocus: false,
-                skipTraversal: true,
-                child: Actions(
-                  actions: {
-                    DirectionalFocusIntent: _GuideDirectionalAction(
-                      guideFocusNode: _guideFocusNode,
-                      scrollTimelineBy: (dx) => _animateTimelineBy(dx),
-                      canScrollBack: () => _timelineOffset > 0.5,
-                      parentContext: context,
-                    ),
-                  },
-                  child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onHorizontalDragStart: (_) => _stopTimelineScroll(),
-                onHorizontalDragUpdate: (d) => _scrollTimelineBy(-d.delta.dx),
-                onHorizontalDragEnd: (d) =>
-                    _flingTimeline(d.primaryVelocity ?? 0),
-                child: Column(
-                children: [
-                  _TimeHeader(
-                    rangeStart: _rangeStart,
-                    scrollController: _timeScrollController,
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        ListView.builder(
-                          itemCount: channels.length,
-                          itemExtent: _rowHeight,
-                          itemBuilder: (context, i) {
-                            final channel = channels[i];
-                            return _GuideRow(
-                              // The remote starts on the first channel.
-                              autofocus: i == 0,
-                              channel: channel,
-                              programmes: byChannel[channel.id] ?? const [],
-                              rangeStart: _rangeStart,
-                              rangeEnd: _rangeEnd,
-                              scrollController: _timeScrollController,
-                              onFocus: () => _onRowFocused(channel),
-                              onSelect: (p) => _selectCell(channel, p),
-                            );
-                          },
-                        ),
-                        _NowLine(
-                          rangeStart: _rangeStart,
-                          scrollController: _timeScrollController,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              ),
+              SizedBox(
+                height: _paneHeight,
+                child: _TopPane(
+                  model: _pane,
+                  rowKey: _rowKey,
+                  previewOn: ref.watch(guidePreviewProvider),
                 ),
               ),
-              // The preview tunes to whichever row has D-pad focus, which
-              // only happens on TV; on touch it would just be an empty box
-              // covering the grid.
-              if (PlatformHelper.isTV(context))
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: _PreviewPanel(preview: _preview),
-                ),
+              _TimeHeader(
+                rangeStart: _rangeStart,
+                rangeEnd: _rangeEnd,
+                time: _time,
+              ),
+              Expanded(
+                child: locked(shown)
+                    ? const _GuideMessage(
+                        icon: Icons.lock_outline_rounded,
+                        text: 'This category is locked. Press OK on it to '
+                            'unlock it.',
+                      )
+                    : channels.isEmpty
+                        ? const _GuideMessage(
+                            icon: Icons.live_tv_outlined,
+                            text: 'No channels here yet.',
+                          )
+                        : _buildGrid(channels, favIds, profile?.id),
+              ),
             ],
-          );
-        },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGrid(
+      List<Channel> channels, Set<String> favIds, String? profileId) {
+    return LayoutBuilder(builder: (context, box) {
+      _timelineWidth = math.max(0, box.maxWidth - _channelWidth);
+      return Focus(
+        focusNode: _gridNode,
+        canRequestFocus: false,
+        skipTraversal: true,
+        child: Actions(
+          actions: {
+            DirectionalFocusIntent: _GridDirectionalAction(
+              gridNode: _gridNode,
+              onChannelCell: () => _onChannelCell,
+              scrollTimeBy: (dx) => _scrollTimeTo(_time.value + dx),
+              canScrollBack: () => _time.value > 0.5,
+              onExitLeft: _exitToCategories,
+            ),
+          },
+          child: Stack(
+            children: [
+              ListView.builder(
+                key: ValueKey(_shownCategory),
+                itemCount: channels.length,
+                itemExtent: _rowHeight,
+                itemBuilder: (context, i) {
+                  final channel = channels[i];
+                  return _GuideRow(
+                    number: i + 1,
+                    channel: channel,
+                    rowKey: _rowKey(channel),
+                    time: _time,
+                    channelNode: i == 0 ? _firstRowNode : null,
+                    autofocus: i == 0,
+                    onCellFocused: _onCellFocused,
+                    onRevealTime: _revealTime,
+                    onActivate: _activate,
+                    onLongPress: profileId == null
+                        ? null
+                        : () => showChannelOptions(context, ref, channel,
+                            profileId, favIds.contains(channel.id)),
+                  );
+                },
+              ),
+              _NowLine(rangeStart: _rangeStart, time: _time),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// What the top pane shows: the focused channel and programme, and the
+// preview player (when you've asked for one).
+// ---------------------------------------------------------------------------
+
+class _PaneModel extends ChangeNotifier {
+  Channel? channel;
+  Programme? programme;
+  GuidePreviewController? preview;
+  Channel? playing;
+  bool _disposed = false;
+
+  String? get playingId => playing?.id;
+
+  void show(Channel c, Programme? p) {
+    if (c.id == channel?.id && p == programme) return;
+    channel = c;
+    programme = p;
+    notifyListeners();
+  }
+
+  void startPreview(Channel c) {
+    final player = preview ??= GuidePreviewController();
+    playing = c;
+    notifyListeners();
+    // The texture exists once the player has opened.
+    player.play(c.streamUrl).then((_) {
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  void stopPreview() {
+    final player = preview;
+    if (player == null) return;
+    player.dispose();
+    preview = null;
+    playing = null;
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    stopPreview();
+    super.dispose();
+  }
+}
+
+class _TopPane extends ConsumerWidget {
+  const _TopPane({
+    required this.model,
+    required this.rowKey,
+    required this.previewOn,
+  });
+
+  final _PaneModel model;
+  final _RowKey Function(Channel) rowKey;
+  final bool previewOn;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListenableBuilder(
+      listenable: model,
+      builder: (context, _) {
+        final channel = model.channel;
+        // The channel itself is focused: what's on it now.
+        final programme = model.programme ??
+            (channel == null
+                ? null
+                : _airing(ref.watch(_rowProgrammesProvider(rowKey(channel)))
+                        .valueOrNull ??
+                    const []));
+        final preview = model.preview;
+        final textureId = preview?.textureId;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 24, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: ColoredBox(
+                    color: Colors.black,
+                    child: preview != null && textureId != null
+                        ? Stack(fit: StackFit.expand, children: [
+                            VideoSurface(
+                              key: ValueKey(textureId),
+                              textureId: textureId,
+                              stateStream: preview.stateStream,
+                            ),
+                            if (model.playing != null &&
+                                model.playingId != channel?.id)
+                              _PreviewLabel(
+                                  text: context
+                                      .displayName(model.playing!.name)),
+                          ])
+                        : _PreviewPlaceholder(
+                            channel: channel,
+                            hint: previewOn && channel != null
+                                ? 'Press OK to preview'
+                                : null,
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: channel == null
+                    ? const SizedBox.shrink()
+                    : _ProgrammeInfo(channel: channel, programme: programme),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PreviewPlaceholder extends StatelessWidget {
+  const _PreviewPlaceholder({required this.channel, this.hint});
+
+  final Channel? channel;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: channel == null
+              ? const Icon(Icons.live_tv_rounded,
+                  color: Colors.white38, size: 40)
+              : LogoTile(url: channel!.logoUrl, width: 120),
+        ),
+        if (hint != null) _PreviewLabel(text: hint!),
+      ],
+    );
+  }
+}
+
+class _PreviewLabel extends StatelessWidget {
+  const _PreviewLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 6),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [Color(0xCC000000), Color(0x00000000)],
+          ),
+        ),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium!
+              .copyWith(color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgrammeInfo extends StatelessWidget {
+  const _ProgrammeInfo({required this.channel, required this.programme});
+
+  final Channel channel;
+  final Programme? programme;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final p = programme;
+    final name = context.displayName(channel.name);
+    final description = p?.description?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          p?.title ?? name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleLarge!
+              .copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          p == null
+              ? 'No guide information'
+              : '${_hm(context, p.start)} – ${_hm(context, p.end)}  ·  $name',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium!
+              .copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        if (p != null && p.isLive) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 220,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: p.progressAt(DateTime.now()).clamp(0.0, 1.0),
+                minHeight: 3,
+              ),
+            ),
+          ),
+        ],
+        if (description != null && description.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Expanded(
+            child: Text(
+              description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+String _hm(BuildContext context, DateTime t) =>
+    MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(t),
+      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
+
+class _GuideMessage extends StatelessWidget {
+  const _GuideMessage({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 40, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(text,
+              textAlign: TextAlign.center, style: theme.textTheme.bodyLarge),
+        ],
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Time-axis header
+// Category column
 // ---------------------------------------------------------------------------
 
-class _TimeHeader extends StatelessWidget {
-  const _TimeHeader({required this.rangeStart, required this.scrollController});
+class _CategoryItem extends StatelessWidget {
+  const _CategoryItem({
+    required this.focusNode,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.locked,
+    required this.onFocus,
+    required this.onTap,
+    this.onLongPress,
+  });
 
-  final DateTime rangeStart;
-  final ScrollController scrollController;
+  final FocusNode focusNode;
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool locked;
+  final VoidCallback onFocus;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalMinutes =
-        _windowBefore.inMinutes + _windowAfter.inMinutes;
+    final color =
+        selected ? theme.colorScheme.primary : theme.colorScheme.onSurface;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: TvFocusable(
+        focusNode: focusNode,
+        ensureVisibleOnFocus: true,
+        borderRadius: BorderRadius.circular(10),
+        onFocusChange: (f) {
+          if (f) onFocus();
+        },
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? theme.colorScheme.primary.withValues(alpha: 0.14)
+                : null,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w600 : null,
+                  ),
+                ),
+              ),
+              if (locked)
+                Icon(Icons.lock_outline_rounded,
+                    size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D-pad in the category column: Up/Down stay in the column, Right goes
+/// into the guide, Left to the side menu.
+class _ColumnDirectionalAction extends Action<DirectionalFocusIntent> {
+  _ColumnDirectionalAction({
+    required this.columnNode,
+    required this.onRight,
+    required this.onLeft,
+  });
+
+  final FocusNode columnNode;
+  final VoidCallback onRight;
+  final VoidCallback onLeft;
+
+  @override
+  Object? invoke(DirectionalFocusIntent intent) {
+    switch (intent.direction) {
+      case TraversalDirection.right:
+        onRight();
+      case TraversalDirection.left:
+        onLeft();
+      case TraversalDirection.up:
+      case TraversalDirection.down:
+        final before = primaryFocus;
+        if (before == null || !before.focusInDirection(intent.direction)) {
+          break;
+        }
+        scheduleMicrotask(() {
+          if (!columnNode.hasFocus) before.requestFocus();
+        });
+    }
+    return true;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Time header and "now" line
+// ---------------------------------------------------------------------------
+
+class _TimeHeader extends StatelessWidget {
+  const _TimeHeader({
+    required this.rangeStart,
+    required this.rangeEnd,
+    required this.time,
+  });
+
+  final DateTime rangeStart;
+  final DateTime rangeEnd;
+  final Animation<double> time;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.labelMedium!
+        .copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final minutes = rangeEnd.difference(rangeStart).inMinutes;
+    final now = DateTime.now();
+    final loc = MaterialLocalizations.of(context);
     return SizedBox(
-      height: 32,
+      height: _headerHeight,
       child: Row(
         children: [
-          const SizedBox(width: _railWidth),
+          SizedBox(
+            width: _channelWidth,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${loc.formatMediumDate(now)}, ${_hm(context, now)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+              ),
+            ),
+          ),
           Expanded(
-            child: SingleChildScrollView(
-              controller: scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              child: SizedBox(
-                width: totalMinutes * _pxPerMinute,
-                child: Stack(
+            child: ClipRect(
+              child: AnimatedBuilder(
+                animation: time,
+                builder: (context, _) => Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    for (var m = 0; m <= totalMinutes; m += 30)
+                    for (var m = 0; m <= minutes; m += 30)
                       Positioned(
-                        left: m * _pxPerMinute,
+                        left: m * _pxPerMinute - time.value,
                         top: 0,
                         bottom: 0,
-                        child: Text(
-                          _formatTime(rangeStart.add(Duration(minutes: m))),
-                          style: theme.textTheme.labelSmall,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _hm(context, rangeStart.add(Duration(minutes: m))),
+                            style: style,
+                          ),
                         ),
                       ),
                   ],
@@ -403,69 +934,122 @@ class _TimeHeader extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _formatTime(DateTime dt) {
-    final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-    final m = dt.minute.toString().padLeft(2, '0');
-    final suffix = dt.hour >= 12 ? 'PM' : 'AM';
-    return '$h:$m $suffix';
+/// The current time across the guide. A direct Stack child (it's a
+/// Positioned — wrapping it throws in release).
+class _NowLine extends StatelessWidget {
+  const _NowLine({required this.rangeStart, required this.time});
+
+  final DateTime rangeStart;
+  final Animation<double> time;
+
+  @override
+  Widget build(BuildContext context) {
+    final x = DateTime.now().difference(rangeStart).inSeconds /
+        60 *
+        _pxPerMinute;
+    final color = Theme.of(context).colorScheme.primary;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: time,
+          builder: (context, _) {
+            final left = _channelWidth + x - time.value;
+            if (left < _channelWidth) return const SizedBox.shrink();
+            return Stack(children: [
+              Positioned(
+                left: left,
+                top: 0,
+                bottom: 0,
+                width: 2,
+                child: ColoredBox(color: color),
+              ),
+            ]);
+          },
+        ),
+      ),
+    );
   }
 }
 
 // ---------------------------------------------------------------------------
-// One channel row: rail cell + synced horizontal programme timeline
+// One channel's row: number, logo, name, then its programmes
 // ---------------------------------------------------------------------------
 
-class _GuideRow extends StatelessWidget {
+class _GuideRow extends ConsumerWidget {
   const _GuideRow({
+    required this.number,
     required this.channel,
-    required this.programmes,
-    required this.rangeStart,
-    required this.rangeEnd,
-    required this.scrollController,
-    required this.onFocus,
-    required this.onSelect,
+    required this.rowKey,
+    required this.time,
+    required this.onCellFocused,
+    required this.onRevealTime,
+    required this.onActivate,
+    this.onLongPress,
+    this.channelNode,
     this.autofocus = false,
   });
 
-  final bool autofocus;
+  final int number;
   final Channel channel;
-  final List<Programme> programmes;
-  final DateTime rangeStart;
-  final DateTime rangeEnd;
-  final ScrollController scrollController;
-  final VoidCallback onFocus;
-  final void Function(Programme) onSelect;
+  final _RowKey rowKey;
+  final Animation<double> time;
+  final void Function(Channel, Programme?, {required bool channelCell})
+      onCellFocused;
+  final void Function(double x) onRevealTime;
+  final void Function(Channel, Programme?) onActivate;
+  final VoidCallback? onLongPress;
+  final FocusNode? channelNode;
+  final bool autofocus;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final totalMinutes = rangeEnd.difference(rangeStart).inMinutes;
+    final loaded = ref.watch(_rowProgrammesProvider(rowKey));
+    final programmes = loaded.valueOrNull ?? const <Programme>[];
+    final totalMinutes = rowKey.end.difference(rowKey.start).inMinutes;
+    double xOf(DateTime t) => (t.difference(rowKey.start).inSeconds / 60 *
+            _pxPerMinute)
+        .clamp(0.0, totalMinutes * _pxPerMinute);
 
     return Container(
-      height: _rowHeight,
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+          bottom: BorderSide(
+              color: theme.colorScheme.outline.withValues(alpha: 0.15)),
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ---- The channel ----
           SizedBox(
-            width: _railWidth,
-            child: TvFocusable(
-              autofocus: autofocus,
-              ensureVisibleOnFocus: true,
-              onTap: () {
-                onFocus();
-                onSelect(_currentOrFirst());
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+            width: _channelWidth,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 3, 4, 3),
+              child: TvFocusable(
+                focusNode: channelNode,
+                autofocus: autofocus,
+                borderRadius: BorderRadius.circular(8),
+                onFocusChange: (f) {
+                  if (f) onCellFocused(channel, null, channelCell: true);
+                },
+                onTap: () => onActivate(channel, _airing(programmes)),
+                onLongPress: onLongPress,
                 child: Row(
                   children: [
-                    Icon(Icons.tv, size: 20,
-                        color: theme.colorScheme.onSurfaceVariant),
+                    SizedBox(
+                      width: 30,
+                      child: Text(
+                        '$number',
+                        textAlign: TextAlign.right,
+                        style: theme.textTheme.labelMedium!.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    LogoTile(url: channel.logoUrl, width: 48),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -480,221 +1064,126 @@ class _GuideRow extends StatelessWidget {
               ),
             ),
           ),
+          // ---- Its programmes ----
           Expanded(
-            child: SingleChildScrollView(
-              controller: scrollController,
-              scrollDirection: Axis.horizontal,
-              // Never independently draggable — see _ProgrammeCell, which
-              // drives `scrollController` (shared by the header and every
-              // row) programmatically on focus instead. A plain shared
-              // ScrollController only synchronizes controller-level
-              // animateTo/jumpTo calls across attached positions, not a
-              // direct drag on one of them, so allowing drag here would let
-              // one row scroll out of sync with the rest.
-              physics: const NeverScrollableScrollPhysics(),
-              child: SizedBox(
-                width: totalMinutes * _pxPerMinute,
-                height: _rowHeight,
-                child: Stack(
-                  children: [
-                    for (final p in programmes)
-                      Positioned(
-                        left: p.start.difference(rangeStart).inMinutes *
-                            _pxPerMinute,
-                        width: (p.duration.inMinutes * _pxPerMinute)
-                            .clamp(_minCellWidth, double.infinity),
-                        top: 4,
-                        bottom: 4,
-                        child: _ProgrammeCell(
-                          programme: p,
-                          hasCatchup: channel.hasCatchup,
-                          left: p.start.difference(rangeStart).inMinutes *
-                              _pxPerMinute,
-                          scrollController: scrollController,
-                          onFocus: onFocus,
-                          onTap: () => onSelect(p),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            child: loaded.hasValue && programmes.isEmpty
+                // No guide data: one cell, so the channel can still be
+                // reached and played from here.
+                ? _ProgrammeCell(
+                    title: 'No guide information',
+                    muted: true,
+                    onFocus: () =>
+                        onCellFocused(channel, null, channelCell: false),
+                    onTap: () => onActivate(channel, null),
+                  )
+                : ClipRect(
+                    child: AnimatedBuilder(
+                      animation: time,
+                      builder: (context, _) {
+                        final offset = time.value;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            for (final p in programmes)
+                              _positioned(context, p, xOf(p.start),
+                                  xOf(p.end), offset),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Programme _currentOrFirst() {
+  Widget _positioned(BuildContext context, Programme p, double start,
+      double end, double offset) {
     final now = DateTime.now();
-    return programmes.firstWhere(
-      (p) => p.isLive,
-      orElse: () => programmes.isNotEmpty
-          ? programmes.first
-          : Programme(
-              channelId: channel.id,
-              start: now,
-              end: now.add(const Duration(minutes: 30)),
-              title: channel.name,
-            ),
+    return Positioned(
+      key: ValueKey(p.start),
+      left: start - offset,
+      width: math.max(end - start, 6),
+      top: 0,
+      bottom: 0,
+      child: _ProgrammeCell(
+        title: p.title,
+        live: p.isLive,
+        muted: !p.end.isAfter(now),
+        catchup: channel.hasCatchup && !p.end.isAfter(now),
+        // Keeps the title in view while the programme's start is scrolled
+        // past the left edge.
+        textInset: math.max(0, offset - start),
+        onFocus: () {
+          onCellFocused(channel, p, channelCell: false);
+          onRevealTime(start);
+        },
+        onTap: () => onActivate(channel, p),
+      ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Programme cell
-// ---------------------------------------------------------------------------
-
 class _ProgrammeCell extends StatelessWidget {
   const _ProgrammeCell({
-    required this.programme,
-    required this.hasCatchup,
-    required this.left,
-    required this.scrollController,
+    required this.title,
     required this.onFocus,
     required this.onTap,
+    this.live = false,
+    this.muted = false,
+    this.catchup = false,
+    this.textInset = 0,
   });
 
-  final Programme programme;
-  final bool hasCatchup;
-  // This cell's x offset within the shared horizontal scroll space —
-  // dragging is disabled on every row's SingleChildScrollView (see
-  // _GuideRow), so this is how a focused cell brings itself (and every
-  // other row, since they share `scrollController`) into view instead.
-  final double left;
-  final ScrollController scrollController;
+  final String title;
+  final bool live;
+  final bool muted;
+  final bool catchup;
+  final double textInset;
   final VoidCallback onFocus;
   final VoidCallback onTap;
-
-  void _scrollIntoView() {
-    if (!scrollController.hasClients) return;
-    // The controller is shared by the header and every row, so
-    // `.position` (which requires exactly one attachment) would throw;
-    // they're all in sync, so any one of them gives the extent.
-    final target = left.clamp(
-        0.0, scrollController.positions.first.maxScrollExtent);
-    scrollController.animateTo(
-      target,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLive = programme.isLive;
-    final isPast = programme.end.isBefore(DateTime.now());
-    final progress = programme.progressAt(DateTime.now());
-
-    final cellChild = Container(
-      decoration: BoxDecoration(
-        color: isLive
-            ? theme.colorScheme.primary.withValues(alpha: 0.18)
-            : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(1, 3, 1, 3),
+      child: TvFocusable(
+        borderRadius: BorderRadius.circular(6),
+        onFocusChange: (f) {
+          if (f) onFocus();
+        },
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: live
+                ? theme.colorScheme.primary.withValues(alpha: 0.20)
+                : theme.colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: EdgeInsets.only(left: 10 + textInset, right: 8),
+          alignment: Alignment.centerLeft,
+          child: Row(
             children: [
               Expanded(
                 child: Text(
-                  programme.title,
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    color: isPast && !isLive
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: muted
                         ? theme.colorScheme.onSurfaceVariant
                         : theme.colorScheme.onSurface,
-                    fontWeight: isLive ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: live ? FontWeight.w600 : null,
                   ),
                 ),
               ),
-              if (isPast && !isLive && hasCatchup)
-                Icon(Icons.replay_circle_filled_outlined,
-                    size: 12, color: theme.colorScheme.primary),
+              if (catchup)
+                Icon(Icons.replay_rounded,
+                    size: 14, color: theme.colorScheme.primary),
             ],
           ),
-          if (isLive) ...[
-            const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                minHeight: 2,
-                backgroundColor: theme.colorScheme.surface,
-                valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: TvFocusable(
-        onTap: onTap,
-        onFocusChange: (has) {
-          if (has) {
-            onFocus();
-            _scrollIntoView();
-          }
-        },
-        child: cellChild,
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// "Now" cursor line
-// ---------------------------------------------------------------------------
-
-/// Red "now" marker over the programme grid. Must be a direct Stack child
-/// (it's a Positioned — wrapping it, e.g. in IgnorePointer, throws and
-/// blanks the whole guide). Tracks the grid's horizontal scroll so it stays
-/// on the current time, and hides while that time is scrolled under the
-/// channel rail.
-class _NowLine extends StatelessWidget {
-  const _NowLine({required this.rangeStart, required this.scrollController});
-
-  final DateTime rangeStart;
-  final ScrollController scrollController;
-
-  @override
-  Widget build(BuildContext context) {
-    final minutesFromStart = DateTime.now().difference(rangeStart).inMinutes;
-    final color = Theme.of(context).colorScheme.error;
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: AnimatedBuilder(
-          animation: scrollController,
-          builder: (context, _) {
-            // Shared controller (header + every row) — `.offset` would
-            // throw with several attached; they're in sync, so use any.
-            final offset = scrollController.hasClients
-                ? scrollController.positions.first.pixels
-                : 0.0;
-            final left =
-                _railWidth + minutesFromStart * _pxPerMinute - offset;
-            if (left < _railWidth) return const SizedBox.shrink();
-            return Stack(
-              children: [
-                Positioned(
-                  left: left,
-                  top: 0,
-                  bottom: 0,
-                  width: 2,
-                  child: ColoredBox(color: color),
-                ),
-              ],
-            );
-          },
         ),
       ),
     );
@@ -702,61 +1191,28 @@ class _NowLine extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Mini live-preview panel
+// D-pad in the guide
 // ---------------------------------------------------------------------------
 
-class _PreviewPanel extends StatelessWidget {
-  const _PreviewPanel({required this.preview});
-
-  final GuidePreviewController? preview;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 240,
-      height: 135,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: preview?.textureId == null
-          ? const Center(
-              child: Icon(Icons.live_tv, color: Colors.white54, size: 32))
-          : VideoSurface(
-              textureId: preview!.textureId!,
-              stateStream: preview!.stateStream,
-            ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// D-pad handling
-// ---------------------------------------------------------------------------
-
-/// Left/Right in the guide move along the current row. Flutter's default
-/// directional focus falls back to the *closest* candidate, which in a grid
-/// is often a diagonal jump into another row — and a channel with no guide
-/// data has no cells at all. In both cases this keeps focus in its row and
-/// scrolls the timeline by half an hour instead, so the remote can always
-/// move through time. Up/Down, and Left out to the nav rail, are unchanged.
-class _GuideDirectionalAction extends Action<DirectionalFocusIntent> {
-  _GuideDirectionalAction({
-    required this.guideFocusNode,
-    required this.scrollTimelineBy,
+/// Left/Right move along the row; with nothing further that way the
+/// timeline moves by half an hour instead (Flutter's own search would jump
+/// diagonally into another row). Left from a channel, or at the start of
+/// the timeline, goes to the categories. Up/Down move between rows and
+/// never leave the guide.
+class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
+  _GridDirectionalAction({
+    required this.gridNode,
+    required this.onChannelCell,
+    required this.scrollTimeBy,
     required this.canScrollBack,
-    required this.parentContext,
+    required this.onExitLeft,
   });
 
-  final FocusNode guideFocusNode;
-  final void Function(double dx) scrollTimelineBy;
-  // Whether the timeline is scrolled forward at all — Left goes back in time
-  // first and only leaves the guide once at the start.
+  final FocusNode gridNode;
+  final bool Function() onChannelCell;
+  final void Function(double dx) scrollTimeBy;
   final bool Function() canScrollBack;
-  // Above this Action, so Up/Down reach the shell's own handler.
-  final BuildContext parentContext;
+  final VoidCallback onExitLeft;
 
   static const _step = 30 * _pxPerMinute;
 
@@ -764,20 +1220,28 @@ class _GuideDirectionalAction extends Action<DirectionalFocusIntent> {
   Object? invoke(DirectionalFocusIntent intent) {
     final dir = intent.direction;
     final before = primaryFocus;
-    final horizontal =
-        dir == TraversalDirection.left || dir == TraversalDirection.right;
-    if (before == null || !horizontal) {
-      return Actions.maybeInvoke(parentContext, intent);
+    if (before == null) return true;
+
+    if (dir == TraversalDirection.up || dir == TraversalDirection.down) {
+      if (before.focusInDirection(dir)) {
+        scheduleMicrotask(() {
+          if (!gridNode.hasFocus) before.requestFocus();
+        });
+      }
+      return true;
+    }
+
+    final left = dir == TraversalDirection.left;
+    if (left && onChannelCell()) {
+      onExitLeft();
+      return true;
     }
     final from = before.rect;
-    final scroll = dir == TraversalDirection.right ? _step : -_step;
-    // Nothing more to move through: Left at the start of the timeline goes
-    // to the shell (which moves focus to the nav rail); otherwise scroll.
     void cannotMove() {
-      if (dir == TraversalDirection.left && !canScrollBack()) {
-        Actions.maybeInvoke(parentContext, intent);
+      if (left && !canScrollBack()) {
+        onExitLeft();
       } else {
-        scrollTimelineBy(scroll);
+        scrollTimeBy(left ? -_step : _step);
       }
     }
 
@@ -789,25 +1253,16 @@ class _GuideDirectionalAction extends Action<DirectionalFocusIntent> {
     scheduleMicrotask(() {
       final after = primaryFocus;
       if (after == null) return;
-      // focusInDirection can report success yet leave focus where it was
-      // (nothing further that way) — treat that as "couldn't move".
       if (identical(after, before)) {
         cannotMove();
         return;
       }
       final sameRow =
           (after.rect.center.dy - from.center.dy).abs() < from.height / 2;
-      if (sameRow && guideFocusNode.hasFocus) return; // along the row
-      // Left out of the guide (to the nav rail or Back) is a real exit —
-      // once the timeline is back at its start.
-      final exitedLeft = dir == TraversalDirection.left &&
-          !guideFocusNode.hasFocus &&
-          after.rect.center.dx < from.left;
-      if (exitedLeft && !canScrollBack()) return;
-      // A diagonal jump into another row, or up to the app bar: stay put
-      // and move through time instead.
+      if (sameRow && gridNode.hasFocus) return;
+      // Out of the guide or into another row: stay, move through time.
       before.requestFocus();
-      scrollTimelineBy(scroll);
+      cannotMove();
     });
     return true;
   }

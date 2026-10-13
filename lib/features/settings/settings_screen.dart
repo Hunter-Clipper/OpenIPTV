@@ -270,6 +270,27 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 );
               }),
+              if (PlatformHelper.isTVDevice)
+                Consumer(builder: (context, ref, _) {
+                  final on = ref.watch(guidePreviewProvider);
+                  return InfoTooltip(
+                    id: 'settings_guide_preview',
+                    title: 'Preview in the Guide',
+                    body: 'When this is on, pressing OK on a channel in the '
+                        'Live TV guide plays it in the small picture at the '
+                        'top. Press OK again to watch it full screen.',
+                    child: _ToggleTile(
+                      icon: Icons.featured_video_outlined,
+                      title: 'Preview in the Guide',
+                      value: on,
+                      onChanged: (v) async {
+                        final prefs =
+                            await ref.read(appPreferencesProvider.future);
+                        await setGuidePreview(ref, v, prefs);
+                      },
+                    ),
+                  );
+                }),
               // Android Auto video add-on (phones; installing apps is
               // an admin job).
               if (isAdmin && Platform.isAndroid && !PlatformHelper.isTVDevice)
