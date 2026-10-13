@@ -89,9 +89,12 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       debugLabel: 'GuideCategories', canRequestFocus: false, skipTraversal: true);
   final _gridNode = FocusNode(
       debugLabel: 'GuideGrid', canRequestFocus: false, skipTraversal: true);
+  // The first row's way in: what's on now (or its "No guide" cell).
   final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
   FocusNode? _lastGridFocus;
-  bool _onChannelCell = true;
+  // On a cell with nothing to its left in the row ("No guide"): Left goes
+  // straight to the categories.
+  bool _exitsLeft = false;
 
   final _pane = _PaneModel();
 
@@ -224,8 +227,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // ---- Grid --------------------------------------------------------------
 
   void _onCellFocused(Channel channel, Programme? programme,
-      {required bool channelCell}) {
-    _onChannelCell = channelCell;
+      {required bool exitsLeft}) {
+    _exitsLeft = exitsLeft;
     _lastGridFocus = FocusManager.instance.primaryFocus;
     _pane.show(channel, programme);
   }
@@ -445,7 +448,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           actions: {
             DirectionalFocusIntent: _GridDirectionalAction(
               gridNode: _gridNode,
-              onChannelCell: () => _onChannelCell,
+              exitsLeft: () => _exitsLeft,
               scrollTimeBy: (dx) => _scrollTimeTo(_time.value + dx),
               canScrollBack: () => _time.value > 0.5,
               onExitLeft: _exitToCategories,
@@ -463,7 +466,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     channel: channel,
                     rowKey: _rowKey(channel),
                     time: _time,
-                    channelNode: i == 0 ? _firstRowNode : null,
+                    entryNode: i == 0 ? _firstRowNode : null,
                     autofocus: i == 0,
                     onCellFocused: _onCellFocused,
                     onRevealTime: _revealTime,
@@ -985,19 +988,20 @@ class _GuideRow extends ConsumerWidget {
     required this.onRevealTime,
     required this.onActivate,
     this.onLongPress,
-    this.channelNode,
+    this.entryNode,
     this.autofocus = false,
   });
 
   final Channel channel;
   final _RowKey rowKey;
   final Animation<double> time;
-  final void Function(Channel, Programme?, {required bool channelCell})
+  final void Function(Channel, Programme?, {required bool exitsLeft})
       onCellFocused;
   final void Function(double x) onRevealTime;
   final void Function(Channel, Programme?) onActivate;
   final VoidCallback? onLongPress;
-  final FocusNode? channelNode;
+  // The cell Right from the categories lands on in this row.
+  final FocusNode? entryNode;
   final bool autofocus;
 
   @override
@@ -1023,36 +1027,24 @@ class _GuideRow extends ConsumerWidget {
           // ---- The channel ----
           SizedBox(
             width: _channelWidth,
+            // A label, not a stop for the remote: the programmes are.
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 3, 4, 3),
-              child: TvFocusable(
-                focusNode: channelNode,
-                autofocus: autofocus,
-                borderRadius: BorderRadius.circular(8),
-                onFocusChange: (f) {
-                  if (f) onCellFocused(channel, null, channelCell: true);
-                },
-                onTap: () => onActivate(channel, _airing(programmes)),
-                onLongPress: onLongPress,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 6, right: 4),
-                  child: Row(
-                    children: [
-                      LogoTile(url: channel.logoUrl, width: 48),
-                      const SizedBox(width: 8),
-                      // Long names get a second line rather than being cut.
-                      Expanded(
-                        child: Text(
-                          context.displayName(channel.name),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium!
-                              .copyWith(fontSize: 13, height: 1.15),
-                        ),
-                      ),
-                    ],
+              padding: const EdgeInsets.fromLTRB(10, 3, 8, 3),
+              child: Row(
+                children: [
+                  LogoTile(url: channel.logoUrl, width: 48),
+                  const SizedBox(width: 8),
+                  // Long names get a second line rather than being cut.
+                  Expanded(
+                    child: Text(
+                      context.displayName(channel.name),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium!
+                          .copyWith(fontSize: 13, height: 1.15),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -1064,21 +1056,26 @@ class _GuideRow extends ConsumerWidget {
                 ? _ProgrammeCell(
                     title: 'No guide information',
                     muted: true,
+                    focusNode: entryNode,
+                    autofocus: autofocus,
                     onFocus: () =>
-                        onCellFocused(channel, null, channelCell: false),
+                        onCellFocused(channel, null, exitsLeft: true),
                     onTap: () => onActivate(channel, null),
+                    onLongPress: onLongPress,
                   )
                 : ClipRect(
                     child: AnimatedBuilder(
                       animation: time,
                       builder: (context, _) {
                         final offset = time.value;
+                        final entry = _entry(programmes);
                         return Stack(
                           clipBehavior: Clip.none,
                           children: [
                             for (final p in programmes)
                               _positioned(context, p, xOf(p.start),
-                                  xOf(p.end), offset),
+                                  xOf(p.end), offset,
+                                  entry: identical(p, entry)),
                           ],
                         );
                       },
@@ -1090,8 +1087,16 @@ class _GuideRow extends ConsumerWidget {
     );
   }
 
+  // Where the remote enters the row: what's on now, else what's next.
+  static Programme? _entry(List<Programme> programmes) {
+    final now = DateTime.now();
+    return _airing(programmes) ??
+        programmes.where((p) => p.end.isAfter(now)).firstOrNull ??
+        programmes.lastOrNull;
+  }
+
   Widget _positioned(BuildContext context, Programme p, double start,
-      double end, double offset) {
+      double end, double offset, {required bool entry}) {
     final now = DateTime.now();
     return Positioned(
       key: ValueKey(p.start),
@@ -1107,11 +1112,14 @@ class _GuideRow extends ConsumerWidget {
         // Keeps the title in view while the programme's start is scrolled
         // past the left edge.
         textInset: math.max(0, offset - start),
+        focusNode: entry ? entryNode : null,
+        autofocus: entry && autofocus,
         onFocus: () {
-          onCellFocused(channel, p, channelCell: false);
+          onCellFocused(channel, p, exitsLeft: false);
           onRevealTime(start);
         },
         onTap: () => onActivate(channel, p),
+        onLongPress: onLongPress,
       ),
     );
   }
@@ -1126,6 +1134,9 @@ class _ProgrammeCell extends StatelessWidget {
     this.muted = false,
     this.catchup = false,
     this.textInset = 0,
+    this.focusNode,
+    this.autofocus = false,
+    this.onLongPress,
   });
 
   final String title;
@@ -1135,6 +1146,10 @@ class _ProgrammeCell extends StatelessWidget {
   final double textInset;
   final VoidCallback onFocus;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
+  final bool autofocus;
+  // Hold OK: the channel's options.
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -1142,6 +1157,9 @@ class _ProgrammeCell extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(1, 3, 1, 3),
       child: TvFocusable(
+        focusNode: focusNode,
+        autofocus: autofocus,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(6),
         onFocusChange: (f) {
           if (f) onFocus();
@@ -1188,20 +1206,20 @@ class _ProgrammeCell extends StatelessWidget {
 
 /// Left/Right move along the row; with nothing further that way the
 /// timeline moves by half an hour instead (Flutter's own search would jump
-/// diagonally into another row). Left from a channel, or at the start of
-/// the timeline, goes to the categories. Up/Down move between rows and
+/// diagonally into another row). Left from a "No guide" cell, or at the
+/// start of the timeline, goes to the categories. Up/Down move between rows and
 /// never leave the guide.
 class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
   _GridDirectionalAction({
     required this.gridNode,
-    required this.onChannelCell,
+    required this.exitsLeft,
     required this.scrollTimeBy,
     required this.canScrollBack,
     required this.onExitLeft,
   });
 
   final FocusNode gridNode;
-  final bool Function() onChannelCell;
+  final bool Function() exitsLeft;
   final void Function(double dx) scrollTimeBy;
   final bool Function() canScrollBack;
   final VoidCallback onExitLeft;
@@ -1224,7 +1242,7 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     }
 
     final left = dir == TraversalDirection.left;
-    if (left && onChannelCell()) {
+    if (left && exitsLeft()) {
       onExitLeft();
       return true;
     }
