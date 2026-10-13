@@ -1,6 +1,6 @@
 # TV guide with preview (Android TV)
 
-Status: **in progress** on `feature/tv-guide-preview` (2026-10-13).
+Status: **released in v0.14.0** (2026-10-13, PR #54).
 
 A user asked for a preview pane on TV. On TV, the Live TV tab becomes a
 full programme guide: a column of categories, a preview with what's on at
