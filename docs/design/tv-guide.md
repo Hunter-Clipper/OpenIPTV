@@ -45,14 +45,19 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
 
 ## Remote
 
+- The channel's logo and name are a label, not a stop for the remote
+  (owner, 2026-10-13): the programmes are what you move through. Right
+  from the column lands on what's on now in the first row (or the
+  programme you left there).
 - Up/Down: channels (or categories in the column). Left/Right: through
-  time; Left at the start of the timeline goes back to the category
-  column, and Left again to the nav rail. Right from the column goes into
-  the grid, back to the channel you left.
-- OK on a channel or on what's on now: see the preview rules above.
-  OK on an earlier programme with catch-up plays it (as the old guide did);
-  on a later programme it does nothing.
-- Hold OK on a channel: the usual channel options (favourite).
+  time; Left at the start of the timeline — or on a "No guide
+  information" cell — goes back to the category column, and Left again to
+  the nav rail.
+- OK on what's on now (or "No guide information"): see the preview rules
+  above. OK on an earlier programme with catch-up plays it (as the old
+  guide did); on a later programme it does nothing.
+- Hold OK on any of a channel's cells: the usual channel options
+  (favourite).
 - Back: the app's usual TV Back (page → nav rail → …).
 
 ## How it works
