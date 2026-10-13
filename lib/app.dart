@@ -13,7 +13,6 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
-import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
 import 'package:open_iptv/features/onboarding/setup_wizard_screen.dart';
@@ -175,10 +174,6 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                   builder: (_, state) => LiveCategoryScreen(
                     category: state.pathParameters['cat']!,
                   ),
-                ),
-                GoRoute(
-                  path: 'guide',
-                  builder: (_, __) => const TvGuideScreen(),
                 ),
               ],
             ),

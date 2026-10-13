@@ -873,33 +873,23 @@ class AppDatabase extends _$AppDatabase {
     return rows.map(_programmeFromRow).toList();
   }
 
-  // Powers the TV guide grid: programmes for many channels at once, within
-  // a single scrolled time window. The composite (channel_id, start, end)
-  // index already covers this — no migration needed.
-  Future<List<model.Programme>> getProgrammesForChannelsInRange(
-    List<String> channelIds,
+  /// One channel's programmes overlapping [rangeStart, rangeEnd), for a row
+  /// of the TV guide. Rows load on their own as they scroll into view: a
+  /// whole category (or every channel) at once would read the full time
+  /// window of the table. Served by idx_programmes_channel_time.
+  Future<List<model.Programme>> getProgrammesForChannelInRange(
+    String channelId,
     DateTime rangeStart,
     DateTime rangeEnd,
   ) async {
-    if (channelIds.isEmpty) return [];
-    // Filtered by the (bounded) time window in SQL and by channel in Dart:
-    // `isIn(channelIds)` with a whole catalog's worth of ids (tens of
-    // thousands) exceeds SQLite's bound-parameter limit, fails, and left
-    // the guide grid completely empty.
-    final wanted = channelIds.toSet();
     final rows = await (select(programmes)
           ..where((t) =>
+              t.channelId.equals(channelId) &
               t.start.isSmallerThanValue(rangeEnd) &
               t.end.isBiggerThanValue(rangeStart))
-          ..orderBy([
-            (t) => OrderingTerm.asc(t.channelId),
-            (t) => OrderingTerm.asc(t.start),
-          ]))
+          ..orderBy([(t) => OrderingTerm.asc(t.start)]))
         .get();
-    return [
-      for (final r in rows)
-        if (wanted.contains(r.channelId)) _programmeFromRow(r),
-    ];
+    return rows.map(_programmeFromRow).toList();
   }
 
   Future<List<model.Programme>> searchProgrammes(String query) async {

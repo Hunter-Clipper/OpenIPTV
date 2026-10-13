@@ -3,6 +3,15 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.13.3)
+
+**A TV guide on TVs**
+- On a TV, Live TV is now a full programme guide: your categories down the left, what's on (with its time and description) at the top, and every channel's programmes on a timeline below — with channel numbers and logos, and a line marking the time now.
+- Move through categories with the remote and the guide follows. Favorites, Recently Watched and All Channels come first; locked categories ask for the PIN.
+- OK on a channel plays it full screen. Hold OK for its options.
+- **Preview in the Guide** (Settings → Playback, off at first): OK plays the channel in the small picture at the top, so you can keep browsing while it plays. Press OK again on it to watch full screen.
+- Phones and tablets keep Live TV as it was.
+
 ## 0.13.2 — 2026-10-12
 
 **Fixes**

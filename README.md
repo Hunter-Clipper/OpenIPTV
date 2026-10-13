@@ -78,7 +78,7 @@
 - Your logins are **stored encrypted** on the device, with a key only the app can use.
 
 **Watch**
-- **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home.
+- **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home. On a TV, Live TV is a full programme guide — categories on the left, the focused programme at the top, every channel on a timeline below — with an optional live preview.
 - **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
 - **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour on phones and a slim bar along the bottom on TV, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
 - **Multi-view:** watch several live channels at once — tap **Add a channel** in the player. The screen splits automatically (side by side, one big with smaller ones, or a grid), the sound follows the channel you highlight, and Back keeps that channel full screen.
@@ -119,7 +119,7 @@
 | 5 | Windows + macOS | 📋 Planned |
 | 6 | Web browser | 📋 Planned |
 
-**Next up:** promoting a profile to admin, deep links and a reworked full-screen TV guide. Plans for the other platforms: [iOS](https://github.com/Hunter-Clipper/OpenIPTV/pull/42), [Windows](https://github.com/Hunter-Clipper/OpenIPTV/pull/43) and [web](https://github.com/Hunter-Clipper/OpenIPTV/pull/45).
+**Next up:** promoting a profile to admin, and deep links. Plans for the other platforms: [iOS](https://github.com/Hunter-Clipper/OpenIPTV/pull/42), [Windows](https://github.com/Hunter-Clipper/OpenIPTV/pull/43) and [web](https://github.com/Hunter-Clipper/OpenIPTV/pull/45).
 
 ---
 

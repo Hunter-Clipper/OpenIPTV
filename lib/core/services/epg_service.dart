@@ -93,12 +93,12 @@ class EpgService {
   ) =>
       db.getProgrammesForChannelOnDate(channelId, date);
 
-  Future<List<Programme>> getProgrammesForChannelsInRange(
-    List<String> channelIds,
+  Future<List<Programme>> getProgrammesForChannelInRange(
+    String channelId,
     DateTime rangeStart,
     DateTime rangeEnd,
   ) =>
-      db.getProgrammesForChannelsInRange(channelIds, rangeStart, rangeEnd);
+      db.getProgrammesForChannelInRange(channelId, rangeStart, rangeEnd);
 
   Future<List<Programme>> searchProgrammes(String query) =>
       db.searchProgrammes(query);
