@@ -80,9 +80,9 @@ Programme? _airing(List<Programme> programmes) =>
 // Screen
 // ---------------------------------------------------------------------------
 
-/// Live TV on a TV: categories on the left, the focused programme (and, if
-/// turned on, a preview of the channel) at the top, and a channel × time
-/// guide below. Phones keep the Live TV lists.
+/// Live TV on a TV: categories on the left, the focused programme and a
+/// preview of the channel you picked at the top, and a channel × time guide
+/// below. Phones keep the Live TV lists.
 class TvGuideScreen extends ConsumerStatefulWidget {
   const TvGuideScreen({super.key});
 
@@ -278,12 +278,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         'continuePlaying': true,
         'handBackTo': _pane,
       }));
-    } else if (ref.read(guidePreviewProvider)) {
-      _pane.startPreview(channel);
     } else {
-      // Its stream goes first: some plans allow only one at a time.
-      _pane.stopPreview();
-      playLiveChannel(context, channel);
+      _pane.startPreview(channel);
     }
   }
 
@@ -441,7 +437,6 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                 child: _TopPane(
                   model: _pane,
                   rowKey: _rowKey,
-                  previewOn: ref.watch(guidePreviewProvider),
                 ),
               ),
               _TimeHeader(
@@ -525,7 +520,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
 // ---------------------------------------------------------------------------
 // What the top pane shows: the focused channel and programme, and the
-// preview (when you've asked for one).
+// preview of the channel you picked.
 // ---------------------------------------------------------------------------
 
 /// The preview is the app's main player: going full screen carries on with
@@ -590,12 +585,10 @@ class _TopPane extends ConsumerWidget {
   const _TopPane({
     required this.model,
     required this.rowKey,
-    required this.previewOn,
   });
 
   final _PaneModel model;
   final _RowKey Function(Channel) rowKey;
-  final bool previewOn;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -631,7 +624,7 @@ class _TopPane extends ConsumerWidget {
                           )
                         : _PreviewPlaceholder(
                             channel: channel,
-                            hint: previewOn && channel != null
+                            hint: channel != null
                                 ? 'Press OK to preview'
                                 : null,
                           ),

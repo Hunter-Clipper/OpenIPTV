@@ -23,7 +23,6 @@ const _kPipEnabled = 'pip_enabled';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
 const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
-const _kGuidePreview = 'guide_preview';
 const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
@@ -158,10 +157,6 @@ class AppPreferences {
 
   bool get cleanNames => _prefs.getBool(_kCleanNames) ?? true;
   Future<void> setCleanNames(bool v) => _prefs.setBool(_kCleanNames, v);
-
-  /// TV guide: OK plays a channel in the guide's preview pane first.
-  bool get guidePreview => _prefs.getBool(_kGuidePreview) ?? false;
-  Future<void> setGuidePreview(bool v) => _prefs.setBool(_kGuidePreview, v);
 
   // Movies / Series home: genre poster rails or the compact genre list.
   String get homeLayoutMovies =>

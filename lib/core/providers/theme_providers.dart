@@ -39,9 +39,6 @@ final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 // Tidy provider names for display (see display_name.dart).
 final cleanNamesProvider = StateProvider<bool>((ref) => true);
 
-/// TV guide preview video (Settings → Playback, TV only). Off by default.
-final guidePreviewProvider = StateProvider<bool>((ref) => false);
-
 /// Player picture fit: 'fit' (whole picture, letterboxed — the default),
 /// 'fill' (crop to fill the screen) or 'zoom' (in between).
 final videoFitProvider = StateProvider<String>((ref) => 'fit');
@@ -73,12 +70,6 @@ Future<void> setCleanNames(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(cleanNamesProvider.notifier).state = enabled;
   await prefs.setCleanNames(enabled);
-}
-
-Future<void> setGuidePreview(
-    WidgetRef ref, bool enabled, AppPreferences prefs) async {
-  ref.read(guidePreviewProvider.notifier).state = enabled;
-  await prefs.setGuidePreview(enabled);
 }
 
 // Helpers called from Settings to update prefs + provider in one shot.
@@ -168,7 +159,6 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
-  ref.read(guidePreviewProvider.notifier).state = prefs.guidePreview;
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;
   ref.read(homeLayoutSeriesProvider.notifier).state = prefs.homeLayoutSeries;
