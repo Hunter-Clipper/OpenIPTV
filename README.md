@@ -46,7 +46,7 @@
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/live_tv.png" alt="Live TV home with Favorites and Recently Watched rows" width="200"><br><sub>Live TV</sub></td>
+    <td align="center"><img src="docs/screenshots/live_tv.png" alt="Live TV home with Recently Watched and category list" width="200"><br><sub>Live TV</sub></td>
     <td align="center"><img src="docs/screenshots/channels.png" alt="Channel list with logo tiles" width="200"><br><sub>Channels</sub></td>
     <td align="center"><img src="docs/screenshots/settings.png" alt="Settings with one-tap Refresh Everything, Playlists and TV Guides" width="200"><br><sub>Settings</sub></td>
   </tr>
@@ -59,7 +59,7 @@
 
 <p align="center">
   <img src="docs/screenshots/tv_player.jpg" alt="Android TV player: every control in one slim bar along the bottom" width="820"><br>
-  <img src="docs/screenshots/tv_live.png" alt="Android TV: side navigation rail and focused channel card" width="400">
+  <img src="docs/screenshots/tv_guide.png" alt="Android TV: the programme guide with categories, a preview pane and a timeline" width="400">
   <img src="docs/screenshots/tv_search.png" alt="Android TV: search results as channel cards" width="400"><br>
   <sub>On Android TV and Fire TV</sub>
 </p>
