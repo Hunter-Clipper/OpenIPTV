@@ -460,7 +460,6 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                 itemBuilder: (context, i) {
                   final channel = channels[i];
                   return _GuideRow(
-                    number: i + 1,
                     channel: channel,
                     rowKey: _rowKey(channel),
                     time: _time,
@@ -893,7 +892,7 @@ class _TimeHeader extends StatelessWidget {
           SizedBox(
             width: _channelWidth,
             child: Padding(
-              padding: const EdgeInsets.only(left: 16),
+              padding: const EdgeInsets.only(left: 10),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -974,12 +973,11 @@ class _NowLine extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// One channel's row: number, logo, name, then its programmes
+// One channel's row: logo and name, then its programmes
 // ---------------------------------------------------------------------------
 
 class _GuideRow extends ConsumerWidget {
   const _GuideRow({
-    required this.number,
     required this.channel,
     required this.rowKey,
     required this.time,
@@ -991,7 +989,6 @@ class _GuideRow extends ConsumerWidget {
     this.autofocus = false,
   });
 
-  final int number;
   final Channel channel;
   final _RowKey rowKey;
   final Animation<double> time;
@@ -1027,7 +1024,7 @@ class _GuideRow extends ConsumerWidget {
           SizedBox(
             width: _channelWidth,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 3, 4, 3),
+              padding: const EdgeInsets.fromLTRB(4, 3, 4, 3),
               child: TvFocusable(
                 focusNode: channelNode,
                 autofocus: autofocus,
@@ -1037,29 +1034,24 @@ class _GuideRow extends ConsumerWidget {
                 },
                 onTap: () => onActivate(channel, _airing(programmes)),
                 onLongPress: onLongPress,
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 30,
-                      child: Text(
-                        '$number',
-                        textAlign: TextAlign.right,
-                        style: theme.textTheme.labelMedium!.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 6, right: 4),
+                  child: Row(
+                    children: [
+                      LogoTile(url: channel.logoUrl, width: 48),
+                      const SizedBox(width: 8),
+                      // Long names get a second line rather than being cut.
+                      Expanded(
+                        child: Text(
+                          context.displayName(channel.name),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium!
+                              .copyWith(fontSize: 13, height: 1.15),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    LogoTile(url: channel.logoUrl, width: 48),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        context.displayName(channel.name),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
