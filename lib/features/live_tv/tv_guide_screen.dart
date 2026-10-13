@@ -3,17 +3,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
+import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
-import 'package:open_iptv/features/live_tv/guide_preview_controller.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
@@ -116,7 +117,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // straight to the categories.
   bool _exitsLeft = false;
 
-  final _pane = _PaneModel();
+  late final _pane = _PaneModel(ref.read(playbackServiceProvider));
 
   _RowKey _rowKey(Channel c) =>
       (channelId: c.id, start: _rangeStart, end: _rangeEnd);
@@ -266,17 +267,24 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     }
     // Later today: nothing to play yet.
     if (programme != null && programme.start.isAfter(now)) return;
-    if (!ref.read(guidePreviewProvider) || _pane.playingId == channel.id) {
-      _playFullScreen(channel);
-    } else {
+    if (_pane.playingId == channel.id) {
+      // Already playing in the pane: full screen carries on with the same
+      // stream, and Back hands it back here.
+      unawaited(context.push('/player', extra: {
+        'streamUrl': channel.streamUrl,
+        'title': channel.name,
+        'contentType': 'live',
+        'contentId': channel.id,
+        'continuePlaying': true,
+        'handBackTo': _pane,
+      }));
+    } else if (ref.read(guidePreviewProvider)) {
       _pane.startPreview(channel);
+    } else {
+      // Its stream goes first: some plans allow only one at a time.
+      _pane.stopPreview();
+      playLiveChannel(context, channel);
     }
-  }
-
-  void _playFullScreen(Channel channel) {
-    // Its stream goes first: some plans allow only one at a time.
-    _pane.stopPreview();
-    playLiveChannel(context, channel);
   }
 
   Future<void> _playCatchup(Channel channel, Programme programme) async {
@@ -317,6 +325,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   }
 
   Widget _buildGuide(List<Channel> all) {
+    _pane.channels = all;
     final profile = ref.watch(activeProfileProvider).valueOrNull;
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final unlocked = ref.watch(parentalSessionUnlockedProvider);
@@ -515,16 +524,38 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
 // ---------------------------------------------------------------------------
 // What the top pane shows: the focused channel and programme, and the
-// preview player (when you've asked for one).
+// preview (when you've asked for one).
 // ---------------------------------------------------------------------------
 
+/// The preview is the app's main player: going full screen carries on with
+/// the same stream (no restart), and the player hands it back here on Back
+/// (it owns the stream meanwhile). This model is the owner while the pane
+/// plays.
 class _PaneModel extends ChangeNotifier {
+  _PaneModel(this.service) {
+    service.nowPlaying.addListener(notifyListeners);
+  }
+
+  final PlaybackService service;
   Channel? channel;
   Programme? programme;
-  GuidePreviewController? preview;
-  Channel? playing;
   bool _disposed = false;
 
+  Map<String, Channel> _byUrl = const {};
+  List<Channel>? _channels;
+
+  /// The channels the playing stream is looked up in.
+  set channels(List<Channel> all) {
+    if (identical(all, _channels)) return;
+    _channels = all;
+    _byUrl = {for (final c in all) c.streamUrl: c};
+  }
+
+  bool get previewing => service.nowPlaying.value?.owner == this;
+
+  /// The channel playing in the pane (full screen may have switched it).
+  Channel? get playing =>
+      previewing ? _byUrl[service.nowPlaying.value!.url] : null;
   String? get playingId => playing?.id;
 
   void show(Channel c, Programme? p) {
@@ -535,27 +566,20 @@ class _PaneModel extends ChangeNotifier {
   }
 
   void startPreview(Channel c) {
-    final player = preview ??= GuidePreviewController();
-    playing = c;
-    notifyListeners();
     // The texture exists once the player has opened.
-    player.play(c.streamUrl).then((_) {
+    service.play(c.streamUrl, owner: this).then((_) {
       if (!_disposed) notifyListeners();
     });
   }
 
   void stopPreview() {
-    final player = preview;
-    if (player == null) return;
-    player.dispose();
-    preview = null;
-    playing = null;
-    if (!_disposed) notifyListeners();
+    if (previewing) unawaited(service.stop());
   }
 
   @override
   void dispose() {
     _disposed = true;
+    service.nowPlaying.removeListener(notifyListeners);
     stopPreview();
     super.dispose();
   }
@@ -585,8 +609,8 @@ class _TopPane extends ConsumerWidget {
                 : _airing(ref.watch(_rowProgrammesProvider(rowKey(channel)))
                         .valueOrNull ??
                     const []));
-        final preview = model.preview;
-        final textureId = preview?.textureId;
+        final service = model.service;
+        final previewing = model.previewing && service.hasTexture;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 24, 8),
           child: Row(
@@ -598,19 +622,12 @@ class _TopPane extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(12),
                   child: ColoredBox(
                     color: Colors.black,
-                    child: preview != null && textureId != null
-                        ? Stack(fit: StackFit.expand, children: [
-                            VideoSurface(
-                              key: ValueKey(textureId),
-                              textureId: textureId,
-                              stateStream: preview.stateStream,
-                            ),
-                            if (model.playing != null &&
-                                model.playingId != channel?.id)
-                              _PreviewLabel(
-                                  text: context
-                                      .displayName(model.playing!.name)),
-                          ])
+                    child: previewing
+                        ? VideoSurface(
+                            textureId: service.textureId,
+                            stateStream: service.stateStream,
+                            initialAspectRatio: service.lastState.aspectRatio,
+                          )
                         : _PreviewPlaceholder(
                             channel: channel,
                             hint: previewOn && channel != null

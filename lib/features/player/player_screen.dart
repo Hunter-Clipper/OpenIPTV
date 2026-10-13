@@ -37,6 +37,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
     this.resumePosition,
     this.confirmResume = true,
     this.seriesId,
+    this.continuePlaying = false,
+    this.handBackTo,
   });
 
   final String streamUrl;
@@ -51,6 +53,14 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final bool confirmResume;
   // Only set for episodes — used to load the next episode on completion.
   final String? seriesId;
+
+  /// [streamUrl] is already playing on the shared player (the TV guide's
+  /// preview): carry on with it rather than opening it again.
+  final bool continuePlaying;
+
+  /// Leaving hands the live stream back to this owner (the TV guide's
+  /// preview) instead of stopping it.
+  final Object? handBackTo;
 
   /// How many player screens exist (a channel switch briefly has two):
   /// above zero, something is being watched — e.g. the update prompt waits.
@@ -598,6 +608,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       'title': next.name,
       'contentType': 'live',
       'contentId': next.id,
+      if (widget.handBackTo != null) 'handBackTo': widget.handBackTo,
     });
   }
 
@@ -777,8 +788,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // Taken over by the car: the screen closes as usual, but the car's
     // playback must keep going.
     if (!skipTeardown && !_takenOver) {
-      _playbackService.stop();
-      nowPlayingHandler.stop();
+      final back = widget.handBackTo;
+      if (back != null &&
+          _isPlainLive &&
+          !_casting &&
+          !_playbackFailed &&
+          !_mainParked) {
+        // Opened from the TV guide's preview: the channel keeps playing
+        // there.
+        _playbackService.adopt(back);
+        nowPlayingHandler.endSession();
+      } else {
+        _playbackService.stop();
+        nowPlayingHandler.stop();
+      }
     }
     super.dispose();
   }
@@ -834,6 +857,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _playOrCast(Duration? start) async {
     if (_cast.status.connected) {
       await _startCasting(start);
+    } else if (widget.continuePlaying &&
+        _playbackService.nowPlaying.value?.url == widget.streamUrl) {
+      _playbackService.adopt(this);
     } else {
       await _playbackService.play(widget.streamUrl,
           startPosition: start, owner: this);

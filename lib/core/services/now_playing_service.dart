@@ -183,11 +183,17 @@ class NowPlayingHandler extends BaseAudioHandler {
   Future<void> seek(Duration position) => _playbackService.seek(position);
 
   @override
-  Future<void> stop() async {
+  Future<void> stop() => _end(stopPlayback: true);
+
+  /// Ends the media session (notification, lock screen) but leaves the
+  /// stream playing: the TV guide's preview carries on with it.
+  Future<void> endSession() => _end(stopPlayback: false);
+
+  Future<void> _end({required bool stopPlayback}) async {
     await _saveCarProgress();
     _endCarSession();
     _stopped = true;
-    await _playbackService.stop();
+    if (stopPlayback) await _playbackService.stop();
     mediaItem.add(null);
     // audio_service only tears down the foreground notification once it
     // observes a transition to AudioProcessingState.idle — _broadcastState()
