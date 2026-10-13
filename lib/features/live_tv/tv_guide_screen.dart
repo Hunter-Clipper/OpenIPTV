@@ -47,10 +47,30 @@ typedef _RowKey = ({String channelId, DateTime start, DateTime end});
 
 // One row's programmes, loaded as the row comes into view.
 final _rowProgrammesProvider =
-    FutureProvider.autoDispose.family<List<Programme>, _RowKey>((ref, k) =>
-        ref
+    FutureProvider.autoDispose.family<List<Programme>, _RowKey>((ref, k) async =>
+        guideRow(await ref
             .read(epgServiceProvider)
-            .getProgrammesForChannelInRange(k.channelId, k.start, k.end));
+            .getProgrammesForChannelInRange(k.channelId, k.start, k.end)));
+
+/// A row's programmes as the guide shows them: in order, one at a time.
+/// Some providers' guides mix two schedules for a channel (e.g. a show
+/// listed 12:00–12:30 *and* 12:12–12:48); drawn as they are, the later
+/// cells covered the earlier ones and the row looked chopped up. A
+/// programme that starts before the one already kept has ended is left
+/// out — except for a couple of minutes' overlap, which only trims it.
+@visibleForTesting
+List<Programme> guideRow(List<Programme> programmes) {
+  const slack = Duration(minutes: 2);
+  final sorted = [...programmes]..sort((a, b) => a.start.compareTo(b.start));
+  final kept = <Programme>[];
+  for (final p in sorted) {
+    if (kept.isNotEmpty && p.start.isBefore(kept.last.end.subtract(slack))) {
+      continue;
+    }
+    kept.add(p);
+  }
+  return kept;
+}
 
 Programme? _airing(List<Programme> programmes) =>
     programmes.where((p) => p.isLive).firstOrNull;
@@ -168,9 +188,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   void _onCategoryFocused(String key) {
     _focusedCategory = key;
-    if (key == _shownCategory) return;
     // Scrolling through the list doesn't reload the guide on every step.
     _categoryDebounce?.cancel();
+    if (key == _shownCategory) return;
     _categoryDebounce =
         Timer(const Duration(milliseconds: 300), () => _showCategory(key));
   }
@@ -217,6 +237,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   // Left out of the guide: to the category it's showing.
   void _exitToCategories() {
+    // The guide's own moves keep the column out of the search for a moment.
+    _columnNode.descendantsAreFocusable = true;
     final key = _shownCategory;
     if (key != null) _categoryNode(key).requestFocus();
   }
@@ -229,6 +251,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   void _onCellFocused(Channel channel, Programme? programme,
       {required bool exitsLeft}) {
     _exitsLeft = exitsLeft;
+    // In the guide: no category switch still to come (entering the guide
+    // shows the focused category straight away).
+    _categoryDebounce?.cancel();
     _lastGridFocus = FocusManager.instance.primaryFocus;
     _pane.show(channel, programme);
   }
@@ -448,6 +473,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           actions: {
             DirectionalFocusIntent: _GridDirectionalAction(
               gridNode: _gridNode,
+              columnNode: _columnNode,
               exitsLeft: () => _exitsLeft,
               scrollTimeBy: (dx) => _scrollTimeTo(_time.value + dx),
               canScrollBack: () => _time.value > 0.5,
@@ -1212,6 +1238,7 @@ class _ProgrammeCell extends StatelessWidget {
 class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
   _GridDirectionalAction({
     required this.gridNode,
+    required this.columnNode,
     required this.exitsLeft,
     required this.scrollTimeBy,
     required this.canScrollBack,
@@ -1219,12 +1246,26 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
   });
 
   final FocusNode gridNode;
+  final FocusNode columnNode;
   final bool Function() exitsLeft;
   final void Function(double dx) scrollTimeBy;
   final bool Function() canScrollBack;
   final VoidCallback onExitLeft;
 
   static const _step = 30 * _pxPerMinute;
+
+  // Flutter's search for the next stop, with the categories left out: it
+  // used to land on whichever category sat nearest — only for a moment,
+  // but enough to switch the guide to it.
+  bool _search(FocusNode from, TraversalDirection dir) {
+    columnNode.descendantsAreFocusable = false;
+    try {
+      return from.focusInDirection(dir);
+    } finally {
+      // After the focus change has been applied.
+      scheduleMicrotask(() => columnNode.descendantsAreFocusable = true);
+    }
+  }
 
   @override
   Object? invoke(DirectionalFocusIntent intent) {
@@ -1233,7 +1274,7 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     if (before == null) return true;
 
     if (dir == TraversalDirection.up || dir == TraversalDirection.down) {
-      if (before.focusInDirection(dir)) {
+      if (_search(before, dir)) {
         scheduleMicrotask(() {
           if (!gridNode.hasFocus) before.requestFocus();
         });
@@ -1255,7 +1296,7 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
       }
     }
 
-    if (!before.focusInDirection(dir)) {
+    if (!_search(before, dir)) {
       cannotMove();
       return true;
     }
