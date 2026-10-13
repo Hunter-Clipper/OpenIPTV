@@ -36,7 +36,7 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
   everywhere.
 - Moving through the column changes the grid after a short pause, so
   scrolling quickly doesn't reload on every step.
-- **Rows:** a position number, the channel logo (same readable grey tile as
+- **Rows:** the channel logo (same readable grey tile as
   Live TV) and name, then the programmes on a shared timeline with a "now"
   line. A channel with no guide data shows one plain "No guide information"
   cell, so it can still be focused and played.
