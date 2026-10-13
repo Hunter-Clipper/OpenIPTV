@@ -391,8 +391,11 @@ void playLiveChannel(BuildContext context, Channel channel) {
   });
 }
 
+/// Hold OK / long-press on a channel: favourite, and with [recent] also
+/// "Remove from Recently Watched".
 void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
-    String profileId, bool isFavorite) {
+    String profileId, bool isFavorite,
+    {bool recent = false}) {
   HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
     context: context,
@@ -405,6 +408,11 @@ void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
             .toggleFavoriteChannel(profileId, channel.id);
         ref.invalidate(activeProfileProvider);
       },
+      onRemoveRecent: recent
+          ? () => ref
+              .read(appDatabaseProvider)
+              .clearChannelLastWatched(profileId, channel.id)
+          : null,
     ),
   );
 }
@@ -662,10 +670,12 @@ class _ChannelOptionsSheet extends StatelessWidget {
   const _ChannelOptionsSheet({
     required this.isFavorite,
     required this.onToggle,
+    this.onRemoveRecent,
   });
 
   final bool isFavorite;
   final Future<void> Function() onToggle;
+  final Future<void> Function()? onRemoveRecent;
 
   @override
   Widget build(BuildContext context) {
@@ -684,6 +694,16 @@ class _ChannelOptionsSheet extends StatelessWidget {
               onToggle();
             },
           ),
+          if (onRemoveRecent != null)
+            ListTile(
+              leading: Icon(Icons.remove_circle_outline,
+                  color: Theme.of(context).colorScheme.error),
+              title: const Text('Remove from Recently Watched'),
+              onTap: () {
+                Navigator.of(context).pop();
+                onRemoveRecent!();
+              },
+            ),
         ],
       ),
     );

@@ -509,7 +509,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     onLongPress: profileId == null
                         ? null
                         : () => showChannelOptions(context, ref, channel,
-                            profileId, favIds.contains(channel.id)),
+                            profileId, favIds.contains(channel.id),
+                            recent: _shownCategory == _recent),
                   );
                 },
               ),
