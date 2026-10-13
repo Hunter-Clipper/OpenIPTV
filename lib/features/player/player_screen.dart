@@ -1222,7 +1222,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ),
       );
     }
-    return Scaffold(
+    // Back with the controls showing hides them; Back again leaves.
+    return PopScope(
+      canPop: !_controlsVisible || _casting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _hideTimer?.cancel();
+        _hideControls();
+      },
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
         focusNode: _rootFocusNode,
@@ -1395,6 +1403,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
