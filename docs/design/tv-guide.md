@@ -12,9 +12,8 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
 |---|---|
 | Layout | **Full guide on TV**: nav rail · category column · top pane (preview + programme info) · channel × time grid. |
 | Phones | Unchanged. |
-| Preview video | **Off by default**, with a setting to turn it on. |
-| With preview on | OK on a channel plays it **in the pane**; OK again on the channel already playing there opens it **full screen** — the same stream, no restart. Back from full screen returns to the guide with it still playing in the pane. No channel name over the preview picture. |
-| With preview off | The pane shows the focused programme's info (and the channel logo); OK opens the channel full screen, as today. |
+| Preview video | **Always on** (owner, 2026-10-13: the setting that turned it on was removed). |
+| OK | OK on a channel plays it **in the pane**; OK again on the channel already playing there opens it **full screen** — the same stream, no restart. Back from full screen returns to the guide with it still playing in the pane. No channel name over the preview picture. |
 
 ## Layout
 
@@ -78,8 +77,6 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
   it, also after a channel switch. One stream is open throughout, so plans
   with a single connection keep working. The preview stops when the guide
   is left (another tab, the app in the background).
-- Setting: Settings → Playback → **Preview in the guide** (TV only), pref
-  `guide_preview`, off by default.
 
 ## Testing
 
