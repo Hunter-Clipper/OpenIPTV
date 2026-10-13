@@ -52,9 +52,14 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
   time; Left at the start of the timeline — or on a "No guide
   information" cell — goes back to the category column, and Left again to
   the nav rail.
-- OK on what's on now (or "No guide information"): see the preview rules
-  above. OK on an earlier programme with catch-up plays it (as the old
-  guide did); on a later programme it does nothing.
+- OK on any cell plays the channel live (see the preview rules above) —
+  except an earlier programme on a channel with catch-up, which plays it
+  from catch-up. (Stress test, 2026-10-13: OK doing nothing on later
+  programmes felt broken.)
+- Up/Down go to the cell in the next row at the same time: now, if the
+  focused cell is airing, else the start of its visible part (Flutter's
+  own search went by the cell's middle and jumped hours ahead from wide
+  cells).
 - Hold OK on any of a channel's cells: the usual channel options
   (favourite; in Recently Watched also "Remove from Recently Watched").
 - Back: the app's usual TV Back (page → nav rail → …).
@@ -76,7 +81,11 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
   hands the stream back to the guide (`handBackTo`) instead of stopping
   it, also after a channel switch. One stream is open throughout, so plans
   with a single connection keep working. The preview stops when the guide
-  is left (another tab, the app in the background).
+  is left (another tab, the app in the background). It has its own
+  StreamWatchdog (reconnects a stuck stream; a dead one shows "This channel
+  isn't available right now." / "Your provider didn't allow this
+  stream."), and shows the channel logo with a spinner until the new
+  stream's first frame (the texture otherwise still shows the last one).
 
 ## Testing
 
