@@ -3,6 +3,19 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.8 — 2026-10-14
+
+**TV guide**
+- Long channel names and programme titles no longer stay cut off. When a channel or programme is highlighted, its text slides sideways to show the rest, pauses, and starts again. The programme title and details at the top of the guide do the same. Text that already fits doesn't move.
+
+**Playback stops when you leave**
+- Press Home with Picture in Picture turned off and whatever is playing now stops: the full-screen player, the TV guide preview and multi-view (all tiles). Casting to another device keeps going. With Picture in Picture on, Home works as before.
+- Close the Picture in Picture window (the X, or swipe it away) and the stream now stops for good. Before, it could quietly start again behind other apps. Expanding the window back to the app still keeps playing.
+- If another app takes the sound (YouTube starting a video, a phone call), OpenIPTV now stays paused instead of starting again by itself when that app lets go. Press play to carry on.
+
+**Behind the scenes**
+- When the Picture in Picture window closes, every stream is stopped at the source and the player's automatic reconnect is switched off.
+
 ## 0.14.0 — 2026-10-13
 
 **A TV guide on TVs**

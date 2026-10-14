@@ -228,6 +228,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     PlayerScreen.openCount++;
     super.initState();
     _profileId = ref.read(activeProfileIdProvider);
+    ref.listenManual<int>(homeLeaveProvider, (_, __) => _onHomePressed());
     ref.listenManual<String?>(
         activeProfileIdProvider, (_, next) => _profileId = next);
     // Lock to landscape for immersive playback — unless this opens straight
@@ -323,8 +324,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   /// Something else (Android Auto) opened a stream on the shared player.
   bool _takenOver = false;
 
+  // Home / PiP closed: the stream is dead on purpose. Never reconnect.
+  bool _stoppedByUser = false;
+
   void _runWatchdog() {
-    if (!mounted || _takenOver || _mainParked) return;
+    if (!mounted || _stoppedByUser || _takenOver || _mainParked) return;
     if (_playbackStarted &&
         !_casting &&
         _playbackService.owner != null &&
@@ -345,7 +349,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _applyWatchdog(WatchdogAction action) {
-    if (!mounted || _casting || _playbackGaveUp) return;
+    if (!mounted || _stoppedByUser || _casting || _playbackGaveUp) return;
     switch (action) {
       case WatchdogAction.giveUp:
         debugPrint('[OTV-recovery] giving up after ${_watchdog.attempts} '
@@ -374,6 +378,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   /// The car (or another screen) now owns the player: stop watching and
   /// reconnecting this screen's stream, and close it without stopping
   /// what's playing now.
+  // Home with Picture-in-Picture off: stop playing and close, so nothing
+  // carries on behind the home screen.
+  void _onHomePressed() {
+    if (!mounted || _takenOver || _casting || _navigatingToNext) return;
+    debugPrint('[OTV-play] home/PiP closed — stopping');
+    // No reconnecting from here on, even if the screen can't close yet.
+    _stoppedByUser = true;
+    _watchdogTimer?.cancel();
+    _saveProgressIfNeeded();
+    _playbackService.stop();
+    nowPlayingHandler.stop();
+    if (ModalRoute.of(context)?.isCurrent ?? false) context.pop();
+  }
+
   void _onTakenOver() {
     _takenOver = true;
     _watchdogTimer?.cancel();
@@ -392,7 +410,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Reopens the current stream: live at the live edge, VOD/catch-up where
   // it was.
   Future<void> _reconnect() async {
-    if (_reconnecting || !mounted || _casting || _takenOver) return;
+    if (_reconnecting || _stoppedByUser || !mounted || _casting || _takenOver) return;
     if (_playbackService.owner != null &&
         !identical(_playbackService.owner, this)) {
       _onTakenOver();

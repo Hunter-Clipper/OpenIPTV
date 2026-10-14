@@ -7,11 +7,19 @@ const MethodChannel _pipChannel = MethodChannel('openiptv/pip');
 /// preferences are loaded.
 void initPipChannel({
   required void Function(bool isInPip) onPipModeChanged,
+  required void Function() onUserLeft,
+  required void Function() onPipDismissed,
 }) {
   _pipChannel.setMethodCallHandler((call) async {
     switch (call.method) {
       case 'onPipModeChanged':
         onPipModeChanged(call.arguments as bool);
+        return null;
+      case 'pipDismissed':
+        onPipDismissed();
+        return null;
+      case 'userLeft':
+        onUserLeft();
         return null;
       default:
         return null;

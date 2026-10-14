@@ -21,6 +21,7 @@ import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
+import 'package:open_iptv/shared/widgets/marquee_text.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -127,6 +128,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   @override
   void initState() {
     super.initState();
+    ref.listenManual<int>(homeLeaveProvider, (_, __) => _pane.stopPreview());
     final now = DateTime.now();
     // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
     // with that half hour at the left edge.
@@ -831,20 +833,16 @@ class _ProgrammeInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        MarqueeText(
           p?.title ?? name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleLarge!
               .copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 4),
-        Text(
+        MarqueeText(
           p == null
               ? 'No guide information'
               : '${_hm(context, p.start)} – ${_hm(context, p.end)}  ·  $name',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium!
               .copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
@@ -1165,7 +1163,8 @@ class _GuideRow extends ConsumerWidget {
             _pxPerMinute)
         .clamp(0.0, totalMinutes * _pxPerMinute);
 
-    return Container(
+    return _RowFocus(
+      builder: (context, rowFocused) => Container(
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -1187,10 +1186,10 @@ class _GuideRow extends ConsumerWidget {
                   const SizedBox(width: 8),
                   // Long names get a second line rather than being cut.
                   Expanded(
-                    child: Text(
+                    child: MarqueeText(
                       context.displayName(channel.name),
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      active: rowFocused,
                       style: theme.textTheme.bodyMedium!
                           .copyWith(fontSize: 13, height: 1.15),
                     ),
@@ -1235,7 +1234,7 @@ class _GuideRow extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 
   // Where the remote enters the row: what's on now, else what's next.
@@ -1276,7 +1275,31 @@ class _GuideRow extends ConsumerWidget {
   }
 }
 
-class _ProgrammeCell extends StatelessWidget {
+/// Tells its builder whether anything inside it has focus.
+class _RowFocus extends StatefulWidget {
+  const _RowFocus({required this.builder});
+
+  final Widget Function(BuildContext context, bool focused) builder;
+
+  @override
+  State<_RowFocus> createState() => _RowFocusState();
+}
+
+class _RowFocusState extends State<_RowFocus> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (f) => setState(() => _focused = f),
+      child: widget.builder(context, _focused),
+    );
+  }
+}
+
+class _ProgrammeCell extends StatefulWidget {
   const _ProgrammeCell({
     required this.title,
     required this.onFocus,
@@ -1303,19 +1326,32 @@ class _ProgrammeCell extends StatelessWidget {
   final VoidCallback? onLongPress;
 
   @override
+  State<_ProgrammeCell> createState() => _ProgrammeCellState();
+}
+
+class _ProgrammeCellState extends State<_ProgrammeCell> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final title = widget.title;
+    final live = widget.live;
+    final muted = widget.muted;
+    final catchup = widget.catchup;
+    final textInset = widget.textInset;
     return Padding(
       padding: const EdgeInsets.fromLTRB(1, 3, 1, 3),
       child: TvFocusable(
-        focusNode: focusNode,
-        autofocus: autofocus,
-        onLongPress: onLongPress,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        onLongPress: widget.onLongPress,
         borderRadius: BorderRadius.circular(6),
         onFocusChange: (f) {
-          if (f) onFocus();
+          setState(() => _focused = f);
+          if (f) widget.onFocus();
         },
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Container(
           decoration: BoxDecoration(
             color: live
@@ -1328,10 +1364,9 @@ class _ProgrammeCell extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
+                child: MarqueeText(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  active: _focused,
                   style: theme.textTheme.bodyMedium!.copyWith(
                     color: muted
                         ? theme.colorScheme.onSurfaceVariant

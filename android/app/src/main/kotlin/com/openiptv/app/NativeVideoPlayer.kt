@@ -181,7 +181,16 @@ class NativeVideoPlayer(
                 emitState()
             }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
-            override fun onPlaybackSuppressionReasonChanged(reason: Int) = emitState()
+            override fun onPlaybackSuppressionReasonChanged(reason: Int) {
+                // Another app took the sound (a video starting elsewhere, a
+                // call): stay paused. ExoPlayer would otherwise resume on its
+                // own once that app lets go, i.e. a stream nobody is
+                // watching suddenly playing in the background.
+                if (reason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
+                    exoPlayer.pause()
+                }
+                emitState()
+            }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onPlayingChanged(isPlaying)
                 emitState()
@@ -494,6 +503,27 @@ class NativeVideoPlayerManager(
 ) {
     private val players = mutableMapOf<Long, NativeVideoPlayer>()
     private val playingIds = mutableSetOf<Long>()
+
+    init {
+        synchronized(managers) { managers.add(this) }
+    }
+
+    /** Stops every stream this manager owns, whatever Dart is doing. */
+    private fun killAll() {
+        for (p in players.values) {
+            p.exoPlayer.playWhenReady = false
+            p.stop()
+        }
+    }
+
+    companion object {
+        private val managers = mutableListOf<NativeVideoPlayerManager>()
+
+        /** The PiP window was closed: nothing may keep playing. */
+        fun stopAll() {
+            synchronized(managers) { managers.toList() }.forEach { it.killAll() }
+        }
+    }
     private val controlChannel = MethodChannel(messenger, "openiptv/video_player")
 
     private fun setPlaying(id: Long, isPlaying: Boolean) {

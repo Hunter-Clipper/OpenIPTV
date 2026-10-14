@@ -1,6 +1,8 @@
 package com.openiptv.app
 
 import android.app.PictureInPictureParams
+import android.os.Handler
+import android.os.Looper
 import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
@@ -144,12 +146,31 @@ class MainActivity : AudioServiceActivity() {
                 .build()
             val entered = enterPictureInPictureMode(params)
             Log.d("OTV-pip", "enterPictureInPictureMode returned=$entered")
+        } else {
+            // Not going to Picture-in-Picture: Dart decides whether to stop
+            // what's playing (it does when the PiP setting is off).
+            pipChannel?.invokeMethod("userLeft", null)
         }
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         pipChannel?.invokeMethod("onPipModeChanged", isInPictureInPictureMode)
+        // Left PiP: expanded (the activity comes back to the front) or
+        // closed (X / swiped away). The lifecycle settles a moment after
+        // this callback, so look again shortly.
+        if (!isInPictureInPictureMode) {
+            Handler(Looper.getMainLooper()).postDelayed({
+                val back = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+                Log.d("OTV-pip", "left PiP, activityVisible=$back")
+                if (!back) {
+                    // Kill the streams here, not only via Dart: nothing may
+                    // play on after the PiP window is closed.
+                    NativeVideoPlayerManager.stopAll()
+                    pipChannel?.invokeMethod("pipDismissed", null)
+                }
+            }, 400)
+        }
     }
 
     @Deprecated("Activity result for the VPN permission prompt")

@@ -31,6 +31,9 @@ final refreshNotificationsEnabledProvider = StateProvider<bool>((ref) => true);
 // Picture-in-Picture — pipActiveProvider is runtime-only (not persisted),
 // updated live by MainActivity via the platform channel in pip_service.dart.
 final pipEnabledProvider = StateProvider<bool>((ref) => true);
+// Bumped when Home is pressed and Picture-in-Picture isn't going to take
+// over: whatever is playing (player, guide preview, multi-view) stops.
+final homeLeaveProvider = StateProvider<int>((ref) => 0);
 final pipActiveProvider = StateProvider<bool>((ref) => false);
 
 // Now Playing / media notification.

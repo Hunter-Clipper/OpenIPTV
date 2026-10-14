@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/pip_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
@@ -93,6 +94,17 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     initPipChannel(
       onPipModeChanged: (isInPip) =>
           ref.read(pipActiveProvider.notifier).state = isInPip,
+      // The PiP window was closed: stop what was playing in it.
+      onPipDismissed: () => ref.read(homeLeaveProvider.notifier).state++,
+      onUserLeft: () {
+        // Picture-in-Picture off: Home stops playback. (With it on, native
+        // enters PiP and never reports this.) Casting keeps going — the
+        // phone is only the remote.
+        if (ref.read(pipEnabledProvider)) return;
+        if (!ref.read(playbackServiceProvider).lastState.playWhenReady) return;
+        if (ref.read(castServiceProvider).status.connected) return;
+        ref.read(homeLeaveProvider.notifier).state++;
+      },
     );
     void pushPipAvailability() {
       final playing = ref.read(playbackServiceProvider).lastState.playWhenReady;
