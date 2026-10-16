@@ -52,6 +52,16 @@ Future<void> setVideoFit(
   await prefs.setVideoFit(fit);
 }
 
+/// Keep the time of day on screen while watching full screen, even when the
+/// controls are hidden (#56).
+final playerClockAlwaysProvider = StateProvider<bool>((ref) => false);
+
+Future<void> setPlayerClockAlways(
+    WidgetRef ref, bool on, AppPreferences prefs) async {
+  ref.read(playerClockAlwaysProvider.notifier).state = on;
+  await prefs.setPlayerClockAlways(on);
+}
+
 // Movies / Series home layout: 'posters' (a rail per genre) or 'compact'
 // (the plain genre list).
 final homeLayoutMoviesProvider = StateProvider<String>((ref) => 'posters');
@@ -163,6 +173,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
+  ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;
   ref.read(homeLayoutSeriesProvider.notifier).state = prefs.homeLayoutSeries;
 }

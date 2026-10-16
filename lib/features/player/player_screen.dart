@@ -20,6 +20,7 @@ import 'package:open_iptv/features/player/multi_view.dart';
 import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/player/player_controls.dart';
+import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
@@ -1398,6 +1399,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ),
                 ),
               ),
+              // The one clock (#56): with the controls on TV, or always on
+              // when the setting is set. Same spot as the controls' layout.
+              if (!_casting)
+                Builder(builder: (context) {
+                  final tv = PlatformHelper.isTV(context);
+                  final always = ref.watch(playerClockAlwaysProvider);
+                  final m = PlayerMetrics.of(context);
+                  return Positioned(
+                    top: tv ? m.tvEdge * 0.6 : 16,
+                    right: tv ? m.tvEdge : 20,
+                    child: IgnorePointer(
+                      child: AnimatedOpacity(
+                        opacity: always || (tv && _showOverlayControls) ? 1 : 0,
+                        duration: const Duration(milliseconds: 250),
+                        child: PlayerClock(fontSize: tv ? 20 : 15),
+                      ),
+                    ),
+                  );
+                }),
               // Up Next banner — shown when an episode finishes and a next one exists.
               if (_showUpNext && _nextEpisode != null)
                 _UpNextBanner(

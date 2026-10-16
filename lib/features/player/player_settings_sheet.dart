@@ -167,6 +167,19 @@ class _PlayerSettingsSheetState extends ConsumerState<PlayerSettingsSheet> {
               await setVideoFit(ref, v, prefs);
             },
           ),
+          OptionRow<bool>(
+            icon: Icons.schedule_rounded,
+            label: 'Clock',
+            options: const [
+              (false, 'With controls'),
+              (true, 'Always on'),
+            ],
+            selected: ref.watch(playerClockAlwaysProvider),
+            onSelected: (v) async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setPlayerClockAlways(ref, v, prefs);
+            },
+          ),
           if (!widget.isLive)
             OptionRow<double>(
               icon: Icons.speed_rounded,

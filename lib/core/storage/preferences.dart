@@ -25,6 +25,7 @@ const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
 const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
+const _kPlayerClockAlways = 'player_clock_always';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
 const _kVpnAutoConnect = 'vpn_auto_connect';
@@ -133,6 +134,10 @@ class AppPreferences {
   // Player: how the picture fits the screen.
   String get videoFit => _prefs.getString(_kVideoFit) ?? 'fit';
   Future<void> setVideoFit(String v) => _prefs.setString(_kVideoFit, v);
+
+  bool get playerClockAlways => _prefs.getBool(_kPlayerClockAlways) ?? false;
+  Future<void> setPlayerClockAlways(bool v) =>
+      _prefs.setBool(_kPlayerClockAlways, v);
 
   /// Player buffer size (Power User Tools); null = the default.
   String? get bufferPreset => _prefs.getString(_kBufferPreset);

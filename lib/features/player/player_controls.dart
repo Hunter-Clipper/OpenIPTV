@@ -265,7 +265,7 @@ class _ControlsLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
-    if (m.tv) return _buildTv(m);
+    if (m.tv) return _buildTv(context, m);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -324,7 +324,7 @@ class _ControlsLayout extends StatelessWidget {
     );
   }
 
-  Widget _buildTv(PlayerMetrics m) {
+  Widget _buildTv(BuildContext context, PlayerMetrics m) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -353,7 +353,17 @@ class _ControlsLayout extends StatelessWidget {
                 _QualityChip(label: qualityLabel!),
                 const SizedBox(width: 16),
               ],
-              const _Clock(),
+              // The player screen draws the clock itself (it has to outlive
+              // the controls); just leave its room so the chip sits beside it.
+              ExcludeSemantics(
+                child: Opacity(
+                  opacity: 0,
+                  child: Text(
+                    PlayerClock.label(context),
+                    style: PlayerClock.style(20),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1175,15 +1185,33 @@ class _QualityChip extends StatelessWidget {
   }
 }
 
-/// TV: time of day in the corner, the way a TV's own player shows it.
-class _Clock extends StatefulWidget {
-  const _Clock();
+/// Time of day in the corner, the way a TV's own player shows it. Drawn once,
+/// by the player screen: with the controls on TV, or always when the
+/// "Always on" clock option is set.
+class PlayerClock extends StatefulWidget {
+  const PlayerClock({super.key, this.fontSize = 20});
+
+  final double fontSize;
+
+  static String label(BuildContext context) =>
+      MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.now(),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+      );
+
+  static TextStyle style(double fontSize) => TextStyle(
+        color: Colors.white,
+        fontSize: fontSize,
+        fontWeight: FontWeight.w500,
+        fontFeatures: const [FontFeature.tabularFigures()],
+        shadows: const [Shadow(blurRadius: 8, color: Colors.black54)],
+      );
 
   @override
-  State<_Clock> createState() => _ClockState();
+  State<PlayerClock> createState() => _ClockState();
 }
 
-class _ClockState extends State<_Clock> {
+class _ClockState extends State<PlayerClock> {
   Timer? _timer;
 
   @override
@@ -1209,17 +1237,8 @@ class _ClockState extends State<_Clock> {
   @override
   Widget build(BuildContext context) {
     return Text(
-      MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.now(),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      ),
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 20,
-        fontWeight: FontWeight.w500,
-        fontFeatures: [FontFeature.tabularFigures()],
-        shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
-      ),
+      PlayerClock.label(context),
+      style: PlayerClock.style(widget.fontSize),
     );
   }
 }
