@@ -35,11 +35,16 @@ class PlayerControls extends ConsumerStatefulWidget {
     this.onChannels,
     this.onAddChannel,
     this.onCast,
+    this.handBackTo,
     this.buffering = false,
   });
 
   final String title;
   final bool isLive;
+
+  /// Passed on to catch-up launched from the programme list, so Go live then
+  /// Back still returns the stream to the TV guide's preview.
+  final Object? handBackTo;
   final String? contentType;
   final String? contentId;
   // Focus lands here whenever PlayerScreen reveals the controls (initial
@@ -151,6 +156,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       builder: (_) => EpgPanel(
         channelId: widget.contentId ?? '',
         channelName: widget.title,
+        handBackTo: widget.handBackTo,
       ),
     );
   }

@@ -3,13 +3,16 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.12)
+## 0.14.14 — 2026-10-16
 
 **Player**
 - New **Clock** option in the player's playback settings: choose "Always on" to keep the time of day in the top corner while you watch full screen, even when the controls are hidden. "With controls" (the default) keeps it the way it was on TV.
 
 **TV guide**
-- Watching a catch-up programme from the guide, pressing Go live, then Back now returns to the guide with the channel still playing in the preview pane. Before, playback stopped.
+- Watching a past programme from catch-up, pressing Go live, then Back now returns to the guide with the channel still playing in the preview pane. Before, playback stopped. This works whether you opened catch-up from the guide or from the programme list in the player.
+
+**Behind the scenes**
+- Once Go live switches a catch-up programme to the live channel, the player now treats it as live everywhere: reconnecting after a stall goes back to the live channel, and casting sends it as live.
 
 ## 0.14.8 — 2026-10-14
 

@@ -19,10 +19,15 @@ class EpgPanel extends ConsumerStatefulWidget {
     super.key,
     required this.channelId,
     required this.channelName,
+    this.handBackTo,
   });
 
   final String channelId;
   final String channelName;
+
+  /// Who gets the stream back if the catch-up player is closed on the live
+  /// channel (the TV guide's preview pane) — see [launchCatchup].
+  final Object? handBackTo;
 
   @override
   ConsumerState<EpgPanel> createState() => _EpgPanelState();
@@ -156,6 +161,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
       channel: channel,
       source: source,
       programme: p,
+      handBackTo: widget.handBackTo,
       // Dismiss this bottom sheet first, leaving pushReplacement to replace
       // the still-playing live PlayerScreen underneath it.
       dismiss: () => Navigator.of(context).pop(),

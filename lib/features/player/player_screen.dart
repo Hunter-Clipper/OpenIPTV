@@ -199,8 +199,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool get _isLive =>
       widget.contentType == 'live' || widget.contentType == null;
 
-  // Live at the live edge — no seekable timeline, no progress to track.
-  bool get _isPlainLive => _isLive && !_liveDvrActive;
+  // The channel's live stream, at the live edge — no seekable timeline, no
+  // progress to track. Also true for a screen opened on catch-up once Go
+  // live has switched it to the channel.
+  bool get _isPlainLive => _isChannelPlayback && !_liveDvrActive;
 
   // Channel-based playback (live or catch-up) as opposed to movie/episode
   // VOD — covers both ways a viewer ends up watching catch-up: pausing/
@@ -808,6 +810,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // playback must keep going.
     if (!skipTeardown && !_takenOver) {
       final back = widget.handBackTo;
+      debugPrint('[OTV-play] closing: handBack=${back != null} '
+          'live=$_isPlainLive casting=$_casting failed=$_playbackFailed '
+          'parked=$_mainParked');
       if (back != null &&
           _isPlainLive &&
           !_casting &&
@@ -1361,6 +1366,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           },
                           child: PlayerControls(
                             title: widget.title,
+                            handBackTo: widget.handBackTo,
                             contentType: _isChannelPlayback
                                 ? (_liveDvrActive ? 'catchup' : 'live')
                                 : widget.contentType,
