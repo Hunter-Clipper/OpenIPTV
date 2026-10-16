@@ -300,6 +300,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       channel: channel,
       source: source,
       programme: programme,
+      handBackTo: _pane,
       replace: false,
     );
   }

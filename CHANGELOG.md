@@ -3,10 +3,13 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.11)
+## Unreleased (0.14.12)
 
 **Player**
 - New **Clock** option in the player's playback settings: choose "Always on" to keep the time of day in the top corner while you watch full screen, even when the controls are hidden. "With controls" (the default) keeps it the way it was on TV.
+
+**TV guide**
+- Watching a catch-up programme from the guide, pressing Go live, then Back now returns to the guide with the channel still playing in the preview pane. Before, playback stopped.
 
 ## 0.14.8 — 2026-10-14
 

@@ -14,6 +14,10 @@ import 'package:open_iptv/core/services/playback_service.dart';
 /// (single-channel bottom sheet) and the TV guide grid so both launch
 /// catch-up playback identically instead of duplicating this logic.
 ///
+/// [handBackTo], if given, is whoever should get the stream back when the
+/// player closes on the live channel (the TV guide's preview pane) — so Go
+/// Live, then Back, keeps the channel playing there.
+///
 /// [dismiss], if given, runs first (e.g. popping a bottom sheet) before
 /// navigating into the player.
 ///
@@ -30,6 +34,7 @@ Future<void> launchCatchup({
   required Source source,
   required Programme programme,
   VoidCallback? dismiss,
+  Object? handBackTo,
   bool replace = true,
 }) async {
   if (channel.streamId == null ||
@@ -65,6 +70,7 @@ Future<void> launchCatchup({
     // Same key live playback uses for the channel id — keeps the EPG
     // guide button working in catch-up mode without a new field.
     'contentId': channel.id,
+    if (handBackTo != null) 'handBackTo': handBackTo,
   };
   unawaited(replace
       ? router.pushReplacement('/player', extra: extra)
