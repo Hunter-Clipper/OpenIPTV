@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.17 — 2026-10-19
+
+**Fixes**
+- "Refresh Everything" now shows the same plain-English error messages as the individual refresh buttons (timeouts, auth failures, network errors, server errors).
+
 ## 0.14.16 — 2026-10-19
 
 **Fixes**

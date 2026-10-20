@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
@@ -101,12 +102,12 @@ String refreshSummary(RefreshScope scope, List<SourceRefreshResult> results) {
   }
   String problem(SourceRefreshResult r) {
     if (r.playlistError != null && r.epgError != null) {
-      return "${r.nickname} couldn't be reached";
+      return '${r.nickname}: ${friendlySourceErrorMessage(r.playlistError!)}';
     }
     if (r.playlistError != null) {
-      return "${r.nickname}'s channels couldn't be refreshed";
+      return '${r.nickname}: ${friendlySourceErrorMessage(r.playlistError!)}';
     }
-    return "${r.nickname}'s TV guide isn't available";
+    return '${r.nickname}: ${friendlyEpgErrorMessage(r.epgError!)}';
   }
 
   final ok = results.length - failed.length;
