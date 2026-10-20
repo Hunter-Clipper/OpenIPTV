@@ -672,28 +672,30 @@ class _CategoryOptionsSheet extends ConsumerWidget {
               final focusNode = FocusNode();
               final name = await showDialog<String>(
                 context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Rename Category'),
-                  content: TvTextFieldGate(
-                    focusNode: focusNode,
-                    builder: (context, fieldNode) => TextField(
-                      controller: controller,
-                      focusNode: fieldNode,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (v) =>
-                          Navigator.of(ctx).pop(v.trim()),
-                      decoration: const InputDecoration(),
+                builder: (ctx) => TvKeyboardInset(
+                  child: AlertDialog(
+                    title: const Text('Rename Category'),
+                    content: TvTextFieldGate(
+                      focusNode: focusNode,
+                      builder: (context, fieldNode) => TextField(
+                        controller: controller,
+                        focusNode: fieldNode,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (v) =>
+                            Navigator.of(ctx).pop(v.trim()),
+                        decoration: const InputDecoration(),
+                      ),
                     ),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () =>
+                              Navigator.of(ctx).pop(controller.text.trim()),
+                          child: const Text('Save')),
+                    ],
                   ),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('Cancel')),
-                    TextButton(
-                        onPressed: () =>
-                            Navigator.of(ctx).pop(controller.text.trim()),
-                        child: const Text('Save')),
-                  ],
                 ),
               );
               if (name != null && name.isNotEmpty) {
