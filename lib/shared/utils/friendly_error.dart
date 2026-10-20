@@ -71,8 +71,7 @@ String friendlyEpgErrorMessage(Object error) {
   if (msg.contains('http_401') || msg.contains('http_403')) {
     return "The TV guide link needs a login. Check the guide URL with your provider.";
   } else if (error is SocketException || error is http.ClientException) {
-    return "Couldn't reach the TV guide server. Check your internet connection "
-        'and try again.';
+    return "Couldn't reach the TV guide server for this playlist. It may not have a guide — check the guide URL with your provider.";
   } else if (RegExp(r'http_5\d\d').hasMatch(msg)) {
     return "The TV guide server is having trouble right now. Try again later.";
   } else if (msg.contains('http_')) {

@@ -327,12 +327,16 @@ class SourceManager {
 
   /// Refreshes only live channels then EPG in background (for Live TV pull-to-refresh).
   Future<void> refreshChannels(Source source) async {
+    Source updated = source;
     if (source.type == SourceType.m3u) {
       final url = source.m3uUrl;
       if (url == null) return;
       final result = await _fetchM3u(url, source.id);
-      if (source.epgUrl == null && result.epgUrl != null) {
-        await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
+      if ((source.epgUrl == null || source.epgUrl!.isEmpty) &&
+          result.epgUrl != null &&
+          result.epgUrl!.isNotEmpty) {
+        updated = source.copyWith(epgUrl: result.epgUrl);
+        await db.upsertSource(updated);
       }
       await db.replaceChannelsForSource(source.id, result.channels);
     } else {
@@ -345,7 +349,7 @@ class SourceManager {
     // Hand back the space the swap freed (the old lists).
     await db.compact();
     // Background: a failed guide is logged, and mustn't fail the playlist.
-    unawaited(epgService.refreshEpg(source).catchError((Object _) {}));
+    unawaited(epgService.refreshEpg(updated).catchError((Object _) {}));
   }
 
   /// Refreshes only movies for a source.
@@ -607,7 +611,9 @@ class SourceManager {
     );
 
     Source updated = source;
-    if (source.epgUrl == null && result.epgUrl != null) {
+    if ((source.epgUrl == null || source.epgUrl!.isEmpty) &&
+        result.epgUrl != null &&
+        result.epgUrl!.isNotEmpty) {
       updated = source.copyWith(epgUrl: result.epgUrl);
       await db.upsertSource(updated);
     }
