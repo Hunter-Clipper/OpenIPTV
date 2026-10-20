@@ -34,6 +34,8 @@ const carVideoAddonPackage = 'com.openiptv.app.carvideo';
 /// are offered an update.
 const carVideoAddonVersion = 1;
 
+const _r2MirrorBaseUrl = 'https://openiptv-mirror.hunterclipper.com';
+const _r2MirrorFallbackUrl = 'https://pub-0edfbe67bad843dea3904e2a16a01d62.r2.dev';
 const _playStoreInstaller = 'com.android.vending';
 
 /// A semantic version (major.minor.patch); anything after the numbers
@@ -218,9 +220,31 @@ class UpdateService {
     dir.createSync(recursive: true);
     final file = File('${dir.path}/$fileName-${info.version}.apk');
 
-    final response = await _client
-        .send(http.Request('GET', Uri.parse(info.apkUrl)))
-        .timeout(const Duration(seconds: 30));
+    // Default to GitHub; fall back to the Cloudflare R2 mirror.
+    final mirrorAsset = fileName == 'OpenIPTV' ? androidReleaseAsset : carVideoAddonAsset;
+    final urls = <String>[
+      info.apkUrl,
+      '$_r2MirrorBaseUrl/latest/$mirrorAsset',
+      '$_r2MirrorFallbackUrl/latest/$mirrorAsset',
+    ];
+
+    http.StreamedResponse? response;
+    for (final url in urls) {
+      try {
+        final r = await _client
+            .send(http.Request('GET', Uri.parse(url)))
+            .timeout(const Duration(seconds: 30));
+        if (r.statusCode == 200) {
+          response = r;
+          break;
+        }
+      } catch (_) {
+        // try next
+      }
+    }
+    if (response == null) {
+      throw const HttpException('http_download_failed');
+    }
     if (response.statusCode != 200) {
       throw HttpException('http_${response.statusCode}');
     }
