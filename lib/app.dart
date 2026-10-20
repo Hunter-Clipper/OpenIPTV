@@ -483,7 +483,10 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       }
     }
     final tv = PlatformHelper.isTV(context);
-    if (tv && !_railHasFocus()) {
+    // Only move focus to the rail on Live TV (where Back might exit the
+    // app). On other tabs, Back should navigate straight to Live TV —
+    // stopping at the rail first made Back feel stuck (#39 follow-up).
+    if (tv && !_railHasFocus() && _navIndexForLocation(context) == 0) {
       _exitArmedAt = null;
       _holdRail = true;
       _activeRailNode.requestFocus();

@@ -3,6 +3,17 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.16 — 2026-10-19
+
+**Fixes**
+- Fixed the Settings page getting stuck on TV — the remote back button now navigates directly to Live TV instead of stopping at the rail first.
+
+**Playlist & guide reliability**
+- Added stall timeouts to EPG guide fetching — a slow but progressing feed keeps going; only a truly stalled connection times out.
+- A failed guide refresh now keeps the previous guide intact instead of clearing it.
+- Added overall timeouts to M3U and Xtream playlist refreshes (3 minutes) so a hung operation fails instead of spinning forever.
+- Added plain-English error messages for timeouts, auth failures, network errors, and server errors — both for playlists and TV guides.
+
 ## 0.14.15 — 2026-10-19
 
 **Code quality**

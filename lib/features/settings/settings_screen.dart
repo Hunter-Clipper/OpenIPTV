@@ -20,6 +20,7 @@ import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
+// friendlyEpgErrorMessage is used by _refreshEpg below.
 import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
@@ -868,8 +869,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       }
     } catch (e) {
       if (mounted) {
-        _showMessage("${source?.nickname ?? 'This playlist'}'s TV guide "
-            "isn't available right now. Try again later.");
+        _showMessage(friendlyEpgErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _refreshingEpg.remove(id));

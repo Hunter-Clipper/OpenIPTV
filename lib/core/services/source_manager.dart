@@ -19,6 +19,11 @@ part 'source_manager.g.dart';
 
 const _uuid = Uuid();
 
+/// Overall timeout for a single source's playlist refresh. The HTTP calls
+/// inside have their own shorter timeouts; this catches a hung parse or a
+/// stalled DB write.
+const _refreshTimeout = Duration(minutes: 3);
+
 enum SourceDetectionResult { m3u, xtream, failed }
 
 /// Outcome of a single source's background refresh — reported per-phase so a
@@ -557,7 +562,8 @@ class SourceManager {
       throw Exception('http_${response.statusCode}');
     }
     onFetched?.call();
-    return M3uParser.parse(response.body, sourceId);
+    return M3uParser.parse(response.body, sourceId)
+        .timeout(const Duration(seconds: 30));
   }
 
   /// Logs why a refresh failed — the summary the user sees only says that
@@ -584,7 +590,10 @@ class SourceManager {
   // M3U refresh
   // ---------------------------------------------------------------------------
 
-  Future<Source> _refreshM3u(Source source, {void Function(String)? onProgress}) async {
+  Future<Source> _refreshM3u(Source source, {void Function(String)? onProgress}) =>
+      _refreshM3uInner(source, onProgress: onProgress).timeout(_refreshTimeout);
+
+  Future<Source> _refreshM3uInner(Source source, {void Function(String)? onProgress}) async {
     final url = source.m3uUrl;
     if (url == null) return source;
 
@@ -615,7 +624,10 @@ class SourceManager {
   // Xtream refresh
   // ---------------------------------------------------------------------------
 
-  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) {
+  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) =>
+      _refreshXtreamInner(source, onProgress: onProgress).timeout(_refreshTimeout);
+
+  Future<Source> _refreshXtreamInner(Source source, {void Function(String)? onProgress}) {
     return _withXtream(source, (client) async {
       // Auto-set XMLTV EPG URL for Xtream sources if not already configured.
       Source updated = source;
