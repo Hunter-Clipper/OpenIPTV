@@ -384,7 +384,6 @@ class SourceManager {
   Future<void> fetchEpisodesForSeries(String seriesId, String sourceId) async {
     final source = await db.getSourceById(sourceId);
     if (source == null || source.type != SourceType.xtream) return;
-    // App internal ID format: "${sourceId}_ser_${xtreamSeriesId}"
     final xtreamId = seriesId.replaceFirst('${sourceId}_ser_', '');
     await _withXtream(source, (client) async {
       final episodes = await client.getSeriesEpisodes(xtreamId);

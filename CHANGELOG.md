@@ -3,6 +3,14 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.15 — 2026-10-19
+
+**Code quality**
+- Extracted shared genre utilities (`filterByGenre`, `buildGenreNames`, `buildGenreCounts`) — removes duplication between Movies and Series screens.
+- Extracted shared genre actions (`tapGenre`, `hideGenre`) — both screens now use the same navigation and hide-genre flow.
+- Extracted shared snackbar utility — consistent snackbar behavior across Settings and Power User screens.
+- Removed dead code and stale TODO comments.
+
 ## 0.14.14 — 2026-10-16
 
 **Player**

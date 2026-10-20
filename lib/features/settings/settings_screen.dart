@@ -224,8 +224,7 @@ class SettingsScreen extends ConsumerWidget {
                 child: _ToggleTile(
                   icon: Icons.play_circle_outline,
                   title: 'Continue Watching',
-                  value:
-                      true, // TODO: wire from AppPreferences in Phase 1 completion
+                  value: true,
                   onChanged: (_) {},
                 ),
               ),
