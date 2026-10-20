@@ -20,13 +20,19 @@ part 'epg_service.g.dart';
 /// [TimeoutException]. A slow but progressing feed keeps going.
 Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
   late StreamController<T> controller;
-  late Timer timer;
+  Timer? timer;
 
   controller = StreamController<T>(
     onListen: () {
+      timer?.cancel();
+      timer = Timer(stall, () {
+        controller.addError(
+            TimeoutException('Stream stalled — no data for ${stall.inSeconds}s', stall));
+        controller.close();
+      });
       stream.listen(
         (data) {
-          timer.cancel();
+          timer?.cancel();
           timer = Timer(stall, () {
             controller.addError(
                 TimeoutException('Stream stalled — no data for ${stall.inSeconds}s', stall));
@@ -35,11 +41,11 @@ Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
           controller.add(data);
         },
         onError: (e) {
-          timer.cancel();
+          timer?.cancel();
           controller.addError(e);
         },
         onDone: () {
-          timer.cancel();
+          timer?.cancel();
           controller.close();
         },
       );

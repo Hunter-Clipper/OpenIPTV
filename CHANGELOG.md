@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.18 — 2026-10-19
+
+**Fixes**
+- Fixed EPG guide failing instantly when the server errors before sending any data (stall timeout handler crashed with LateInitializationError).
+
 ## 0.14.17 — 2026-10-19
 
 **Fixes**
