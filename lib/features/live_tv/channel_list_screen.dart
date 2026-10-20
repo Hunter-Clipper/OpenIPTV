@@ -11,6 +11,7 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -668,6 +669,20 @@ class _CategoryOptionsSheet extends ConsumerWidget {
               if (profileId == null || category == null) return;
               final controller = TextEditingController(text: label);
               final focusNode = FocusNode();
+              focusNode.addListener(() {
+                if (focusNode.hasFocus && PlatformHelper.isTV(context)) {
+                  TvTextInput.open(
+                    controller: controller,
+                    textInputAction: TextInputAction.done,
+                    onAction: () => Navigator.of(context).pop(controller.text.trim()),
+                    onClosed: (how) {
+                      if (how == TvTextInputClose.back) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  );
+                }
+              });
               final name = await showDialog<String>(
                 context: context,
                 builder: (ctx) {
