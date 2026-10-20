@@ -3,6 +3,13 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.19 — 2026-10-20
+
+**Playlist & guide reliability**
+- M3U playlists with an empty guide URL now adopt an embedded `url-tvg` (matching Xtream behavior), so guides that were silently skipped now load.
+- Live TV pull-to-refresh no longer fires the guide fetch against a stale source — a newly discovered guide URL is used immediately.
+- Guide connection failures now report a playlist-specific message ("may not have a guide") instead of a generic internet error.
+
 ## 0.14.18 — 2026-10-19
 
 **Fixes**
