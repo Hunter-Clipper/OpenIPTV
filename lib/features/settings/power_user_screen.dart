@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/speed_test.dart';
 import 'package:open_iptv/core/services/vpn_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/snack_bar_utils.dart';
 import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -338,10 +339,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   void _say(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showSnackBarMessage(context, message);
   }
 
   Future<void> _refresh() async {

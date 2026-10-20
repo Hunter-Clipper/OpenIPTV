@@ -15,6 +15,46 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'epg_service.g.dart';
 
+/// Wraps a stream with a stall timeout — resets the timer on each event.
+/// If no event arrives within [stall], the stream errors with a
+/// [TimeoutException]. A slow but progressing feed keeps going.
+Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
+  late StreamController<T> controller;
+  Timer? timer;
+
+  controller = StreamController<T>(
+    onListen: () {
+      timer?.cancel();
+      timer = Timer(stall, () {
+        controller.addError(
+            TimeoutException('Stream stalled — no data for ${stall.inSeconds}s', stall));
+        controller.close();
+      });
+      stream.listen(
+        (data) {
+          timer?.cancel();
+          timer = Timer(stall, () {
+            controller.addError(
+                TimeoutException('Stream stalled — no data for ${stall.inSeconds}s', stall));
+            controller.close();
+          });
+          controller.add(data);
+        },
+        onError: (e) {
+          timer?.cancel();
+          controller.addError(e);
+        },
+        onDone: () {
+          timer?.cancel();
+          controller.close();
+        },
+      );
+    },
+  );
+
+  return controller.stream;
+}
+
 // Top-level so Isolate.run can reference it.
 // Fetches + stream-parses the XMLTV feed entirely off the main thread,
 // returning all programmes at once for batch DB writes on the caller.
@@ -35,8 +75,13 @@ Future<List<Programme>> _fetchAndParseAll(
     }
     final bodyStream =
         maybeGunzip(streamed.stream).transform(const Utf8Decoder());
-    await for (final prog
-        in XmltvParser.parse(bodyStream, pastWindow: pastWindow)) {
+    // Stall timeout: reset the timer on each programme received. If no
+    // data arrives within the stall window, the stream errors out — a slow
+    // but progressing feed keeps going.
+    await for (final prog in _stallTimeout(
+      XmltvParser.parse(bodyStream, pastWindow: pastWindow),
+      const Duration(seconds: 60),
+    )) {
       programmes.add(prog);
     }
   } finally {
@@ -129,8 +174,6 @@ class EpgService {
     final sw = Stopwatch()..start();
 
     try {
-      await db.deleteOldProgrammes();
-
       final maxCatchupDays = await db.getMaxCatchupDaysForSource(source.id);
       final pastWindow = maxCatchupDays > 0
           ? Duration(days: maxCatchupDays)
@@ -144,6 +187,10 @@ class EpgService {
 
       debugPrint(
           '[EPG] Parsed ${programmes.length} programmes in ${sw.elapsedMilliseconds}ms');
+
+      // Only delete old programmes after new data is successfully fetched
+      // and parsed — a failed refresh keeps the existing guide intact.
+      await db.deleteOldProgrammes();
 
       // Stored straight under the app's own channel ids, so a refresh
       // updates the rows already there. (It used to store every programme

@@ -3,6 +3,42 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.19 — 2026-10-20
+
+**Playlist & guide reliability**
+- M3U playlists with an empty guide URL now adopt an embedded `url-tvg` (matching Xtream behavior), so guides that were silently skipped now load.
+- Live TV pull-to-refresh no longer fires the guide fetch against a stale source — a newly discovered guide URL is used immediately.
+- Guide connection failures now report a playlist-specific message ("may not have a guide") instead of a generic internet error.
+
+## 0.14.18 — 2026-10-19
+
+**Fixes**
+- Fixed EPG guide failing instantly when the server errors before sending any data (stall timeout handler crashed with LateInitializationError).
+
+## 0.14.17 — 2026-10-19
+
+**Fixes**
+- "Refresh Everything" now shows the same plain-English error messages as the individual refresh buttons (timeouts, auth failures, network errors, server errors).
+
+## 0.14.16 — 2026-10-19
+
+**Fixes**
+- Fixed the Settings page getting stuck on TV — the remote back button now navigates directly to Live TV instead of stopping at the rail first.
+
+**Playlist & guide reliability**
+- Added stall timeouts to EPG guide fetching — a slow but progressing feed keeps going; only a truly stalled connection times out.
+- A failed guide refresh now keeps the previous guide intact instead of clearing it.
+- Added overall timeouts to M3U and Xtream playlist refreshes (3 minutes) so a hung operation fails instead of spinning forever.
+- Added plain-English error messages for timeouts, auth failures, network errors, and server errors — both for playlists and TV guides.
+
+## 0.14.15 — 2026-10-19
+
+**Code quality**
+- Extracted shared genre utilities (`filterByGenre`, `buildGenreNames`, `buildGenreCounts`) — removes duplication between Movies and Series screens.
+- Extracted shared genre actions (`tapGenre`, `hideGenre`) — both screens now use the same navigation and hide-genre flow.
+- Extracted shared snackbar utility — consistent snackbar behavior across Settings and Power User screens.
+- Removed dead code and stale TODO comments.
+
 ## 0.14.14 — 2026-10-16
 
 **Player**

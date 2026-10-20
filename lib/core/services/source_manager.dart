@@ -19,6 +19,11 @@ part 'source_manager.g.dart';
 
 const _uuid = Uuid();
 
+/// Overall timeout for a single source's playlist refresh. The HTTP calls
+/// inside have their own shorter timeouts; this catches a hung parse or a
+/// stalled DB write.
+const _refreshTimeout = Duration(minutes: 3);
+
 enum SourceDetectionResult { m3u, xtream, failed }
 
 /// Outcome of a single source's background refresh — reported per-phase so a
@@ -322,12 +327,16 @@ class SourceManager {
 
   /// Refreshes only live channels then EPG in background (for Live TV pull-to-refresh).
   Future<void> refreshChannels(Source source) async {
+    Source updated = source;
     if (source.type == SourceType.m3u) {
       final url = source.m3uUrl;
       if (url == null) return;
       final result = await _fetchM3u(url, source.id);
-      if (source.epgUrl == null && result.epgUrl != null) {
-        await db.upsertSource(source.copyWith(epgUrl: result.epgUrl));
+      if ((source.epgUrl == null || source.epgUrl!.isEmpty) &&
+          result.epgUrl != null &&
+          result.epgUrl!.isNotEmpty) {
+        updated = source.copyWith(epgUrl: result.epgUrl);
+        await db.upsertSource(updated);
       }
       await db.replaceChannelsForSource(source.id, result.channels);
     } else {
@@ -340,7 +349,7 @@ class SourceManager {
     // Hand back the space the swap freed (the old lists).
     await db.compact();
     // Background: a failed guide is logged, and mustn't fail the playlist.
-    unawaited(epgService.refreshEpg(source).catchError((Object _) {}));
+    unawaited(epgService.refreshEpg(updated).catchError((Object _) {}));
   }
 
   /// Refreshes only movies for a source.
@@ -384,7 +393,6 @@ class SourceManager {
   Future<void> fetchEpisodesForSeries(String seriesId, String sourceId) async {
     final source = await db.getSourceById(sourceId);
     if (source == null || source.type != SourceType.xtream) return;
-    // App internal ID format: "${sourceId}_ser_${xtreamSeriesId}"
     final xtreamId = seriesId.replaceFirst('${sourceId}_ser_', '');
     await _withXtream(source, (client) async {
       final episodes = await client.getSeriesEpisodes(xtreamId);
@@ -558,7 +566,8 @@ class SourceManager {
       throw Exception('http_${response.statusCode}');
     }
     onFetched?.call();
-    return M3uParser.parse(response.body, sourceId);
+    return M3uParser.parse(response.body, sourceId)
+        .timeout(const Duration(seconds: 30));
   }
 
   /// Logs why a refresh failed — the summary the user sees only says that
@@ -585,7 +594,10 @@ class SourceManager {
   // M3U refresh
   // ---------------------------------------------------------------------------
 
-  Future<Source> _refreshM3u(Source source, {void Function(String)? onProgress}) async {
+  Future<Source> _refreshM3u(Source source, {void Function(String)? onProgress}) =>
+      _refreshM3uInner(source, onProgress: onProgress).timeout(_refreshTimeout);
+
+  Future<Source> _refreshM3uInner(Source source, {void Function(String)? onProgress}) async {
     final url = source.m3uUrl;
     if (url == null) return source;
 
@@ -599,7 +611,9 @@ class SourceManager {
     );
 
     Source updated = source;
-    if (source.epgUrl == null && result.epgUrl != null) {
+    if ((source.epgUrl == null || source.epgUrl!.isEmpty) &&
+        result.epgUrl != null &&
+        result.epgUrl!.isNotEmpty) {
       updated = source.copyWith(epgUrl: result.epgUrl);
       await db.upsertSource(updated);
     }
@@ -616,7 +630,10 @@ class SourceManager {
   // Xtream refresh
   // ---------------------------------------------------------------------------
 
-  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) {
+  Future<Source> _refreshXtream(Source source, {void Function(String)? onProgress}) =>
+      _refreshXtreamInner(source, onProgress: onProgress).timeout(_refreshTimeout);
+
+  Future<Source> _refreshXtreamInner(Source source, {void Function(String)? onProgress}) {
     return _withXtream(source, (client) async {
       // Auto-set XMLTV EPG URL for Xtream sources if not already configured.
       Source updated = source;

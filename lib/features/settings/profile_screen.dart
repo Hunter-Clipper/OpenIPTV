@@ -6,6 +6,8 @@ import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
+import 'package:open_iptv/shared/utils/snack_bar_utils.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
@@ -971,9 +973,7 @@ class _AdminBiometricTile extends ConsumerStatefulWidget {
 
 class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
   void _say(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnackBarMessage(context, message);
   }
 
   /// Turning it on takes the admin PIN — never a scan — and then a scan to

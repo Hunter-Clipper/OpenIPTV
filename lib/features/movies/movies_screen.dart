@@ -12,6 +12,8 @@ import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
+import 'package:open_iptv/shared/utils/genre_actions.dart';
+import 'package:open_iptv/shared/utils/genre_utils.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
@@ -80,24 +82,12 @@ class MoviesScreen extends ConsumerStatefulWidget {
 }
 
 class _MoviesScreenState extends ConsumerState<MoviesScreen> {
-  Future<void> _tapGenre(String g) async {
-    if (await ensureCategoryUnlocked(context, ref, g) && mounted) {
-      unawaited(context.push('/movies/genre/${Uri.encodeComponent(g)}'));
-    }
-  }
+  Future<void> _tapGenre(String g) async =>
+      tapGenre(context, ref, '/movies', g);
 
   List<String> _buildGenres(
-      List<Movie> movies, Set<String> hidden, String sort) {
-    final seen = <String>{};
-    final genres = <String>[];
-    for (final m in movies) {
-      for (final g in splitGenres(m.genre)) {
-        if (g.isNotEmpty && !hidden.contains(g) && seen.add(g)) genres.add(g);
-      }
-    }
-    if (sort == 'az') genres.sort();
-    return genres;
-  }
+      List<Movie> movies, Set<String> hidden, String sort) =>
+      buildGenreNames(movies, hidden, sort, (m) => m.genre);
 
   // Poster view: one rail per genre with its first [_railLength] titles.
   static const _railLength = 20;
@@ -124,32 +114,8 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     return rails;
   }
 
-  Future<void> _hideGenre(String profileId, String g) async {
-    unawaited(HapticFeedback.mediumImpact());
-    final hide = await showModalBottomSheet<bool>(
-      context: context,
-      useRootNavigator: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              autofocus: true,
-              leading: const Icon(Icons.visibility_off_outlined),
-              title: const Text('Hide Genre'),
-              subtitle: Text(context.displayName(g),
-                  style: Theme.of(sheetContext).textTheme.bodySmall),
-              onTap: () => Navigator.of(sheetContext).pop(true),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (hide == true) {
-      await ref.read(profileServiceProvider).hideCategory(profileId, g);
-      ref.invalidate(activeProfileProvider);
-    }
-  }
+  Future<void> _hideGenre(String profileId, String g) async =>
+      hideGenre(context, ref, profileId, g);
 
   @override
   Widget build(BuildContext context) {
@@ -327,13 +293,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     required String? profileId,
     required bool autofocusFirst,
   }) {
-    final genreCounts = <String, int>{};
-    for (final m in all) {
-      for (final g in splitGenres(m.genre)) {
-        if (g.isEmpty) continue;
-        genreCounts[g] = (genreCounts[g] ?? 0) + 1;
-      }
-    }
+    final genreCounts = buildGenreCounts(all, (m) => m.genre);
     return [
       const SliverToBoxAdapter(child: RailHeader(title: 'Browse by Genre')),
       SliverToBoxAdapter(
@@ -370,17 +330,8 @@ class MovieGenreScreen extends ConsumerStatefulWidget {
 class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
   // Always a fresh list — the caller sorts it in place, and 'All' must not
   // mutate the provider's cached list.
-  List<Movie> _filtered(List<Movie> all) {
-    if (widget.genre == 'All') return List.of(all);
-    // Exact match on the split genre names — the same split that built the
-    // genre list. A substring match put "XXX - Movies" titles under
-    // "Movies", slipping adult titles past the category's parental lock.
-    final genre = widget.genre.toLowerCase();
-    return all
-        .where((m) =>
-            splitGenres(m.genre).any((g) => g.toLowerCase() == genre))
-        .toList();
-  }
+  List<Movie> _filtered(List<Movie> all) =>
+      filterByGenre(all, widget.genre, (m) => m.genre);
 
   @override
   Widget build(BuildContext context) {

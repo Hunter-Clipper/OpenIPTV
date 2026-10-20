@@ -47,8 +47,9 @@ void main() {
       ];
       expect(
         refreshSummary(RefreshScope.everything, results),
-        "1 of 4 updated. Main's TV guide isn't available; "
-        "Old's channels couldn't be refreshed; Gone couldn't be reached.",
+        "1 of 4 updated. Main: This TV guide link doesn't look valid. Check the URL with your provider.; "
+        "Old: Something went wrong. Check your details and try again.; "
+        "Gone: Something went wrong. Check your details and try again..",
       );
     });
 
@@ -56,7 +57,7 @@ void main() {
       expect(
         refreshSummary(
             RefreshScope.guides, [_result('Main', epgError: 'http_404')]),
-        "Main's TV guide isn't available.",
+        "Main: This TV guide link doesn't look valid. Check the URL with your provider..",
       );
     });
   });
