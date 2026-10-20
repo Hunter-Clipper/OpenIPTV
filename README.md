@@ -32,10 +32,6 @@
 - **Fire TV / Android TV:** install the free Downloader app, enter the code above, and allow it to install unknown apps when asked.
 - **Updates:** the app offers new versions itself (automatically every time it starts, or Settings → About → Check for Updates).
 
-> Upgrading from **v0.10.47 or older**? Those builds were signed with a different key, so uninstall first:
-> export a backup (Settings → Backup & Restore), uninstall, install the new version, then tap
-> **Restore from a backup** on the welcome screen.
-
 ---
 
 ## Screenshots
