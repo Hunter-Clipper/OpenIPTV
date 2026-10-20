@@ -89,6 +89,12 @@ Programme? _airing(List<Programme> programmes) =>
 class TvGuideScreen extends ConsumerStatefulWidget {
   const TvGuideScreen({super.key});
 
+  // Static bridge so the app shell (nav rail / Back handler) can move
+  // focus into this screen's category column without holding a reference.
+  static void Function()? requestCategoryFocus;
+  static void Function()? requestGridFocus;
+  static bool Function()? categoryColumnHasFocus;
+
   @override
   ConsumerState<TvGuideScreen> createState() => _TvGuideScreenState();
 }
@@ -116,6 +122,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // The first row's way in: what's on now (or its "No guide" cell).
   final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
   FocusNode? _lastGridFocus;
+  bool _initialCategoryFocusDone = false;
   // On a cell with nothing to its left in the row ("No guide"): Left goes
   // straight to the categories.
   bool _exitsLeft = false;
@@ -129,6 +136,21 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   void initState() {
     super.initState();
     ref.listenManual<int>(homeLeaveProvider, (_, __) => _pane.stopPreview());
+    TvGuideScreen.requestCategoryFocus = () {
+      if (!mounted) return;
+      final key = _focusedCategory ?? _shownCategory;
+      if (key != null) _categoryNode(key).requestFocus();
+    };
+    TvGuideScreen.requestGridFocus = () {
+      if (!mounted) return;
+      final last = _lastGridFocus;
+      if (last != null && last.context != null && last.canRequestFocus) {
+        last.requestFocus();
+      } else if (_firstRowNode.context != null) {
+        _firstRowNode.requestFocus();
+      }
+    };
+    TvGuideScreen.categoryColumnHasFocus = () => _columnNode.hasFocus;
     final now = DateTime.now();
     // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
     // with that half hour at the left edge.
@@ -146,6 +168,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   @override
   void dispose() {
+    TvGuideScreen.requestCategoryFocus = null;
+    TvGuideScreen.requestGridFocus = null;
+    TvGuideScreen.categoryColumnHasFocus = null;
     WidgetsBinding.instance.removeObserver(this);
     _nowTicker?.cancel();
     _categoryDebounce?.cancel();
@@ -357,6 +382,17 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       _focusedCategory = _shownCategory;
     }
     final shown = _shownCategory!;
+    if (!_initialCategoryFocusDone) {
+      _initialCategoryFocusDone = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (!mounted) return;
+          final key = _focusedCategory ?? _shownCategory;
+          if (key != null) _categoryNode(key).requestFocus();
+        });
+      });
+    }
     bool locked(String key) =>
         _isRealCategory(key) &&
         prefs != null &&

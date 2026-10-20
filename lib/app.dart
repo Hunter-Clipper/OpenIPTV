@@ -14,6 +14,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
+import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
 import 'package:open_iptv/features/onboarding/setup_wizard_screen.dart';
@@ -456,6 +457,13 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
 
   bool _focusContent() {
     _holdRail = false;
+    if (_navIndexForLocation(context) == 0) {
+      final cb = TvGuideScreen.requestCategoryFocus;
+      if (cb != null) {
+        cb();
+        return true;
+      }
+    }
     final f = _lastContentFocus;
     if (f == null || f.context == null || !f.canRequestFocus) return false;
     f.requestFocus();
@@ -483,23 +491,19 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       }
     }
     final tv = PlatformHelper.isTV(context);
-    // Only move focus to the rail on Live TV (where Back might exit the
-    // app). On other tabs, Back should navigate straight to Live TV —
-    // stopping at the rail first made Back feel stuck (#39 follow-up).
-    if (tv && !_railHasFocus() && _navIndexForLocation(context) == 0) {
+    // On any tab, Back first moves focus to the side menu (rail) instead of
+    // jumping tabs — a second Back then does the tab navigation/exit.
+    if (tv && !_railHasFocus()) {
       _exitArmedAt = null;
       _holdRail = true;
-      _activeRailNode.requestFocus();
-      return;
-    }
-    if (_navIndexForLocation(context) != 0) {
-      _exitArmedAt = null;
-      context.go(_kNavDestinations.first.path);
-      if (tv) {
-        // The rail keeps the remote, on Live TV's item.
-        _holdRail = true;
-        _railNodes.first.requestFocus();
+      if (_navIndexForLocation(context) == 0 &&
+          TvGuideScreen.categoryColumnHasFocus?.call() != true) {
+        _holdRail = false;
+        final cb = TvGuideScreen.requestCategoryFocus;
+        if (cb != null) cb();
+        return;
       }
+      _activeRailNode.requestFocus();
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -736,8 +740,13 @@ class _TvNavRailState extends State<_TvNavRail> {
                       widget.onSelect();
                       FocusManager.instance.primaryFocus?.unfocus();
                       context.go(_kNavDestinations[i].path);
+                      if (i == 0) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          TvGuideScreen.requestCategoryFocus?.call();
+                        });
+                      }
                     },
-                  ),
+                ),
                 ),
             ],
           ),
