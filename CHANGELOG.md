@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.20 — 2026-10-20
+
+**Fixes**
+- TV navigation: D-pad right from the nav rail focuses the category column; Back from the guide lands on the category column, then the rail; Back on Movies/Series/Search/Settings focuses the rail first. Selecting the Live TV tab focuses the currently shown category.
+
 ## 0.14.19 — 2026-10-20
 
 **Playlist & guide reliability**
