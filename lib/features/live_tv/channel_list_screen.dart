@@ -190,14 +190,18 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   ),
                 if (favorites.isNotEmpty || recent.isNotEmpty)
                   const RailHeader(title: 'Categories'),
-                if (cats.isEmpty)
+                if (!hiddenCats.contains('All'))
                   CategoryTile(
-                    label: 'All',
+                    label: 'All Channels',
                     autofocus: favorites.isEmpty && recent.isEmpty,
                     count: all.length,
                     icon: Icons.live_tv_outlined,
                     onTap: () => context.push(
                         '/live/category/${Uri.encodeComponent('All')}'),
+                    onLongPress: profileId == null
+                        ? null
+                        : () => showCategoryOptions(context, ref, profileId, 'All',
+                            label: 'All Channels'),
                   ),
                 ...cats.map((cat) {
                   final count = catCounts[cat] ?? 0;
