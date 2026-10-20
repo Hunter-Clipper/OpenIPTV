@@ -455,9 +455,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     locked: locked(key),
                     onFocus: () => _onCategoryFocused(key),
                     onTap: () => _openCategory(key),
-                    onLongPress: _isRealCategory(key) && profile != null
+                    onLongPress: (_isRealCategory(key) || key == _all) && profile != null
                         ? () => showCategoryOptions(
-                            context, ref, profile.id, key)
+                            context, ref, profile.id, key,
+                            label: key == _all ? 'All Channels' : null)
                         : null,
                   );
                 },
