@@ -15,6 +15,7 @@ import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
@@ -669,42 +670,31 @@ class _CategoryOptionsSheet extends ConsumerWidget {
               if (profileId == null || category == null) return;
               final controller = TextEditingController(text: label);
               final focusNode = FocusNode();
-              focusNode.addListener(() {
-                if (focusNode.hasFocus && PlatformHelper.isTV(context)) {
-                  TvTextInput.open(
-                    controller: controller,
-                    textInputAction: TextInputAction.done,
-                    onAction: () => Navigator.of(context).pop(controller.text.trim()),
-                    onClosed: (how) {
-                      if (how == TvTextInputClose.back) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  );
-                }
-              });
               final name = await showDialog<String>(
                 context: context,
-                builder: (ctx) {
-                  WidgetsBinding.instance
-                      .addPostFrameCallback((_) => focusNode.requestFocus());
-                  return AlertDialog(
-                    title: const Text('Rename Category'),
-                    content: TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        autofocus: true),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel')),
-                      TextButton(
-                          onPressed: () =>
-                              Navigator.pop(ctx, controller.text.trim()),
-                          child: const Text('Save')),
-                    ],
-                  );
-                },
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Rename Category'),
+                  content: TvTextFieldGate(
+                    focusNode: focusNode,
+                    builder: (context, fieldNode) => TextField(
+                      controller: controller,
+                      focusNode: fieldNode,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (v) =>
+                          Navigator.of(ctx).pop(v.trim()),
+                      decoration: const InputDecoration(),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Cancel')),
+                    TextButton(
+                        onPressed: () =>
+                            Navigator.of(ctx).pop(controller.text.trim()),
+                        child: const Text('Save')),
+                  ],
+                ),
               );
               if (name != null && name.isNotEmpty) {
                 await ref
