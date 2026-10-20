@@ -208,7 +208,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   final locked = parentalPrefs != null &&
                       isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
                   return CategoryTile(
-                    label: cat,
+                    label: ref.watch(appPreferencesProvider).valueOrNull
+                        ?.categoryName(profileId ?? '', cat, cat) ??
+                    cat,
                     autofocus: favorites.isEmpty &&
                         recent.isEmpty &&
                         cat == cats.first,
@@ -665,21 +667,29 @@ class _CategoryOptionsSheet extends ConsumerWidget {
               Navigator.of(context).pop();
               if (profileId == null || category == null) return;
               final controller = TextEditingController(text: label);
+              final focusNode = FocusNode();
               final name = await showDialog<String>(
                 context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Rename Category'),
-                  content: TextField(controller: controller, autofocus: true),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel')),
-                    TextButton(
-                        onPressed: () =>
-                            Navigator.pop(ctx, controller.text.trim()),
-                        child: const Text('Save')),
-                  ],
-                ),
+                builder: (ctx) {
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) => focusNode.requestFocus());
+                  return AlertDialog(
+                    title: const Text('Rename Category'),
+                    content: TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        autofocus: true),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () =>
+                              Navigator.pop(ctx, controller.text.trim()),
+                          child: const Text('Save')),
+                    ],
+                  );
+                },
               );
               if (name != null && name.isNotEmpty) {
                 await ref
