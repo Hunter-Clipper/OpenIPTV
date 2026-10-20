@@ -620,12 +620,13 @@ String _hm(BuildContext context, DateTime t) =>
 
 /// Hold OK / long-press on a category: offer to hide it.
 Future<void> showCategoryOptions(BuildContext context, WidgetRef ref,
-    String profileId, String category) async {
+    String profileId, String category, {String? label}) async {
   unawaited(HapticFeedback.mediumImpact());
   final hide = await showModalBottomSheet<bool>(
     context: context,
     useRootNavigator: true,
-    builder: (sheetContext) => _CategoryOptionsSheet(label: category),
+    builder: (sheetContext) =>
+        _CategoryOptionsSheet(label: label ?? category),
   );
   if (hide == true) {
     await ref.read(profileServiceProvider).hideCategory(profileId, category);
