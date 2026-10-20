@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'preferences.g.dart';
@@ -7,6 +8,7 @@ const _kActiveProfileId = 'active_profile_id';
 const _kActiveSourceId = 'active_source_id';
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
+const _kCategoryRenames = 'category_renames'; // JSON map profileId:category -> name
 const _kChannelListDensity = 'channel_list_density'; // 'comfortable' | 'compact'
 const _kViewModeLive = 'view_mode_live';       // 'list' | 'grid'
 const _kViewModeMovies = 'view_mode_movies';   // 'list' | 'grid'
@@ -59,6 +61,35 @@ class AppPreferences {
       _prefs.setString(_kAccentColor, hex);
 
   String get contentSort => _prefs.getString(_kContentSort) ?? 'provider';
+
+  String categoryName(String profileId, String category, String fallback) {
+    final map = _renameMap();
+    return map['$profileId:$category'] ?? fallback;
+  }
+
+  Future<void> setCategoryName(
+      String profileId, String category, String name) async {
+    final map = _renameMap();
+    map['$profileId:$category'] = name;
+    await _prefs.setString(_kCategoryRenames, jsonEncode(map));
+  }
+
+  Future<void> resetCategoryName(String profileId, String category) async {
+    final map = _renameMap();
+    map.remove('$profileId:$category');
+    await _prefs.setString(_kCategoryRenames, jsonEncode(map));
+  }
+
+  Map<String, String> _renameMap() {
+    final raw = _prefs.getString(_kCategoryRenames);
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, v.toString()));
+    } catch (_) {
+      return {};
+    }
+  }
   Future<void> setContentSort(String sort) =>
       _prefs.setString(_kContentSort, sort);
 

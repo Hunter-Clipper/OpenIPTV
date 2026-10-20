@@ -449,7 +449,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                       _favorites => 'Favorites',
                       _recent => 'Recently Watched',
                       _all => 'All Channels',
-                      _ => context.displayName(key),
+                      _ => ref.watch(appPreferencesProvider).valueOrNull
+                              ?.categoryName(profile?.id ?? '', key,
+                                  context.displayName(key)) ??
+                          context.displayName(key),
                     },
                     selected: key == shown,
                     locked: locked(key),

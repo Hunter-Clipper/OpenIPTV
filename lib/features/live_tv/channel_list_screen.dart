@@ -630,7 +630,7 @@ Future<void> showCategoryOptions(BuildContext context, WidgetRef ref,
     context: context,
     useRootNavigator: true,
     builder: (sheetContext) =>
-        _CategoryOptionsSheet(label: label ?? category),
+        _CategoryOptionsSheet(label: label ?? category, profileId: profileId, category: category),
   );
   if (hide == true) {
     await ref.read(profileServiceProvider).hideCategory(profileId, category);
@@ -642,19 +642,53 @@ Future<void> showCategoryOptions(BuildContext context, WidgetRef ref,
 // Category long-press options sheet
 // ---------------------------------------------------------------------------
 
-class _CategoryOptionsSheet extends StatelessWidget {
-  const _CategoryOptionsSheet({required this.label});
+class _CategoryOptionsSheet extends ConsumerWidget {
+  const _CategoryOptionsSheet({required this.label, this.profileId, this.category});
 
   final String label;
+  final String? profileId;
+  final String? category;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
             autofocus: true,
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Rename Category'),
+            subtitle: Text(label,
+                style: Theme.of(context).textTheme.bodySmall),
+            onTap: () async {
+              Navigator.of(context).pop();
+              if (profileId == null || category == null) return;
+              final controller = TextEditingController(text: label);
+              final name = await showDialog<String>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Rename Category'),
+                  content: TextField(controller: controller, autofocus: true),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel')),
+                    TextButton(
+                        onPressed: () =>
+                            Navigator.pop(ctx, controller.text.trim()),
+                        child: const Text('Save')),
+                  ],
+                ),
+              );
+              if (name != null && name.isNotEmpty) {
+                await ref
+                    .read(appPreferencesProvider.future)
+                    .then((p) => p.setCategoryName(profileId!, category!, name));
+              }
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.visibility_off_outlined),
             title: const Text('Hide Category'),
             subtitle: Text(label,
