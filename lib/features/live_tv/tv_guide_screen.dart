@@ -369,7 +369,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final categories = [
       if (favorites.isNotEmpty) _favorites,
       if (recent.isNotEmpty) _recent,
-      _all,
+      if (!(profile?.hiddenCategories ?? const <String>[]).contains(_all)) _all,
       ...liveCategories(all,
           hidden: (profile?.hiddenCategories ?? const []).toSet(),
           isKid: isKid,
