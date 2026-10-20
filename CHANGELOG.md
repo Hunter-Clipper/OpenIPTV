@@ -3,6 +3,12 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.21 — 2026-10-20
+
+**Fixes**
+- Hotfix: corrected the app version bump so the auto-updater no longer loops on v0.14.20 (the previous release shipped without a matching version bump).
+- Download now falls back to the Cloudflare R2 mirror (custom domain + r2.dev) when GitHub is unavailable.
+
 ## 0.14.20 — 2026-10-20
 
 **Fixes**
