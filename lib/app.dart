@@ -101,10 +101,15 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       // The PiP window was closed: stop what was playing in it.
       onPipDismissed: () => ref.read(homeLeaveProvider.notifier).state++,
       onUserLeft: () {
-        // Picture-in-Picture off: Home stops playback. (With it on, native
-        // enters PiP and never reports this.) Casting keeps going — the
-        // phone is only the remote.
-        if (ref.read(pipEnabledProvider)) return;
+        // Picture-in-Picture off: Home stops playback. With PiP on and no
+        // overlay open, native enters PiP and never reports this.
+        // But when a transient overlay (channel switcher, multi-view) is
+        // open PiP is suppressed — fall through to normal Home behavior so
+        // the stream is killed instead of playing silently in the background.
+        if (ref.read(pipEnabledProvider) &&
+            !ref.read(playerOverlayOpenProvider)) {
+          return;
+        }
         if (!ref.read(playbackServiceProvider).lastState.playWhenReady) return;
         if (ref.read(castServiceProvider).status.connected) return;
         ref.read(homeLeaveProvider.notifier).state++;
@@ -132,6 +137,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         .listen((_) => pushPipAvailability());
     // Re-evaluate PiP eligibility when the user toggles the setting.
     ref.listen<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
+    // Re-evaluate when a transient overlay (channel switcher, multi-view)
+    // opens or closes — opening suppresses PiP, closing re-enables it.
+    ref.listen<bool>(playerOverlayOpenProvider, (_, __) => pushPipAvailability());
 
     // Well after start (counting the big tables takes seconds on a TV):
     // report storage, then the one-time rebuild of an older, bloated file.
