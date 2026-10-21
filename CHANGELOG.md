@@ -3,6 +3,12 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.24 — 2026-10-21
+
+**Fixes**
+- Picture-in-Picture no longer starts from non-player screens (settings, guide, channel list). PiP is now only offered when the full-screen player is active and playback is running (#88).
+- PiP now defaults to off on TV (where the screen is the TV itself), while remaining on for phones and tablets. Users can still enable it in Settings → Picture-in-Picture.
+
 ## 0.14.23 — 2026-10-21
 
 **Fixes**
