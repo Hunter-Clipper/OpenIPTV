@@ -3,6 +3,15 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.23 — 2026-10-21
+
+**Fixes**
+- Memory leaks: CastService, UpdateService, NowPlayingHandler, and EpgService now dispose their stream subscriptions when the service is destroyed, preventing leaks during long playback sessions (#73).
+- Backup/restore now includes all 10 previously missing user preferences, so no settings are silently dropped when backing up or restoring a profile (#67).
+
+**Features**
+- All Channels category can now be hidden or shown in Settings → Live TV → Categories, keeping the channel list focused (#60).
+
 ## 0.14.22 — 2026-10-20
 
 **Fixes**
