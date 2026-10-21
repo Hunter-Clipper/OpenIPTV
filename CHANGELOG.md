@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.22 — 2026-10-20
+
+**Fixes**
+- Channel IDs for M3U playlists now use deterministic SHA-256 hashes instead of `String.hashCode`, preventing data loss (orphaned watch history and favorites) on Dart SDK upgrades. Includes schema 11 migration to re-key existing data.
+
 ## 0.14.21 — 2026-10-20
 
 **Fixes**

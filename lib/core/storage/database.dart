@@ -16,6 +16,7 @@ import 'package:open_iptv/core/models/series.dart' as model;
 import 'package:open_iptv/core/models/source.dart' as model;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:crypto/crypto.dart';
 
 part 'database.g.dart';
 
@@ -130,20 +131,24 @@ class Profiles extends Table {
   TextColumn get avatarEmoji => text()();
   TextColumn get pinHash => text().nullable()();
   TextColumn get sourceIds => text().withDefault(const Constant('[]'))();
-  TextColumn get favoriteChannelIds => text().withDefault(const Constant('[]'))();
+  TextColumn get favoriteChannelIds =>
+      text().withDefault(const Constant('[]'))();
   TextColumn get favoriteMovieIds => text().withDefault(const Constant('[]'))();
-  TextColumn get favoriteSeriesIds => text().withDefault(const Constant('[]'))();
+  TextColumn get favoriteSeriesIds =>
+      text().withDefault(const Constant('[]'))();
   TextColumn get defaultCategory => text().withDefault(const Constant('All'))();
-  TextColumn get channelSortOrder => text().withDefault(const Constant('provider'))();
-  TextColumn get defaultSubtitleLang => text().withDefault(const Constant(''))();
+  TextColumn get channelSortOrder =>
+      text().withDefault(const Constant('provider'))();
+  TextColumn get defaultSubtitleLang =>
+      text().withDefault(const Constant(''))();
   TextColumn get defaultAudioLang => text().withDefault(const Constant(''))();
-  TextColumn get customChannelOrder => text().withDefault(const Constant('{}'))();
+  TextColumn get customChannelOrder =>
+      text().withDefault(const Constant('{}'))();
   TextColumn get epgOverrides => text().withDefault(const Constant('{}'))();
   TextColumn get hiddenCategories => text().withDefault(const Constant('[]'))();
   BoolColumn get isKidsProfile =>
       boolean().withDefault(const Constant(false))();
-  BoolColumn get isAdmin =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isAdmin => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -182,15 +187,14 @@ class WatchProgress extends Table {
   WatchProgress,
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor])
-      : super(executor ?? _openConnection());
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   /// For the background auto-refresh isolate: opens the encrypted database
   /// but never converts an unencrypted one (the app does that on launch).
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -203,8 +207,8 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             final tableInfo =
                 await customSelect('PRAGMA table_info(channels)').get();
-            final hasCol = tableInfo
-                .any((r) => r.data['name'] == 'last_watched_at');
+            final hasCol =
+                tableInfo.any((r) => r.data['name'] == 'last_watched_at');
             if (!hasCol) {
               await m.addColumn(channels, channels.lastWatchedAt);
             }
@@ -212,8 +216,8 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             final tableInfo =
                 await customSelect('PRAGMA table_info(profiles)').get();
-            final hasCol = tableInfo
-                .any((r) => r.data['name'] == 'is_kids_profile');
+            final hasCol =
+                tableInfo.any((r) => r.data['name'] == 'is_kids_profile');
             if (!hasCol) {
               await m.addColumn(profiles, profiles.isKidsProfile);
             }
@@ -221,8 +225,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             final tableInfo =
                 await customSelect('PRAGMA table_info(profiles)').get();
-            final hasCol = tableInfo
-                .any((r) => r.data['name'] == 'is_admin');
+            final hasCol = tableInfo.any((r) => r.data['name'] == 'is_admin');
             if (!hasCol) {
               await m.addColumn(profiles, profiles.isAdmin);
             }
@@ -275,6 +278,7 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 9) await _createSearchIndexes();
           if (from < 10) await _createSourceIndexes();
+          if (from < 11) await _migrateM3uContentIds();
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -302,15 +306,16 @@ class AppDatabase extends _$AppDatabase {
   /// the guide again. Never throws.
   Future<bool> compactIfBloated({required int freeDiskBytes}) async {
     try {
-      Future<int> one(String sql) async =>
-          int.parse('${(await customSelect(sql).getSingle()).data.values.first}');
+      Future<int> one(String sql) async => int.parse(
+          '${(await customSelect(sql).getSingle()).data.values.first}');
       if (await one('PRAGMA auto_vacuum') == 2) {
         await compact();
         return false;
       }
       final pageSize = await one('PRAGMA page_size');
       Future<int> inUse() async =>
-          (await one('PRAGMA page_count') - await one('PRAGMA freelist_count')) *
+          (await one('PRAGMA page_count') -
+              await one('PRAGMA freelist_count')) *
           pageSize;
       final size = await one('PRAGMA page_count') * pageSize;
       bool roomFor(int bytes) => freeDiskBytes > bytes * 2.5 + (32 << 20);
@@ -343,8 +348,8 @@ class AppDatabase extends _$AppDatabase {
   /// `adb logcat | grep OTV-storage`.
   Future<void> logStorageStats() async {
     try {
-      Future<int> one(String sql) async =>
-          int.parse('${(await customSelect(sql).getSingle()).data.values.first}');
+      Future<int> one(String sql) async => int.parse(
+          '${(await customSelect(sql).getSingle()).data.values.first}');
       final pageSize = await one('PRAGMA page_size');
       final pages = await one('PRAGMA page_count');
       final free = await one('PRAGMA freelist_count');
@@ -424,6 +429,155 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Schema 11 migration: re-key M3U-sourced content IDs from the unstable
+  /// `String.hashCode` to a deterministic SHA-256, preserving watch history
+  /// and favorites by updating every cross-table reference.
+  ///
+  /// Matches `M3uParser._generateId` — if that method changes, update here.
+  String _sha256Id(String sourceId, String key) {
+    final hash = sha256.convert(utf8.encode('$sourceId:$key')).toString();
+    return '${sourceId}_${hash.substring(0, 16)}';
+  }
+
+  Future<void> _migrateM3uContentIds() async {
+    final m3uSources = await customSelect(
+      "SELECT id FROM sources WHERE type = 'm3u'",
+    ).get();
+
+    for (final src in m3uSources) {
+      final sourceId = src.data['id'] as String;
+
+      await transaction(() async {
+        // --- Channels: ID = sha256(sourceId:streamUrl) ---
+        final channelMap = await _rekeyTable(
+          'channels',
+          'stream_url',
+          sourceId,
+        );
+        await _applyIdMap('channels', 'id', channelMap);
+        await _applyIdMap('programmes', 'channel_id', channelMap);
+
+        // --- Movies: ID = sha256(sourceId:streamUrl) ---
+        final movieMap = await _rekeyTable(
+          'movies',
+          'stream_url',
+          sourceId,
+        );
+        await _applyIdMap('movies', 'id', movieMap);
+
+        // --- Series: ID = sha256(sourceId:title) ---
+        final seriesMap = await _rekeyTable(
+          'series_entries',
+          'title',
+          sourceId,
+        );
+        await _applyIdMap('series_entries', 'id', seriesMap);
+        // Episodes reference the series they belong to.
+        await _applyIdMap('episodes', 'series_id', seriesMap);
+
+        // --- Episodes: ID = sha256(sourceId:streamUrl) ---
+        final episodeMap = await _rekeyTable(
+          'episodes',
+          'stream_url',
+          sourceId,
+        );
+        await _applyIdMap('episodes', 'id', episodeMap);
+
+        // --- Watch progress: content_id references all content types ---
+        final allMaps = {
+          ...channelMap,
+          ...movieMap,
+          ...seriesMap,
+          ...episodeMap
+        };
+        for (final entry in allMaps.entries) {
+          await customStatement(
+            'UPDATE watch_progress SET content_id = ? WHERE content_id = ?',
+            [entry.value, entry.key],
+          );
+        }
+
+        // --- Profile favorites: JSON arrays storing content IDs ---
+        final profiles = await customSelect(
+          'SELECT id, favorite_channel_ids, favorite_movie_ids, '
+          'favorite_series_ids FROM profiles',
+        ).get();
+
+        for (final row in profiles) {
+          final profileId = row.data['id'] as String;
+          final favChannels = _remapJsonList(
+            row.data['favorite_channel_ids'] as String,
+            channelMap,
+          );
+          final favMovies = _remapJsonList(
+            row.data['favorite_movie_ids'] as String,
+            movieMap,
+          );
+          final favSeries = _remapJsonList(
+            row.data['favorite_series_ids'] as String,
+            seriesMap,
+          );
+          await customStatement(
+            'UPDATE profiles SET favorite_channel_ids = ?, '
+            'favorite_movie_ids = ?, favorite_series_ids = ? WHERE id = ?',
+            [favChannels, favMovies, favSeries, profileId],
+          );
+        }
+      });
+    }
+  }
+
+  /// Reads all rows from [table] for [sourceId], computes new SHA-256-based
+  /// IDs from [keyColumn], and returns a map of {oldId: newId} for rows that
+  /// actually changed.
+  Future<Map<String, String>> _rekeyTable(
+    String table,
+    String keyColumn,
+    String sourceId,
+  ) async {
+    final rows = await customSelect(
+      'SELECT id, $keyColumn FROM $table WHERE source_id = ?',
+      variables: [Variable<String>(sourceId)],
+    ).get();
+
+    final map = <String, String>{};
+    for (final row in rows) {
+      final oldId = row.data['id'] as String;
+      final key = row.data[keyColumn] as String;
+      final newId = _sha256Id(sourceId, key);
+      if (newId != oldId) {
+        map[oldId] = newId;
+      }
+    }
+    return map;
+  }
+
+  /// Applies an ID remapping to a column that references content IDs.
+  Future<void> _applyIdMap(
+    String table,
+    String column,
+    Map<String, String> idMap,
+  ) async {
+    for (final entry in idMap.entries) {
+      await customStatement(
+        'UPDATE $table SET $column = ? WHERE $column = ?',
+        [entry.value, entry.key],
+      );
+    }
+  }
+
+  /// Re-maps content IDs inside a JSON-encoded string array stored in a
+  /// profile's favorites column.
+  String _remapJsonList(String json, Map<String, String> idMap) {
+    if (idMap.isEmpty) return json;
+    final list = jsonDecode(json) as List<dynamic>;
+    final remapped = list.map((e) {
+      final id = e as String;
+      return idMap[id] ?? id;
+    }).toList();
+    return jsonEncode(remapped);
+  }
+
   // Search scans these narrow indexes instead of whole rows (#38): reading
   // every movie's description or every programme off an encrypted database
   // took seconds per query on a TV. A "contains" can't seek an index, but
@@ -461,7 +615,8 @@ class AppDatabase extends _$AppDatabase {
     if (idSet.isEmpty) return {};
     final rows = await (select(watchProgress)
           ..where((w) =>
-              w.profileId.equals(profileId) & w.contentType.equals(contentType)))
+              w.profileId.equals(profileId) &
+              w.contentType.equals(contentType)))
         .get();
     return {
       for (final r in rows)
@@ -481,7 +636,8 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  model.Episode _applyEpisodeProgress(model.Episode episode, WatchProgressRow? p) {
+  model.Episode _applyEpisodeProgress(
+      model.Episode episode, WatchProgressRow? p) {
     if (p == null) return episode;
     return episode.copyWith(
       watchedDuration: p.watchedDurationSeconds != null
@@ -493,7 +649,8 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  model.Channel _applyChannelProgress(model.Channel channel, WatchProgressRow? p) {
+  model.Channel _applyChannelProgress(
+      model.Channel channel, WatchProgressRow? p) {
     if (p == null) return channel;
     return channel.copyWith(lastWatchedAt: p.lastWatchedAt);
   }
@@ -593,8 +750,8 @@ class AppDatabase extends _$AppDatabase {
           ..where((t) => t.sourceId.equals(sourceId))
           ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
         .watch()
-        .asyncMap((rows) =>
-            _withChannelProgress(rows.map(_channelFromRow).toList(), profileId));
+        .asyncMap((rows) => _withChannelProgress(
+            rows.map(_channelFromRow).toList(), profileId));
   }
 
   Future<void> upsertChannels(List<model.Channel> channelList) async {
@@ -606,8 +763,7 @@ class AppDatabase extends _$AppDatabase {
   /// speed test (Power User Tools): movies first — a file downloads at full
   /// speed — then live channels. Bounded, index-backed queries; never the
   /// whole catalog.
-  Future<List<({bool movie, String url})>> speedTestCandidates(
-      String? sourceId,
+  Future<List<({bool movie, String url})>> speedTestCandidates(String? sourceId,
       {int each = 3}) async {
     final m = selectOnly(movies)..addColumns([movies.streamUrl]);
     final c = selectOnly(channels)..addColumns([channels.streamUrl]);
@@ -691,8 +847,8 @@ class AppDatabase extends _$AppDatabase {
             ..where((t) => matching(movies, t.title) & inSource(t.sourceId)))
           .get(),
       (select(seriesEntries)
-            ..where((t) =>
-                matching(seriesEntries, t.title) & inSource(t.sourceId)))
+            ..where(
+                (t) => matching(seriesEntries, t.title) & inSource(t.sourceId)))
           .get(),
     ).wait;
     return (
@@ -708,23 +864,22 @@ class AppDatabase extends _$AppDatabase {
   /// a Dart callback per row is ~2× slower on a TV. Anything else (é, Ж…)
   /// goes through drift's Dart-side `containsCase`, since LIKE only folds
   /// ASCII.
-  static Expression<bool> _textContains(
-      Expression<String> text, String query) {
+  static Expression<bool> _textContains(Expression<String> text, String query) {
     final ascii = query.codeUnits.every((c) => c < 0x80);
     if (!ascii) return text.containsCase(query);
-    final escaped = query.replaceAllMapped(
-        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
+    final escaped =
+        query.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     return text.like('%$escaped%', escapeChar: '\\');
   }
 
   Stream<List<model.Channel>> watchAllChannels({String? profileId}) {
-    return select(channels).watch().asyncMap(
-        (rows) => _withChannelProgress(rows.map(_channelFromRow).toList(), profileId));
+    return select(channels).watch().asyncMap((rows) =>
+        _withChannelProgress(rows.map(_channelFromRow).toList(), profileId));
   }
 
   Future<model.Channel?> getChannelById(String id) async {
-    final row =
-        await (select(channels)..where((t) => t.id.equals(id))).getSingleOrNull();
+    final row = await (select(channels)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
     return row == null ? null : _channelFromRow(row);
   }
 
@@ -771,7 +926,6 @@ class AppDatabase extends _$AppDatabase {
     return map;
   }
 
-
   /// Channels without catch-up keep only a short grace window (so "now" EPG
   /// lookups have a little slack); catch-up-enabled channels keep their own
   /// provider-advertised [Channel.catchupDays] of history instead, so the
@@ -792,8 +946,8 @@ class AppDatabase extends _$AppDatabase {
     // id by versions before 0.12.1, or left by a removed playlist) are
     // never shown: drop them whatever their time.
     await (delete(programmes)
-          ..where((t) =>
-              t.channelId.isNotInQuery(selectOnly(channels)..addColumns([channels.id]))))
+          ..where((t) => t.channelId
+              .isNotInQuery(selectOnly(channels)..addColumns([channels.id]))))
         .go();
 
     // Non-catch-up channels keep only the last hour.
@@ -942,8 +1096,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<model.Movie>> watchAllMovies({String? profileId}) {
-    return select(movies).watch().asyncMap(
-        (rows) => _withMovieProgress(rows.map(_movieFromRow).toList(), profileId));
+    return select(movies).watch().asyncMap((rows) =>
+        _withMovieProgress(rows.map(_movieFromRow).toList(), profileId));
   }
 
   Stream<List<model.Movie>> watchMoviesForSource(String sourceId,
@@ -961,8 +1115,7 @@ class AppDatabase extends _$AppDatabase {
       final row = await (select(movies)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
       if (row == null) return null;
-      final merged =
-          await _withMovieProgress([_movieFromRow(row)], profileId);
+      final merged = await _withMovieProgress([_movieFromRow(row)], profileId);
       return merged.first;
     });
   }
@@ -1102,8 +1255,8 @@ class AppDatabase extends _$AppDatabase {
       return ids
           .map((id) => byId[id])
           .whereType<EpisodeRow>()
-          .map((row) => _applyEpisodeProgress(
-              _episodeFromRow(row), progressById[row.id]))
+          .map((row) =>
+              _applyEpisodeProgress(_episodeFromRow(row), progressById[row.id]))
           .where((e) => e.isInProgress)
           .toList();
     });
@@ -1199,8 +1352,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteSeriesForSource(String sourceId) async {
-    await (delete(seriesEntries)
-          ..where((t) => t.sourceId.equals(sourceId)))
+    await (delete(seriesEntries)..where((t) => t.sourceId.equals(sourceId)))
         .go();
   }
 
@@ -1229,8 +1381,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<model.Episode?> getEpisodeById(String id) async {
-    final row =
-        await (select(episodes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    final row = await (select(episodes)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
     return row == null ? null : _episodeFromRow(row);
   }
 
@@ -1320,7 +1472,9 @@ class AppDatabase extends _$AppDatabase {
   model.Source _sourceFromRow(SourceRow row) => model.Source(
         id: row.id,
         nickname: row.nickname,
-        type: row.type == 'xtream' ? model.SourceType.xtream : model.SourceType.m3u,
+        type: row.type == 'xtream'
+            ? model.SourceType.xtream
+            : model.SourceType.m3u,
         m3uUrl: row.m3uUrl,
         xtreamHost: row.xtreamHost,
         xtreamUsername: row.xtreamUsername,
@@ -1417,10 +1571,10 @@ class AppDatabase extends _$AppDatabase {
         channelSortOrder: row.channelSortOrder,
         defaultSubtitleLang: row.defaultSubtitleLang,
         defaultAudioLang: row.defaultAudioLang,
-        customChannelOrder: Map<String, int>.from(
-            jsonDecode(row.customChannelOrder) as Map),
-        epgOverrides: Map<String, String>.from(
-            jsonDecode(row.epgOverrides) as Map),
+        customChannelOrder:
+            Map<String, int>.from(jsonDecode(row.customChannelOrder) as Map),
+        epgOverrides:
+            Map<String, String>.from(jsonDecode(row.epgOverrides) as Map),
         hiddenCategories:
             List<String>.from(jsonDecode(row.hiddenCategories) as List),
         isKidsProfile: row.isKidsProfile,
