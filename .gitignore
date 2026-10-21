@@ -51,3 +51,6 @@ coverage/
 
 # Claude Code local settings
 .claude/
+
+# Hermes Agent local cache
+.hermes/
