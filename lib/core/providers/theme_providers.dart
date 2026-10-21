@@ -36,6 +36,11 @@ final pipEnabledProvider =
 final homeLeaveProvider = StateProvider<int>((ref) => 0);
 final pipActiveProvider = StateProvider<bool>((ref) => false);
 
+// Whether the player screen has a transient overlay (channel switcher,
+// etc.) open. PiP is suppressed while this is true so Home doesn't
+// shrink a non-fullscreen overlay into the PiP window.
+final playerOverlayOpenProvider = StateProvider<bool>((ref) => false);
+
 // Now Playing / media notification.
 final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 

@@ -3,7 +3,10 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## 0.14.24 — 2026-10-21
+## 0.14.25 — 2026-10-21
+
+**Fixes**
+- PiP is now suppressed while the player's channel switcher or multi-view overlay is open. Previously, pressing Home with the side channel picker visible would start PiP and smoosh that overlay into a tiny window over the player.
 
 **Fixes**
 - Picture-in-Picture no longer starts from non-player screens (settings, guide, channel list). PiP is now only offered when the full-screen player is active and playback is running (#88).

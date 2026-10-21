@@ -112,11 +112,15 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     );
     void pushPipAvailability() {
       final playing = ref.read(playbackServiceProvider).lastState.playWhenReady;
-      // Only offer PiP when the full-screen PlayerScreen is the active route —
-      // otherwise Home would shrink a non-player screen (settings, guide,
-      // channel list) into a tiny window with smooshed UI.
+      // Only offer PiP when the full-screen PlayerScreen is the active route
+      // — with no transient overlays (channel switcher, etc.) open — and
+      // playback is running. Otherwise Home would shrink a non-player screen
+      // or an overlay into a tiny, smooshed PiP window.
       updatePipAvailability(
-        ref.read(pipEnabledProvider) && playing && PlayerScreen.openCount > 0,
+        ref.read(pipEnabledProvider) &&
+            playing &&
+            PlayerScreen.openCount > 0 &&
+            !ref.read(playerOverlayOpenProvider),
       );
     }
 
