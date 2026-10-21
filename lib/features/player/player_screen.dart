@@ -323,7 +323,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _showControls();
   }
 
-
   /// Something else (Android Auto) opened a stream on the shared player.
   bool _takenOver = false;
 
@@ -344,10 +343,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       now: DateTime.now(),
       openCount: _playbackService.openCount,
       live: _isPlainLive,
-      active: _playbackStarted &&
-          !_casting &&
-          !_reconnecting &&
-          !_playbackGaveUp,
+      active:
+          _playbackStarted && !_casting && !_reconnecting && !_playbackGaveUp,
     ));
   }
 
@@ -413,7 +410,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Reopens the current stream: live at the live edge, VOD/catch-up where
   // it was.
   Future<void> _reconnect() async {
-    if (_reconnecting || _stoppedByUser || !mounted || _casting || _takenOver) return;
+    if (_reconnecting || _stoppedByUser || !mounted || _casting || _takenOver)
+      return;
     if (_playbackService.owner != null &&
         !identical(_playbackService.owner, this)) {
       _onTakenOver();
@@ -638,7 +636,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final id = widget.contentId;
     if (_liveChannel == null || id == null) return;
     _hideTimer?.cancel();
+    ref.read(playerOverlayOpenProvider.notifier).state = true;
     final picked = await showChannelSwitcher(context, id);
+    ref.read(playerOverlayOpenProvider.notifier).state =
+        picked != null && picked.id != id; // true if multi-view starts
     if (!mounted) return;
     if (picked == null || picked.id == id) {
       _showControls();
@@ -677,6 +678,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Back (or Full screen) in multi-view: [channel] plays full screen.
   void _leaveMultiView(Channel channel, {required bool onMainPlayer}) {
     setState(() => _multiAdded = null);
+    ref.read(playerOverlayOpenProvider.notifier).state = false;
     if (channel.id != widget.contentId) {
       _tuneTo(channel);
       return;
@@ -693,15 +695,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final id = widget.contentId;
     if (!_isChannelPlayback || id == null) return;
     _hideTimer?.cancel();
-    final picked = await showChannelSwitcher(context, id);
-    if (!mounted) return;
-    if (picked != null) {
-      _tuneTo(picked);
-    } else if (!_playbackGaveUp) {
-      _showControls();
+    // Mark that a transient overlay is open so pushPipAvailability()
+    // suppresses the native PiP prompt — we don't want Home to shrink
+    // the channel switcher into a tiny window.
+    ref.read(playerOverlayOpenProvider.notifier).state = true;
+    try {
+      final picked = await showChannelSwitcher(context, id);
+      if (!mounted) return;
+      if (picked != null) {
+        _tuneTo(picked);
+      } else if (!_playbackGaveUp) {
+        _showControls();
+      }
+      // (On the error screen, closing the list hands focus back to its own
+      // Channels button — route pop restores it.)
+    } finally {
+      ref.read(playerOverlayOpenProvider.notifier).state = false;
     }
-    // (On the error screen, closing the list hands focus back to its own
-    // Channels button — route pop restores it.)
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -1203,8 +1213,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final castAvailable = ref.watch(castStatusProvider
-        .select((a) => a.valueOrNull?.available ?? false));
+    final castAvailable = ref.watch(
+        castStatusProvider.select((a) => a.valueOrNull?.available ?? false));
     final inPip = ref.watch(pipActiveProvider);
     final added = _multiAdded;
     final main = _liveChannel;
@@ -1255,199 +1265,201 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _hideControls();
       },
       child: Scaffold(
-      backgroundColor: Colors.black,
-      body: Focus(
-        focusNode: _rootFocusNode,
-        autofocus: true,
-        // Held only by explicit request (controls hidden). As a traversal
-        // candidate its screen-sized rect sits "right of" / "below" any
-        // button, so D-pad moves could land on it — an invisible focus from
-        // which Up/Down change channel.
-        skipTraversal: true,
-        onKeyEvent: _handleKeyEvent,
-        child: GestureDetector(
-          onTap: _onTap,
-          // Swipe left (from anywhere) for the channel list on Live TV.
-          onHorizontalDragEnd: _isChannelPlayback
-              ? (d) {
-                  if ((d.primaryVelocity ?? 0) < -400) {
-                    unawaited(_openChannels());
+        backgroundColor: Colors.black,
+        body: Focus(
+          focusNode: _rootFocusNode,
+          autofocus: true,
+          // Held only by explicit request (controls hidden). As a traversal
+          // candidate its screen-sized rect sits "right of" / "below" any
+          // button, so D-pad moves could land on it — an invisible focus from
+          // which Up/Down change channel.
+          skipTraversal: true,
+          onKeyEvent: _handleKeyEvent,
+          child: GestureDetector(
+            onTap: _onTap,
+            // Swipe left (from anywhere) for the channel list on Live TV.
+            onHorizontalDragEnd: _isChannelPlayback
+                ? (d) {
+                    if ((d.primaryVelocity ?? 0) < -400) {
+                      unawaited(_openChannels());
+                    }
                   }
-                }
-              : null,
-          behavior: HitTestBehavior.opaque,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildVideoSurface(),
-              _buildCueOverlay(),
-              // Buffering / recovery overlay.
-              AnimatedOpacity(
-                opacity: _isBuffering ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: IgnorePointer(
-                  ignoring: !_isBuffering,
-                  child: Container(
-                    // Before the first picture: solid, hiding decoder
-                    // warm-up. Reconnecting mid-stream: the last frame
-                    // stays visible, dimmed.
-                    color: _watchdog.everPlayed && !_playbackGaveUp
-                        ? Colors.black54
-                        : Colors.black,
-                    child: Center(
-                      child: _playbackGaveUp
-                          ? _ErrorOverlay(
-                              title: widget.title,
-                              message: _errorMessage,
-                              onBack: () => context.pop(),
-                              onChannels: _isChannelPlayback &&
-                                      widget.contentId != null
-                                  ? _openChannels
-                                  : null,
-                              onRetry: () {
-                                _watchdog.reset();
-                                setState(() {
-                                  _gaveUp = false;
-                                  _isRecovering = false;
-                                  _errorMessage = null;
-                                  _playbackFailed = false;
-                                });
-                                _startPlayback();
-                              },
-                            )
-                          : _LoadingView(
-                              // The controls already show the title and a
-                              // spinner on the play button.
-                              visible: !_controlsVisible,
-                              title: widget.title,
-                              status: _isRecovering
-                                  ? _watchdog.everPlayed
-                                      ? 'Reconnecting…'
-                                      : 'Reconnecting… (${_watchdog.attempts} '
-                                          'of ${_watchdog.maxAttemptsBeforePlaying})'
-                                  : null,
-                            ),
+                : null,
+            behavior: HitTestBehavior.opaque,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildVideoSurface(),
+                _buildCueOverlay(),
+                // Buffering / recovery overlay.
+                AnimatedOpacity(
+                  opacity: _isBuffering ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_isBuffering,
+                    child: Container(
+                      // Before the first picture: solid, hiding decoder
+                      // warm-up. Reconnecting mid-stream: the last frame
+                      // stays visible, dimmed.
+                      color: _watchdog.everPlayed && !_playbackGaveUp
+                          ? Colors.black54
+                          : Colors.black,
+                      child: Center(
+                        child: _playbackGaveUp
+                            ? _ErrorOverlay(
+                                title: widget.title,
+                                message: _errorMessage,
+                                onBack: () => context.pop(),
+                                onChannels: _isChannelPlayback &&
+                                        widget.contentId != null
+                                    ? _openChannels
+                                    : null,
+                                onRetry: () {
+                                  _watchdog.reset();
+                                  setState(() {
+                                    _gaveUp = false;
+                                    _isRecovering = false;
+                                    _errorMessage = null;
+                                    _playbackFailed = false;
+                                  });
+                                  _startPlayback();
+                                },
+                              )
+                            : _LoadingView(
+                                // The controls already show the title and a
+                                // spinner on the play button.
+                                visible: !_controlsVisible,
+                                title: widget.title,
+                                status: _isRecovering
+                                    ? _watchdog.everPlayed
+                                        ? 'Reconnecting…'
+                                        : 'Reconnecting… (${_watchdog.attempts} '
+                                            'of ${_watchdog.maxAttemptsBeforePlaying})'
+                                    : null,
+                              ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              // Controls overlay
-              AnimatedOpacity(
-                opacity: _showOverlayControls ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 250),
-                child: IgnorePointer(
-                  ignoring: !_showOverlayControls,
-                  child: ExcludeFocus(
-                    excluding: !_showOverlayControls,
-                    // Touch presses on the overlay restart the countdown, the
-                    // same as D-pad presses do via _onAnyKeyEvent.
-                    child: Listener(
-                      onPointerDown: (_) {
-                        if (_controlsVisible) _resetHideTimer();
-                      },
-                      child: Focus(
-                        focusNode: _controlsFocusNode,
-                        child: Actions(
-                          actions: {
-                            DirectionalFocusIntent:
-                                EdgeAwareDirectionalFocusAction(
-                              directions: {
-                                TraversalDirection.up,
-                                TraversalDirection.left,
-                              },
-                              // TV has no on-screen Back (the remote's
-                              // Back key does it) — nothing to move to.
-                              onNoMove: () {
-                                if (_backFocusNode.context != null) {
-                                  _backFocusNode.requestFocus();
-                                }
-                              },
+                // Controls overlay
+                AnimatedOpacity(
+                  opacity: _showOverlayControls ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 250),
+                  child: IgnorePointer(
+                    ignoring: !_showOverlayControls,
+                    child: ExcludeFocus(
+                      excluding: !_showOverlayControls,
+                      // Touch presses on the overlay restart the countdown, the
+                      // same as D-pad presses do via _onAnyKeyEvent.
+                      child: Listener(
+                        onPointerDown: (_) {
+                          if (_controlsVisible) _resetHideTimer();
+                        },
+                        child: Focus(
+                          focusNode: _controlsFocusNode,
+                          child: Actions(
+                            actions: {
+                              DirectionalFocusIntent:
+                                  EdgeAwareDirectionalFocusAction(
+                                directions: {
+                                  TraversalDirection.up,
+                                  TraversalDirection.left,
+                                },
+                                // TV has no on-screen Back (the remote's
+                                // Back key does it) — nothing to move to.
+                                onNoMove: () {
+                                  if (_backFocusNode.context != null) {
+                                    _backFocusNode.requestFocus();
+                                  }
+                                },
+                              ),
+                            },
+                            child: PlayerControls(
+                              title: widget.title,
+                              handBackTo: widget.handBackTo,
+                              contentType: _isChannelPlayback
+                                  ? (_liveDvrActive ? 'catchup' : 'live')
+                                  : widget.contentType,
+                              contentId: widget.contentId,
+                              isLive: _isChannelPlayback && !_liveDvrActive,
+                              isLiveDvr: _liveDvrActive,
+                              onLivePlayPause: _onLivePlayPause,
+                              onLiveRewind: _onLiveRewind,
+                              onLiveForward: _onLiveForward,
+                              onGoLive: _liveDvrActive
+                                  ? _goLive
+                                  : (_isBehindLive ? _goLiveLocal : null),
+                              isBehindLive: _isBehindLive,
+                              playPauseFocusNode: _playPauseFocusNode,
+                              backFocusNode: _backFocusNode,
+                              buffering: _isBuffering && !_playbackGaveUp,
+                              onChannels:
+                                  _isChannelPlayback && widget.contentId != null
+                                      ? _openChannels
+                                      : null,
+                              // Plain live only (not catch-up), once the
+                              // channel is known.
+                              onAddChannel: _isPlainLive && _liveChannel != null
+                                  ? _addChannel
+                                  : null,
+                              // Casting is a phone/tablet feature (a TV is
+                              // itself the screen), shown once a device is
+                              // on the network.
+                              onCast:
+                                  castAvailable && !PlatformHelper.isTV(context)
+                                      ? () => showCastPicker(context)
+                                      : null,
                             ),
-                          },
-                          child: PlayerControls(
-                            title: widget.title,
-                            handBackTo: widget.handBackTo,
-                            contentType: _isChannelPlayback
-                                ? (_liveDvrActive ? 'catchup' : 'live')
-                                : widget.contentType,
-                            contentId: widget.contentId,
-                            isLive: _isChannelPlayback && !_liveDvrActive,
-                            isLiveDvr: _liveDvrActive,
-                            onLivePlayPause: _onLivePlayPause,
-                            onLiveRewind: _onLiveRewind,
-                            onLiveForward: _onLiveForward,
-                            onGoLive: _liveDvrActive
-                                ? _goLive
-                                : (_isBehindLive ? _goLiveLocal : null),
-                            isBehindLive: _isBehindLive,
-                            playPauseFocusNode: _playPauseFocusNode,
-                            backFocusNode: _backFocusNode,
-                            buffering: _isBuffering && !_playbackGaveUp,
-                            onChannels: _isChannelPlayback &&
-                                    widget.contentId != null
-                                ? _openChannels
-                                : null,
-                            // Plain live only (not catch-up), once the
-                            // channel is known.
-                            onAddChannel: _isPlainLive && _liveChannel != null
-                                ? _addChannel
-                                : null,
-                            // Casting is a phone/tablet feature (a TV is
-                            // itself the screen), shown once a device is
-                            // on the network.
-                            onCast: castAvailable && !PlatformHelper.isTV(context)
-                                ? () => showCastPicker(context)
-                                : null,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              // The one clock (#56): with the controls on TV, or always on
-              // when the setting is set. Same spot as the controls' layout.
-              if (!_casting)
-                Builder(builder: (context) {
-                  final tv = PlatformHelper.isTV(context);
-                  final always = ref.watch(playerClockAlwaysProvider);
-                  final m = PlayerMetrics.of(context);
-                  return Positioned(
-                    top: tv ? m.tvEdge * 0.6 : 16,
-                    right: tv ? m.tvEdge : 20,
-                    child: IgnorePointer(
-                      child: AnimatedOpacity(
-                        opacity: always || (tv && _showOverlayControls) ? 1 : 0,
-                        duration: const Duration(milliseconds: 250),
-                        child: PlayerClock(fontSize: tv ? 20 : 15),
+                // The one clock (#56): with the controls on TV, or always on
+                // when the setting is set. Same spot as the controls' layout.
+                if (!_casting)
+                  Builder(builder: (context) {
+                    final tv = PlatformHelper.isTV(context);
+                    final always = ref.watch(playerClockAlwaysProvider);
+                    final m = PlayerMetrics.of(context);
+                    return Positioned(
+                      top: tv ? m.tvEdge * 0.6 : 16,
+                      right: tv ? m.tvEdge : 20,
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity:
+                              always || (tv && _showOverlayControls) ? 1 : 0,
+                          duration: const Duration(milliseconds: 250),
+                          child: PlayerClock(fontSize: tv ? 20 : 15),
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              // Up Next banner — shown when an episode finishes and a next one exists.
-              if (_showUpNext && _nextEpisode != null)
-                _UpNextBanner(
-                  episode: _nextEpisode!,
-                  onPlay: _playNextEpisode,
-                  onDismiss: () => setState(() => _showUpNext = false),
-                ),
-              if (_casting)
-                Positioned.fill(
-                  child: CastRemoteView(
-                    title: widget.title,
-                    subtitle: _castSubtitle,
-                    isLive: _isPlainLive,
-                    message: _castMessage,
-                    onBack: () => context.pop(),
-                    onChannels: _isChannelPlayback && widget.contentId != null
-                        ? _openChannels
-                        : null,
+                    );
+                  }),
+                // Up Next banner — shown when an episode finishes and a next one exists.
+                if (_showUpNext && _nextEpisode != null)
+                  _UpNextBanner(
+                    episode: _nextEpisode!,
+                    onPlay: _playNextEpisode,
+                    onDismiss: () => setState(() => _showUpNext = false),
                   ),
-                ),
-            ],
+                if (_casting)
+                  Positioned.fill(
+                    child: CastRemoteView(
+                      title: widget.title,
+                      subtitle: _castSubtitle,
+                      isLive: _isPlainLive,
+                      message: _castMessage,
+                      onBack: () => context.pop(),
+                      onChannels: _isChannelPlayback && widget.contentId != null
+                          ? _openChannels
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -1621,38 +1633,38 @@ class _LoadingView extends StatelessWidget {
       opacity: visible ? 1 : 0,
       duration: const Duration(milliseconds: 200),
       child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 52,
-          height: 52,
-          child: ProgressIndicatorTheme(
-            data:
-                ProgressIndicatorTheme.of(context).copyWith(year2023: false),
-            child: CircularProgressIndicator(
-              strokeWidth: 5,
-              color: theme.colorScheme.primary,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 52,
+            height: 52,
+            child: ProgressIndicatorTheme(
+              data:
+                  ProgressIndicatorTheme.of(context).copyWith(year2023: false),
+              child: CircularProgressIndicator(
+                strokeWidth: 5,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 20),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Text(
-            context.displayName(title),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium!.copyWith(color: Colors.white),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 20),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Text(
+              context.displayName(title),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium!.copyWith(color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-        if (status != null) ...[
-          const SizedBox(height: 6),
-          Text(status!,
-              style: theme.textTheme.bodyMedium!
-                  .copyWith(color: Colors.white60)),
+          if (status != null) ...[
+            const SizedBox(height: 6),
+            Text(status!,
+                style: theme.textTheme.bodyMedium!
+                    .copyWith(color: Colors.white60)),
+          ],
         ],
-      ],
       ),
     );
   }
@@ -1733,8 +1745,8 @@ class _ErrorOverlayState extends State<_ErrorOverlay> {
             Text(
               message ?? "This stream isn't playing right now",
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge!.copyWith(
-                  color: Colors.white, fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleLarge!
+                  .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(

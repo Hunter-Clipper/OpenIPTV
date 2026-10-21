@@ -3,6 +3,16 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.26 — 2026-10-21
+
+**Fixes**
+- When PiP is enabled but a transient overlay (channel switcher or multi-view) is open, pressing Home now stops playback instead of letting the stream continue silently in the background. PiP is correctly suppressed while the overlay is open; when the overlay closes, PiP re-becomes available.
+- Multi-view: when Home is pressed with PiP enabled and the multi-view overlay is open, all streams (main + tiles) are killed and no background playback occurs.
+
+**Fixes**
+- Picture-in-Picture no longer starts from non-player screens (settings, guide, channel list). PiP is now only offered when the full-screen player is active and playback is running (#88).
+- PiP now defaults to off on TV (where the screen is the TV itself), while remaining on for phones and tablets. Users can still enable it in Settings → Picture-in-Picture.
+
 ## 0.14.23 — 2026-10-21
 
 **Fixes**

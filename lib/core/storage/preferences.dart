@@ -1,3 +1,4 @@
+import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,17 +8,19 @@ const _kActiveProfileId = 'active_profile_id';
 const _kActiveSourceId = 'active_source_id';
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
-const _kChannelListDensity = 'channel_list_density'; // 'comfortable' | 'compact'
-const _kViewModeLive = 'view_mode_live';       // 'list' | 'grid'
-const _kViewModeMovies = 'view_mode_movies';   // 'list' | 'grid'
-const _kViewModeSeries = 'view_mode_series';   // 'list' | 'grid'
+const _kChannelListDensity =
+    'channel_list_density'; // 'comfortable' | 'compact'
+const _kViewModeLive = 'view_mode_live'; // 'list' | 'grid'
+const _kViewModeMovies = 'view_mode_movies'; // 'list' | 'grid'
+const _kViewModeSeries = 'view_mode_series'; // 'list' | 'grid'
 const _kParentalProtectionEnabled = 'parental_protection_enabled';
 const _kParentalLockedCats = 'parental_locked_cats';
 const _kParentalScanDone = 'parental_scan_done';
 // Device-only (never in backups): fingerprint / face in place of the admin PIN.
 const _kAdminBiometricUnlock = 'admin_biometric_unlock';
 const _kRefreshIntervalHours = 'refresh_interval_hours'; // 0 = off
-const _kLastRegisteredRefreshIntervalHours = 'last_registered_refresh_interval_hours';
+const _kLastRegisteredRefreshIntervalHours =
+    'last_registered_refresh_interval_hours';
 const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
 const _kPipEnabled = 'pip_enabled';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
@@ -51,8 +54,9 @@ class AppPreferences {
       _prefs.setString(_kActiveProfileId, id);
 
   String? get activeSourceId => _prefs.getString(_kActiveSourceId);
-  Future<void> setActiveSourceId(String? id) =>
-      id != null ? _prefs.setString(_kActiveSourceId, id) : _prefs.remove(_kActiveSourceId);
+  Future<void> setActiveSourceId(String? id) => id != null
+      ? _prefs.setString(_kActiveSourceId, id)
+      : _prefs.remove(_kActiveSourceId);
 
   String get accentColor => _prefs.getString(_kAccentColor) ?? '0A84FF';
   Future<void> setAccentColor(String hex) =>
@@ -102,8 +106,7 @@ class AppPreferences {
       _prefs.setBool(_kParentalScanDone, v);
 
   // Background auto-refresh
-  int get refreshIntervalHours =>
-      _prefs.getInt(_kRefreshIntervalHours) ?? 0;
+  int get refreshIntervalHours => _prefs.getInt(_kRefreshIntervalHours) ?? 0;
   Future<void> setRefreshIntervalHours(int hours) =>
       _prefs.setInt(_kRefreshIntervalHours, hours);
 
@@ -120,8 +123,15 @@ class AppPreferences {
   Future<void> setRefreshNotificationsEnabled(bool v) =>
       _prefs.setBool(_kRefreshNotificationsEnabled, v);
 
-  // Picture-in-Picture
-  bool get pipEnabled => _prefs.getBool(_kPipEnabled) ?? true;
+  // Picture-in-Picture — defaults to on for phones/tablets, off on TV (the TV
+  // screen IS the display, so PiP is less useful — but the user can still
+  // enable it in Settings, see setPipEnabled).
+  bool get pipEnabled {
+    final stored = _prefs.getBool(_kPipEnabled);
+    if (stored != null) return stored;
+    return !PlatformHelper.isTVDevice;
+  }
+
   Future<void> setPipEnabled(bool v) => _prefs.setBool(_kPipEnabled, v);
 
   // Now Playing / media notification
@@ -141,16 +151,14 @@ class AppPreferences {
 
   /// Player buffer size (Power User Tools); null = the default.
   String? get bufferPreset => _prefs.getString(_kBufferPreset);
-  Future<void> setBufferPreset(String v) =>
-      _prefs.setString(_kBufferPreset, v);
+  Future<void> setBufferPreset(String v) => _prefs.setString(_kBufferPreset, v);
 
   /// Built-in VPN: send only OpenIPTV ('app', default) or the whole device
   /// ('device') through the tunnel; and whether to connect on app start.
   String get vpnRoute => _prefs.getString(_kVpnRoute) ?? 'app';
   Future<void> setVpnRoute(String v) => _prefs.setString(_kVpnRoute, v);
   bool get vpnAutoConnect => _prefs.getBool(_kVpnAutoConnect) ?? false;
-  Future<void> setVpnAutoConnect(bool v) =>
-      _prefs.setBool(_kVpnAutoConnect, v);
+  Future<void> setVpnAutoConnect(bool v) => _prefs.setBool(_kVpnAutoConnect, v);
   String get vpnKind => _prefs.getString(_kVpnKind) ?? 'wireguard';
   Future<void> setVpnKind(String v) => _prefs.setString(_kVpnKind, v);
 
