@@ -10,7 +10,7 @@ import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 
-const _schemaVersion = 2;
+const _schemaVersion = 3;
 const _appVersion = '1.0.0';
 
 class BackupException implements Exception {
@@ -24,6 +24,29 @@ class BackupSummary {
   const BackupSummary({required this.profileCount, required this.sourceCount});
   final int profileCount;
   final int sourceCount;
+}
+
+/// A backup-eligible app preference.
+///
+/// Each entry pairs an encode function (reads from [AppPreferences] into a
+/// JSON-serializable value) with a decode function (writes a JSON-decoded
+/// value back to [AppPreferences]).
+///
+/// To add a new backup-eligible preference:
+///   1. Add a typed getter+setter pair to AppPreferences (`preferences.dart`)
+///   2. Add a PreferenceEntry to [_backupPrefEntries] in BackupManager
+///   3. Bump `_schemaVersion` (backward-compatible — old backups simply lack
+///      the new key, which `_applySettings` skips via its null guard)
+class PreferenceEntry {
+  const PreferenceEntry({
+    required this.key,
+    required this.encode,
+    required this.decode,
+  });
+
+  final String key;
+  final dynamic Function(AppPreferences prefs) encode;
+  final Future<void> Function(AppPreferences prefs, dynamic value) decode;
 }
 
 /// Exports/imports every profile, every source, and app-level settings as a
@@ -236,6 +259,7 @@ class BackupManager {
         'xtreamUsername': s.xtreamUsername,
         'xtreamPassword': s.xtreamPassword,
         'epgUrl': s.epgUrl,
+        'lastRefreshed': s.lastRefreshed?.toIso8601String(),
       };
 
   /// A playlist picked from the device only exists as a file in app
@@ -269,72 +293,223 @@ class BackupManager {
         xtreamUsername: m['xtreamUsername'] as String?,
         xtreamPassword: m['xtreamPassword'] as String?,
         epgUrl: m['epgUrl'] as String?,
+        lastRefreshed: m['lastRefreshed'] is String
+            ? DateTime.parse(m['lastRefreshed'] as String)
+            : null,
       );
 
   // ---------------------------------------------------------------------------
   // Encoding helpers — app-level settings
+  //
+  // Each backup-eligible preference is registered as a [PreferenceEntry]
+  // pairing an encode function (AppPreferences -> JSON value) with a decode
+  // function (JSON value -> AppPreferences setter). This registry is the
+  // single source of truth: to back up a new preference, add its getter/setter
+  // to AppPreferences AND one entry here, then bump [_schemaVersion].
   // ---------------------------------------------------------------------------
 
+  /// A backup-eligible app preference.
+  ///
+  /// To add a new backup-eligible preference:
+  ///   1. Add a typed getter+setter pair to AppPreferences (`preferences.dart`)
+  ///   2. Add a PreferenceEntry here with matching key, encode, and decode
+  ///   3. Bump `_schemaVersion` (backward-compatible: old backups just lack
+  ///      the new key, which `_applySettings` skips via its type guard)
+  ///
+  /// Deliberately excluded (device/session state, not user preferences):
+  ///   - `activeProfileId` / `activeSourceId` — picked from the device
+  ///   - `lastRegisteredRefreshIntervalHours` — WorkManager bookkeeping
+  ///   - `parentalScanDone` — one-time internal flag
+  ///   - `adminBiometricUnlock` — device-only (biometric enrolment)
+  ///   - `recentSearches` — device-specific query history
+  ///   - `lastUpdateCheck` — device-specific timestamp
+  ///   - `skippedUpdateVersion` — device-specific release pin
+  static final List<PreferenceEntry> _backupPrefEntries = [
+    // Display
+    PreferenceEntry(
+      key: 'accentColor',
+      encode: (p) => p.accentColor,
+      decode: (p, v) async {
+        if (v is String) await p.setAccentColor(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'contentSort',
+      encode: (p) => p.contentSort,
+      decode: (p, v) async {
+        if (v is String) await p.setContentSort(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'channelListDensity',
+      encode: (p) => p.channelListDensity,
+      decode: (p, v) async {
+        if (v is String) await p.setChannelListDensity(v);
+      },
+    ),
+    // Views
+    PreferenceEntry(
+      key: 'viewModeLive',
+      encode: (p) => p.viewModeLive,
+      decode: (p, v) async {
+        if (v is String) await p.setViewModeLive(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'viewModeMovies',
+      encode: (p) => p.viewModeMovies,
+      decode: (p, v) async {
+        if (v is String) await p.setViewModeMovies(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'viewModeSeries',
+      encode: (p) => p.viewModeSeries,
+      decode: (p, v) async {
+        if (v is String) await p.setViewModeSeries(v);
+      },
+    ),
+    // Parental
+    PreferenceEntry(
+      key: 'parentalProtectionEnabled',
+      encode: (p) => p.parentalProtectionEnabled,
+      decode: (p, v) async {
+        if (v is bool) await p.setParentalProtectionEnabled(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'parentalLockedCategories',
+      encode: (p) => p.parentalLockedCategories,
+      decode: (p, v) async {
+        if (v is List) {
+          await p.setParentalLockedCategories(List<String>.from(v));
+        }
+      },
+    ),
+    // Background refresh
+    PreferenceEntry(
+      key: 'refreshIntervalHours',
+      encode: (p) => p.refreshIntervalHours,
+      decode: (p, v) async {
+        if (v is int) await p.setRefreshIntervalHours(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'refreshNotificationsEnabled',
+      encode: (p) => p.refreshNotificationsEnabled,
+      decode: (p, v) async {
+        if (v is bool) await p.setRefreshNotificationsEnabled(v);
+      },
+    ),
+    // Playback
+    PreferenceEntry(
+      key: 'pipEnabled',
+      encode: (p) => p.pipEnabled,
+      decode: (p, v) async {
+        if (v is bool) await p.setPipEnabled(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'mediaNotificationEnabled',
+      encode: (p) => p.mediaNotificationEnabled,
+      decode: (p, v) async {
+        if (v is bool) await p.setMediaNotificationEnabled(v);
+      },
+    ),
+    // Appearance
+    PreferenceEntry(
+      key: 'cleanNames',
+      encode: (p) => p.cleanNames,
+      decode: (p, v) async {
+        if (v is bool) await p.setCleanNames(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'videoFit',
+      encode: (p) => p.videoFit,
+      decode: (p, v) async {
+        if (v is String) await p.setVideoFit(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'playerClockAlways',
+      encode: (p) => p.playerClockAlways,
+      decode: (p, v) async {
+        if (v is bool) await p.setPlayerClockAlways(v);
+      },
+    ),
+    // Player buffer (Power User Tools)
+    PreferenceEntry(
+      key: 'bufferPreset',
+      encode: (p) => p.bufferPreset,
+      decode: (p, v) async {
+        if (v is String) await p.setBufferPreset(v);
+      },
+    ),
+    // VPN (Power User Tools)
+    PreferenceEntry(
+      key: 'vpnRoute',
+      encode: (p) => p.vpnRoute,
+      decode: (p, v) async {
+        if (v is String) await p.setVpnRoute(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'vpnAutoConnect',
+      encode: (p) => p.vpnAutoConnect,
+      decode: (p, v) async {
+        if (v is bool) await p.setVpnAutoConnect(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'vpnKind',
+      encode: (p) => p.vpnKind,
+      decode: (p, v) async {
+        if (v is String) await p.setVpnKind(v);
+      },
+    ),
+    // Home layout
+    PreferenceEntry(
+      key: 'homeLayoutMovies',
+      encode: (p) => p.homeLayoutMovies,
+      decode: (p, v) async {
+        if (v is String) await p.setHomeLayoutMovies(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'homeLayoutSeries',
+      encode: (p) => p.homeLayoutSeries,
+      decode: (p, v) async {
+        if (v is String) await p.setHomeLayoutSeries(v);
+      },
+    ),
+    // Updates
+    PreferenceEntry(
+      key: 'autoUpdateCheck',
+      encode: (p) => p.autoUpdateCheck,
+      decode: (p, v) async {
+        if (v is bool) await p.setAutoUpdateCheck(v);
+      },
+    ),
+  ];
+
   Map<String, dynamic> _encodeSettings() => {
-        'accentColor': prefs.accentColor,
-        'contentSort': prefs.contentSort,
-        'channelListDensity': prefs.channelListDensity,
-        'viewModeLive': prefs.viewModeLive,
-        'viewModeMovies': prefs.viewModeMovies,
-        'viewModeSeries': prefs.viewModeSeries,
-        'parentalProtectionEnabled': prefs.parentalProtectionEnabled,
-        'parentalLockedCategories': prefs.parentalLockedCategories,
-        'refreshIntervalHours': prefs.refreshIntervalHours,
-        'refreshNotificationsEnabled': prefs.refreshNotificationsEnabled,
-        'pipEnabled': prefs.pipEnabled,
-        'mediaNotificationEnabled': prefs.mediaNotificationEnabled,
+        for (final entry in _backupPrefEntries) entry.key: entry.encode(prefs),
       };
 
   // Deliberately excludes bookkeeping-only prefs that shouldn't travel with
   // a backup: activeProfileId/activeSourceId (device/session state, not a
   // preference), lastRegisteredRefreshIntervalHours (WorkManager's own
   // internal tracking, would desync from what's actually registered on the
-  // restoring device), and parentalScanDone (a one-time internal flag).
+  // restoring device), parentalScanDone (a one-time internal flag),
+  // adminBiometricUnlock (device-only biometric enrolment), recentSearches
+  // (device-specific query history), lastUpdateCheck (device timestamp),
+  // and skippedUpdateVersion (device-specific release pin).
   Future<void> _applySettings(Map<String, dynamic> m) async {
-    if (m['accentColor'] is String) {
-      await prefs.setAccentColor(m['accentColor'] as String);
-    }
-    if (m['contentSort'] is String) {
-      await prefs.setContentSort(m['contentSort'] as String);
-    }
-    if (m['channelListDensity'] is String) {
-      await prefs.setChannelListDensity(m['channelListDensity'] as String);
-    }
-    if (m['viewModeLive'] is String) {
-      await prefs.setViewModeLive(m['viewModeLive'] as String);
-    }
-    if (m['viewModeMovies'] is String) {
-      await prefs.setViewModeMovies(m['viewModeMovies'] as String);
-    }
-    if (m['viewModeSeries'] is String) {
-      await prefs.setViewModeSeries(m['viewModeSeries'] as String);
-    }
-    if (m['parentalProtectionEnabled'] is bool) {
-      await prefs
-          .setParentalProtectionEnabled(m['parentalProtectionEnabled'] as bool);
-    }
-    if (m['parentalLockedCategories'] is List) {
-      await prefs.setParentalLockedCategories(
-          List<String>.from(m['parentalLockedCategories'] as List));
-    }
-    if (m['refreshIntervalHours'] is int) {
-      await prefs.setRefreshIntervalHours(m['refreshIntervalHours'] as int);
-    }
-    if (m['refreshNotificationsEnabled'] is bool) {
-      await prefs.setRefreshNotificationsEnabled(
-          m['refreshNotificationsEnabled'] as bool);
-    }
-    if (m['pipEnabled'] is bool) {
-      await prefs.setPipEnabled(m['pipEnabled'] as bool);
-    }
-    if (m['mediaNotificationEnabled'] is bool) {
-      await prefs
-          .setMediaNotificationEnabled(m['mediaNotificationEnabled'] as bool);
+    for (final entry in _backupPrefEntries) {
+      final value = m[entry.key];
+      if (value == null) continue;
+      await entry.decode(prefs, value);
     }
   }
 
