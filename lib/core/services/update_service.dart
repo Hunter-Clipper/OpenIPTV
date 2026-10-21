@@ -35,7 +35,8 @@ const carVideoAddonPackage = 'com.openiptv.app.carvideo';
 const carVideoAddonVersion = 1;
 
 const _r2MirrorBaseUrl = 'https://openiptv-mirror.hunterclipper.com';
-const _r2MirrorFallbackUrl = 'https://pub-0edfbe67bad843dea3904e2a16a01d62.r2.dev';
+const _r2MirrorFallbackUrl =
+    'https://pub-0edfbe67bad843dea3904e2a16a01d62.r2.dev';
 const _playStoreInstaller = 'com.android.vending';
 
 /// A semantic version (major.minor.patch); anything after the numbers
@@ -132,11 +133,20 @@ class UpdateInfo {
 /// TV via Downloader, other Android devices without Google Play). Play Store
 /// installs are left to the store.
 class UpdateService {
-  UpdateService({http.Client? client}) : _client = client ?? http.Client();
+  UpdateService({http.Client? client})
+      : _client = client ?? http.Client(),
+        _ownsClient = client == null;
 
   static const _channel = MethodChannel('openiptv/updates');
 
   final http.Client _client;
+  final bool _ownsClient;
+
+  /// Closes the internally-created [http.Client] if this instance owns it.
+  /// Called by [updateServiceProvider]'s `ref.onDispose`.
+  Future<void> dispose() async {
+    if (_ownsClient) _client.close();
+  }
 
   Future<AppVersion?> installedVersion() async =>
       AppVersion.tryParse((await PackageInfo.fromPlatform()).version);
@@ -150,8 +160,7 @@ class UpdateService {
   Future<bool> _askSelfUpdatable() async {
     if (!Platform.isAndroid) return false;
     try {
-      final installer =
-          await _channel.invokeMethod<String>('installerPackage');
+      final installer = await _channel.invokeMethod<String>('installerPackage');
       return installer != _playStoreInstaller;
     } on PlatformException {
       return true;
@@ -221,7 +230,8 @@ class UpdateService {
     final file = File('${dir.path}/$fileName-${info.version}.apk');
 
     // Default to GitHub; fall back to the Cloudflare R2 mirror.
-    final mirrorAsset = fileName == 'OpenIPTV' ? androidReleaseAsset : carVideoAddonAsset;
+    final mirrorAsset =
+        fileName == 'OpenIPTV' ? androidReleaseAsset : carVideoAddonAsset;
     final urls = <String>[
       info.apkUrl,
       '$_r2MirrorBaseUrl/latest/$mirrorAsset',
@@ -273,4 +283,8 @@ class UpdateService {
       _channel.invokeMethod('installApk', {'path': apk.path});
 }
 
-final updateServiceProvider = Provider<UpdateService>((ref) => UpdateService());
+final updateServiceProvider = Provider<UpdateService>((ref) {
+  final service = UpdateService();
+  ref.onDispose(service.dispose);
+  return service;
+});

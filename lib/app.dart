@@ -10,7 +10,10 @@ import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/pip_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/vpn_service.dart';
+import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
@@ -112,11 +115,19 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       updatePipAvailability(ref.read(pipEnabledProvider) && playing);
     }
 
+    // PiP availability.
     pushPipAvailability();
     ref
         .read(playbackServiceProvider)
         .stateStream
         .listen((_) => pushPipAvailability());
+
+    // Well after start (counting the big tables takes seconds on a TV):
+    // report storage, then the one-time rebuild of an older, bloated file.
+    // Run on a delay so it doesn't compete with initial EPG load. The widget's
+    // ref stays valid here — unlike a delayed callback inside a provider
+    // factory, where ref might be stale.
+    unawaited(_runStorageDiagnostics(ref, db));
 
     // Profile setup.
     final profiles = await db.getAllProfiles();
@@ -132,6 +143,24 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         _dbReady = true;
         _needsProfilePick = needsPick;
       });
+    }
+  }
+
+  /// Deferred storage diagnostics + one-time DB compaction, called from
+  /// [_openDb] after the database is ready. Runs on a 20s delay so it
+  /// doesn't compete with the initial EPG load. Safe to call from the
+  /// widget (where ref stays valid) — not from a provider factory.
+  Future<void> _runStorageDiagnostics(WidgetRef ref, AppDatabase db) async {
+    await Future<void>.delayed(const Duration(seconds: 20));
+    await db.logStorageStats();
+    final free = await freeDiskBytes();
+    if (free == null) return;
+    if (await db.compactIfBloated(freeDiskBytes: free)) {
+      // The guide was cleared to make room: fetch it again.
+      final epg = ref.read(epgServiceProvider);
+      for (final source in await db.getAllSources()) {
+        await epg.refreshEpg(source).catchError((Object _) {});
+      }
     }
   }
 
@@ -451,8 +480,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   // navigator above them).
   bool _inShellPage(FocusNode f) {
     final c = f.context;
-    return c != null &&
-        Navigator.maybeOf(c) == _shellNavigatorKey.currentState;
+    return c != null && Navigator.maybeOf(c) == _shellNavigatorKey.currentState;
   }
 
   bool _focusContent() {
@@ -677,7 +705,6 @@ class _TvNavRail extends StatefulWidget {
 }
 
 class _TvNavRailState extends State<_TvNavRail> {
-
   // Up/Down move between rail items only. Left to Flutter's directional
   // search, Down from an item could land in a *covered* page of the shell
   // navigator (e.g. the Live TV home under a category page) — invisible
@@ -746,7 +773,7 @@ class _TvNavRailState extends State<_TvNavRail> {
                         });
                       }
                     },
-                ),
+                  ),
                 ),
             ],
           ),

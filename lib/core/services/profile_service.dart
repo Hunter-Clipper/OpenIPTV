@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:open_iptv/core/models/profile.dart';
-import 'package:open_iptv/core/services/device_info_channel.dart';
-import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -90,15 +88,14 @@ class ProfileService {
     final all = await db.getAllProfiles();
     final target = all.firstWhere((p) => p.id == id);
     final others = all.where((p) => p.id != id);
-    if (target.isAdmin &&
-        others.isNotEmpty &&
-        !others.any((p) => p.isAdmin)) {
+    if (target.isAdmin && others.isNotEmpty && !others.any((p) => p.isAdmin)) {
       throw StateError('Cannot delete the last admin account.');
     }
     await db.deleteProfile(id);
     if (prefs?.activeProfileId == id) {
       final remaining = await db.getAllProfiles();
-      await prefs?.setActiveProfileId(remaining.isNotEmpty ? remaining.first.id : '');
+      await prefs
+          ?.setActiveProfileId(remaining.isNotEmpty ? remaining.first.id : '');
     }
   }
 
@@ -132,7 +129,8 @@ class ProfileService {
       throw ArgumentError('Incorrect PIN.');
     }
     if (profile.isAdmin) {
-      final others = (await db.getAllProfiles()).where((p) => p.id != profileId);
+      final others =
+          (await db.getAllProfiles()).where((p) => p.id != profileId);
       if (others.isNotEmpty) {
         throw StateError(
             'Cannot remove the admin PIN while other profiles exist.');
@@ -227,22 +225,7 @@ class ProfileService {
 // Provider for the AppDatabase — kept here to avoid circular imports.
 @Riverpod(keepAlive: true)
 AppDatabase appDatabase(AppDatabaseRef ref) {
-  final db = AppDatabase();
-  // Well after start (counting the big tables takes seconds on a TV):
-  // report storage, then the one-time rebuild of an older, bloated file.
-  Future.delayed(const Duration(seconds: 20), () async {
-    await db.logStorageStats();
-    final free = await freeDiskBytes();
-    if (free == null) return;
-    if (await db.compactIfBloated(freeDiskBytes: free)) {
-      // The guide was cleared to make room: fetch it again.
-      final epg = ref.read(epgServiceProvider);
-      for (final source in await db.getAllSources()) {
-        await epg.refreshEpg(source).catchError((Object _) {});
-      }
-    }
-  });
-  return db;
+  return AppDatabase();
 }
 
 /// Just the active profile's id. Watch this instead of [activeProfileProvider]

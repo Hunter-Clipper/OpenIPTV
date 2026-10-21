@@ -21,21 +21,22 @@ part 'epg_service.g.dart';
 Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
   late StreamController<T> controller;
   Timer? timer;
+  StreamSubscription? subscription;
 
   controller = StreamController<T>(
     onListen: () {
       timer?.cancel();
       timer = Timer(stall, () {
-        controller.addError(
-            TimeoutException('Stream stalled — no data for ${stall.inSeconds}s', stall));
+        controller.addError(TimeoutException(
+            'Stream stalled — no data for ${stall.inSeconds}s', stall));
         controller.close();
       });
-      stream.listen(
+      subscription = stream.listen(
         (data) {
           timer?.cancel();
           timer = Timer(stall, () {
-            controller.addError(
-                TimeoutException('Stream stalled — no data for ${stall.inSeconds}s', stall));
+            controller.addError(TimeoutException(
+                'Stream stalled — no data for ${stall.inSeconds}s', stall));
             controller.close();
           });
           controller.add(data);
@@ -49,6 +50,10 @@ Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
           controller.close();
         },
       );
+    },
+    onCancel: () {
+      subscription?.cancel();
+      timer?.cancel();
     },
   );
 
@@ -164,8 +169,7 @@ class EpgService {
   }) async {
     final epgUrl = source.epgUrl;
     if (epgUrl == null || epgUrl.isEmpty) {
-      debugPrint(
-          '[EPG] No EPG URL for "${source.nickname}" — skipping.');
+      debugPrint('[EPG] No EPG URL for "${source.nickname}" — skipping.');
       return;
     }
 
@@ -237,5 +241,4 @@ class EpgService {
       rethrow;
     }
   }
-
 }
