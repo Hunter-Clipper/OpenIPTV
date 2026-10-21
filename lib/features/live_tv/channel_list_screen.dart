@@ -190,14 +190,18 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   ),
                 if (favorites.isNotEmpty || recent.isNotEmpty)
                   const RailHeader(title: 'Categories'),
-                if (cats.isEmpty)
+                if (!hiddenCats.contains('All'))
                   CategoryTile(
-                    label: 'All',
+                    label: 'All Channels',
                     autofocus: favorites.isEmpty && recent.isEmpty,
                     count: all.length,
                     icon: Icons.live_tv_outlined,
                     onTap: () => context.push(
                         '/live/category/${Uri.encodeComponent('All')}'),
+                    onLongPress: profileId == null
+                        ? null
+                        : () => showCategoryOptions(context, ref, profileId, 'All',
+                            label: 'All Channels'),
                   ),
                 ...cats.map((cat) {
                   final count = catCounts[cat] ?? 0;
@@ -620,12 +624,13 @@ String _hm(BuildContext context, DateTime t) =>
 
 /// Hold OK / long-press on a category: offer to hide it.
 Future<void> showCategoryOptions(BuildContext context, WidgetRef ref,
-    String profileId, String category) async {
+    String profileId, String category, {String? label}) async {
   unawaited(HapticFeedback.mediumImpact());
   final hide = await showModalBottomSheet<bool>(
     context: context,
     useRootNavigator: true,
-    builder: (sheetContext) => _CategoryOptionsSheet(label: category),
+    builder: (sheetContext) =>
+        _CategoryOptionsSheet(label: label ?? category),
   );
   if (hide == true) {
     await ref.read(profileServiceProvider).hideCategory(profileId, category);

@@ -369,7 +369,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final categories = [
       if (favorites.isNotEmpty) _favorites,
       if (recent.isNotEmpty) _recent,
-      _all,
+      if (!(profile?.hiddenCategories ?? const <String>[]).contains(_all)) _all,
       ...liveCategories(all,
           hidden: (profile?.hiddenCategories ?? const []).toSet(),
           isKid: isKid,
@@ -455,9 +455,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     locked: locked(key),
                     onFocus: () => _onCategoryFocused(key),
                     onTap: () => _openCategory(key),
-                    onLongPress: _isRealCategory(key) && profile != null
+                    onLongPress: (_isRealCategory(key) || key == _all) && profile != null
                         ? () => showCategoryOptions(
-                            context, ref, profile.id, key)
+                            context, ref, profile.id, key,
+                            label: key == _all ? 'All Channels' : null)
                         : null,
                   );
                 },
