@@ -65,8 +65,10 @@ class CastStatus {
         title: m['title'] as String?,
         subtitle: m['subtitle'] as String?,
         live: m['live'] == true,
-        position: Duration(milliseconds: (m['positionMs'] as num?)?.toInt() ?? 0),
-        duration: Duration(milliseconds: (m['durationMs'] as num?)?.toInt() ?? 0),
+        position:
+            Duration(milliseconds: (m['positionMs'] as num?)?.toInt() ?? 0),
+        duration:
+            Duration(milliseconds: (m['durationMs'] as num?)?.toInt() ?? 0),
         volume: (m['volume'] as num?)?.toDouble() ?? 0,
       );
 
@@ -109,7 +111,8 @@ class CastStatus {
 class CastService {
   /// [enabled] is false on TVs (Android TV, Google TV, Fire TV): they are
   /// the screen, so casting is off — no native side, every call a no-op.
-  CastService({bool? enabled}) : enabled = enabled ?? !PlatformHelper.isTVDevice {
+  CastService({bool? enabled})
+      : enabled = enabled ?? !PlatformHelper.isTVDevice {
     if (this.enabled) _listen();
   }
 
@@ -137,7 +140,7 @@ class CastService {
         break;
       }
     }
-    _events.receiveBroadcastStream().listen((e) {
+    _eventSub = _events.receiveBroadcastStream().listen((e) {
       if (e is Map) {
         _status = CastStatus.fromMap(e);
         _controller.add(_status);
@@ -149,8 +152,8 @@ class CastService {
   static const _events = EventChannel('openiptv/cast_events');
 
   final _controller = StreamController<CastStatus>.broadcast();
+  StreamSubscription? _eventSub;
   CastStatus _status = const CastStatus();
-
   CastStatus get status => _status;
   Stream<CastStatus> get statusStream => _controller.stream;
 
@@ -183,6 +186,13 @@ class CastService {
   Future<void> seek(Duration to) =>
       _call('seek', {'positionMs': to.inMilliseconds});
   Future<void> setVolume(double v) => _call('setVolume', {'volume': v});
+
+  /// Cancels the EventChannel subscription and closes the status stream.
+  /// Called by [castServiceProvider]'s `ref.onDispose`.
+  Future<void> dispose() async {
+    await _eventSub?.cancel();
+    await _controller.close();
+  }
 
   /// Plays [streamUrl] on the connected device, trying each of
   /// [castCandidates] in turn. Returns the URL the receiver accepted, or
@@ -218,7 +228,11 @@ class CastService {
   }
 }
 
-final castServiceProvider = Provider<CastService>((ref) => CastService());
+final castServiceProvider = Provider<CastService>((ref) {
+  final service = CastService();
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 final castStatusProvider = StreamProvider<CastStatus>((ref) {
   final service = ref.watch(castServiceProvider);
