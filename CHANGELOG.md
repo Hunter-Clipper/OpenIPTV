@@ -3,6 +3,12 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.27 — 2026-10-21
+
+**Fixes**
+- M3U playlists now parse in a streaming fashion (line-by-line via `LineSplitter` over a byte stream) instead of loading the entire file into memory as a `List<String>`. Eliminates the OOM risk on TV devices when loading large playlists (~18k channels) (#79).
+- HTTP M3U downloads now use streaming HTTP (`StreamedResponse`) so bytes are decoded and discarded as they arrive, rather than buffering the full response body (#79).
+
 ## 0.14.26 — 2026-10-21
 
 **Fixes**

@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/parsers/m3u_parser.dart';
+
+Stream<List<int>> _stream(String content) => Stream.value(utf8.encode(content));
 
 void main() {
   const sourceId = 'test_source';
@@ -14,12 +17,12 @@ void main() {
     });
 
     test('parses EPG URL from header', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       expect(result.epgUrl, 'http://epg.example.com/guide.xml');
     });
 
     test('parses live channels correctly', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       expect(result.channels, isNotEmpty);
       final bbc = result.channels.firstWhere((c) => c.tvgId == 'BBC1');
       expect(bbc.name, 'BBC One');
@@ -30,24 +33,25 @@ void main() {
     });
 
     test('assigns sequential sortOrder to channels', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       for (var i = 0; i < result.channels.length; i++) {
         expect(result.channels[i].sortOrder, i);
       }
     });
 
     test('parses movies from VOD groups', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       expect(result.movies, isNotEmpty);
       final interstellar = result.movies.firstWhere(
         (m) => m.title.contains('Interstellar'),
       );
-      expect(interstellar.posterUrl, 'http://logos.example.com/interstellar.jpg');
+      expect(
+          interstellar.posterUrl, 'http://logos.example.com/interstellar.jpg');
       expect(interstellar.streamUrl, contains('interstellar.mp4'));
     });
 
     test('routes Films group to movies', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       final parasite = result.movies.firstWhere(
         (m) => m.title.contains('Parasite'),
       );
@@ -55,7 +59,7 @@ void main() {
     });
 
     test('parses series from Series group', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       expect(result.series, isNotEmpty);
       final bb = result.series.firstWhere(
         (s) => s.title.contains('Breaking Bad'),
@@ -64,7 +68,7 @@ void main() {
     });
 
     test('parses episodes with correct season/episode numbers', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       expect(result.episodes, isNotEmpty);
       final ep = result.episodes.firstWhere(
         (e) => e.streamUrl.contains('bb_s01e01'),
@@ -74,14 +78,15 @@ void main() {
     });
 
     test('groups episodes under the correct series', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
-      final bb = result.series.firstWhere((s) => s.title.contains('Breaking Bad'));
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
+      final bb =
+          result.series.firstWhere((s) => s.title.contains('Breaking Bad'));
       final bbEps = result.episodes.where((e) => e.seriesId == bb.id).toList();
       expect(bbEps.length, greaterThanOrEqualTo(4));
     });
 
     test('handles entries with no group-title', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       final noCategory = result.channels.firstWhere(
         (c) => c.name == 'No Category Channel',
         orElse: () => result.channels.last,
@@ -91,7 +96,7 @@ void main() {
     });
 
     test('handles entries with no logo', () async {
-      final result = await M3uParser.parse(sampleContent, sourceId);
+      final result = await M3uParser.parse(_stream(sampleContent), sourceId);
       final noLogo = result.channels.firstWhere(
         (c) => c.name == 'No Logo Channel',
       );
@@ -99,14 +104,14 @@ void main() {
     });
 
     test('produces deterministic IDs for stable upserts', () async {
-      final result1 = await M3uParser.parse(sampleContent, sourceId);
-      final result2 = await M3uParser.parse(sampleContent, sourceId);
+      final result1 = await M3uParser.parse(_stream(sampleContent), sourceId);
+      final result2 = await M3uParser.parse(_stream(sampleContent), sourceId);
       expect(result1.channels.map((c) => c.id).toList(),
           result2.channels.map((c) => c.id).toList());
     });
 
     test('handles empty file gracefully', () async {
-      final result = await M3uParser.parse('', sourceId);
+      final result = await M3uParser.parse(_stream(''), sourceId);
       expect(result.channels, isEmpty);
       expect(result.movies, isEmpty);
       expect(result.series, isEmpty);
@@ -115,7 +120,7 @@ void main() {
     });
 
     test('handles file with only header line', () async {
-      final result = await M3uParser.parse('#EXTM3U\n', sourceId);
+      final result = await M3uParser.parse(_stream('#EXTM3U\n'), sourceId);
       expect(result.channels, isEmpty);
     });
 
@@ -127,7 +132,7 @@ void main() {
 #EXTINF:-1 group-title="News",Test Channel
 http://example.com/live.ts
 ''';
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(_stream(content), sourceId);
       expect(result.channels.length, 1);
       expect(result.channels.first.name, 'Test Channel');
     });
@@ -139,19 +144,20 @@ http://example.com/orphan.ts
 #EXTINF:-1 group-title="News",Valid Channel
 http://example.com/valid.ts
 ''';
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(_stream(content), sourceId);
       // Orphan URL is skipped; only the valid one is parsed.
       expect(result.channels.length, 1);
       expect(result.channels.first.name, 'Valid Channel');
     });
 
-    test('detects series by SxxExx pattern even without Series group', () async {
+    test('detects series by SxxExx pattern even without Series group',
+        () async {
       const content = '''
 #EXTM3U
 #EXTINF:-1 group-title="VOD",My Show S02E05 Episode Title
 http://example.com/ep.mp4
 ''';
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(_stream(content), sourceId);
       expect(result.episodes, isNotEmpty);
       expect(result.episodes.first.season, 2);
       expect(result.episodes.first.episode, 5);
@@ -165,7 +171,7 @@ http://example.com/ep.mp4
 #EXTINF:-1 group-title="Movies;Series",Pluto TV Classics
 https://example.com/pluto/classics/master.m3u8
 ''';
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(_stream(content), sourceId);
       expect(result.channels.map((c) => c.name), ['Pluto TV Classics']);
       expect(result.movies, isEmpty);
       expect(result.series, isEmpty);
@@ -177,7 +183,7 @@ https://example.com/pluto/classics/master.m3u8
 #EXTINF:-1 group-title="Drama",Some Show S01E02
 http://host/series/user/pass/12345.mkv
 ''';
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(_stream(content), sourceId);
       expect(result.channels, isEmpty);
       expect(result.episodes.single.episode, 2);
     });
@@ -188,8 +194,28 @@ http://host/series/user/pass/12345.mkv
 #EXTINF:-1 group-title="Movies",Some Film
 http://host/stream/98765
 ''';
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(_stream(content), sourceId);
       expect(result.movies.map((m) => m.title), ['Some Film']);
+    });
+
+    test('handles multi-chunk streams (simulates network)', () async {
+      // A stream that emits the content in small pieces — the parser must
+      // reassemble lines that span chunk boundaries.
+      final content = '#EXTM3U\n'
+          '#EXTINF:-1 group-title="News",Channel One\n'
+          'http://example.com/live/1.m3u8\n';
+      final chars = content.codeUnits;
+      final chunks = <List<int>>[];
+      for (var i = 0; i < chars.length; i += 7) {
+        final end = (i + 7).clamp(0, chars.length);
+        chunks.add(chars.sublist(i, end));
+      }
+      final result = await M3uParser.parse(
+        Stream.fromIterable(chunks),
+        sourceId,
+      );
+      expect(result.channels.length, 1);
+      expect(result.channels.first.name, 'Channel One');
     });
   });
 }

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -24,14 +23,28 @@ class M3uParseResult {
 }
 
 class M3uParser {
-  /// Parses an M3U/M3U+ string in a separate isolate so the UI never blocks.
-  static Future<M3uParseResult> parse(String content, String sourceId) {
-    return Isolate.run(() => _parse(content, sourceId));
+  /// Stream-parses an M3U/M3U+ feed, processing one line at a time.
+  ///
+  /// Takes a raw byte stream (e.g. `http.StreamedResponse.stream` or
+  /// `File.openRead()`) and decodes it line-by-line via
+  /// `utf8.decoder.bind(stream).transform(LineSplitter())`. This keeps only
+  /// the current line in memory instead of splitting the entire file into a
+  /// `List<String>` — safe for large playlists (~18k channels) on low-RAM
+  /// TV devices.
+  static Future<M3uParseResult> parse(
+    Stream<List<int>> bytes,
+    String sourceId,
+  ) async {
+    final lines = bytes
+        .transform(const Utf8Decoder(allowMalformed: true))
+        .transform(const LineSplitter());
+    return _parse(lines, sourceId);
   }
 
-  static M3uParseResult _parse(String content, String sourceId) {
-    final lines = content.split('\n');
-
+  static Future<M3uParseResult> _parse(
+    Stream<String> lines,
+    String sourceId,
+  ) async {
     String? epgUrl;
     final channels = <Channel>[];
     final movies = <Movie>[];
@@ -41,8 +54,8 @@ class M3uParser {
     String? pendingExtinf;
     int sortIndex = 0;
 
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
+    await for (final raw in lines) {
+      final line = raw.trim();
       if (line.isEmpty) continue;
 
       if (line.startsWith('#EXTM3U')) {

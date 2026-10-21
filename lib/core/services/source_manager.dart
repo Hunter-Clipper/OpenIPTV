@@ -550,9 +550,10 @@ class SourceManager {
     void Function()? onFetched,
   }) async {
     if (LocalPlaylists.isLocal(url)) {
-      final content = await _local.read(url);
+      final stream = _local.readStream(url);
       onFetched?.call();
-      final result = await M3uParser.parse(content, sourceId);
+      final result = await M3uParser.parse(stream, sourceId)
+          .timeout(const Duration(seconds: 30));
       if (result.channels.isEmpty &&
           result.movies.isEmpty &&
           result.series.isEmpty) {
@@ -560,14 +561,19 @@ class SourceManager {
       }
       return result;
     }
-    final response =
-        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
-    if (response.statusCode != 200) {
-      throw Exception('http_${response.statusCode}');
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', Uri.parse(url));
+      final response = await client.send(request);
+      if (response.statusCode != 200) {
+        throw Exception('http_${response.statusCode}');
+      }
+      onFetched?.call();
+      return M3uParser.parse(response.stream, sourceId)
+          .timeout(const Duration(seconds: 30));
+    } finally {
+      client.close();
     }
-    onFetched?.call();
-    return M3uParser.parse(response.body, sourceId)
-        .timeout(const Duration(seconds: 30));
   }
 
   /// Logs why a refresh failed — the summary the user sees only says that
