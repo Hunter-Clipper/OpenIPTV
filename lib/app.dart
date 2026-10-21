@@ -112,7 +112,12 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     );
     void pushPipAvailability() {
       final playing = ref.read(playbackServiceProvider).lastState.playWhenReady;
-      updatePipAvailability(ref.read(pipEnabledProvider) && playing);
+      // Only offer PiP when the full-screen PlayerScreen is the active route —
+      // otherwise Home would shrink a non-player screen (settings, guide,
+      // channel list) into a tiny window with smooshed UI.
+      updatePipAvailability(
+        ref.read(pipEnabledProvider) && playing && PlayerScreen.openCount > 0,
+      );
     }
 
     // PiP availability.
@@ -121,6 +126,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         .read(playbackServiceProvider)
         .stateStream
         .listen((_) => pushPipAvailability());
+    // Re-evaluate PiP eligibility when the user toggles the setting.
+    ref.listen<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
 
     // Well after start (counting the big tables takes seconds on a TV):
     // report storage, then the one-time rebuild of an older, bloated file.
