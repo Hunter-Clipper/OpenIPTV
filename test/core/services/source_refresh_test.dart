@@ -135,8 +135,21 @@ void main() {
         contains('Check the URL'));
   });
 
-  test('every catalog table has a source index for refresh deletes',
+  test('deleteSource removes the source and clears all its catalog rows',
       () async {
+    await manager.refreshPlaylist(source);
+    expect(await counts(), [1, 1, 1]);
+    expect((await db.getAllSources()).length, 1);
+
+    await manager.deleteSource(source.id);
+
+    // Source row is gone.
+    expect((await db.getAllSources()).length, 0);
+    // All catalog rows for this source are removed.
+    expect(await counts(), [0, 0, 0]);
+  });
+
+  test('every catalog table has a source index for refresh deletes', () async {
     final rows = await db
         .customSelect("SELECT name FROM sqlite_master WHERE type='index'")
         .get();

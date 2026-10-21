@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.28 — 2026-10-21
+
+**Fixes**
+- Deleting a playlist from Settings now shows a spinner dialog while the database is cleaned up, so the app no longer appears frozen on large playlists (#91).
+
 ## 0.14.27 — 2026-10-21
 
 **Fixes**

@@ -940,13 +940,43 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       ),
     );
     if (confirmed == true) {
-      await ref.read(sourceManagerProvider).deleteSource(id);
-      // Clear active source if it was the deleted one.
-      if (ref.read(activeSourceIdProvider) == id) {
-        final prefs = await ref.read(appPreferencesProvider.future);
-        await setActiveSource(ref, null, prefs);
+      // Show a non-dismissible spinner so the user knows the deletion is
+      // running. On large playlists the DB cleanup + compact (incremental
+      // vacuum + WAL checkpoint) can take 10+ seconds; without feedback the
+      // settings sheet looks frozen and the user force-quits before the list
+      // refreshes (#91).
+      unawaited(showDialog(
+        // ignore: use_build_context_synchronously — context valid in same frame
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text('Removing "$nickname"...'),
+            ],
+          ),
+        ),
+      ));
+      try {
+        await ref.read(sourceManagerProvider).deleteSource(id);
+        // Clear active source if it was the deleted one.
+        if (ref.read(activeSourceIdProvider) == id) {
+          final prefs = await ref.read(appPreferencesProvider.future);
+          await setActiveSource(ref, null, prefs);
+        }
+        ref.invalidate(allSourcesProvider);
+      } finally {
+        if (mounted && context.mounted && Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
       }
-      ref.invalidate(allSourcesProvider);
     }
   }
 
@@ -1081,8 +1111,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                                 icon: Icons.sync_rounded,
                                 tooltip: 'Refresh Playlist',
                                 busy: isBusy,
-                                onTap:
-                                    isBusy ? null : () => _refreshPlaylist(s.id),
+                                onTap: isBusy
+                                    ? null
+                                    : () => _refreshPlaylist(s.id),
                               ),
                               _SourceMenu(
                                 enabled: !isBusy,
@@ -1167,6 +1198,7 @@ class _SourceMenu extends StatelessWidget {
         child: v == 3 ? TvInitialFocus(child: row) : row,
       );
     }
+
     return TvFocusable(
       wrapsGesture: false,
       borderRadius: BorderRadius.circular(20),
@@ -1323,7 +1355,8 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
               LocalPlaylists.isLocal(source.m3uUrl)
                   ? const _InfoRow('Source', 'File saved on this device')
                   : _InfoRow('URL', redactUrl(source.m3uUrl ?? '—')),
-              if (source.epgUrl != null) _InfoRow('EPG URL', redactUrl(source.epgUrl!)),
+              if (source.epgUrl != null)
+                _InfoRow('EPG URL', redactUrl(source.epgUrl!)),
               _InfoRow(
                 'Last refreshed',
                 lastRefreshed != null ? formatYmd(lastRefreshed) : 'Never',
