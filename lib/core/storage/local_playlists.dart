@@ -63,6 +63,15 @@ class LocalPlaylists {
     return file.readAsString();
   }
 
+  /// Streams the saved playlist at [url] line-by-line, avoiding loading the
+  /// entire file into memory — critical for large playlists on low-RAM TV
+  /// devices.
+  Stream<List<int>> readStream(String url) {
+    final file = File.fromUri(Uri.parse(url));
+    if (!file.existsSync()) throw const LocalPlaylistException('missing');
+    return file.openRead();
+  }
+
   /// Removes the saved copy, if any. Safe to call for any URL.
   Future<void> delete(String? url) async {
     if (!isLocal(url)) return;
