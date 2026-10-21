@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/movie.dart';
@@ -44,8 +46,8 @@ class M3uParser {
       if (line.isEmpty) continue;
 
       if (line.startsWith('#EXTM3U')) {
-        epgUrl = _extractAttr(line, 'url-tvg') ??
-            _extractAttr(line, 'x-tvg-url');
+        epgUrl =
+            _extractAttr(line, 'url-tvg') ?? _extractAttr(line, 'x-tvg-url');
         continue;
       }
 
@@ -162,7 +164,13 @@ class M3uParser {
   // ---------------------------------------------------------------------------
 
   static const _vodKeywords = [
-    'vod', 'movie', 'movies', 'film', 'films', 'series', 'shows',
+    'vod',
+    'movie',
+    'movies',
+    'film',
+    'films',
+    'series',
+    'shows',
   ];
 
   static final _vodFileExt =
@@ -207,8 +215,10 @@ class M3uParser {
   }
 
   static String _generateId(String sourceId, String key) {
-    // Deterministic ID from source + key so re-parsing the same feed
-    // produces the same IDs and upserts work correctly.
-    return '${sourceId}_${key.hashCode.abs()}';
+    // Stable, cross-SDK ID: SHA-256 of sourceId + key, truncated to 16 hex chars.
+    // (String.hashCode is NOT guaranteed stable across Dart SDK versions or
+    // program executions, which caused silent data loss on app updates.)
+    final hash = sha256.convert(utf8.encode('$sourceId:$key')).toString();
+    return '${sourceId}_${hash.substring(0, 16)}';
   }
 }
