@@ -42,11 +42,14 @@ Future<void> initNowPlayingService(PlaybackService playbackService) async {
 /// regardless of the user's "Media Notification" setting.
 class NowPlayingHandler extends BaseAudioHandler {
   NowPlayingHandler(this._playbackService) {
-    _playbackService.stateStream.listen((_) => _broadcastState());
-    _playbackService.errorStream.listen(_onCarError);
+    _stateSub = _playbackService.stateStream.listen((_) => _broadcastState());
+    _errorSub = _playbackService.errorStream.listen(_onCarError);
   }
 
   final PlaybackService _playbackService;
+
+  StreamSubscription? _stateSub;
+  StreamSubscription? _errorSub;
 
   /// Android Auto's browse tree; set once the app's data layer is up.
   CarLibrary? library;
@@ -123,6 +126,13 @@ class NowPlayingHandler extends BaseAudioHandler {
     mediaItem.add(null);
   }
 
+  /// Cancels the playback state and error stream subscriptions.
+  /// Called during teardown to release stream listeners.
+  Future<void> close() async {
+    await _stateSub?.cancel();
+    await _errorSub?.cancel();
+  }
+
   void _broadcastState() {
     if (!_publishing || _stopped || _carError != null) return;
     final state = _playbackService.lastState;
@@ -159,7 +169,8 @@ class NowPlayingHandler extends BaseAudioHandler {
           : AudioProcessingState.ready,
       // Live TV has no timeline: -1 is Android's "position unknown", so
       // the car and lock screen don't show a running clock.
-      updatePosition: seekable ? state.position : const Duration(milliseconds: -1),
+      updatePosition:
+          seekable ? state.position : const Duration(milliseconds: -1),
     ));
   }
 
@@ -276,8 +287,7 @@ class NowPlayingHandler extends BaseAudioHandler {
     if (current == null || _carQueue.length < 2) return;
     final i = _carQueue.indexOf(current.mediaId);
     final next = _carQueue[
-        ((i + delta) % _carQueue.length + _carQueue.length) %
-            _carQueue.length];
+        ((i + delta) % _carQueue.length + _carQueue.length) % _carQueue.length];
     await _playCar(next, _carQueue);
   }
 
@@ -307,7 +317,8 @@ class NowPlayingHandler extends BaseAudioHandler {
     _broadcastState();
     final profileId = await currentProfileId?.call();
     if (profileId != null && p.isLive) {
-      unawaited(_playbackService.db.updateChannelLastWatched(profileId, p.contentId));
+      unawaited(
+          _playbackService.db.updateChannelLastWatched(profileId, p.contentId));
     }
     if (!p.isLive) {
       // Keep Continue Watching current, like the phone's player does.
