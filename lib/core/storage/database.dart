@@ -1057,9 +1057,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<model.Programme>> searchProgrammes(String query) async {
-    final q = _textContains(programmes.title, query);
+    final q = '%${query.toLowerCase()}%';
     final rows = await (select(programmes)
-          ..where((t) => q)
+          ..where((t) => t.title.lower().like(q))
           ..orderBy([(t) => OrderingTerm.asc(t.start)])
           ..limit(50))
         .get();
@@ -1141,11 +1141,10 @@ class AppDatabase extends _$AppDatabase {
     int limit = 60,
     String? profileId,
   }) async {
-    final genreLike = genre.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final rows = await (select(movies)
           ..where((t) =>
               t.sourceId.equals(sourceId) &
-              t.genre.like('%$genreLike%', escapeChar: '\\') &
+              t.genre.like('%$genre%') &
               t.id.equals(excludeId).not())
           ..limit(limit))
         .get();
@@ -1339,11 +1338,10 @@ class AppDatabase extends _$AppDatabase {
     required String excludeId,
     int limit = 60,
   }) async {
-    final genreLike = genre.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final rows = await (select(seriesEntries)
           ..where((t) =>
               t.sourceId.equals(sourceId) &
-              t.genre.like('%$genreLike%', escapeChar: '\\') &
+              t.genre.like('%$genre%') &
               t.id.equals(excludeId).not())
           ..limit(limit))
         .get();
