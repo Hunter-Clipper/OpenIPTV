@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
+import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -95,6 +97,12 @@ Future<void> setAccentColor(
     WidgetRef ref, Color color, AppPreferences prefs) async {
   ref.read(accentColorProvider.notifier).state = color;
   await prefs.setAccentColor(AppTheme.hexFromAccent(color));
+  // Also persist on the active profile so the color is profile-specific.
+  final profile = ref.read(activeProfileProvider).valueOrNull;
+  if (profile != null) {
+    final db = ref.read(appDatabaseProvider);
+    await db.upsertProfile(profile.copyWith(accentColor: AppTheme.hexFromAccent(color)));
+  }
 }
 
 Future<void> setContentSort(
@@ -163,8 +171,10 @@ Future<void> setMediaNotificationEnabled(
 /// backup — must call this afterward or the UI keeps showing stale values
 /// until the app restarts.
 void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
+  final activeProfile = ref.read(activeProfileProvider).valueOrNull;
+  final accentHex = activeProfile?.accentColor ?? prefs.accentColor;
   ref.read(accentColorProvider.notifier).state =
-      AppTheme.accentFromHex(prefs.accentColor);
+      AppTheme.accentFromHex(accentHex);
   ref.read(contentSortProvider.notifier).state = prefs.contentSort;
   ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
   ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;

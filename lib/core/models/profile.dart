@@ -19,7 +19,8 @@ class Profile {
     this.hiddenCategories = const [],
     this.isKidsProfile = false,
     this.isAdmin = false,
-  });
+    this.accentColor = '0A84FF',
+    });
 
   final String id;
   final String name;
@@ -38,6 +39,7 @@ class Profile {
   final List<String> hiddenCategories;
   final bool isKidsProfile;
   final bool isAdmin;
+  final String accentColor;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -67,6 +69,7 @@ class Profile {
     List<String>? hiddenCategories,
     bool? isKidsProfile,
     bool? isAdmin,
+    String? accentColor,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearPin = false,
@@ -89,6 +92,7 @@ class Profile {
       hiddenCategories: hiddenCategories ?? this.hiddenCategories,
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
       isAdmin: isAdmin ?? this.isAdmin,
+      accentColor: accentColor ?? this.accentColor,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -51,6 +51,7 @@ class ProfileService {
     String? pin,
     bool isAdmin = false,
     bool isKidsProfile = false,
+    String? accentColor,
   }) async {
     final existing = await db.getAllProfiles();
     if (existing.length >= _maxProfiles) {
@@ -73,6 +74,7 @@ class ProfileService {
       isKidsProfile: isKidsProfile,
       createdAt: now,
       updatedAt: now,
+      accentColor: accentColor ?? '0A84FF',
     );
 
     await db.upsertProfile(profile);

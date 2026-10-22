@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/profile.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
@@ -119,6 +122,14 @@ class ProfilePickerScreen extends ConsumerWidget {
       await ref.read(profileServiceProvider).switchToProfile(profile.id);
     }
     ref.invalidate(activeProfileProvider);
+    // Sync accent color from the newly active profile.
+    final newProfile = await ref.read(activeProfileProvider.future);
+    if (newProfile != null) {
+      ref.read(accentColorProvider.notifier).state =
+          AppTheme.accentFromHex(newProfile.accentColor);
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await prefs.setAccentColor(newProfile.accentColor);
+    }
     onPicked();
   }
 

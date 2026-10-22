@@ -149,6 +149,7 @@ class Profiles extends Table {
   BoolColumn get isKidsProfile =>
       boolean().withDefault(const Constant(false))();
   BoolColumn get isAdmin => boolean().withDefault(const Constant(false))();
+  TextColumn get accentColor => text().withDefault(const Constant('0A84FF'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -194,7 +195,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -279,6 +280,15 @@ class AppDatabase extends _$AppDatabase {
           if (from < 9) await _createSearchIndexes();
           if (from < 10) await _createSourceIndexes();
           if (from < 11) await _migrateM3uContentIds();
+          if (from < 12) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(profiles)').get();
+            final hasCol =
+                tableInfo.any((r) => r.data['name'] == 'accent_color');
+            if (!hasCol) {
+              await m.addColumn(profiles, profiles.accentColor);
+            }
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -1579,6 +1589,7 @@ class AppDatabase extends _$AppDatabase {
             List<String>.from(jsonDecode(row.hiddenCategories) as List),
         isKidsProfile: row.isKidsProfile,
         isAdmin: row.isAdmin,
+        accentColor: row.accentColor,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       );
@@ -1682,6 +1693,7 @@ class AppDatabase extends _$AppDatabase {
         hiddenCategories: Value(jsonEncode(p.hiddenCategories)),
         isKidsProfile: Value(p.isKidsProfile),
         isAdmin: Value(p.isAdmin),
+        accentColor: Value(p.accentColor),
         createdAt: Value(p.createdAt),
         updatedAt: Value(p.updatedAt),
       );

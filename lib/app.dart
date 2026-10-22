@@ -153,6 +153,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     if (profiles.length == 1) {
       // Auto-select single profile (no picker needed).
       await prefs.setActiveProfileId(profiles.first.id);
+      // Sync accent color from the profile.
+      await prefs.setAccentColor(profiles.first.accentColor);
+      ref.read(accentColorProvider.notifier).state =
+          AppTheme.accentFromHex(profiles.first.accentColor);
     }
 
     final needsPick = profiles.length > 1;
