@@ -154,7 +154,7 @@ void main() {
     setUp(() async {
       db = AppDatabase(NativeDatabase.memory());
       service = ProfileService(
-          db: db, prefs: await prefsWith(biometricOn: true));
+          db: db, prefsSnapshot: await prefsWith(biometricOn: true));
     });
     tearDown(() => db.close());
 
