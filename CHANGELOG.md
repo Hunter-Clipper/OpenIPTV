@@ -8,6 +8,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 **Fixes**
 - Unsafe casts in Xtream episode parsing no longer cause crashes on non-compliant providers (#69).
 - EPG refresh now uses bulk upserts and a single transaction, significantly reducing refresh time (#72).
+- "More Like This" section no longer shows stale data after a profile switch (#71).
 
 ## 0.14.28 — 2026-10-21
 
