@@ -1499,7 +1499,9 @@ class _UpNextBannerState extends State<_UpNextBanner> {
       }
       if (_remaining <= 1) {
         t.cancel();
-        widget.onPlay();
+        if (mounted) {
+          widget.onPlay();
+        }
       } else {
         setState(() => _remaining--);
       }
