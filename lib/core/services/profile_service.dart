@@ -15,8 +15,10 @@ const _maxProfiles = 10;
 @Riverpod(keepAlive: true)
 ProfileService profileService(ProfileServiceRef ref) {
   final db = ref.watch(appDatabaseProvider);
-  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
-  return ProfileService(db: db, prefs: prefs);
+  return ProfileService(
+    db: db,
+    prefsGetter: () => ref.read(appPreferencesProvider).valueOrNull,
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -35,10 +37,13 @@ Future<Profile?> activeProfile(ActiveProfileRef ref) async {
 }
 
 class ProfileService {
-  const ProfileService({required this.db, required this.prefs});
+  ProfileService({required this.db, this.prefsSnapshot, this.prefsGetter});
 
   final AppDatabase db;
-  final AppPreferences? prefs;
+  final AppPreferences? prefsSnapshot;
+  final AppPreferences? Function()? prefsGetter;
+
+  AppPreferences? get prefs => prefsSnapshot ?? prefsGetter?.call();
 
   Future<Profile> createProfile({
     required String name,

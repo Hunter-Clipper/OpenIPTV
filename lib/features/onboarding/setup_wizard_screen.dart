@@ -298,7 +298,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       if (!widget.addPlaylistOnly) {
         final prefs = await ref.read(appPreferencesProvider.future);
         final db = ref.read(appDatabaseProvider);
-        final profileSvc = ProfileService(db: db, prefs: prefs);
+        final profileSvc = ProfileService(db: db, prefsSnapshot: prefs);
         await profileSvc.createProfile(
           name: _nameCtrl.text.trim(),
           avatarEmoji: _avatarEmoji,
