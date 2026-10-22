@@ -98,6 +98,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
       cat == _favorites ? 'Favorites' : context.displayName(cat);
 
   void _step(List<String> cats, int delta) {
+    if (_category == null) return;
     final i = cats.indexOf(_category!);
     setState(() {
       _category = cats[(i + delta + cats.length) % cats.length];
