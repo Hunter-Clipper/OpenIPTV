@@ -458,7 +458,7 @@ class SettingsScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String current) async {
     final prefs = await ref.read(appPreferencesProvider.future);
     if (!context.mounted) return;
-    unawaited(showDialog<void>(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Content Sort Order'),
@@ -491,7 +491,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    ));
+    );
   }
 
   String _refreshIntervalLabel(int hours) {
@@ -940,13 +940,57 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       ),
     );
     if (confirmed == true) {
-      await ref.read(sourceManagerProvider).deleteSource(id);
-      // Clear active source if it was the deleted one.
-      if (ref.read(activeSourceIdProvider) == id) {
-        final prefs = await ref.read(appPreferencesProvider.future);
-        await setActiveSource(ref, null, prefs);
+      // Show a professional, non-dismissible loading dialog.
+      // On large playlists the DB cleanup + compact can take 10+ seconds;
+      // without feedback the settings sheet looks frozen.
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Text(
+                  'Removing "$nickname"...',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      try {
+        debugPrint('[OTV-settings] Starting deletion of $id');
+        await ref.read(sourceManagerProvider).deleteSource(id);
+        // Clear active source if it was the deleted one.
+        if (ref.read(activeSourceIdProvider) == id) {
+          final prefs = await ref.read(appPreferencesProvider.future);
+          await setActiveSource(ref, null, prefs);
+        }
+        debugPrint('[OTV-settings] Invalidating allSourcesProvider');
+        ref.invalidate(allSourcesProvider);
+      } catch (e) {
+        debugPrint('[OTV-settings] Deletion failed: $e');
+      } finally {
+        if (mounted && context.mounted) {
+          // Pop the loading dialog.
+          Navigator.of(context, rootNavigator: true).pop();
+        }
       }
-      ref.invalidate(allSourcesProvider);
     }
   }
 
@@ -1081,8 +1125,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                                 icon: Icons.sync_rounded,
                                 tooltip: 'Refresh Playlist',
                                 busy: isBusy,
-                                onTap:
-                                    isBusy ? null : () => _refreshPlaylist(s.id),
+                                onTap: isBusy
+                                    ? null
+                                    : () => _refreshPlaylist(s.id),
                               ),
                               _SourceMenu(
                                 enabled: !isBusy,
@@ -1167,6 +1212,7 @@ class _SourceMenu extends StatelessWidget {
         child: v == 3 ? TvInitialFocus(child: row) : row,
       );
     }
+
     return TvFocusable(
       wrapsGesture: false,
       borderRadius: BorderRadius.circular(20),
@@ -1323,7 +1369,8 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
               LocalPlaylists.isLocal(source.m3uUrl)
                   ? const _InfoRow('Source', 'File saved on this device')
                   : _InfoRow('URL', redactUrl(source.m3uUrl ?? '—')),
-              if (source.epgUrl != null) _InfoRow('EPG URL', redactUrl(source.epgUrl!)),
+              if (source.epgUrl != null)
+                _InfoRow('EPG URL', redactUrl(source.epgUrl!)),
               _InfoRow(
                 'Last refreshed',
                 lastRefreshed != null ? formatYmd(lastRefreshed) : 'Never',

@@ -569,8 +569,9 @@ class SourceManager {
         throw Exception('http_${response.statusCode}');
       }
       onFetched?.call();
-      return M3uParser.parse(response.stream, sourceId)
+      final result = await M3uParser.parse(response.stream, sourceId)
           .timeout(const Duration(seconds: 30));
+      return result;
     } finally {
       client.close();
     }
