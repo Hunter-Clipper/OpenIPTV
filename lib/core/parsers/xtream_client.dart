@@ -185,7 +185,10 @@ class XtreamClient {
     });
     final epg = data['epg_listings'];
     if (epg == null) return [];
-    return List<Map<String, dynamic>>.from(epg as List);
+    if (epg is! List) return [];
+    return epg
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   /// The provider's full XMLTV guide URL. Credentials are interpolated raw
@@ -300,7 +303,7 @@ class XtreamClient {
         streamUrl: buildStreamUrl(streamId, 'live'),
         groupTitle: catMap[catId],
         tvgId: m['epg_channel_id'] as String?,
-        tvgName: m['name'] as String?,
+        tvgName: null, // Xtream has no tvg_name field
         sortOrder: entry.key,
         hasCatchup: hasCatchup && catchupDays > 0,
         catchupDays: catchupDays,
@@ -348,7 +351,7 @@ class XtreamClient {
         title: '${m['name'] ?? 'Unknown'}',
         posterUrl: m['cover'] as String?,
         genre: catMap[catId],
-        year: m['releaseDate'] as String?,
+        year: m['releaseDate']?.toString().split('-').first,
         description: m['plot'] as String?,
       );
     }).toList();

@@ -27,6 +27,7 @@ class Programme {
   double progressAt(DateTime time) {
     if (time.isBefore(start)) return 0;
     if (time.isAfter(end)) return 1;
+    if (duration.inSeconds == 0) return 0;
     return time.difference(start).inSeconds / duration.inSeconds;
   }
 }
