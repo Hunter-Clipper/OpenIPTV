@@ -458,7 +458,7 @@ class SettingsScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String current) async {
     final prefs = await ref.read(appPreferencesProvider.future);
     if (!context.mounted) return;
-    unawaited(showDialog<void>(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Content Sort Order'),
@@ -491,7 +491,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    ));
+    );
   }
 
   String _refreshIntervalLabel(int hours) {
@@ -940,41 +940,55 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       ),
     );
     if (confirmed == true) {
-      // Show a non-dismissible spinner so the user knows the deletion is
-      // running. On large playlists the DB cleanup + compact (incremental
-      // vacuum + WAL checkpoint) can take 10+ seconds; without feedback the
-      // settings sheet looks frozen and the user force-quits before the list
-      // refreshes (#91).
-      unawaited(showDialog(
-        // ignore: use_build_context_synchronously — context valid in same frame
+      // Show a professional, non-dismissible loading dialog.
+      // On large playlists the DB cleanup + compact can take 10+ seconds;
+      // without feedback the settings sheet looks frozen.
+      showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 12),
-              Text('Removing "$nickname"...'),
-            ],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Text(
+                  'Removing "$nickname"...',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
         ),
-      ));
+      );
       try {
+        debugPrint('[OTV-settings] Starting deletion of $id');
         await ref.read(sourceManagerProvider).deleteSource(id);
         // Clear active source if it was the deleted one.
         if (ref.read(activeSourceIdProvider) == id) {
           final prefs = await ref.read(appPreferencesProvider.future);
           await setActiveSource(ref, null, prefs);
         }
+        debugPrint('[OTV-settings] Invalidating allSourcesProvider');
         ref.invalidate(allSourcesProvider);
+      } catch (e) {
+        debugPrint('[OTV-settings] Deletion failed: $e');
       } finally {
-        if (mounted && context.mounted && Navigator.canPop(context)) {
-          Navigator.of(context).pop();
+        if (mounted && context.mounted) {
+          // Pop the loading dialog.
+          Navigator.of(context, rootNavigator: true).pop();
         }
       }
     }
