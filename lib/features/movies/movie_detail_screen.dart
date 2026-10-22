@@ -227,7 +227,7 @@ class _MovieDetailBody extends ConsumerWidget {
               ),
             ),
           ),
-        const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+        SliverPadding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 32)),
       ],
     );
   }
