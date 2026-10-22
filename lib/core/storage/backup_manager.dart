@@ -215,6 +215,7 @@ class BackupManager {
         'hiddenCategories': p.hiddenCategories,
         'isKidsProfile': p.isKidsProfile,
         'isAdmin': p.isAdmin,
+        'accentColor': p.accentColor,
         'createdAt': p.createdAt.toIso8601String(),
         'updatedAt': p.updatedAt.toIso8601String(),
       };
@@ -242,6 +243,7 @@ class BackupManager {
             List<String>.from(m['hiddenCategories'] as List? ?? []),
         isKidsProfile: m['isKidsProfile'] as bool? ?? false,
         isAdmin: m['isAdmin'] as bool? ?? false,
+        accentColor: m['accentColor'] as String? ?? '0A84FF',
         createdAt: DateTime.parse(m['createdAt'] as String),
         updatedAt: DateTime.parse(m['updatedAt'] as String),
       );

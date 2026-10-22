@@ -299,11 +299,12 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
         final prefs = await ref.read(appPreferencesProvider.future);
         final db = ref.read(appDatabaseProvider);
         final profileSvc = ProfileService(db: db, prefsSnapshot: prefs);
-        await profileSvc.createProfile(
+        final profile = await profileSvc.createProfile(
           name: _nameCtrl.text.trim(),
           avatarEmoji: _avatarEmoji,
           pin: _pin.isEmpty ? null : _pin,
           isAdmin: true,
+          accentColor: AppTheme.hexFromAccent(_accentColor),
         );
 
         // Persist and apply the chosen accent colour immediately.
