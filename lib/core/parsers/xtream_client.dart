@@ -187,6 +187,7 @@ class XtreamClient {
     if (epg == null) return [];
     if (epg is! List) return [];
     return epg
+        .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
         .whereType<Map<String, dynamic>>()
         .toList();
   }
@@ -303,7 +304,7 @@ class XtreamClient {
         streamUrl: buildStreamUrl(streamId, 'live'),
         groupTitle: catMap[catId],
         tvgId: m['epg_channel_id'] as String?,
-        tvgName: null, // Xtream has no tvg_name field
+        tvgName: m['name'] as String?,
         sortOrder: entry.key,
         hasCatchup: hasCatchup && catchupDays > 0,
         catchupDays: catchupDays,
