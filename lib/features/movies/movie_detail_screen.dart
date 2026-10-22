@@ -36,9 +36,10 @@ final _movieExtrasProvider =
 final _moreLikeThisProvider = FutureProvider.autoDispose
     .family<List<Movie>, (String, String, String)>((ref, key) async {
   final (id, sourceId, genre) = key;
+  final profileId = ref.watch(activeProfileIdProvider);
   final candidates = await ref.read(appDatabaseProvider).getMoviesInGenre(
       sourceId, genre,
-      excludeId: id, profileId: ref.read(activeProfileIdProvider));
+      excludeId: id, profileId: profileId);
   final lower = genre.toLowerCase();
   // The SQL match is a substring one; keep exact genre-name matches only.
   return candidates
