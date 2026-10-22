@@ -348,7 +348,7 @@ class XtreamClient {
         title: '${m['name'] ?? 'Unknown'}',
         posterUrl: m['cover'] as String?,
         genre: catMap[catId],
-        year: m['releaseDate']?.toString().split('-').first,
+        year: m['releaseDate'] as String?,
         description: m['plot'] as String?,
       );
     }).toList();
