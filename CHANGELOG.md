@@ -7,6 +7,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 **Fixes**
 - Deleting a playlist from Settings now shows a spinner dialog while the database is cleaned up, so the app no longer appears frozen on large playlists (#91).
+- Channel switcher no longer crashes if category is null before first build completes (#83).
 
 ## 0.14.27 — 2026-10-21
 
