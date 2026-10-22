@@ -48,6 +48,7 @@ final _seriesExtrasProvider =
 final _moreLikeThisProvider = FutureProvider.autoDispose
     .family<List<Series>, (String, String, String)>((ref, key) async {
   final (id, sourceId, genre) = key;
+  ref.watch(activeProfileIdProvider);
   final candidates = await ref
       .read(appDatabaseProvider)
       .getSeriesInGenre(sourceId, genre, excludeId: id);
