@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.29 — 2026-10-21
+
+**Fixes**
+- Unsafe casts in Xtream episode parsing no longer cause crashes on non-compliant providers (#69).
+
 ## 0.14.28 — 2026-10-21
 
 **Fixes**
