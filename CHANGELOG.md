@@ -12,6 +12,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - "More Like This" section bottom padding now dynamically accounts for system nav bar to prevent text cutoff.
 - Profile service no longer snapshots prefs at construction time, preventing stale null-prefs instances (#74).
 
+**Features**
+- Accent color is now profile-specific and included in backups.
+
 ## 0.14.28 — 2026-10-21
 
 **Fixes**
