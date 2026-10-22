@@ -364,10 +364,14 @@ class XtreamClient {
     final result = <Episode>[];
     for (final seasonKey in episodes.keys) {
       final seasonNum = int.tryParse(seasonKey) ?? 1;
-      final eps = episodes[seasonKey] as List;
-      for (final ep in eps) {
+      final season = episodes[seasonKey];
+      if (season is! List) continue;
+      for (final ep in season) {
+        if (ep is! Map) continue;
         final m = ep as Map<String, dynamic>;
         final episodeId = '${m['id'] ?? ''}';
+        final ext = m['container_extension'];
+        final infoMap = m['info'] is Map ? m['info'] as Map : null;
         result.add(Episode(
           id: '${sourceId}_ep_$episodeId',
           seriesId: '${sourceId}_ser_$localSeriesId',
@@ -378,11 +382,9 @@ class XtreamClient {
           streamUrl: buildStreamUrl(
             episodeId,
             'series',
-            ext: m['container_extension'] as String? ?? 'mp4',
+            ext: ext is String ? ext : (ext is int ? '$ext' : 'mp4'),
           ),
-          stillUrl: m['info'] != null
-              ? (m['info'] as Map)['movie_image'] as String?
-              : null,
+          stillUrl: infoMap?['movie_image'] as String?,
         ));
       }
     }
