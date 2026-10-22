@@ -10,6 +10,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - EPG refresh now uses bulk upserts and a single transaction, significantly reducing refresh time (#72).
 - "More Like This" section no longer shows stale data after a profile switch (#71).
 - "More Like This" section bottom padding now dynamically accounts for system nav bar to prevent text cutoff.
+- Profile service no longer snapshots prefs at construction time, preventing stale null-prefs instances (#74).
 
 ## 0.14.28 — 2026-10-21
 
