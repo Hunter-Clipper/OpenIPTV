@@ -12,9 +12,16 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - "More Like This" section bottom padding now dynamically accounts for system nav bar to prevent text cutoff.
 - Profile service no longer snapshots prefs at construction time, preventing stale null-prefs instances (#74).
 - Prevent NaN progress bar when programme duration is zero (#80).
+- Fixed SQLite 999-variable limit in Continue Watching queries (#68).
+- Fixed upsertProgrammes crash (DoUpdate cast was wrong) that broke EPG refresh (#96).
+- Escaped LIKE wildcards in search and genre queries (#80).
+- Safe cast in getShortEpg for Up Next overlay (#80).
+- Extracted year from releaseDate in series parser (#80).
+- Set tvgName to null for Xtream channels (no tvg_name field) (#80).
 
 **Features**
 - Accent color is now profile-specific and included in backups.
+- Added Up Next section to series detail page (#108).
 
 ## 0.14.28 — 2026-10-21
 
