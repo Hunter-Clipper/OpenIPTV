@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.30 — 2026-10-23
+
+**Fixes**
+- Progress bars in Live TV channel list and TV guide now update in real time (#70).
+
 ## 0.14.29 — 2026-10-21
 
 **Fixes**
