@@ -1053,9 +1053,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<model.Programme>> searchProgrammes(String query) async {
-    final q = '%${query.toLowerCase()}%';
+    final escaped = query.toLowerCase().replaceAllMapped(
+        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
+    final q = '%$escaped%';
     final rows = await (select(programmes)
-          ..where((t) => t.title.lower().like(q))
+          ..where((t) => t.title.lower().like(q, escapeChar: '\\'))
           ..orderBy([(t) => OrderingTerm.asc(t.start)])
           ..limit(50))
         .get();
@@ -1137,10 +1139,12 @@ class AppDatabase extends _$AppDatabase {
     int limit = 60,
     String? profileId,
   }) async {
+    final escapedGenre = genre.replaceAllMapped(
+        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final rows = await (select(movies)
           ..where((t) =>
               t.sourceId.equals(sourceId) &
-              t.genre.like('%$genre%') &
+              t.genre.like('%$escapedGenre%', escapeChar: '\\') &
               t.id.equals(excludeId).not())
           ..limit(limit))
         .get();
@@ -1334,10 +1338,12 @@ class AppDatabase extends _$AppDatabase {
     required String excludeId,
     int limit = 60,
   }) async {
+    final escapedGenre = genre.replaceAllMapped(
+        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final rows = await (select(seriesEntries)
           ..where((t) =>
               t.sourceId.equals(sourceId) &
-              t.genre.like('%$genre%') &
+              t.genre.like('%$escapedGenre%', escapeChar: '\\') &
               t.id.equals(excludeId).not())
           ..limit(limit))
         .get();
