@@ -1178,9 +1178,14 @@ class AppDatabase extends _$AppDatabase {
         .asyncMap((progressRows) async {
       final ids = progressRows.map((p) => p.contentId).toList();
       if (ids.isEmpty) return <model.Movie>[];
-      final movieRows =
-          await (select(movies)..where((t) => t.id.isIn(ids))).get();
-      final byId = {for (final r in movieRows) r.id: r};
+      // Chunk to avoid SQLite 999-variable limit.
+      final allMovieRows = <MovieRow>[];
+      for (var i = 0; i < ids.length; i += 900) {
+        final chunk = ids.sublist(i, (i + 900).clamp(0, ids.length));
+        final rows = await (select(movies)..where((t) => t.id.isIn(chunk))).get();
+        allMovieRows.addAll(rows);
+      }
+      final byId = {for (final r in allMovieRows) r.id: r};
       final progressById = {for (final p in progressRows) p.contentId: p};
       return ids
           .map((id) => byId[id])
@@ -1258,9 +1263,14 @@ class AppDatabase extends _$AppDatabase {
         .asyncMap((progressRows) async {
       final ids = progressRows.map((p) => p.contentId).toList();
       if (ids.isEmpty) return <model.Episode>[];
-      final episodeRows =
-          await (select(episodes)..where((t) => t.id.isIn(ids))).get();
-      final byId = {for (final r in episodeRows) r.id: r};
+      // Chunk to avoid SQLite 999-variable limit.
+      final allEpisodeRows = <EpisodeRow>[];
+      for (var i = 0; i < ids.length; i += 900) {
+        final chunk = ids.sublist(i, (i + 900).clamp(0, ids.length));
+        final rows = await (select(episodes)..where((t) => t.id.isIn(chunk))).get();
+        allEpisodeRows.addAll(rows);
+      }
+      final byId = {for (final r in allEpisodeRows) r.id: r};
       final progressById = {for (final p in progressRows) p.contentId: p};
       return ids
           .map((id) => byId[id])
