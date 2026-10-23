@@ -185,7 +185,11 @@ class XtreamClient {
     });
     final epg = data['epg_listings'];
     if (epg == null) return [];
-    return List<Map<String, dynamic>>.from(epg as List);
+    if (epg is! List) return [];
+    return epg
+        .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   /// The provider's full XMLTV guide URL. Credentials are interpolated raw
