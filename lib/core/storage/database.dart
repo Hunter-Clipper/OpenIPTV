@@ -694,12 +694,10 @@ class AppDatabase extends _$AppDatabase {
     List<T> items,
     void Function(Batch b, List<T> chunk) fill,
   ) async {
-    await batch((b) {
-      for (var i = 0; i < items.length; i += 500) {
-        final chunk = items.sublist(i, (i + 500).clamp(0, items.length));
-        fill(b, chunk);
-      }
-    });
+    for (var i = 0; i < items.length; i += 500) {
+      final chunk = items.sublist(i, (i + 500).clamp(0, items.length));
+      await batch((b) => fill(b, chunk));
+    }
   }
 
   Future<void> _clearProgress(
@@ -906,14 +904,16 @@ class AppDatabase extends _$AppDatabase {
       // the meaningless autoincrement id (which is never set here) — that
       // default target is why every refresh re-inserted every programme as
       // a brand-new row instead of overwriting the existing one.
-      b.insertAll(
-        this.programmes,
-        chunk,
-        onConflict: DoUpdate(
-          (excluded) => excluded as ProgrammesCompanion,
-          target: [this.programmes.channelId, this.programmes.start],
-        ),
-      );
+      for (final c in chunk) {
+        b.insert(
+          this.programmes,
+          c,
+          onConflict: DoUpdate(
+            (_) => c,
+            target: [this.programmes.channelId, this.programmes.start],
+          ),
+        );
+      }
     });
   }
 

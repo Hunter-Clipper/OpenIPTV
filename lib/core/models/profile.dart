@@ -20,7 +20,7 @@ class Profile {
     this.isKidsProfile = false,
     this.isAdmin = false,
     this.accentColor = '0A84FF',
-    });
+  });
 
   final String id;
   final String name;
