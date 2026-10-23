@@ -224,6 +224,24 @@ class _SeriesBody extends ConsumerWidget {
             ],
           ),
         ),
+        if (next != null && (next.isInProgress || episodes.any((e) => e.isWatched)))
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+              child: Text('Up Next',
+                  style: theme.textTheme.titleMedium!
+                      .copyWith(fontWeight: FontWeight.w600, fontSize: 17)),
+            ),
+          ),
+        if (next != null && (next.isInProgress || episodes.any((e) => e.isWatched)))
+          SliverToBoxAdapter(
+            child: _EpisodeCard(
+              episode: next,
+              details: extras?.episodes[_providerEpisodeId(next)],
+              fallbackImage: extras?.backdropUrl,
+              seriesId: series.id,
+            ),
+          ),
         SliverToBoxAdapter(
           child: DetailSynopsis(
             text: extras?.plot ?? _nonEmpty(series.description),
