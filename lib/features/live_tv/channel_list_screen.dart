@@ -826,6 +826,21 @@ class _LiveChannelCard extends ConsumerStatefulWidget {
 
 class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
   bool _focused = false;
+  Timer? _progressTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
