@@ -856,15 +856,38 @@ class _PreviewLabel extends StatelessWidget {
   }
 }
 
-class _ProgrammeInfo extends StatelessWidget {
+class _ProgrammeInfo extends StatefulWidget {
   const _ProgrammeInfo({required this.channel, required this.programme});
 
   final Channel channel;
   final Programme? programme;
 
   @override
+  State<_ProgrammeInfo> createState() => _ProgrammeInfoState();
+}
+
+class _ProgrammeInfoState extends State<_ProgrammeInfo> {
+  Timer? _progressTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final channel = widget.channel;
+    final programme = widget.programme;
     final p = programme;
     final name = context.displayName(channel.name);
     final description = p?.description?.trim();
