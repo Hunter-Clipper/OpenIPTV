@@ -3,6 +3,17 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.31 — 2026-10-26
+
+**Fixes**
+- Background refresh error handling: wraps refresh in try/catch, returns false on failure for WorkManager retry (#117).
+- Faster image loading: custom cache manager with 24 concurrent connections, disk cache dimensions, increased ImageCache, and optimized cached resolution (#118).
+- On-screen player title now respects Clean Names preference (#75).
+- Reduced unnecessary rebuilds: ref.read instead of ref.watch for playback service singletons (#77).
+- autoDispose on search query and content details providers to prevent memory leaks (#78).
+- Accessibility semantics added to StarButton, QualityChip, and ToggleTile (#81).
+- Added error logging to background EPG fetch callbacks (#125).
+
 ## 0.14.30 — 2026-10-23
 
 **Fixes**
