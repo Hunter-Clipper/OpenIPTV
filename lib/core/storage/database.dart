@@ -195,7 +195,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -289,6 +289,7 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(profiles, profiles.accentColor);
             }
           }
+          if (from < 13) await _createCoveringIndexes();
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -426,9 +427,30 @@ class AppDatabase extends _$AppDatabase {
     );
     await _createSearchIndexes();
     await _createSourceIndexes();
+    await _createCoveringIndexes();
   }
 
-  // A playlist refresh or removal deletes that playlist's rows from each
+  // Covering indexes for hot read paths (#126/#128): include the columns that
+  // queries read alongside the key columns so SQLite can satisfy them from the
+  // index alone without a row lookup. Biggest wins on programmes (TV guide)
+  // and watch_progress (playback seeking).
+  Future<void> _createCoveringIndexes() async {
+    // watch_progress: profile-scoped progress lookups read content_id + position.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_watch_progress_covering '
+      'ON watch_progress (profile_id, content_type, content_id, watched_duration_seconds)',
+    );
+    // programmes: guide queries read title/description alongside time range.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_programmes_covering '
+      'ON programmes (channel_id, start, end, title)',
+    );
+    // channels: list view reads name/logo/number alongside source.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_channels_covering '
+      'ON channels (source_id, sort_order, name, logo_url)',
+    );
+  }
   // catalog table. Without these, every delete scanned the whole table:
   // ~10 s on a TV for a 2-title playlist, holding the write lock throughout.
   Future<void> _createSourceIndexes() async {
