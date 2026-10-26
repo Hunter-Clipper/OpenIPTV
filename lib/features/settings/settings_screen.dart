@@ -436,6 +436,19 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => context.push('/settings/power-tools'),
                   ),
                 ),
+                Consumer(builder: (context, ref, _) {
+                  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+                  final skipEnc = prefs?.skipDbEncryption ?? false;
+                  return _ToggleTile(
+                    icon: Icons.lock_open,
+                    title: 'Skip Database Encryption',
+                    value: skipEnc,
+                    onChanged: (v) async {
+                      final p = await ref.read(appPreferencesProvider.future);
+                      await p.setSkipDbEncryption(v);
+                    },
+                  );
+                }),
               ]),
             const SizedBox(height: 32),
           ],
