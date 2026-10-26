@@ -448,7 +448,7 @@ class AppDatabase extends _$AppDatabase {
     // channels: list view reads name/logo/number alongside source.
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_channels_covering '
-      'ON channels (source_id, number, name, logo_url)',
+      'ON channels (source_id, sort_order, name, logo_url)',
     );
   }
   // catalog table. Without these, every delete scanned the whole table:
