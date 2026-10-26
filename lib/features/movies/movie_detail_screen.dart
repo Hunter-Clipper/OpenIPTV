@@ -27,7 +27,7 @@ final _movieDetailProvider =
 /// Backdrop, cast, runtime… fetched from the provider on first open and kept
 /// for the session. Keyed by (movie id, source id).
 final _movieExtrasProvider =
-    FutureProvider.family<ContentDetails?, (String, String)>((ref, key) {
+    FutureProvider.autoDispose.family<ContentDetails?, (String, String)>((ref, key) {
   return ref.read(sourceManagerProvider).fetchMovieDetails(key.$1, key.$2);
 });
 

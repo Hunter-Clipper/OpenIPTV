@@ -100,7 +100,7 @@ class _PlayerSettingsSheetState extends ConsumerState<PlayerSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final service = ref.watch(playbackServiceProvider);
+    final service = ref.read(playbackServiceProvider);
     final text = _tracks.where((t) => t.type == 'text').toList();
     final audio = _tracks.where((t) => t.type == 'audio').toList();
     final selectedText = text.where((t) => t.selected).firstOrNull;

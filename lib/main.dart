@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,9 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Increase image cache to handle large libraries (Movies/Series/Live TV).
+  PaintingBinding.instance.imageCache.maximumSize = 2000;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 * 1024 * 1024; // 200MB
   // Must resolve before the orientation lock below — a TV has no rotation
   // concept and no portrait mode at all, so requesting one here causes
   // Android to letterbox the whole app into a small portrait compat box.
