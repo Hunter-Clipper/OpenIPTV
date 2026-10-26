@@ -386,24 +386,26 @@ class _SeasonChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 64,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-        itemCount: seasons.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final s = seasons[i];
-          return TvActivatable(
-            onTap: () => onChanged(s),
-            builder: (onTap) => ChoiceChip(
-              label: Text('Season $s'),
-              selected: s == selected,
-              showCheckmark: false,
-              shape: const StadiumBorder(),
-              onSelected: onTap == null ? null : (_) => onTap(),
-            ),
-          );
-        },
+      child: TvRowFocus(
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+          itemCount: seasons.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final s = seasons[i];
+            return TvActivatable(
+              onTap: () => onChanged(s),
+              builder: (onTap) => ChoiceChip(
+                label: Text('Season $s'),
+                selected: s == selected,
+                showCheckmark: false,
+                shape: const StadiumBorder(),
+                onSelected: onTap == null ? null : (_) => onTap(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

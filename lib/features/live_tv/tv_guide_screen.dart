@@ -139,7 +139,18 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     TvGuideScreen.requestCategoryFocus = () {
       if (!mounted) return;
       final key = _focusedCategory ?? _shownCategory;
-      if (key != null) _categoryNode(key).requestFocus();
+      if (key != null) {
+        _categoryNode(key).requestFocus();
+        return;
+      }
+      // Fallback: focus the first category node, or the first row, so the
+      // user is never stranded when focus is lost.
+      final first = _categoryNodes.values.firstOrNull;
+      if (first != null) {
+        first.requestFocus();
+        return;
+      }
+      if (_firstRowNode.context != null) _firstRowNode.requestFocus();
     };
     TvGuideScreen.requestGridFocus = () {
       if (!mounted) return;
