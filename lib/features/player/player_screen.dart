@@ -1375,7 +1375,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               ),
                             },
                             child: PlayerControls(
-                              title: widget.title,
+                              title: _shownTitle,
                               handBackTo: widget.handBackTo,
                               contentType: _isChannelPlayback
                                   ? (_liveDvrActive ? 'catchup' : 'live')
