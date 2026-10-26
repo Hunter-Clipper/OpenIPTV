@@ -610,6 +610,8 @@ class LogoTile extends StatelessWidget {
               imageUrl: url!,
               fit: BoxFit.contain,
               memCacheWidth: (width * 2).toInt(),
+              maxWidthDiskCache: (width * 2).toInt(),
+              maxHeightDiskCache: (width * 2).toInt(),
               errorWidget: (_, __, ___) => icon,
             ),
     );
