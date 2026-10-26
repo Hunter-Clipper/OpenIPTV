@@ -11,6 +11,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - TV guide back navigation: fallback focus so users are never stranded (#113).
 - Background refresh error handling: wraps refresh in try/catch, returns false on failure for WorkManager retry (#117).
 - Faster image loading: custom cache manager with 24 concurrent connections, disk cache dimensions, increased ImageCache, and optimized cached resolution (#118).
+- On-screen player title now respects Clean Names preference (#75).
 
 **Features**
 - Live TV player: Live button is now always focusable and clickable to force a re-sync to the live edge.
