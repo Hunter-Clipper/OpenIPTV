@@ -439,14 +439,44 @@ class SettingsScreen extends ConsumerWidget {
                 Consumer(builder: (context, ref, _) {
                   final prefs = ref.watch(appPreferencesProvider).valueOrNull;
                   final skipEnc = prefs?.skipDbEncryption ?? false;
-                  return _ToggleTile(
-                    icon: Icons.lock_open,
-                    title: 'Skip Database Encryption',
-                    value: skipEnc,
-                    onChanged: (v) async {
-                      final p = await ref.read(appPreferencesProvider.future);
-                      await p.setSkipDbEncryption(v);
-                    },
+                  return StatefulBuilder(
+                    builder: (context, setLocal) => _ToggleTile(
+                      icon: Icons.lock_open,
+                      title: 'Skip Database Encryption',
+                      value: skipEnc,
+                      onChanged: (v) async {
+                        if (v) {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Skip Database Encryption?'),
+                              content: const Text(
+                                'This will store your database (including '
+                                'playlist credentials and stream links) '
+                                'unencrypted on disk. Anyone with access to '
+                                'the device can read it. The app must be '
+                                'restarted for the change to take effect.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Enable'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true) return;
+                        }
+                        final p = await ref.read(appPreferencesProvider.future);
+                        await p.setSkipDbEncryption(v);
+                        ref.invalidate(appPreferencesProvider);
+                        setLocal(() {});
+                      },
+                    ),
                   );
                 }),
               ]),
