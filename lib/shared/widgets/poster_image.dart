@@ -41,6 +41,9 @@ class PosterImage extends StatelessWidget {
       height: height ?? double.infinity,
       memCacheWidth: width?.toInt() ?? 220,
       memCacheHeight: height?.toInt() ?? 320,
+      maxWidthDiskCache: 440,
+      maxHeightDiskCache: 640,
+      fadeInDuration: const Duration(milliseconds: 200),
       placeholder: (_, __) => Container(
         width: width,
         height: height,
