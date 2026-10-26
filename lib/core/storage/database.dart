@@ -438,7 +438,7 @@ class AppDatabase extends _$AppDatabase {
     // watch_progress: profile-scoped progress lookups read content_id + position.
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_watch_progress_covering '
-      'ON watch_progress (profile_id, content_type, content_id, position)',
+      'ON watch_progress (profile_id, content_type, content_id, watched_duration_seconds)',
     );
     // programmes: guide queries read title/description alongside time range.
     await customStatement(
