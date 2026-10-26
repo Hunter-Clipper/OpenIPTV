@@ -10,6 +10,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - TV focus improvements: player option row and season chips now navigable via D-pad (#76).
 - TV guide back navigation: fallback focus so users are never stranded (#113).
 
+**Features**
+- Live TV player: Live button is now always focusable and clickable to force a re-sync to the live edge.
+
 ## 0.14.29 — 2026-10-21
 
 **Fixes**
