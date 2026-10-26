@@ -39,7 +39,7 @@ final _seriesEpisodesProvider =
 /// Backdrop, cast, episode stills and synopses, fetched from the provider on
 /// first open and kept for the session. Keyed by (series id, source id).
 final _seriesExtrasProvider =
-    FutureProvider.family<ContentDetails?, (String, String)>((ref, key) {
+    FutureProvider.autoDispose.family<ContentDetails?, (String, String)>((ref, key) {
   return ref.read(sourceManagerProvider).fetchSeriesDetails(key.$1, key.$2);
 });
 

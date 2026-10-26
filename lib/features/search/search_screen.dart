@@ -27,7 +27,7 @@ import 'package:open_iptv/ui/platform_helper.dart';
 // Providers
 // ---------------------------------------------------------------------------
 
-final _searchQueryProvider = StateProvider<String>((ref) => '');
+final _searchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
 final _searchResultsProvider =
     FutureProvider.autoDispose<SearchResults>((ref) async {
