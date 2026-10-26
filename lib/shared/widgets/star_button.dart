@@ -37,11 +37,19 @@ class StarButton extends StatelessWidget {
             : Colors.white70,
       ),
     );
-    if (onTap == null || tv) return content;
+    if (onTap == null || tv) return Semantics(
+      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      button: true,
+      child: content,
+    );
     return TvFocusable(
       onTap: onTap!,
       borderRadius: BorderRadius.circular(16),
-      child: content,
+      child: Semantics(
+        label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+        button: true,
+        child: content,
+      ),
     );
   }
 }

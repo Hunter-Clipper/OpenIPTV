@@ -1170,7 +1170,10 @@ class _QualityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
-    return Container(
+    return Semantics(
+      label: '${label}p resolution',
+      button: true,
+      child: Container(
       padding: EdgeInsets.symmetric(
           horizontal: 10 * m.scale, vertical: 5 * m.scale),
       decoration: BoxDecoration(
@@ -1186,6 +1189,7 @@ class _QualityChip extends StatelessWidget {
           fontSize: 11.5 * m.scale,
           letterSpacing: 0.8,
         ),
+      ),
       ),
     );
   }
