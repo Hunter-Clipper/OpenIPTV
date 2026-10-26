@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/extensions/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/storage/db_encryption.dart';
@@ -1756,8 +1758,15 @@ void _dbSetup(Database db) {
 /// races the app converting an older unencrypted database.
 QueryExecutor _openConnection({bool migrate = true}) {
   return LazyDatabase(() async {
+    final prefs = await SharedPreferences.getInstance();
+    final skipEncryption = prefs.getBool('skip_db_encryption') ?? false;
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'open_iptv.db'));
+    if (skipEncryption) {
+      // Plain SQLite — no encryption overhead.
+      return NativeDatabase.createInBackground(file,
+          setup: _dbSetup);
+    }
     final (executor, state) = await openEncryptedDatabase(
       file,
       keys: DbKeyStore(),
