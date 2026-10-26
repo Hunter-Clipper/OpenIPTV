@@ -9,6 +9,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - Progress bars in Live TV channel list and TV guide now update in real time (#70).
 - TV focus improvements: player option row and season chips now navigable via D-pad (#76).
 - TV guide back navigation: fallback focus so users are never stranded (#113).
+- Background refresh error handling: wraps refresh in try/catch, returns false on failure for WorkManager retry (#117).
 
 **Features**
 - Live TV player: Live button is now always focusable and clickable to force a re-sync to the live edge.
