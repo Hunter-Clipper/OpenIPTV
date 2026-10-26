@@ -189,7 +189,9 @@ class SourceManager {
     await db.compact();
     // Pass the updated source so the auto-set EPG URL is included.
     // Background: a failed guide is logged, and mustn't fail the playlist.
-    unawaited(epgService.refreshEpg(updated).catchError((Object _) {}));
+    unawaited(epgService.refreshEpg(updated).catchError((Object e) {
+      _logRefreshError(source, 'background-epg', e);
+    }));
   }
 
   /// Refreshes playlist and EPG concurrently instead of sequentially, for use
@@ -349,7 +351,9 @@ class SourceManager {
     // Hand back the space the swap freed (the old lists).
     await db.compact();
     // Background: a failed guide is logged, and mustn't fail the playlist.
-    unawaited(epgService.refreshEpg(updated).catchError((Object _) {}));
+    unawaited(epgService.refreshEpg(updated).catchError((Object e) {
+      _logRefreshError(source, 'background-epg', e);
+    }));
   }
 
   /// Refreshes only movies for a source.
