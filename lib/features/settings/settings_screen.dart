@@ -495,7 +495,7 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         );
                         // Force app restart
-                        SystemNavigator.pop();
+                        exit(0);
                       },
                     ),
                   );
