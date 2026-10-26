@@ -1388,7 +1388,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               onLiveForward: _onLiveForward,
                               onGoLive: _liveDvrActive
                                   ? _goLive
-                                  : (_isBehindLive ? _goLiveLocal : null),
+                                  : _goLiveLocal,
                               isBehindLive: _isBehindLive,
                               playPauseFocusNode: _playPauseFocusNode,
                               backFocusNode: _backFocusNode,
