@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/extensions/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/storage/db_encryption.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:sqlite3/sqlite3.dart' show Database;
 import 'package:open_iptv/core/models/channel.dart' as model;
 import 'package:open_iptv/core/models/episode.dart' as model;
@@ -1759,13 +1761,26 @@ void _dbSetup(Database db) {
 QueryExecutor _openConnection({bool migrate = true}) {
   return LazyDatabase(() async {
     final prefs = await SharedPreferences.getInstance();
-    final skipEncryption = prefs.getBool('skip_db_encryption') ?? false;
+    final skipEncryption =
+        prefs.getBool(kSkipDbEncryptionKey) ?? false;
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'open_iptv.db'));
     if (skipEncryption) {
-      // Plain SQLite — no encryption overhead.
+      // Plain SQLite — no encryption overhead. Mirror _plain() so the
+      // background isolate loads the bundled SQLite library on Android.
+      if (file.existsSync() && !isPlaintextSqlite(file)) {
+        // Existing encrypted DB: convert in place before opening plain.
+        final key = await DbKeyStore().read();
+        if (key != null) {
+          await Isolate.run(() => decryptInPlace(file.path, key));
+        } else {
+          // No key — set aside and start fresh.
+          setAside(file);
+        }
+      }
+      debugPrint('[OTV-db] opened (plaintext, skip encryption)');
       return NativeDatabase.createInBackground(file,
-          setup: _dbSetup);
+          isolateSetup: useSqlCipher, setup: _dbSetup);
     }
     final (executor, state) = await openEncryptedDatabase(
       file,

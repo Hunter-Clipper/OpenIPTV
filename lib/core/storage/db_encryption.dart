@@ -80,7 +80,7 @@ bool isPlaintextSqlite(File file) {
 final _sqliteMagic =
     Uint8List.fromList('SQLite format 3\u0000'.codeUnits);
 
-void _useSqlCipher() {
+void useSqlCipher() {
   open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
 }
 
@@ -124,7 +124,7 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   Duration retryDelay = const Duration(milliseconds: 300),
 }) async {
   keyOpens ??= (path, key) => Isolate.run(() => _keyOpens(path, key));
-  _useSqlCipher();
+  useSqlCipher();
   await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
 
   var state = DbOpenState.encrypted;
@@ -159,7 +159,7 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
       debugPrint('[OTV-db] database key '
           '${key == null ? 'unreadable' : 'does not match'} — setting the '
           'old database aside and starting fresh');
-      _setAside(file);
+      setAside(file);
       await keys.delete();
       key = null;
       state = DbOpenState.reset;
@@ -173,7 +173,7 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   return (
     NativeDatabase.createInBackground(
       file,
-      isolateSetup: _useSqlCipher,
+      isolateSetup: useSqlCipher,
       setup: (db) {
         db.execute('PRAGMA key = $sqlKey;');
         setup(db);
@@ -201,7 +201,7 @@ Future<String?> _readKey(DbKeyStore keys, Duration delay) async {
 }
 
 /// Moves the database files to `<name>.lost…`, replacing any older set.
-void _setAside(File file) {
+void setAside(File file) {
   const suffixes = ['', '-wal', '-shm', '-journal'];
   for (final s in suffixes) {
     final old = File('${file.path}$lostSuffix$s');
@@ -215,12 +215,12 @@ void _setAside(File file) {
 
 QueryExecutor _plain(File file, void Function(Database) setup) =>
     NativeDatabase.createInBackground(file,
-        isolateSetup: _useSqlCipher, setup: setup);
+        isolateSetup: useSqlCipher, setup: setup);
 
 const _sqliteNotADb = 26;
 
 bool _keyOpens(String path, String hexKey) {
-  _useSqlCipher();
+  useSqlCipher();
   final db = sqlite3.open(path);
   try {
     db.execute('PRAGMA key = ${_sqlKey(hexKey)};');
@@ -236,10 +236,40 @@ bool _keyOpens(String path, String hexKey) {
   }
 }
 
-/// Rewrites the plaintext database at [path] as a SQLCipher database with
+/// Rewrites the SQLCipher database at [path] as a plain SQLite database,
+/// replacing the original only once the copy is complete.
+void decryptInPlace(String path, String hexKey) {
+  useSqlCipher();
+  final tmp = '$path.decrypting';
+  for (final f in [File(tmp), File('$tmp-journal')]) {
+    if (f.existsSync()) f.deleteSync();
+  }
+  final db = sqlite3.open(path);
+  try {
+    db.execute('PRAGMA key = ${_sqlKey(hexKey)};');
+    db.select('SELECT count(*) FROM sqlite_master;');
+    db.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+    final version = db.select('PRAGMA user_version;').first.values.first;
+    db.execute("ATTACH DATABASE '$tmp' AS plain KEY '';");
+    db.select("SELECT sqlcipher_export('plain');");
+    db.execute('PRAGMA plain.user_version = $version;');
+    db.execute('DETACH DATABASE plain;');
+  } catch (_) {
+    db.dispose();
+    final t = File(tmp);
+    if (t.existsSync()) t.deleteSync();
+    rethrow;
+  }
+  db.dispose();
+  for (final suffix in ['-wal', '-shm', '-journal']) {
+    final f = File('$path$suffix');
+    if (f.existsSync()) f.deleteSync();
+  }
+  File(tmp).renameSync(path);
+}
 /// [hexKey], replacing the original only once the copy is complete.
 void _encryptInPlace(String path, String hexKey) {
-  _useSqlCipher();
+  useSqlCipher();
   final tmp = '$path.encrypting';
   for (final f in [File(tmp), File('$tmp-journal')]) {
     if (f.existsSync()) f.deleteSync();
