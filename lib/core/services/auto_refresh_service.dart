@@ -131,10 +131,21 @@ void autoRefreshCallbackDispatcher() {
       // next launch). Skip this run rather than race it.
       await db.close();
       return true;
+    } catch (e) {
+      // Database or source loading failed — return false so WorkManager
+      // retries the task.
+      await db.close();
+      return false;
     }
     final results = <SourceRefreshResult>[];
-    for (final source in sources) {
-      results.add(await sourceManager.refreshSourceConcurrent(source));
+    try {
+      for (final source in sources) {
+        results.add(await sourceManager.refreshSourceConcurrent(source));
+      }
+    } catch (e) {
+      // Unexpected error during refresh — close DB and return false for retry.
+      await db.close();
+      return false;
     }
 
     if (prefs.refreshNotificationsEnabled) {
@@ -142,6 +153,7 @@ void autoRefreshCallbackDispatcher() {
       await _showRefreshNotification(results);
     }
 
+    await db.close();
     return true;
   });
 }
