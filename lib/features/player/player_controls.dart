@@ -750,16 +750,13 @@ class _LiveControls extends ConsumerWidget {
       onAddChannel: onAddChannel,
       onCast: onCast,
     );
-    // LIVE badge doubles as a "back to live" button once the user has
-    // paused/rewound behind the live edge, and is always focusable on TV
-    // so D-pad users can jump back to live at any time.
-    final liveBadge = onGoLive != null
-        ? TvFocusable(
-            onTap: onGoLive!,
-            borderRadius: BorderRadius.circular(16),
-            child: _LiveChip(isBehindLive: isBehindLive),
-          )
-        : _LiveChip(isBehindLive: isBehindLive);
+    // LIVE badge is always focusable on TV so D-pad users can reach it
+    // and jump back to live at any time.
+    final liveBadge = TvFocusable(
+      onTap: onGoLive ?? () {},
+      borderRadius: BorderRadius.circular(16),
+      child: _LiveChip(isBehindLive: isBehindLive),
+    );
 
     final transport = onPlayPause == null
         ? null
