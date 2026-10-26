@@ -13,6 +13,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - autoDispose on search query and content details providers to prevent memory leaks (#78).
 - Accessibility semantics added to StarButton, QualityChip, and ToggleTile (#81).
 - Added error logging to background EPG fetch callbacks (#125).
+- Covering indexes for watch_progress, programmes, and channels for faster reads (#126, #128).
 
 ## 0.14.30 — 2026-10-23
 
