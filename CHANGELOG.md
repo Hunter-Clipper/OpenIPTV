@@ -13,6 +13,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - Faster image loading: custom cache manager with 24 concurrent connections, disk cache dimensions, increased ImageCache, and optimized cached resolution (#118).
 - On-screen player title now respects Clean Names preference (#75).
 - Reduced unnecessary rebuilds: ref.read instead of ref.watch for playback service singletons (#77).
+- autoDispose on search query and content details providers to prevent memory leaks (#78).
 
 **Features**
 - Live TV player: Live button is now always focusable and clickable to force a re-sync to the live edge.
