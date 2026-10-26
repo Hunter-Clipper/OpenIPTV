@@ -531,7 +531,7 @@ class _Transport extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final m = PlayerMetrics.of(context);
-    final service = ref.watch(playbackServiceProvider);
+    final service = ref.read(playbackServiceProvider);
     // TV: a compact cluster at the start of the bottom bar, every button the
     // same size; elsewhere a large centred group.
     final skipSize = m.tv ? m.tvButton : m.skipSize;
@@ -976,7 +976,7 @@ class _VodControls extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final m = PlayerMetrics.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final service = ref.watch(playbackServiceProvider);
+    final service = ref.read(playbackServiceProvider);
     final shownPosition = isSeeking
         ? Duration(milliseconds: (seekValue * duration.inMilliseconds).round())
         : position;
