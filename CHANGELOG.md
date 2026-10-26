@@ -14,6 +14,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - On-screen player title now respects Clean Names preference (#75).
 - Reduced unnecessary rebuilds: ref.read instead of ref.watch for playback service singletons (#77).
 - autoDispose on search query and content details providers to prevent memory leaks (#78).
+- Accessibility semantics added to StarButton, QualityChip, and ToggleTile (#81).
 
 **Features**
 - Live TV player: Live button is now always focusable and clickable to force a re-sync to the live edge.
