@@ -494,18 +494,20 @@ class _BottomPanel extends StatelessWidget {
           const SizedBox(height: 12),
         ] else
           const SizedBox(height: 4),
-        Row(
-          children: [
-            if (transport != null) ...[
-              transport!,
-              const SizedBox(width: 20),
+        TvRowFocus(
+          child: Row(
+            children: [
+              if (transport != null) ...[
+                transport!,
+                const SizedBox(width: 20),
+              ],
+              Expanded(child: meta),
+              for (final a in actions) ...[
+                const SizedBox(width: 8),
+                a,
+              ],
             ],
-            Expanded(child: meta),
-            for (final a in actions) ...[
-              const SizedBox(width: 8),
-              a,
-            ],
-          ],
+          ),
         ),
       ],
     );
