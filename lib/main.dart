@@ -16,17 +16,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
-class _ImageHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    final client = super.createHttpClient(context);
-    client.maxConnectionsPerHost = 24;
-    return client;
-  }
-}
-
 void main() async {
-  HttpOverrides.global = _ImageHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
   // Increase image cache to handle large libraries (Movies/Series/Live TV).
   PaintingBinding.instance.imageCache.maximumSize = 2000;

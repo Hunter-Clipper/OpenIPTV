@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
+import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -581,6 +582,7 @@ class _ChannelRow extends ConsumerWidget {
 
 /// A channel logo on a soft 16:10 tile — logos come in every shape and
 /// colour, and a uniform tile keeps the list tidy.
+
 class LogoTile extends StatelessWidget {
   const LogoTile({super.key, required this.url, required this.width});
 
@@ -608,6 +610,7 @@ class LogoTile extends StatelessWidget {
           ? icon
           : CachedNetworkImage(
               imageUrl: url!,
+              cacheManager: ImageCacheManager(),
               fit: BoxFit.contain,
               memCacheWidth: (width * 2).toInt(),
               maxWidthDiskCache: (width * 2).toInt(),
