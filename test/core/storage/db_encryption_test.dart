@@ -86,7 +86,7 @@ void main() {
       final (_, state) = await openEncryptedDatabase(db,
           keys: keys,
           setup: (_) {},
-          keyOpens: anyKeyOpens,
+          keyOpensCallback: anyKeyOpens,
           retryDelay: Duration.zero);
       expect(state, DbOpenState.encrypted);
       expect(keys.reads, 4);
@@ -101,7 +101,7 @@ void main() {
             keys: keys,
             setup: (_) {},
             migrate: false,
-            keyOpens: anyKeyOpens,
+            keyOpensCallback: anyKeyOpens,
             retryDelay: Duration.zero),
         throwsA(isA<DatabaseNotReadyException>()),
       );
@@ -115,7 +115,7 @@ void main() {
       final (_, state) = await openEncryptedDatabase(db,
           keys: keys,
           setup: (_) {},
-          keyOpens: anyKeyOpens,
+          keyOpensCallback: anyKeyOpens,
           retryDelay: Duration.zero);
       expect(state, DbOpenState.reset);
       expect(File('${db.path}$lostSuffix').readAsBytesSync(), before);
@@ -130,7 +130,7 @@ void main() {
       final (_, state) = await openEncryptedDatabase(db,
           keys: keys,
           setup: (_) {},
-          keyOpens: (_, __) async => false,
+          keyOpensCallback: (_, __) async => false,
           retryDelay: Duration.zero);
       expect(state, DbOpenState.reset);
       expect(File('${db.path}$lostSuffix').lengthSync(), 4096);

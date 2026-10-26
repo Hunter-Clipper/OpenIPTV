@@ -250,7 +250,8 @@ void decryptInPlace(String path, String hexKey) {
     db.select('SELECT count(*) FROM sqlite_master;');
     db.execute('PRAGMA wal_checkpoint(TRUNCATE);');
     final version = db.select('PRAGMA user_version;').first.values.first;
-    db.execute("ATTACH DATABASE '$tmp' AS plain KEY '';");
+    final escapedTmp = tmp.replaceAll("'", "''");
+    db.execute("ATTACH DATABASE '$escapedTmp' AS plain KEY '';");
     db.select("SELECT sqlcipher_export('plain');");
     db.execute('PRAGMA plain.user_version = $version;');
     db.execute('DETACH DATABASE plain;');
@@ -281,7 +282,8 @@ void _encryptInPlace(String path, String hexKey) {
     }
     db.execute('PRAGMA wal_checkpoint(TRUNCATE);');
     final version = db.select('PRAGMA user_version;').first.values.first;
-    db.execute("ATTACH DATABASE '$tmp' AS enc KEY ${_sqlKey(hexKey)};");
+    final escapedTmp = tmp.replaceAll("'", "''");
+    db.execute("ATTACH DATABASE '$escapedTmp' AS enc KEY ${_sqlKey(hexKey)};");
     db.select("SELECT sqlcipher_export('enc');");
     // sqlcipher_export copies the schema and rows, not the header field
     // drift keeps its schema version in.

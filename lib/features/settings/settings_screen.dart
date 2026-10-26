@@ -475,6 +475,26 @@ class SettingsScreen extends ConsumerWidget {
                         await p.setSkipDbEncryption(v);
                         ref.invalidate(appPreferencesProvider);
                         setLocal(() {});
+                        // Restart app to apply DB encryption mode change
+                        await showDialog<void>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Restart Required'),
+                            content: const Text(
+                              'The database encryption mode has changed. '
+                              'The app will now restart to apply the change.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                        // Force app restart
+                        exit(0);
                       },
                     ),
                   );
