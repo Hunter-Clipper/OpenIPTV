@@ -333,6 +333,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
     final allAsync = ref.watch(_allSeriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
     final profile = profileAsync.valueOrNull;
+    final profileId = profile?.id;
     final columns = PlatformHelper.posterColumns(context);
     final sort = ref.watch(contentSortProvider);
     final viewMode = ref.watch(viewModeSeriesProvider);
