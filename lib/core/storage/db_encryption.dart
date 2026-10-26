@@ -120,10 +120,10 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   required void Function(Database db) setup,
   bool migrate = true,
   // Tests swap these: whether a key opens the file, and the retry pause.
-  Future<bool> Function(String path, String key)? keyOpens,
+  Future<bool> Function(String path, String key)? keyOpensCallback,
   Duration retryDelay = const Duration(milliseconds: 300),
 }) async {
-  keyOpens ??= (path, key) => Isolate.run(() => _keyOpens(path, key));
+  final keyOpensFn = keyOpensCallback ?? (path, key) => Isolate.run(() => keyOpens(path, key));
   useSqlCipher();
   await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
 
@@ -147,7 +147,7 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
 
   var key = await _readKey(keys, retryDelay);
   if (file.existsSync()) {
-    final ok = key != null && await keyOpens(file.path, key);
+    final ok = key != null && await keyOpensFn(file.path, key);
     if (!ok) {
       // A background isolate never resets: the app will look at it on its
       // next launch (#51 — a passing Keystore hiccup in the auto-refresh
@@ -219,7 +219,7 @@ QueryExecutor _plain(File file, void Function(Database) setup) =>
 
 const _sqliteNotADb = 26;
 
-bool _keyOpens(String path, String hexKey) {
+bool keyOpens(String path, String hexKey) {
   useSqlCipher();
   final db = sqlite3.open(path);
   try {

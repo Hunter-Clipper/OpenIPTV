@@ -1770,15 +1770,24 @@ QueryExecutor _openConnection({bool migrate = true}) {
       // background isolate loads the bundled SQLite library on Android.
       if (file.existsSync() && !isPlaintextSqlite(file)) {
         // Existing encrypted DB: convert in place before opening plain.
+        if (!migrate) {
+          throw const DatabaseNotReadyException();
+        }
         final key = await DbKeyStore().read();
-        if (key != null) {
-          await Isolate.run(() => decryptInPlace(file.path, key));
+        if (key != null && keyOpens(file.path, key)) {
+          try {
+            await Isolate.run(() => decryptInPlace(file.path, key));
+          } catch (_) {
+            debugPrint('[OTV-db] decrypt failed, setting aside old database');
+            setAside(file);
+          }
         } else {
-          // No key — set aside and start fresh.
+          debugPrint('[OTV-db] key does not open encrypted db, setting aside');
           setAside(file);
         }
       }
       debugPrint('[OTV-db] opened (plaintext, skip encryption)');
+      if (migrate) unawaited(_logStorage(dbFolder));
       return NativeDatabase.createInBackground(file,
           isolateSetup: useSqlCipher, setup: _dbSetup);
     }
