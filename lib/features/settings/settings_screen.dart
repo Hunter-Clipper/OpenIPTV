@@ -727,6 +727,7 @@ class _ToggleTile extends StatelessWidget {
         title: Text(title),
         value: value,
         onChanged: onChanged,
+        focusNode: null,
       ),
     );
   }
