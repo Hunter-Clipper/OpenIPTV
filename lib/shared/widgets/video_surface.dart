@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:open_iptv/core/services/video_player_base.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 
 /// Renders a native video texture at the content's own aspect ratio,
 /// letterboxed/pillarboxed inside whatever space it's given — a bare
@@ -23,7 +23,7 @@ class VideoSurface extends StatefulWidget {
   /// to cover the screen; 'zoom' is between the two. Aspect ratio is always
   /// kept — the picture is never stretched.
   final String fit;
-  final Stream<VideoPlayerState> stateStream;
+  final Stream<NativeVideoPlayerState> stateStream;
   final double? initialAspectRatio;
 
   @override
@@ -32,7 +32,7 @@ class VideoSurface extends StatefulWidget {
 
 class _VideoSurfaceState extends State<VideoSurface> {
   double? _aspectRatio;
-  StreamSubscription<VideoPlayerState>? _sub;
+  StreamSubscription<NativeVideoPlayerState>? _sub;
 
   @override
   void initState() {
