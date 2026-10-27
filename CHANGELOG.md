@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.33 — 2026-10-27
+
+**Performance**
+- Increased EPG write batch size from 1000 to 5000 programmes per batch, reducing WAL lock contention and write time on low-end TV devices (#131).
+
 ## 0.14.32 — 2026-10-26
 
 **Features**
