@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -436,6 +437,69 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => context.push('/settings/power-tools'),
                   ),
                 ),
+                Consumer(builder: (context, ref, _) {
+                  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+                  final skipEnc = prefs?.skipDbEncryption ?? false;
+                  return StatefulBuilder(
+                    builder: (context, setLocal) => _ToggleTile(
+                      icon: Icons.lock_open,
+                      title: 'Skip Database Encryption',
+                      value: skipEnc,
+                      onChanged: (v) async {
+                        if (v) {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Skip Database Encryption?'),
+                              content: const Text(
+                                'This will store your database (including '
+                                'playlist credentials and stream links) '
+                                'unencrypted on disk. Anyone with access to '
+                                'the device can read it. The app must be '
+                                'restarted for the change to take effect.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Enable'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true) return;
+                        }
+                        final p = await ref.read(appPreferencesProvider.future);
+                        await p.setSkipDbEncryption(v);
+                        ref.invalidate(appPreferencesProvider);
+                        setLocal(() {});
+                        // Restart app to apply DB encryption mode change
+                        await showDialog<void>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Restart Required'),
+                            content: const Text(
+                              'The database encryption mode has changed. '
+                              'The app will now restart to apply the change.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                        // Force app restart
+                        exit(0);
+                      },
+                    ),
+                  );
+                }),
               ]),
             const SizedBox(height: 32),
           ],

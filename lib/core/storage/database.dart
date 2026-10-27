@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/extensions/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/storage/db_encryption.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:sqlite3/sqlite3.dart' show Database;
 import 'package:open_iptv/core/models/channel.dart' as model;
 import 'package:open_iptv/core/models/episode.dart' as model;
@@ -1756,8 +1760,37 @@ void _dbSetup(Database db) {
 /// races the app converting an older unencrypted database.
 QueryExecutor _openConnection({bool migrate = true}) {
   return LazyDatabase(() async {
+    final prefs = await SharedPreferences.getInstance();
+    final skipEncryption =
+        prefs.getBool(kSkipDbEncryptionKey) ?? false;
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'open_iptv.db'));
+    if (skipEncryption) {
+      // Plain SQLite — no encryption overhead. Mirror _plain() so the
+      // background isolate loads the bundled SQLite library on Android.
+      if (file.existsSync() && !isPlaintextSqlite(file)) {
+        // Existing encrypted DB: convert in place before opening plain.
+        if (!migrate) {
+          throw const DatabaseNotReadyException();
+        }
+        final key = await DbKeyStore().read();
+        if (key != null && keyOpens(file.path, key)) {
+          try {
+            await Isolate.run(() => decryptInPlace(file.path, key));
+          } catch (_) {
+            debugPrint('[OTV-db] decrypt failed, setting aside old database');
+            setAside(file);
+          }
+        } else {
+          debugPrint('[OTV-db] key does not open encrypted db, setting aside');
+          setAside(file);
+        }
+      }
+      debugPrint('[OTV-db] opened (plaintext, skip encryption)');
+      if (migrate) unawaited(_logStorage(dbFolder));
+      return NativeDatabase.createInBackground(file,
+          isolateSetup: useSqlCipher, setup: _dbSetup);
+    }
     final (executor, state) = await openEncryptedDatabase(
       file,
       keys: DbKeyStore(),

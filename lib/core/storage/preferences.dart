@@ -7,6 +7,7 @@ part 'preferences.g.dart';
 const _kActiveProfileId = 'active_profile_id';
 const _kActiveSourceId = 'active_source_id';
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
+const kSkipDbEncryptionKey = 'skip_db_encryption';
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
 const _kChannelListDensity =
     'channel_list_density'; // 'comfortable' | 'compact'
@@ -61,6 +62,10 @@ class AppPreferences {
   String get accentColor => _prefs.getString(_kAccentColor) ?? '0A84FF';
   Future<void> setAccentColor(String hex) =>
       _prefs.setString(_kAccentColor, hex);
+
+  bool get skipDbEncryption => _prefs.getBool(kSkipDbEncryptionKey) ?? false;
+  Future<void> setSkipDbEncryption(bool value) =>
+      _prefs.setBool(kSkipDbEncryptionKey, value);
 
   String get contentSort => _prefs.getString(_kContentSort) ?? 'provider';
   Future<void> setContentSort(String sort) =>
