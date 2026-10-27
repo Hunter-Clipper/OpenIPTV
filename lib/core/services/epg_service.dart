@@ -10,7 +10,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xmltv_parser.dart';
 import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/database.dart' if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'epg_service.g.dart';

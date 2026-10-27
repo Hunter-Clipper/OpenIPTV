@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/database.dart' if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
