@@ -71,7 +71,7 @@
 - Add as many playlists as you like and browse one at a time or all together.
 - **Edit a playlist** when your provider changes its server address or your login — the new details are checked before they're saved, and your favourites and watch progress carry over.
 - **Refresh everything with one tap** — every playlist's channels, movies, series and TV guide — or set it to happen in the background. If your provider has a hiccup mid-refresh, your playlist stays exactly as it was.
-- Your logins are **stored encrypted** on the device, with a key only the app can use.
+- Your logins are **stored encrypted** on the device, with a key only the app can use. (Encryption is on by default; slow TV devices can disable it under Settings → Power User Tools → Skip Database Encryption for faster reads.)
 
 **Watch**
 - **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home. On a TV, Live TV is a full programme guide — categories on the left, the focused programme at the top, every channel on a timeline below — with an optional live preview.
@@ -99,6 +99,7 @@
 - **Built-in VPN:** import a **WireGuard** (`.conf`) or **OpenVPN** (`.ovpn`) profile from your VPN provider and send only OpenIPTV — or the whole device, except Android Auto's car link — through it.
 - **Speed test:** how fast video arrives from your provider, plus a general internet test.
 - **Playback buffer:** Fast start, Balanced or Smooth, for steady or shaky connections.
+- **Skip Database Encryption:** disables SQLCipher encryption (uses plain SQLite) for faster reads on slow TV devices. Off by default; the database converts automatically when toggled.
 
 - **No ads, no telemetry, no accounts.** The only outside services OpenIPTV ever contacts on its own are your playlists and GitHub (update checks); the public-IP and speed tests contact api.ipify.org and speed.cloudflare.com only when you tap them.
 
@@ -167,7 +168,7 @@ android/app/src/main/kotlin/com/openiptv/app/
 ### Architecture
 
 - **State:** Riverpod 2, partly code-generated with `riverpod_annotation`.
-- **Database:** Drift on SQLCipher (AES-256, key kept in the Android Keystore via `flutter_secure_storage`), with versioned, guarded migrations.
+- **Database:** Drift on SQLCipher (AES-256, key kept in the Android Keystore via `flutter_secure_storage`), with versioned, guarded migrations. Encryption is on by default; slow TV devices can disable it (Settings → Power User Tools → Skip Database Encryption) to use plain SQLite for faster reads.
 - **Navigation:** `go_router`. On Android TV (detected natively via `UiModeManager`) the tab bar becomes a side rail with remote-first focus handling.
 - **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` (a `SurfaceTexture`, so decoder crop is honoured). It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
 - **Parsing:** custom Dart M3U, XMLTV and Xtream parsers; large payloads are decoded off the UI thread.
