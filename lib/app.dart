@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +14,7 @@ import 'package:open_iptv/core/services/vpn_service.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/database.dart' if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
@@ -59,34 +60,45 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   @override
   void initState() {
     super.initState();
-    _router = _buildRouter();
-    _openDb();
+    try {
+      _router = _buildRouter();
+      _openDb();
+    } catch (e, st) {
+      debugPrint('INITSTATE ERROR: $e');
+      debugPrint('$st');
+    }
   }
 
   Future<void> _openDb() async {
+    try {
     const maxAttempts = 5;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        await ref.read(appDatabaseProvider).customSelect('SELECT 1').get();
+        debugPrint('OPENDB: calling customSelect');
+        await ref.read(appDatabaseProvider).customSelect('SELECT 1');
+        debugPrint('OPENDB: customSelect OK');
         break;
       } catch (e) {
+        debugPrint('OPENDB: customSelect FAILED: $e');
         if (attempt == maxAttempts - 1) rethrow;
         await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
     }
 
     final db = ref.read(appDatabaseProvider);
+    debugPrint('OPENDB: reading prefs');
     final prefs = await ref.read(appPreferencesProvider.future);
+    debugPrint('OPENDB: prefs OK');
 
     // Re-sync the background auto-refresh registration against the
     // persisted interval — WorkManager can drop periodic registrations
     // across OS updates or force-stops, so this must run on every launch,
     // not just when the user changes the setting.
-    unawaited(syncAutoRefreshRegistration(prefs));
+    if (!kIsWeb) unawaited(syncAutoRefreshRegistration(prefs));
 
     // Power User Tools: bring the built-in VPN up if asked to. Never
     // prompts and never blocks start-up.
-    unawaited(VpnService().autoConnect(prefs));
+    if (!kIsWeb) unawaited(VpnService().autoConnect(prefs));
 
     // Initialise accent + sort state from persisted preferences.
     syncSettingsProviders(ref, prefs);
@@ -95,7 +107,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     // playlist across app updates, with no code path found that writes it.
     debugPrint('[OTV-source] startup active=${prefs.activeSourceId}');
 
-    initPipChannel(
+    if (!kIsWeb) initPipChannel(
       onPipModeChanged: (isInPip) =>
           ref.read(pipActiveProvider.notifier).state = isInPip,
       // The PiP window was closed: stop what was playing in it.
@@ -121,7 +133,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       // — with no transient overlays (channel switcher, etc.) open — and
       // playback is running. Otherwise Home would shrink a non-player screen
       // or an overlay into a tiny, smooshed PiP window.
-      updatePipAvailability(
+      if (!kIsWeb) updatePipAvailability(
         ref.read(pipEnabledProvider) &&
             playing &&
             PlayerScreen.openCount > 0 &&
@@ -129,17 +141,18 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       );
     }
 
-    // PiP availability.
-    pushPipAvailability();
-    ref
-        .read(playbackServiceProvider)
-        .stateStream
-        .listen((_) => pushPipAvailability());
-    // Re-evaluate PiP eligibility when the user toggles the setting.
-    ref.listen<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
-    // Re-evaluate when a transient overlay (channel switcher, multi-view)
-    // opens or closes — opening suppresses PiP, closing re-enables it.
-    ref.listen<bool>(playerOverlayOpenProvider, (_, __) => pushPipAvailability());
+    if (!kIsWeb) {
+      pushPipAvailability();
+      ref
+          .read(playbackServiceProvider)
+          .stateStream
+          .listen((_) => pushPipAvailability());
+      // Re-evaluate PiP eligibility when the user toggles the setting.
+      ref.listen<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
+      // Re-evaluate when a transient overlay (channel switcher, multi-view)
+      // opens or closes — opening suppresses PiP, closing re-enables it.
+      ref.listen<bool>(playerOverlayOpenProvider, (_, __) => pushPipAvailability());
+    }
 
     // Well after start (counting the big tables takes seconds on a TV):
     // report storage, then the one-time rebuild of an older, bloated file.
@@ -167,6 +180,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         _needsProfilePick = needsPick;
       });
     }
+    } catch (e, st) {
+      debugPrint('OPENDB ERROR: $e');
+      debugPrint('$st');
+    }
   }
 
   /// Deferred storage diagnostics + one-time DB compaction, called from
@@ -174,6 +191,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   /// doesn't compete with the initial EPG load. Safe to call from the
   /// widget (where ref stays valid) — not from a provider factory.
   Future<void> _runStorageDiagnostics(WidgetRef ref, AppDatabase db) async {
+    if (kIsWeb) return;
     await Future<void>.delayed(const Duration(seconds: 20));
     await db.logStorageStats();
     final free = await freeDiskBytes();
@@ -565,7 +583,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       // Like Android's own Back on a launcher activity: to the background,
       // state kept (not finished — the shared audio_service engine
       // outlives the activity anyway).
-      unawaited(_backChannel.invokeMethod('moveToBack'));
+      if (!kIsWeb) unawaited(_backChannel.invokeMethod('moveToBack'));
       return;
     }
     _exitArmedAt = DateTime.now();
@@ -589,10 +607,10 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // Navigator still pops normally — native only intervenes when told to).
     final location = GoRouterState.of(context).uri.path;
     final isRootTab = _kNavDestinations.any((d) => d.path == location);
-    if (_lastReportedBlocked != isRootTab) {
-      _lastReportedBlocked = isRootTab;
-      unawaited(_backChannel.invokeMethod('setBlocked', isRootTab));
-    }
+      if (!kIsWeb && _lastReportedBlocked != isRootTab) {
+        _lastReportedBlocked = isRootTab;
+        unawaited(_backChannel.invokeMethod('setBlocked', isRootTab));
+      }
 
     if (PlatformHelper.isTV(context)) {
       return Scaffold(

@@ -8,7 +8,7 @@ import 'package:drift/native.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/extensions/native.dart';
 import 'package:flutter/foundation.dart';
-import 'package:open_iptv/core/storage/db_encryption.dart';
+import 'package:open_iptv/core/storage/db_encryption.dart' if (dart.library.html) 'package:open_iptv/core/storage/db_encryption_stub.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:sqlite3/sqlite3.dart' show Database;
 import 'package:open_iptv/core/models/channel.dart' as model;

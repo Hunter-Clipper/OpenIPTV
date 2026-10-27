@@ -13,6 +13,20 @@ class Source {
     this.lastRefreshed,
   });
 
+  factory Source.fromJson(Map<String, dynamic> json) => Source(
+        id: json['id'] as String,
+        nickname: json['nickname'] as String,
+        type: SourceType.values.byName(json['type'] as String),
+        m3uUrl: json['m3uUrl'] as String?,
+        xtreamHost: json['xtreamHost'] as String?,
+        xtreamUsername: json['xtreamUsername'] as String?,
+        xtreamPassword: json['xtreamPassword'] as String?,
+        epgUrl: json['epgUrl'] as String?,
+        lastRefreshed: json['lastRefreshed'] == null
+            ? null
+            : DateTime.parse(json['lastRefreshed'] as String),
+      );
+
   final String id;
   final String nickname;
   final SourceType type;
@@ -22,6 +36,18 @@ class Source {
   final String? xtreamPassword;
   final String? epgUrl;
   final DateTime? lastRefreshed;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'nickname': nickname,
+        'type': type.name,
+        'm3uUrl': m3uUrl,
+        'xtreamHost': xtreamHost,
+        'xtreamUsername': xtreamUsername,
+        'xtreamPassword': xtreamPassword,
+        'epgUrl': epgUrl,
+        'lastRefreshed': lastRefreshed?.toIso8601String(),
+      };
 
   Source copyWith({
     String? id,

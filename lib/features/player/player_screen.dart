@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -388,7 +389,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _watchdogTimer?.cancel();
     _saveProgressIfNeeded();
     _playbackService.stop();
-    nowPlayingHandler.stop();
+    if (!kIsWeb) nowPlayingHandler.stop();
     if (ModalRoute.of(context)?.isCurrent ?? false) context.pop();
   }
 
@@ -803,10 +804,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // A TV has no portrait mode at all — restoring one here would
       // letterbox the whole app into a small portrait compat box on every
       // exit from playback.
-      if (!PlatformHelper.isTVDevice) {
+      if (!PlatformHelper.isTVDevice && !kIsWeb) {
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       }
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      if (!kIsWeb) SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     // A failed progress save must never block the stop() below — that
     // regressed catch-up playback into running forever in the background
@@ -831,10 +832,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // Opened from the TV guide's preview: the channel keeps playing
         // there.
         _playbackService.adopt(back);
-        nowPlayingHandler.endSession();
+        if (!kIsWeb) nowPlayingHandler.endSession();
       } else {
         _playbackService.stop();
-        nowPlayingHandler.stop();
+        if (!kIsWeb) nowPlayingHandler.stop();
       }
     }
     super.dispose();
@@ -955,11 +956,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _enterFullscreen() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
   }
 
   void _stopCasting({Duration? resumeAt}) {
@@ -1013,7 +1016,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _castSubtitle = artist;
       _castImage = artUri?.toString();
     });
-    nowPlayingHandler.setNowPlaying(_shownTitle,
+    if (!kIsWeb) nowPlayingHandler.setNowPlaying(_shownTitle,
         artist: artist, artUri: artUri);
   }
 

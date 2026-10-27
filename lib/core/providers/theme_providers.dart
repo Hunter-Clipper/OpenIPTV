@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
-import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/database.dart' if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -162,7 +163,7 @@ Future<void> setMediaNotificationEnabled(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(mediaNotificationEnabledProvider.notifier).state = enabled;
   await prefs.setMediaNotificationEnabled(enabled);
-  nowPlayingHandler.setEnabled(enabled);
+  if (!kIsWeb) nowPlayingHandler.setEnabled(enabled);
 }
 
 /// Pushes every persisted setting into its runtime StateProvider. These
@@ -186,7 +187,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(pipEnabledProvider.notifier).state = prefs.pipEnabled;
   ref.read(mediaNotificationEnabledProvider.notifier).state =
       prefs.mediaNotificationEnabled;
-  nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
+  if (!kIsWeb) nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;

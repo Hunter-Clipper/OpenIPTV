@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/app.dart';
@@ -24,26 +25,26 @@ void main() async {
   // Must resolve before the orientation lock below — a TV has no rotation
   // concept and no portrait mode at all, so requesting one here causes
   // Android to letterbox the whole app into a small portrait compat box.
-  await PlatformHelper.initTvDetection();
-  if (!PlatformHelper.isTVDevice) {
+  if (!kIsWeb) await PlatformHelper.initTvDetection();
+  if (!kIsWeb && !PlatformHelper.isTVDevice) {
     unawaited(
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
   }
-  await initAutoRefresh();
+  if (!kIsWeb) await initAutoRefresh();
 
   // Built here (rather than implicitly by ProviderScope) so the same
   // PlaybackService singleton can be handed to audio_service before runApp —
   // the Now Playing notification must mirror the exact Player instance the
   // rest of the app plays through, not a separate one.
   final container = ProviderContainer();
-  await initNowPlayingService(container.read(playbackServiceProvider));
+  if (!kIsWeb) await initNowPlayingService(container.read(playbackServiceProvider));
   // Android Auto's browse tree reads the same data, profile and playlist
   // as the app (the car may start the app without its screen — see
   // EngineChannels.kt). Phones and tablets only: TVs never connect to a
   // car, so the car library isn't set up there at all.
   debugPrint('[OTV-auto] car library '
       '${PlatformHelper.isTVDevice ? 'off (TV)' : 'on'}');
-  if (!PlatformHelper.isTVDevice) {
+  if (!kIsWeb && !PlatformHelper.isTVDevice) {
     nowPlayingHandler
       ..library = CarLibrary(
         db: container.read(appDatabaseProvider),

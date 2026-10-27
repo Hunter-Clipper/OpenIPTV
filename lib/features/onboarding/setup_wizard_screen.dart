@@ -281,7 +281,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       // credentials, bad URL, network issues). Only create the profile once
       // it succeeds, so a failed attempt leaves nothing behind to retry into.
       final isM3u = _playlistType == SourceType.m3u;
-      await manager.addSource(
+      final source = await manager.addSource(
         nickname: nickname,
         type: _playlistType,
         m3uUrl: isM3u && !_fromFile ? _m3uUrlCtrl.text.trim() : null,
@@ -293,10 +293,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
         onProgress: onProgress,
       );
 
+      // Set this source as active so the app shows its channels on launch.
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await setActiveSource(ref, source.id, prefs);
+
       if (!mounted) return;
 
       if (!widget.addPlaylistOnly) {
-        final prefs = await ref.read(appPreferencesProvider.future);
         final db = ref.read(appDatabaseProvider);
         final profileSvc = ProfileService(db: db, prefsSnapshot: prefs);
         final profile = await profileSvc.createProfile(
@@ -394,11 +397,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   /// Back to wherever the wizard was opened from (Settings), or into the
   /// app when it's the root route (first run, or no playlists left).
   void _finish() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/live');
-    }
+    // On web, context.canPop() can return true even when popping doesn't
+    // properly navigate (browser history quirk). Always use go('/live').
+    context.go('/live');
   }
 
   @override
