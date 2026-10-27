@@ -217,8 +217,10 @@ class EpgService {
       ];
 
       var totalWritten = 0;
-      for (var i = 0; i < mapped.length; i += 1000) {
-        final batch = mapped.sublist(i, (i + 1000).clamp(0, mapped.length));
+      const epgWriteBatchSize = 5000;
+      for (var i = 0; i < mapped.length; i += epgWriteBatchSize) {
+        final batch =
+            mapped.sublist(i, (i + epgWriteBatchSize).clamp(0, mapped.length));
         await db.upsertProgrammes(batch);
         totalWritten += batch.length;
         onProgress?.call('Loading TV guide… ($totalWritten programs)');
