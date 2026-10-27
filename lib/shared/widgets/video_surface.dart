@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
-import 'package:open_iptv/core/services/native_video_player.dart';
+import 'package:open_iptv/core/services/video_player_base.dart';
 
 /// Renders a native video texture at the content's own aspect ratio,
 /// letterboxed/pillarboxed inside whatever space it's given — a bare
@@ -60,7 +60,7 @@ class VideoSurface extends StatefulWidget {
   /// to cover the screen; 'zoom' is between the two. Aspect ratio is always
   /// kept — the picture is never stretched.
   final String fit;
-  final Stream<NativeVideoPlayerState> stateStream;
+  final Stream<VideoPlayerState> stateStream;
   final double? initialAspectRatio;
 
   @override
@@ -76,7 +76,7 @@ class _VideoSurfaceState extends State<VideoSurface>
   double _lastScale = 1;
   double? _lastAr;
   double? _aspectRatio;
-  StreamSubscription<NativeVideoPlayerState>? _sub;
+  StreamSubscription<VideoPlayerState>? _sub;
   // The route's open/close animation, when this picture sits on a route
   // that opens over another layer user (the guide's pane): the picture then
   // grows from the pane's rectangle to full screen, and shrinks back.
