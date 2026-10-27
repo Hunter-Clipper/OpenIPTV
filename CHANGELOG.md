@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.32 — 2026-10-26
+
+**Features**
+- Skip Database Encryption setting (Power User → Advanced): allows slow TV devices to use plain SQLite instead of SQLCipher, eliminating encryption overhead. Includes encrypted→plaintext migration, confirmation dialog with security warning, and auto-restart on toggle (#127).
+
 ## 0.14.31 — 2026-10-26
 
 **Fixes**
