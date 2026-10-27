@@ -19,7 +19,7 @@
 > We don't provide playlists and won't give advice on where to get them. Please make sure you have the
 > right to watch anything you open in the app. The only playlist this project mentions is the public,
 > community-maintained [iptv-org/iptv](https://github.com/iptv-org/iptv) repository, which lists freely
-> available channels and is used for our screenshots.
+> available channels and is used for our screenshots. 
 
 ---
 
