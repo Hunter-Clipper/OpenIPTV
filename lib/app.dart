@@ -90,6 +90,17 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     final prefs = await ref.read(appPreferencesProvider.future);
     debugPrint('OPENDB: prefs OK');
 
+    // On web, a stale active_source_id left over from a failed onboarding
+    // attempt can drive downstream providers into an inconsistent state on
+    // the setup screen. Clear it when the source no longer exists.
+    if (kIsWeb) {
+      final allSources = await db.getAllSources();
+      if (allSources.isEmpty ||
+          !allSources.any((s) => s.id == prefs.activeSourceId)) {
+        await prefs.setActiveSourceId(null);
+      }
+    }
+
     // Re-sync the background auto-refresh registration against the
     // persisted interval — WorkManager can drop periodic registrations
     // across OS updates or force-stops, so this must run on every launch,

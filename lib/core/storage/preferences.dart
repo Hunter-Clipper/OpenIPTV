@@ -1,6 +1,7 @@
 import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'prefs_store.dart';
 
 part 'preferences.g.dart';
 
@@ -41,14 +42,14 @@ const _kSkippedUpdateVersion = 'skipped_update_version';
 
 @Riverpod(keepAlive: true)
 Future<AppPreferences> appPreferences(AppPreferencesRef ref) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = await PrefsStore.open();
   return AppPreferences(prefs);
 }
 
 class AppPreferences {
   AppPreferences(this._prefs);
 
-  final SharedPreferences _prefs;
+  final PrefsStore _prefs;
 
   String? get activeProfileId => _prefs.getString(_kActiveProfileId);
   Future<void> setActiveProfileId(String id) =>
