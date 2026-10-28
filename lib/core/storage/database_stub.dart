@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:html' as html;
 
 import 'package:open_iptv/core/models/channel.dart' as model;
 import 'package:open_iptv/core/models/episode.dart' as model;
@@ -28,8 +27,7 @@ class AppDatabase {
     if (_profilesLoaded) return;
     _profilesLoaded = true;
     if (_profiles.isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kProfilesKey);
+      final raw = html.window.localStorage[_kProfilesKey];
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw) as List<dynamic>;
         _profiles.addAll(list
@@ -39,17 +37,15 @@ class AppDatabase {
   }
 
   static Future<void> _persistProfiles() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _kProfilesKey, jsonEncode(_profiles.map((p) => p.toJson()).toList()));
+    html.window.localStorage[_kProfilesKey] =
+        jsonEncode(_profiles.map((p) => p.toJson()).toList());
   }
 
   static Future<void> _ensureSourcesLoaded() async {
     if (_sourcesLoaded) return;
     _sourcesLoaded = true;
     if (_sources.isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kSourcesKey);
+      final raw = html.window.localStorage[_kSourcesKey];
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw) as List<dynamic>;
         _sources.addAll(
@@ -59,9 +55,8 @@ class AppDatabase {
   }
 
   static Future<void> _persistSources() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _kSourcesKey, jsonEncode(_sources.map((s) => s.toJson()).toList()));
+    html.window.localStorage[_kSourcesKey] =
+        jsonEncode(_sources.map((s) => s.toJson()).toList());
   }
 
   Future<List<model.Profile>> getAllProfiles() async {
