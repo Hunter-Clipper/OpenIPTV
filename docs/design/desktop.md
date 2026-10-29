@@ -132,6 +132,36 @@ Most of this can be tested on the development machine, which runs Linux:
 the same Chromium, including a headless run of the whole app. Installer,
 signing and anything Windows-specific need a Windows PC or the CI runner.
 
+### Phase 0 results so far (Linux, 2026-10-29)
+
+Run on the development machine with Electron 33 (Chromium 130); the spike is
+on branch `feature/27-electron-spike` (`desktop/`).
+
+| Check | Result |
+|---|---|
+| Playlist, API and images from a provider and image hosts that send **no CORS headers**, over plain `http://` | **Pass.** The real web build added an Xtream playlist, showed posters from the blocking hosts with zero console errors, and kept everything after a restart. |
+| Streams over plain `http://` from a server with no CORS headers | **Pass** for H.264 + AAC in `.ts`, MP4 and HLS. |
+| AC3 / E-AC3 audio | **Fail.** The picture plays, there is no sound (`.ts` and HLS). Electron's Chromium has no AC3 decoder here. |
+| H.265 video | **Fail.** Sound only, no picture. |
+| MPEG-2 video | **Fail**, but that is the player library (mpegts.js handles only H.264 / H.265 video), so a browser or any shell using it has the same limit. |
+| Long-session memory, restarts, updates | Not tested yet. |
+| Wayland, sandbox on Ubuntu LTS / Fedora | Not tested yet. |
+| Windows 10 / 11 | Not tested yet. Needs the CI build on the owner's Windows 11 PC; the answer for AC3 and H.265 may differ there. |
+| A real provider and real streams | Not tested yet (owner's machines). |
+
+What this means: the part Electron was chosen for (no CORS or `http://`
+limits, nothing extra to install) works. The format risk is real on Linux:
+AC3 / E-AC3 and H.265 are not played. The options for the audio problem,
+decided after the Windows result:
+
+- **Re-encode audio in the app:** a bundled ffmpeg copies the video and
+  converts audio to AAC in a small local step. Cheap on the CPU and keeps
+  one app, but adds roughly 25–70 MB to the download and a licence to
+  document, and adds a second or two of delay. It does nothing for H.265
+  (that would need full video re-encoding, which is heavy).
+- **Go native** (the plan in this branch's history): libmpv plays all of
+  these formats. More work per platform.
+
 ## Build and CI
 
 GitHub Actions, free runners:
