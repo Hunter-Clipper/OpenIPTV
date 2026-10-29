@@ -1,6 +1,7 @@
 # Web browser client (issue #44)
 
-Status: planned, not started. Branch `feature/44-web-client`.
+Status: **in development (phase 6a runs in a browser; nothing released).** Branch
+`feature/44-web-client`, draft PR #45. See [Current status](#current-status).
 
 ## Goal
 
@@ -72,3 +73,82 @@ platform's:
   the user's requests; Docker image + README steps; any provider works.
 - **6c — polish:** mpegts.js for `.ts`, desktop layout/keyboard, backup
   download/upload, clear notice about where logins are stored.
+
+---
+
+## Current status
+
+Phase 6a works end to end in a browser. It has not been released, and the
+web client has only been tried in Chromium so far.
+
+### What works
+
+- **Build and run:** `flutter build web --release` (about 4 minutes). The
+  release build is one `main.dart.js` (about 1.3 MB gzipped) plus CanvasKit.
+  The dev server (`flutter run -d web-server`) loads hundreds of small
+  modules one after another and is several times slower to start; judge
+  speed on a release build.
+- **Storage:** Drift on WebAssembly (`web/sqlite3.wasm`, `web/drift_worker.js`),
+  kept in the browser (IndexedDB). Profiles, playlists and channels survive
+  a reload. The encrypted native database stays Android-only. Conditional
+  imports pick the connection (`database_connection_native.dart` /
+  `database_connection_web.dart`).
+- **Playlists:** M3U links, and Xtream logins (channels, movies, series and
+  the TV guide). Both were checked against a fake provider with a full-size
+  catalog (18k channels, 36k movies, 8k series) and against a real
+  provider by hand.
+- **Video:** `<video>` with hls.js (HLS) and mpegts.js (`.ts`); scripts load
+  on first use. A MutationObserver separates the browser's own "detached
+  element" pause from a real pause so playback resumes without a reconnect.
+- **Images:** `NetImage` shows posters and logos from hosts that block CORS
+  by falling back to a plain `<img>` element. Android keeps the cached loader.
+- **Polish:** path URLs (`/live`), tab title per screen, OpenIPTV favicon and
+  install icons, a branded loading screen, a `[OTV-boot]` timing summary in
+  the console.
+- **Isolates:** browsers have none. `runOffMain` runs work on a background
+  isolate on Android and in place on web (Xtream JSON, TV guide import); the
+  guide parser yields to the page every few thousand events so a 100 MB
+  guide doesn't freeze it.
+
+### Developer tools
+
+- **`/wipe.html`** clears the database, settings, cookies, cached files and
+  service worker for that address. It is a separate static page, so it still
+  works when the app is stuck. Open the app once with `?dev=1` to show a small
+  "DEV · wipe data" link to it (`?dev=0` hides it again).
+- Stale builds: Flutter installs a service worker that keeps its own copy of
+  the app. After rebuilding, serve `index.html`, `main.dart.js`,
+  `flutter_bootstrap.js` and `flutter_service_worker.js` with
+  `Cache-Control: no-cache`, and use `/wipe.html` if a browser keeps the old
+  app.
+- Hosting needs an SPA fallback (every unknown path serves `index.html`); on
+  GitHub Pages that means a copy of it as `404.html`.
+
+### Known limits and not yet tested
+
+- **CORS and mixed content** (the problem above) still block many providers'
+  playlist links and streams. The self-hosted helper (6b) is the fix.
+  Posters and logos are covered by `NetImage`.
+- Backup export and import use native file APIs and are untested on web.
+- `/settings/power-tools` is reachable by URL and shows Android-only VPN rows.
+- Browser Back doesn't step through sub-screens that aren't go_router routes.
+- The saved resume position is ignored by the web player.
+- Search for non-English letters is case-sensitive (SQLite `LIKE` only folds
+  ASCII).
+- A guide that is gzipped without a `Content-Encoding` header can't be
+  unpacked on web.
+- Not tried: movie and series detail playback, `.ts` streams, Firefox and
+  Safari, a real TV-sized browser window.
+- Start-up is CPU-bound at about 4 s to the first frame in a headless
+  browser (WebAssembly and app start), and the database is ready about
+  1 s later. Ideas not done: deferred loading of rarely used screens, a
+  WebAssembly build of the app (blocked by `dart:ffi` in the import graph),
+  self-hosted CanvasKit, and brotli on the host.
+
+### Phases
+
+| Phase | Status |
+|---|---|
+| 6a runs in a browser | Working; in review on PR #45 |
+| 6b self-hosted helper | Not started |
+| 6c polish (backup, desktop layout, keyboard shortcuts, storage notice) | Not started |

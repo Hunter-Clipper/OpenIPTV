@@ -3,6 +3,15 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased
+
+**Web browser version (in development, not part of any release yet)**
+- OpenIPTV now runs in a desktop browser: add an M3U link or an Xtream login, browse Live TV, Movies and Series, search, and watch. Many providers block websites from loading their lists, so some playlists only work once the planned self-hosted helper exists.
+- Your profile, playlists and channels are saved in the browser and survive a reload.
+- A branded loading screen, an OpenIPTV icon, a tab title for each screen and clean web addresses (`/live`).
+- Posters and channel logos show even when the picture's host blocks web pages.
+- Behind the scenes: one code path now picks the database and background work for each platform. Android behaves as before.
+
 ## 0.14.33 — 2026-10-27
 
 **Performance**
