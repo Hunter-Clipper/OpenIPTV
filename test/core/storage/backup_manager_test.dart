@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -72,7 +73,7 @@ void main() {
     });
 
     test('export includes all backup-eligible preference keys', () async {
-      final prefs = AppPreferences(await SharedPreferences.getInstance());
+      final prefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
       final settings = await _encodeSettingsRaw(prefs);
 
       for (final key in _expectedBackupKeys) {
@@ -82,7 +83,7 @@ void main() {
     });
 
     test('export excludes device/session-only preference keys', () async {
-      final prefs = AppPreferences(await SharedPreferences.getInstance());
+      final prefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
       final settings = await _encodeSettingsRaw(prefs);
 
       for (final key in _excludedPrefKeys) {
@@ -93,7 +94,7 @@ void main() {
 
     test('all preferences survive export -> import round-trip', () async {
       // --- Set non-default values on the source preferences ---
-      final prefs = AppPreferences(await SharedPreferences.getInstance());
+      final prefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
       await prefs.setAccentColor('FF5722');
       await prefs.setContentSort('az');
       await prefs.setChannelListDensity('compact');
@@ -130,7 +131,7 @@ void main() {
 
       // --- Import into a fresh prefs instance ---
       SharedPreferences.setMockInitialValues({});
-      final prefs2 = AppPreferences(await SharedPreferences.getInstance());
+      final prefs2 = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
       await BackupManager(db: db, prefs: prefs2).importAll(backup);
 
       // --- Verify every preference round-tripped ---
@@ -184,7 +185,7 @@ void main() {
 
       // Should not throw — missing keys are silently skipped
       SharedPreferences.setMockInitialValues({});
-      final prefs2 = AppPreferences(await SharedPreferences.getInstance());
+      final prefs2 = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
       await BackupManager(db: db, prefs: prefs2).importAll(oldBackup);
 
       // Old keys should be restored

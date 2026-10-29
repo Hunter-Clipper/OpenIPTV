@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/telemetry/telemetry.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/boot_timing.dart';
 import 'package:open_iptv/core/services/car_library.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -21,6 +23,9 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
+  // Browser: /live, not /#/live (a no-op on other platforms).
+  bootMark('otv-main');
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   // Optional anonymous crash reports (#150); records nothing unless the user
   // turned them on.
@@ -73,6 +78,7 @@ void main() async {
 
   container.read(statsChoiceProvider.notifier).state = await readStatsChoice();
 
+  bootMark('otv-run-app');
   runApp(
     UncontrolledProviderScope(
       container: container,

@@ -2,7 +2,7 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/series.dart';
-import 'package:open_iptv/core/storage/database.dart' if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart' show AppDatabase;
+import 'package:open_iptv/core/storage/database.dart' show AppDatabase;
 
 class SearchResults {
   const SearchResults({

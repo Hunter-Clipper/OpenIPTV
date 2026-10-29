@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -79,7 +80,7 @@ void main() {
 
   test('a playlist file travels inside a backup', () async {
     SharedPreferences.setMockInitialValues({});
-    final prefs = AppPreferences(await SharedPreferences.getInstance());
+    final prefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
 
     // Export from one "device"...
     final db = AppDatabase(NativeDatabase.memory());

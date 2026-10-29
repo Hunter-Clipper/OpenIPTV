@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,6 +155,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
 
                 // --------------- AUTO-REFRESH (admin only) ---------------
+                if (!kIsWeb)
                 Consumer(builder: (context, ref, _) {
                   final hours = ref.watch(refreshIntervalHoursProvider);
                   return InfoTooltip(
@@ -173,6 +175,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   );
                 }),
+                if (!kIsWeb)
                 Consumer(builder: (context, ref, _) {
                   final hours = ref.watch(refreshIntervalHoursProvider);
                   if (hours <= 0) return const SizedBox.shrink();
@@ -232,6 +235,7 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (_) {},
                 ),
               ),
+              if (!kIsWeb)
               Consumer(builder: (context, ref, _) {
                 final ask = ref.watch(askStartOverProvider);
                 return InfoTooltip(
@@ -273,6 +277,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 );
               }),
+              if (!kIsWeb)
               Consumer(builder: (context, ref, _) {
                 final notifyEnabled =
                     ref.watch(mediaNotificationEnabledProvider);
@@ -296,7 +301,10 @@ class SettingsScreen extends ConsumerWidget {
               }),
               // Android Auto video add-on (phones; installing apps is
               // an admin job).
-              if (isAdmin && Platform.isAndroid && !PlatformHelper.isTVDevice)
+              if (isAdmin &&
+                  !kIsWeb &&
+                  Platform.isAndroid &&
+                  !PlatformHelper.isTVDevice)
                 const CarVideoAddonTile(),
               Consumer(builder: (context, ref, _) {
                 final sort = ref.watch(contentSortProvider);
@@ -410,6 +418,8 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
               ),
+              // The page itself is always the latest; nothing to install.
+              if (!kIsWeb)
               InfoTooltip(
                 id: 'settings_check_updates',
                 title: 'Check for Updates',
@@ -425,6 +435,7 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => checkForUpdateManually(context),
                 ),
               ),
+              if (!kIsWeb)
               InfoTooltip(
                 id: 'settings_auto_update',
                 title: 'Check Automatically',
@@ -448,7 +459,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ]),
             // --------------- ADVANCED (admin only, last) ---------------
-            if (isAdmin)
+            if (isAdmin && !kIsWeb)
               SettingsGroup(title: 'Advanced', children: [
                 InfoTooltip(
                   id: 'settings_power_tools',

@@ -6,7 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/models/source.dart';
-import 'package:open_iptv/core/storage/database.dart' if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart';
+import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 

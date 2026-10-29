@@ -39,6 +39,7 @@ import 'package:open_iptv/features/settings/power_user_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
+import 'package:open_iptv/shared/widgets/page_title.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/brand_splash.dart';
@@ -267,11 +268,13 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       routes: [
         GoRoute(
           path: '/setup',
-          builder: (_, __) => const SetupWizardScreen(),
+          builder: (_, __) =>
+              const PageTitle('Set up', child: SetupWizardScreen()),
         ),
         GoRoute(
           path: '/onboarding',
-          builder: (_, __) => const SetupWizardScreen(addPlaylistOnly: true),
+          builder: (_, __) => const PageTitle('Add a playlist',
+              child: SetupWizardScreen(addPlaylistOnly: true)),
         ),
         ShellRoute(
           navigatorKey: _shellNavigatorKey,
@@ -279,65 +282,83 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           routes: [
             GoRoute(
               path: '/live',
-              builder: (_, __) => const ChannelListScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Live TV', child: ChannelListScreen()),
               routes: [
                 GoRoute(
                   path: 'category/:cat',
-                  builder: (_, state) => LiveCategoryScreen(
-                    category: state.pathParameters['cat']!,
+                  builder: (context, state) => PageTitle(
+                    '${context.displayName(state.pathParameters['cat']!)} · Live TV',
+                    child: LiveCategoryScreen(
+                      category: state.pathParameters['cat']!,
+                    ),
                   ),
                 ),
               ],
             ),
             GoRoute(
               path: '/movies',
-              builder: (_, __) => const MoviesScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Movies', child: MoviesScreen()),
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) => MovieGenreScreen(
-                    genre: state.pathParameters['genre']!,
+                  builder: (context, state) => PageTitle(
+                    '${context.displayName(state.pathParameters['genre']!)} · Movies',
+                    child: MovieGenreScreen(
+                      genre: state.pathParameters['genre']!,
+                    ),
                   ),
                 ),
               ],
             ),
             GoRoute(
               path: '/series',
-              builder: (_, __) => const SeriesScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Series', child: SeriesScreen()),
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) => SeriesGenreScreen(
-                    genre: state.pathParameters['genre']!,
+                  builder: (context, state) => PageTitle(
+                    '${context.displayName(state.pathParameters['genre']!)} · Series',
+                    child: SeriesGenreScreen(
+                      genre: state.pathParameters['genre']!,
+                    ),
                   ),
                 ),
               ],
             ),
             GoRoute(
               path: '/search',
-              builder: (_, __) => const SearchScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Search', child: SearchScreen()),
             ),
             // A tab since 0.12.1 (the gear in the top corner confused
             // people); its pages stay inside the shell, under the nav.
             GoRoute(
               path: '/settings',
-              builder: (_, __) => const SettingsScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Settings', child: SettingsScreen()),
               routes: [
                 GoRoute(
                   path: 'profiles',
-                  builder: (_, __) => const ProfileScreen(),
+                  builder: (_, __) =>
+                      const PageTitle('Profiles', child: ProfileScreen()),
                 ),
                 GoRoute(
                   path: 'backup',
-                  builder: (_, __) => const BackupScreen(),
+                  builder: (_, __) => const PageTitle('Backup & Restore',
+                      child: BackupScreen()),
                 ),
                 GoRoute(
                   path: 'parental',
-                  builder: (_, __) => const ParentalScreen(),
+                  builder: (_, __) => const PageTitle('Parental Controls',
+                      child: ParentalScreen()),
                 ),
                 GoRoute(
                   path: 'power-tools',
-                  builder: (_, __) => const PowerUserScreen(),
+                  builder: (_, __) => const PageTitle('Power User Tools',
+                      child: PowerUserScreen()),
                 ),
                 GoRoute(
                   path: 'anonymous-reports',
@@ -368,16 +389,19 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           path: '/player',
           pageBuilder: (context, state) {
             final extra = state.extra as Map<String, dynamic>;
-            final screen = PlayerScreen(
-              streamUrl: extra['streamUrl'] as String,
-              title: extra['title'] as String,
-              contentId: extra['contentId'] as String?,
-              contentType: extra['contentType'] as String?,
-              resumePosition: extra['resumePosition'] as Duration?,
-              confirmResume: extra['confirmResume'] as bool? ?? true,
-              seriesId: extra['seriesId'] as String?,
-              continuePlaying: extra['continuePlaying'] as bool? ?? false,
-              handBackTo: extra['handBackTo'],
+            final screen = PageTitle(
+              context.displayName(extra['title'] as String),
+              child: PlayerScreen(
+                streamUrl: extra['streamUrl'] as String,
+                title: extra['title'] as String,
+                contentId: extra['contentId'] as String?,
+                contentType: extra['contentType'] as String?,
+                resumePosition: extra['resumePosition'] as Duration?,
+                confirmResume: extra['confirmResume'] as bool? ?? true,
+                seriesId: extra['seriesId'] as String?,
+                continuePlaying: extra['continuePlaying'] as bool? ?? false,
+                handBackTo: extra['handBackTo'],
+              ),
             );
             // From the TV guide's playing pane the picture zooms from the
             // pane to full screen and back (#162): the route stays see-
