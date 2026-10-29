@@ -183,11 +183,12 @@ class NativeVideoPlayer {
     return id!;
   }
 
-  // Maps the web engine's snapshot onto the shared state type.
+  // Maps the web engine's snapshot onto the shared state type. The engine
+  // reports seconds; the state (like the native player) is in milliseconds.
   void _onWebState(web.WebSnapshot s) {
     _pushState(
-      position: s.position,
-      duration: s.duration,
+      position: s.position * 1000,
+      duration: s.duration * 1000,
       playing: s.playing,
       buffering: s.buffering,
       completed: s.completed,
