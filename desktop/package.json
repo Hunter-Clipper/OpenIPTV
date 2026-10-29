@@ -1,12 +1,64 @@
 {
   "name": "openiptv-desktop",
-  "version": "0.0.0",
+  "version": "0.14.34",
   "private": true,
   "description": "Electron shell around the OpenIPTV web client (phase 0 spike)",
   "main": "main.js",
   "license": "GPL-3.0-only",
   "devDependencies": {
     "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
     "playwright-core": "^1.64.1"
+  },
+  "scripts": {
+    "start": "electron . ",
+    "dist": "electron-builder --publish never"
+  },
+  "author": "OpenIPTV",
+  "homepage": "https://github.com/Hunter-Clipper/OpenIPTV",
+  "build": {
+    "appId": "com.openiptv.desktop",
+    "productName": "OpenIPTV",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "!app/**/*.map"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "OpenIPTV-windows.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "OpenIPTV-windows-setup.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "OpenIPTV-linux.${ext}",
+      "category": "AudioVideo",
+      "synopsis": "IPTV player"
+    }
   }
 }
