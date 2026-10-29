@@ -1,12 +1,13 @@
 import 'dart:convert';
-import 'dart:isolate';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/models/source.dart';
+import 'package:open_iptv/shared/utils/run_off_main.dart';
 
 class XtreamException implements Exception {
   const XtreamException(this.message);
@@ -69,7 +70,7 @@ class XtreamClient {
     }
     try {
       final bodyStr = response.body;
-      final body = await Isolate.run<Object?>(() => jsonDecode(bodyStr));
+      final body = await runOffMain<Object?>(() => jsonDecode(bodyStr));
       return body as Map<String, dynamic>;
     } catch (_) {
       throw const XtreamException('invalid_response');
@@ -258,10 +259,11 @@ class XtreamClient {
       // Parse JSON on a background isolate — avoids blocking the main thread
       // for large responses (e.g. 8 MB series list, 20 MB movie list).
       final bodyStr = response.body;
-      final body = await Isolate.run<Object?>(() => jsonDecode(bodyStr));
+      final body = await runOffMain<Object?>(() => jsonDecode(bodyStr));
       if (body is List) return {'_list': body};
       return body as Map<String, dynamic>;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Xtream] ${action['action']}: response not usable: $e');
       throw const XtreamException('invalid_response');
     }
   }

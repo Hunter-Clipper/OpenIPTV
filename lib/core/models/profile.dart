@@ -22,6 +22,39 @@ class Profile {
     this.accentColor = '0A84FF',
     });
 
+  factory Profile.fromJson(Map<String, dynamic> json) => Profile(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        avatarEmoji: json['avatarEmoji'] as String,
+        pinHash: json['pinHash'] as String?,
+        sourceIds: (json['sourceIds'] as List?)?.cast<String>() ?? const [],
+        favoriteChannelIds:
+            (json['favoriteChannelIds'] as List?)?.cast<String>() ?? const [],
+        favoriteMovieIds:
+            (json['favoriteMovieIds'] as List?)?.cast<String>() ?? const [],
+        favoriteSeriesIds:
+            (json['favoriteSeriesIds'] as List?)?.cast<String>() ?? const [],
+        defaultCategory: json['defaultCategory'] as String? ?? 'All',
+        channelSortOrder: json['channelSortOrder'] as String? ?? 'provider',
+        defaultSubtitleLang: json['defaultSubtitleLang'] as String? ?? '',
+        defaultAudioLang: json['defaultAudioLang'] as String? ?? '',
+        customChannelOrder: (json['customChannelOrder'] as Map?)?.map(
+              (k, v) => MapEntry(k as String, (v as num).toInt()),
+            ) ??
+            const {},
+        epgOverrides: (json['epgOverrides'] as Map?)?.map(
+              (k, v) => MapEntry(k as String, v as String),
+            ) ??
+            const {},
+        hiddenCategories:
+            (json['hiddenCategories'] as List?)?.cast<String>() ?? const [],
+        isKidsProfile: json['isKidsProfile'] as bool? ?? false,
+        isAdmin: json['isAdmin'] as bool? ?? false,
+        accentColor: json['accentColor'] as String? ?? '0A84FF',
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+      );
+
   final String id;
   final String name;
   final String avatarEmoji;
@@ -44,6 +77,29 @@ class Profile {
   final DateTime updatedAt;
 
   bool get hasPin => pinHash != null;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'avatarEmoji': avatarEmoji,
+        'pinHash': pinHash,
+        'sourceIds': sourceIds,
+        'favoriteChannelIds': favoriteChannelIds,
+        'favoriteMovieIds': favoriteMovieIds,
+        'favoriteSeriesIds': favoriteSeriesIds,
+        'defaultCategory': defaultCategory,
+        'channelSortOrder': channelSortOrder,
+        'defaultSubtitleLang': defaultSubtitleLang,
+        'defaultAudioLang': defaultAudioLang,
+        'customChannelOrder': customChannelOrder,
+        'epgOverrides': epgOverrides,
+        'hiddenCategories': hiddenCategories,
+        'isKidsProfile': isKidsProfile,
+        'isAdmin': isAdmin,
+        'accentColor': accentColor,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
 
   static const List<String> avatarOptions = [
     '👨', '👩', '🧒', '👦', '👧', '🧑', '👴', '👵',

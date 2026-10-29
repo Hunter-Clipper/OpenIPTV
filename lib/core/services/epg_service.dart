@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +8,7 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xmltv_parser.dart';
 import 'package:open_iptv/shared/utils/redact.dart';
+import 'package:open_iptv/shared/utils/run_off_main.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -114,7 +114,9 @@ Stream<List<int>> maybeGunzip(Stream<List<int>> bytes) async* {
     }
   }
 
-  if (head.length == 2 && head[0] == 0x1f && head[1] == 0x8b) {
+  // dart:io's gzip doesn't exist in a browser (which already unpacks a
+  // Content-Encoding: gzip response itself).
+  if (!kIsWeb && head.length == 2 && head[0] == 0x1f && head[1] == 0x8b) {
     yield* rest().transform(gzip.decoder);
   } else {
     yield* rest();
@@ -184,7 +186,7 @@ class EpgService {
           : const Duration(hours: 1);
 
       onProgress?.call('Downloading TV guide…');
-      final programmes = await Isolate.run(
+      final programmes = await runOffMain(
         () => _fetchAndParseAll(epgUrl, pastWindow),
         debugName: 'epg-parse',
       );

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -148,7 +150,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       return KeyEventResult.ignored;
     };
     _nameFocusNode.addListener(() {
-      if (_nameFocusNode.hasFocus) {
+      // Android soft-keyboard nudge; on web it hits the engine's input
+      // element before it exists and throws.
+      if (!kIsWeb && _nameFocusNode.hasFocus) {
         SystemChannels.textInput.invokeMethod('TextInput.show');
       }
     });
@@ -281,7 +285,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       // credentials, bad URL, network issues). Only create the profile once
       // it succeeds, so a failed attempt leaves nothing behind to retry into.
       final isM3u = _playlistType == SourceType.m3u;
-      await manager.addSource(
+      final source = await manager.addSource(
         nickname: nickname,
         type: _playlistType,
         m3uUrl: isM3u && !_fromFile ? _m3uUrlCtrl.text.trim() : null,
@@ -293,19 +297,24 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
         onProgress: onProgress,
       );
 
+      // Set this source as active so the app shows its channels on launch.
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await setActiveSource(ref, source.id, prefs);
+
       if (!mounted) return;
 
       if (!widget.addPlaylistOnly) {
-        final prefs = await ref.read(appPreferencesProvider.future);
         final db = ref.read(appDatabaseProvider);
         final profileSvc = ProfileService(db: db, prefsSnapshot: prefs);
-        final profile = await profileSvc.createProfile(
+        await profileSvc.createProfile(
           name: _nameCtrl.text.trim(),
           avatarEmoji: _avatarEmoji,
           pin: _pin.isEmpty ? null : _pin,
           isAdmin: true,
           accentColor: AppTheme.hexFromAccent(_accentColor),
         );
+        // The active profile was cached while there was none yet.
+        ref.invalidate(activeProfileProvider);
 
         // Persist and apply the chosen accent colour immediately.
         await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
@@ -320,6 +329,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       await Future.delayed(const Duration(seconds: 3));
       if (mounted) _finish();
     } catch (e) {
+      debugPrint('[Source] add failed: ${redactUrl('$e')}');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -394,11 +404,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   /// Back to wherever the wizard was opened from (Settings), or into the
   /// app when it's the root route (first run, or no playlists left).
   void _finish() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/live');
-    }
+    // On web, context.canPop() can return true even when popping doesn't
+    // properly navigate (browser history quirk). Always use go('/live').
+    context.go('/live');
   }
 
   @override

@@ -10,6 +10,7 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/detail_header.dart';
+import 'package:open_iptv/shared/widgets/page_title.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
@@ -157,6 +158,7 @@ class _MovieDetailBody extends ConsumerWidget {
     final watched = movie.watchedDuration;
     return CustomScrollView(
       slivers: [
+        SliverPageTitle(context.displayName(movie.title)),
         DetailHeader(
           title: context.displayName(movie.title),
           posterUrl: movie.posterUrl,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart' as io_client;
@@ -24,6 +25,8 @@ class ImageCacheManager extends CacheManager {
         ));
 
   static http.Client _createHttpClient() {
+    // dart:io's HttpClient doesn't exist in a browser; use its own client.
+    if (kIsWeb) return http.Client();
     final ioClient = HttpClient();
     ioClient.maxConnectionsPerHost = 24;
     return io_client.IOClient(ioClient);

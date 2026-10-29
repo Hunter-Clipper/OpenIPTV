@@ -1,10 +1,10 @@
 import 'dart:ui' show ImageFilter;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/net_image.dart';
 
 /// Building blocks of the movie and series detail pages (Google TV style):
 /// a full-width backdrop that collapses into a plain app bar, the poster
@@ -189,7 +189,7 @@ class _Backdrop extends StatelessWidget {
     final fill = Theme.of(context).colorScheme.surfaceContainer;
     final url = backdropUrl ?? posterUrl;
     if (url == null || url.isEmpty) return ColoredBox(color: fill);
-    final image = CachedNetworkImage(
+    final image = NetImage(
       imageUrl: url,
       fit: BoxFit.cover,
       alignment: backdropUrl != null ? Alignment.topCenter : Alignment.center,

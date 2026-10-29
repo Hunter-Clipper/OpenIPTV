@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,11 +12,13 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/detail_header.dart';
+import 'package:open_iptv/shared/widgets/page_title.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/shared/widgets/net_image.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -188,6 +189,7 @@ class _SeriesBody extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
+        SliverPageTitle(context.displayName(series.title)),
         DetailHeader(
           title: context.displayName(series.title),
           posterUrl: series.posterUrl,
@@ -579,7 +581,7 @@ class _Still extends StatelessWidget {
   Widget build(BuildContext context) {
     final fill = Theme.of(context).colorScheme.surfaceContainerHighest;
     if (url == null || url!.isEmpty) return ColoredBox(color: fill);
-    return CachedNetworkImage(
+    return NetImage(
       imageUrl: url!,
       fit: BoxFit.cover,
       memCacheWidth: 400,

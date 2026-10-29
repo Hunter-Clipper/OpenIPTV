@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,6 +34,7 @@ import 'package:open_iptv/features/settings/power_user_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
+import 'package:open_iptv/shared/widgets/page_title.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/brand_splash.dart';
@@ -59,34 +61,56 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   @override
   void initState() {
     super.initState();
-    _router = _buildRouter();
-    _openDb();
+    try {
+      _router = _buildRouter();
+      _openDb();
+    } catch (e, st) {
+      debugPrint('INITSTATE ERROR: $e');
+      debugPrint('$st');
+    }
   }
 
   Future<void> _openDb() async {
+    try {
     const maxAttempts = 5;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        await ref.read(appDatabaseProvider).customSelect('SELECT 1').get();
+        debugPrint('OPENDB: calling customSelect');
+        await ref.read(appDatabaseProvider).customSelect('SELECT 1');
+        debugPrint('OPENDB: customSelect OK');
         break;
       } catch (e) {
+        debugPrint('OPENDB: customSelect FAILED: $e');
         if (attempt == maxAttempts - 1) rethrow;
         await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
     }
 
     final db = ref.read(appDatabaseProvider);
+    debugPrint('OPENDB: reading prefs');
     final prefs = await ref.read(appPreferencesProvider.future);
+    debugPrint('OPENDB: prefs OK');
+
+    // On web, a stale active_source_id left over from a failed onboarding
+    // attempt can drive downstream providers into an inconsistent state on
+    // the setup screen. Clear it when the source no longer exists.
+    if (kIsWeb) {
+      final allSources = await db.getAllSources();
+      if (allSources.isEmpty ||
+          !allSources.any((s) => s.id == prefs.activeSourceId)) {
+        await prefs.setActiveSourceId(null);
+      }
+    }
 
     // Re-sync the background auto-refresh registration against the
     // persisted interval — WorkManager can drop periodic registrations
     // across OS updates or force-stops, so this must run on every launch,
     // not just when the user changes the setting.
-    unawaited(syncAutoRefreshRegistration(prefs));
+    if (!kIsWeb) unawaited(syncAutoRefreshRegistration(prefs));
 
     // Power User Tools: bring the built-in VPN up if asked to. Never
     // prompts and never blocks start-up.
-    unawaited(VpnService().autoConnect(prefs));
+    if (!kIsWeb) unawaited(VpnService().autoConnect(prefs));
 
     // Initialise accent + sort state from persisted preferences.
     syncSettingsProviders(ref, prefs);
@@ -95,7 +119,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     // playlist across app updates, with no code path found that writes it.
     debugPrint('[OTV-source] startup active=${prefs.activeSourceId}');
 
-    initPipChannel(
+    if (!kIsWeb) initPipChannel(
       onPipModeChanged: (isInPip) =>
           ref.read(pipActiveProvider.notifier).state = isInPip,
       // The PiP window was closed: stop what was playing in it.
@@ -121,7 +145,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       // — with no transient overlays (channel switcher, etc.) open — and
       // playback is running. Otherwise Home would shrink a non-player screen
       // or an overlay into a tiny, smooshed PiP window.
-      updatePipAvailability(
+      if (!kIsWeb) updatePipAvailability(
         ref.read(pipEnabledProvider) &&
             playing &&
             PlayerScreen.openCount > 0 &&
@@ -129,17 +153,18 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       );
     }
 
-    // PiP availability.
-    pushPipAvailability();
-    ref
-        .read(playbackServiceProvider)
-        .stateStream
-        .listen((_) => pushPipAvailability());
-    // Re-evaluate PiP eligibility when the user toggles the setting.
-    ref.listen<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
-    // Re-evaluate when a transient overlay (channel switcher, multi-view)
-    // opens or closes — opening suppresses PiP, closing re-enables it.
-    ref.listen<bool>(playerOverlayOpenProvider, (_, __) => pushPipAvailability());
+    if (!kIsWeb) {
+      pushPipAvailability();
+      ref
+          .read(playbackServiceProvider)
+          .stateStream
+          .listen((_) => pushPipAvailability());
+      // Re-evaluate PiP eligibility when the user toggles the setting.
+      ref.listen<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
+      // Re-evaluate when a transient overlay (channel switcher, multi-view)
+      // opens or closes — opening suppresses PiP, closing re-enables it.
+      ref.listen<bool>(playerOverlayOpenProvider, (_, __) => pushPipAvailability());
+    }
 
     // Well after start (counting the big tables takes seconds on a TV):
     // report storage, then the one-time rebuild of an older, bloated file.
@@ -167,6 +192,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         _needsProfilePick = needsPick;
       });
     }
+    } catch (e, st) {
+      debugPrint('OPENDB ERROR: $e');
+      debugPrint('$st');
+    }
   }
 
   /// Deferred storage diagnostics + one-time DB compaction, called from
@@ -174,6 +203,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   /// doesn't compete with the initial EPG load. Safe to call from the
   /// widget (where ref stays valid) — not from a provider factory.
   Future<void> _runStorageDiagnostics(WidgetRef ref, AppDatabase db) async {
+    if (kIsWeb) return;
     await Future<void>.delayed(const Duration(seconds: 20));
     await db.logStorageStats();
     final free = await freeDiskBytes();
@@ -220,11 +250,13 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       routes: [
         GoRoute(
           path: '/setup',
-          builder: (_, __) => const SetupWizardScreen(),
+          builder: (_, __) =>
+              const PageTitle('Set up', child: SetupWizardScreen()),
         ),
         GoRoute(
           path: '/onboarding',
-          builder: (_, __) => const SetupWizardScreen(addPlaylistOnly: true),
+          builder: (_, __) => const PageTitle('Add a playlist',
+              child: SetupWizardScreen(addPlaylistOnly: true)),
         ),
         ShellRoute(
           navigatorKey: _shellNavigatorKey,
@@ -232,65 +264,86 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           routes: [
             GoRoute(
               path: '/live',
-              builder: (_, __) => const ChannelListScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Live TV', child: ChannelListScreen()),
               routes: [
                 GoRoute(
                   path: 'category/:cat',
-                  builder: (_, state) => LiveCategoryScreen(
-                    category: state.pathParameters['cat']!,
+                  builder: (context, state) => PageTitle(
+                    '${context.displayName(state.pathParameters['cat']!)} · Live TV',
+                    child: LiveCategoryScreen(
+                      category: state.pathParameters['cat']!,
+                    ),
                   ),
                 ),
               ],
             ),
             GoRoute(
               path: '/movies',
-              builder: (_, __) => const MoviesScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Movies', child: MoviesScreen()),
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) => MovieGenreScreen(
-                    genre: state.pathParameters['genre']!,
+                  builder: (context, state) => PageTitle(
+                    '${context.displayName(state.pathParameters['genre']!)} · Movies',
+                    child: MovieGenreScreen(
+                      genre: state.pathParameters['genre']!,
+                    ),
                   ),
                 ),
               ],
             ),
             GoRoute(
               path: '/series',
-              builder: (_, __) => const SeriesScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Series', child: SeriesScreen()),
               routes: [
                 GoRoute(
                   path: 'genre/:genre',
-                  builder: (_, state) => SeriesGenreScreen(
-                    genre: state.pathParameters['genre']!,
+                  builder: (context, state) => PageTitle(
+                    '${context.displayName(state.pathParameters['genre']!)} · Series',
+                    child: SeriesGenreScreen(
+                      genre: state.pathParameters['genre']!,
+                    ),
                   ),
                 ),
               ],
             ),
             GoRoute(
               path: '/search',
-              builder: (_, __) => const SearchScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Search', child: SearchScreen()),
             ),
             // A tab since 0.12.1 (the gear in the top corner confused
             // people); its pages stay inside the shell, under the nav.
             GoRoute(
               path: '/settings',
-              builder: (_, __) => const SettingsScreen(),
+              builder: (_, __) =>
+                  const PageTitle('Settings', child: SettingsScreen()),
               routes: [
                 GoRoute(
                   path: 'profiles',
-                  builder: (_, __) => const ProfileScreen(),
+                  builder: (_, __) =>
+                      const PageTitle('Profiles', child: ProfileScreen()),
                 ),
                 GoRoute(
                   path: 'backup',
-                  builder: (_, __) => const BackupScreen(),
+                  builder: (_, __) => const PageTitle('Backup & Restore',
+                      child: BackupScreen()),
                 ),
                 GoRoute(
                   path: 'parental',
-                  builder: (_, __) => const ParentalScreen(),
+                  builder: (_, __) => const PageTitle('Parental Controls',
+                      child: ParentalScreen()),
                 ),
                 GoRoute(
                   path: 'power-tools',
-                  builder: (_, __) => const PowerUserScreen(),
+                  // VPN, buffer and network tools are Android-only; a typed
+                  // /settings/power-tools in a browser goes back to Settings.
+                  redirect: (_, __) => kIsWeb ? '/settings' : null,
+                  builder: (_, __) => const PageTitle('Power User Tools',
+                      child: PowerUserScreen()),
                 ),
               ],
             ),
@@ -315,18 +368,21 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         ),
         GoRoute(
           path: '/player',
-          builder: (_, state) {
+          builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>;
-            return PlayerScreen(
-              streamUrl: extra['streamUrl'] as String,
-              title: extra['title'] as String,
-              contentId: extra['contentId'] as String?,
-              contentType: extra['contentType'] as String?,
-              resumePosition: extra['resumePosition'] as Duration?,
-              confirmResume: extra['confirmResume'] as bool? ?? true,
-              seriesId: extra['seriesId'] as String?,
-              continuePlaying: extra['continuePlaying'] as bool? ?? false,
-              handBackTo: extra['handBackTo'],
+            return PageTitle(
+              context.displayName(extra['title'] as String),
+              child: PlayerScreen(
+                streamUrl: extra['streamUrl'] as String,
+                title: extra['title'] as String,
+                contentId: extra['contentId'] as String?,
+                contentType: extra['contentType'] as String?,
+                resumePosition: extra['resumePosition'] as Duration?,
+                confirmResume: extra['confirmResume'] as bool? ?? true,
+                seriesId: extra['seriesId'] as String?,
+                continuePlaying: extra['continuePlaying'] as bool? ?? false,
+                handBackTo: extra['handBackTo'],
+              ),
             );
           },
         ),
@@ -565,7 +621,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       // Like Android's own Back on a launcher activity: to the background,
       // state kept (not finished — the shared audio_service engine
       // outlives the activity anyway).
-      unawaited(_backChannel.invokeMethod('moveToBack'));
+      if (!kIsWeb) unawaited(_backChannel.invokeMethod('moveToBack'));
       return;
     }
     _exitArmedAt = DateTime.now();
@@ -589,10 +645,10 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // Navigator still pops normally — native only intervenes when told to).
     final location = GoRouterState.of(context).uri.path;
     final isRootTab = _kNavDestinations.any((d) => d.path == location);
-    if (_lastReportedBlocked != isRootTab) {
-      _lastReportedBlocked = isRootTab;
-      unawaited(_backChannel.invokeMethod('setBlocked', isRootTab));
-    }
+      if (!kIsWeb && _lastReportedBlocked != isRootTab) {
+        _lastReportedBlocked = isRootTab;
+        unawaited(_backChannel.invokeMethod('setBlocked', isRootTab));
+      }
 
     if (PlatformHelper.isTV(context)) {
       return Scaffold(

@@ -114,7 +114,7 @@
 | 3 | iOS + iPadOS | 📋 Planned |
 | 4 | Apple TV | 📋 Planned |
 | 5 | Windows + macOS | 📋 Planned |
-| 6 | Web browser | 📋 Planned |
+| 6 | Web browser | 🚧 In dev — [follow the PR](https://github.com/Hunter-Clipper/OpenIPTV/pull/45) |
 
 **Next up:** promoting a profile to admin, and deep links. Plans for the other platforms: [iOS](https://github.com/Hunter-Clipper/OpenIPTV/pull/42), [Windows](https://github.com/Hunter-Clipper/OpenIPTV/pull/43) and [web](https://github.com/Hunter-Clipper/OpenIPTV/pull/45).
 
