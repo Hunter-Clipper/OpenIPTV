@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
@@ -6,6 +5,7 @@ import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/shared/widgets/net_image.dart';
 
 /// One poster in a [MediaRail].
 class RailItem {
@@ -442,7 +442,7 @@ class _Logo extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
       child: url == null || url!.isEmpty
           ? fallback
-          : CachedNetworkImage(
+          : NetImage(
               imageUrl: url!,
               cacheManager: ImageCacheManager(),
               fit: BoxFit.contain,
