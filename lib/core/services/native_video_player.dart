@@ -268,8 +268,10 @@ class NativeVideoPlayer {
       bool liveReconnect = false,
       bool live = false}) {
     if (kIsWeb) {
-      return _web!
-          .open(url, streamTypeHint: streamTypeHint, audioFocus: !carScreen);
+      return _web!.open(url,
+          streamTypeHint: streamTypeHint,
+          audioFocus: !carScreen,
+          startPosition: startPosition);
     }
     return _control.invokeMethod('open', {
       'id': _textureId,

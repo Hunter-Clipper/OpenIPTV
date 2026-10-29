@@ -113,6 +113,7 @@ class WebPlaybackEngine {
   // viewer's. Checking isConnected in the pause handler isn't enough: Flutter
   // puts the element straight back, and the event is delivered after that.
   bool _detachedPause = false;
+  DateTime? _lastPlayAbort;
   Timer? _detachedClear;
   html.MutationObserver? _removals;
 
@@ -122,8 +123,14 @@ class WebPlaybackEngine {
     String url, {
     String? streamTypeHint,
     bool audioFocus = true,
+    Duration? startPosition,
   }) async {
     _teardown();
+    // Resume point for a movie or episode: applied once the browser knows
+    // how long the file is (seeking before that is ignored).
+    _resumeAt = startPosition != null && startPosition > Duration.zero
+        ? startPosition.inMilliseconds / 1000.0
+        : null;
     _started = false;
     _ended = false;
     _wantPlaying = true;
@@ -151,6 +158,7 @@ class WebPlaybackEngine {
   // prefetches them at low priority so they're usually already cached.
   static final _scripts = <String, Future<void>>{};
   int _openAttempt = 0;
+  double? _resumeAt;
 
   static Future<void> _ensureScript(String src) {
     return _scripts.putIfAbsent(src, () {
@@ -174,7 +182,7 @@ class WebPlaybackEngine {
     video.src = url;
     video.load();
     _started = true;
-    video.play();
+    _play();
   }
 
   void _openHls(String url) {
@@ -236,7 +244,7 @@ class WebPlaybackEngine {
   void _onManifest() {
     _started = true;
     _buffering = false;
-    video.play();
+    _play();
     _emit();
   }
 
@@ -286,7 +294,14 @@ class WebPlaybackEngine {
       if (_detachedPause) {
         _detachedPause = false; // the browser paused it; keep wanting to play
       } else {
-        _wantPlaying = false; // a real pause
+        // A play() rejected by the re-parenting reports just after this
+        // event, so decide a moment later whether it was a real pause.
+        Timer(const Duration(milliseconds: 100), () {
+          final aborted = _lastPlayAbort != null &&
+              DateTime.now().difference(_lastPlayAbort!) <
+                  const Duration(seconds: 1);
+          if (!aborted && video.paused) _wantPlaying = false;
+        });
       }
       _emit();
     });
@@ -294,7 +309,15 @@ class WebPlaybackEngine {
       _ended = true;
       _emit();
     });
-    video.onLoadedMetadata.listen((_) => _emit());
+    video.onLoadedMetadata.listen((_) {
+      final at = _resumeAt;
+      _resumeAt = null;
+      // Only for a file with an end; a live stream has no position to go to.
+      if (at != null && video.duration.isFinite && at < video.duration) {
+        video.currentTime = at;
+      }
+      _emit();
+    });
     // Time updates carry the position; throttle to ~4Hz in the poll instead.
     _poll = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (_wantPlaying &&
@@ -302,11 +325,22 @@ class WebPlaybackEngine {
           !_ended &&
           video.paused &&
           (video.isConnected ?? false)) {
-        video.play().catchError((_) {});
+        _play();
       }
       _emit();
     });
   }
+
+  /// play() with its failure handled. When Flutter re-parents the <video> a
+  /// moment after playback starts, the browser rejects the request
+  /// ("removed from the document"); remember when, so the pause that goes
+  /// with it isn't mistaken for the viewer pausing.
+  Future<void> _play() => video.play().catchError((Object e) {
+        final msg = '$e';
+        if (msg.contains('AbortError') || msg.contains('removed from')) {
+          _lastPlayAbort = DateTime.now();
+        }
+      });
 
   WebSnapshot _snapshot() => WebSnapshot(
         position: video.currentTime.isFinite ? video.currentTime.toDouble() : 0.0,
@@ -325,7 +359,7 @@ class WebPlaybackEngine {
   void play() {
     _started = true;
     _wantPlaying = true;
-    video.play().catchError((_) {});
+    _play();
   }
 
   void pause() {
