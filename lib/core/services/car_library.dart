@@ -6,8 +6,7 @@ import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
-import 'package:open_iptv/core/storage/database.dart'
-    if (dart.library.html) 'package:open_iptv/core/storage/database_stub.dart';
+import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 

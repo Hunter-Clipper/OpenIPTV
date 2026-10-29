@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/profile.dart';
@@ -42,7 +43,7 @@ void main() {
   Future<CarLibrary> library(Profile p,
       {Map<String, Object> prefs = const {}}) async {
     SharedPreferences.setMockInitialValues(prefs);
-    final appPrefs = AppPreferences(await SharedPreferences.getInstance());
+    final appPrefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
     return CarLibrary(
       db: db,
       loadPrefs: () async => appPrefs,
@@ -95,7 +96,7 @@ void main() {
     final lib = CarLibrary(
       db: db,
       loadPrefs: () async =>
-          AppPreferences(await SharedPreferences.getInstance()),
+          AppPreferences(PrefsStore(await SharedPreferences.getInstance())),
       loadProfile: () async => null,
     );
     final items = await lib.children('root');
