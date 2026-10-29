@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/format.dart';
+import 'package:open_iptv/shared/utils/save_download.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
@@ -124,6 +126,14 @@ class BackupScreen extends ConsumerWidget {
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (kIsWeb) {
+        // A browser has one way to save a file: a download.
+        saveDownload(name, bytes, 'application/zip');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backup downloaded as $name')),
+        );
+        return;
+      }
       // TVs usually have no share targets at all, so saving to the device
       // is the only option there.
       final destination = PlatformHelper.isTV(context)
@@ -277,7 +287,8 @@ class BackupScreen extends ConsumerWidget {
     ref.invalidate(appPreferencesProvider);
     final prefs = await ref.read(appPreferencesProvider.future);
     syncSettingsProviders(ref, prefs);
-    unawaited(syncAutoRefreshRegistration(prefs));
+    // Scheduled refresh is an Android service; a browser has none.
+    if (!kIsWeb) unawaited(syncAutoRefreshRegistration(prefs));
   }
 
   // ---------------------------------------------------------------------------
