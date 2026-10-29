@@ -112,6 +112,19 @@ web client has only been tried in Chromium so far.
   guide parser yields to the page every few thousand events so a 100 MB
   guide doesn't freeze it.
 
+- **Backup:** Export downloads a `.zip` through the browser (optionally
+  password-protected); Import and the setup screen's "Restore from a backup"
+  open the browser's own file chooser. Checked end to end, including a restore
+  of a password-protected backup into a fresh browser.
+- **Resume position:** a movie or episode reopens where it was left, with the
+  "Resume from 0:13" button. The player applies the saved position once the
+  browser knows the file's length.
+- **Back and Forward:** every pushed screen (a movie, Settings → Profiles …)
+  has its own address, so the browser's Back and Forward step through them
+  (go_router's `optionURLReflectsImperativeAPIs`).
+- **Android-only pages:** `/settings/power-tools` typed into the address bar
+  goes back to Settings on web.
+
 ### Developer tools
 
 - **`/wipe.html`** clears the database, settings, cookies, cached files and
@@ -139,16 +152,14 @@ web client has only been tried in Chromium so far.
 - **CORS and mixed content** (the problem above) still block many providers'
   playlist links and streams. The self-hosted helper (6b) is the fix.
   Posters and logos are covered by `NetImage`.
-- Backup export and import use native file APIs and are untested on web.
-- `/settings/power-tools` is reachable by URL and shows Android-only VPN rows.
-- Browser Back doesn't step through sub-screens that aren't go_router routes.
-- The saved resume position is ignored by the web player.
 - Search for non-English letters is case-sensitive (SQLite `LIKE` only folds
   ASCII).
 - A guide that is gzipped without a `Content-Encoding` header can't be
   unpacked on web.
-- Not tried: movie and series detail playback, `.ts` streams, Firefox and
-  Safari, a real TV-sized browser window.
+- Movie playback and resume were checked with a local MP4. Not tried yet:
+  series episodes, `.ts` live streams in the full app (the formats were
+  checked in the desktop spike), Firefox and Safari, a real TV-sized browser
+  window.
 - Start-up is CPU-bound at about 4 s to the first frame in a headless
   browser (WebAssembly and app start), and the database is ready about
   1 s later. Ideas not done: deferred loading of rarely used screens, a
