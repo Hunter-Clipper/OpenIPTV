@@ -1,12 +1,12 @@
 {
-    "name": "open_iptv",
-    "short_name": "open_iptv",
+    "name": "OpenIPTV",
+    "short_name": "OpenIPTV",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0A0A12",
+    "theme_color": "#0A0A12",
+    "description": "A free, ad-free IPTV player. Bring your own playlist.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
