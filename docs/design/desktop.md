@@ -151,8 +151,8 @@ on branch `feature/27-electron-spike` (`desktop/`).
 
 What this means: the part Electron was chosen for (no CORS or `http://`
 limits, nothing extra to install) works. The format risk is real on Linux:
-AC3 / E-AC3 and H.265 are not played. The options for the audio problem,
-decided after the Windows result:
+AC3 / E-AC3 and H.265 are not played. The options for the audio problem
+(deferred; to be decided later, after the Windows result):
 
 - **Re-encode audio in the app:** a bundled ffmpeg copies the video and
   converts audio to AAC in a small local step. Cheap on the CPU and keeps
@@ -235,8 +235,10 @@ platform's:
 - **Test machines:** a Windows 11 PC and a separate Linux desktop, plus the
   development machine (Linux). Windows 10 is not covered and is noted as
   untested.
-- **If AC3 / E-AC3 audio fails in Electron:** decide after the test, with the
-  real cost of each option (re-encode audio in the app, or go native).
+- **If AC3 / E-AC3 audio fails in Electron:** it does fail on Linux (see the
+  phase 0 results). Further encoding work (re-encoding audio, or going
+  native) is **deferred** by the owner and will be picked up later, with the
+  Windows result in hand.
 - **Linux downloads:** AppImage only for now (`OpenIPTV-linux.AppImage`).
 
 ## Still open
