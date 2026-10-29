@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -148,7 +150,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       return KeyEventResult.ignored;
     };
     _nameFocusNode.addListener(() {
-      if (_nameFocusNode.hasFocus) {
+      // Android soft-keyboard nudge; on web it hits the engine's input
+      // element before it exists and throws.
+      if (!kIsWeb && _nameFocusNode.hasFocus) {
         SystemChannels.textInput.invokeMethod('TextInput.show');
       }
     });
@@ -302,13 +306,15 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       if (!widget.addPlaylistOnly) {
         final db = ref.read(appDatabaseProvider);
         final profileSvc = ProfileService(db: db, prefsSnapshot: prefs);
-        final profile = await profileSvc.createProfile(
+        await profileSvc.createProfile(
           name: _nameCtrl.text.trim(),
           avatarEmoji: _avatarEmoji,
           pin: _pin.isEmpty ? null : _pin,
           isAdmin: true,
           accentColor: AppTheme.hexFromAccent(_accentColor),
         );
+        // The active profile was cached while there was none yet.
+        ref.invalidate(activeProfileProvider);
 
         // Persist and apply the chosen accent colour immediately.
         await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
@@ -323,6 +329,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       await Future.delayed(const Duration(seconds: 3));
       if (mounted) _finish();
     } catch (e) {
+      debugPrint('[Source] add failed: ${redactUrl('$e')}');
       if (!mounted) return;
       setState(() {
         _isLoading = false;

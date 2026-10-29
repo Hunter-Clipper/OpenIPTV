@@ -5,9 +5,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/boot_timing.dart';
 import 'package:open_iptv/core/services/car_library.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -18,6 +20,9 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
+  // Browser: /live, not /#/live (a no-op on other platforms).
+  bootMark('otv-main');
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   // Increase image cache to handle large libraries (Movies/Series/Live TV).
   PaintingBinding.instance.imageCache.maximumSize = 2000;
@@ -62,6 +67,7 @@ void main() async {
           () async => (await container.read(activeProfileProvider.future))?.id;
   }
 
+  bootMark('otv-run-app');
   runApp(
     UncontrolledProviderScope(
       container: container,
