@@ -339,6 +339,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                 ),
                 GoRoute(
                   path: 'power-tools',
+                  // VPN, buffer and network tools are Android-only; a typed
+                  // /settings/power-tools in a browser goes back to Settings.
+                  redirect: (_, __) => kIsWeb ? '/settings' : null,
                   builder: (_, __) => const PageTitle('Power User Tools',
                       child: PowerUserScreen()),
                 ),

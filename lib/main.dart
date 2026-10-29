@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/boot_timing.dart';
@@ -23,6 +24,9 @@ void main() async {
   // Browser: /live, not /#/live (a no-op on other platforms).
   bootMark('otv-main');
   usePathUrlStrategy();
+  // Pushed screens (a movie, Settings → Profiles …) put their own address in
+  // the browser's bar, so Back / Forward step through them.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
   WidgetsFlutterBinding.ensureInitialized();
   // Increase image cache to handle large libraries (Movies/Series/Live TV).
   PaintingBinding.instance.imageCache.maximumSize = 2000;
