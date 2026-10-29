@@ -100,8 +100,10 @@ web client has only been tried in Chromium so far.
 - **Video:** `<video>` with hls.js (HLS) and mpegts.js (`.ts`); scripts load
   on first use. A MutationObserver separates the browser's own "detached
   element" pause from a real pause so playback resumes without a reconnect.
-- **Images:** `NetImage` shows posters and logos from hosts that block CORS
-  by falling back to a plain `<img>` element. Android keeps the cached loader.
+- **Images:** `NetImage` checks each image host once for CORS. Hosts that
+  allow it load as normal Flutter images; hosts that block it are shown
+  through a plain `<img>` element (one console error per host, not per
+  picture). Android keeps the cached loader.
 - **Polish:** path URLs (`/live`), tab title per screen, OpenIPTV favicon and
   install icons, a branded loading screen, a `[OTV-boot]` timing summary in
   the console.
@@ -114,8 +116,16 @@ web client has only been tried in Chromium so far.
 
 - **`/wipe.html`** clears the database, settings, cookies, cached files and
   service worker for that address. It is a separate static page, so it still
-  works when the app is stuck. Open the app once with `?dev=1` to show a small
-  "DEV · wipe data" link to it (`?dev=0` hides it again).
+  works when the app is stuck: open it by typing the address. The in-app
+  "DEV · wipe data" link that used to appear after opening the app with
+  `?dev=1` is switched off (commented out in `web/index.html`; remove the
+  comment wrapper to bring it back).
+- Images: a browser keeps them itself when the host sends cache hints
+  (measured: `max-age` or `Last-Modified` hosts cost nothing after the first
+  load; hosts with no hints, or `no-store`, are downloaded again on every
+  reload). Hosts that block CORS can't be cached by the app (their bytes
+  can't be read), so the self-hosted helper (6b) is the place for that. In
+  DevTools, leave "Disable cache" unticked.
 - Stale builds: Flutter installs a service worker that keeps its own copy of
   the app. After rebuilding, serve `index.html`, `main.dart.js`,
   `flutter_bootstrap.js` and `flutter_service_worker.js` with
