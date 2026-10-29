@@ -1,6 +1,6 @@
 // Web-only video engine for OpenIPTV. Imported only on web (see the
 // conditional import in native_video_player.dart), so it may use dart:html,
-// dart:js and dart:js_util freely — none of which exist on native.
+// dart:js_interop freely — none of which exist on native.
 //
 // One [WebPlaybackEngine] owns one HTML <video> element. HLS streams are fed
 // through hls.js, MPEG-TS (.ts) through mpegts.js, and plain progressive
@@ -9,8 +9,8 @@
 // has no ExoPlayer-style event channel.
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:js' as js;
-import 'dart:js_util' as jsu;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:ui_web' as ui_web;
 
 /// One audio or subtitle track surfaced to the UI, mirroring the native
@@ -58,6 +58,20 @@ class WebSnapshot {
   final int videoHeight;
 }
 
+/// hls.js's `Hls` class (loaded from web/lib/hls.min.js).
+@JS('Hls')
+extension type _Hls._(JSObject _) implements JSObject {
+  external factory _Hls();
+  external static JSBoolean isSupported();
+  external static JSObject get Events;
+  external void on(JSString event, JSFunction callback);
+  external void loadSource(JSString url);
+  external void attachMedia(JSObject video);
+  external JSArray<JSAny?> getAudioTracks();
+  external JSArray<JSAny?>? get subtitleTracks;
+  external void destroy();
+}
+
 int _viewCounter = 0;
 
 class WebPlaybackEngine {
@@ -84,12 +98,23 @@ class WebPlaybackEngine {
   late final html.VideoElement video;
   final void Function(WebSnapshot) onState;
 
-  js.JsObject? _hls;
-  js.JsObject? _mpegts;
+  _Hls? _hls;
+  JSObject? _mpegts;
   Timer? _poll;
   bool _started = false;
   bool _buffering = false;
   bool _ended = false;
+  // The viewer wants it playing (cleared by pause()). A browser also pauses a
+  // <video> whenever it is removed from the page, which Flutter does when it
+  // re-parents the platform view on a layout change — that isn't the user.
+  bool _wantPlaying = true;
+  // Set when the element (or something holding it) has just been taken out of
+  // the page, so the pause event that follows is the browser's doing, not the
+  // viewer's. Checking isConnected in the pause handler isn't enough: Flutter
+  // puts the element straight back, and the event is delivered after that.
+  bool _detachedPause = false;
+  Timer? _detachedClear;
+  html.MutationObserver? _removals;
 
   // ---- lifecycle ---------------------------------------------------------
 
@@ -98,21 +123,51 @@ class WebPlaybackEngine {
     String? streamTypeHint,
     bool audioFocus = true,
   }) async {
-    dispose();
+    _teardown();
     _started = false;
     _ended = false;
+    _wantPlaying = true;
     _buffering = false;
     final kind = (streamTypeHint ?? _guessKind(url)).toLowerCase();
     _kind = kind;
     _buffering = true;
     _emit();
+    final attempt = ++_openAttempt;
     if (kind == 'hls' || kind == 'm3u8') {
+      await _ensureScript('lib/hls.min.js');
+      if (attempt != _openAttempt) return; // a newer open() took over
       _openHls(url);
     } else if (kind == 'mpegts' || kind == 'ts' || kind == 'mpeg-tsv') {
+      await _ensureScript('lib/mpegts.min.js');
+      if (attempt != _openAttempt) return;
       _openMpegts(url);
     } else {
       _openProgressive(url);
     }
+  }
+
+  // The hls.js / mpegts.js bundles (about 175 KB gzipped) are only fetched
+  // when a stream needs them, so they don't hold up the first paint; the page
+  // prefetches them at low priority so they're usually already cached.
+  static final _scripts = <String, Future<void>>{};
+  int _openAttempt = 0;
+
+  static Future<void> _ensureScript(String src) {
+    return _scripts.putIfAbsent(src, () {
+      final done = Completer<void>();
+      final tag = html.ScriptElement()
+        ..src = src
+        ..async = true;
+      tag.onLoad.first.then((_) => done.complete());
+      tag.onError.first.then((_) {
+        tag.remove();
+        _scripts.remove(src); // let the next open() try again
+        // Not fatal: _openHls / _openMpegts fall back to <video src>.
+        done.complete();
+      });
+      html.document.head!.append(tag);
+      return done.future;
+    });
   }
 
   void _openProgressive(String url) {
@@ -123,71 +178,76 @@ class WebPlaybackEngine {
   }
 
   void _openHls(String url) {
-    final ctx = js.context;
-    final hlsCtor = jsu.getProperty(ctx, 'Hls');
-    if (hlsCtor == null || !jsu.callMethod(hlsCtor, 'isSupported', []) as bool) {
-      // Safari / unsupported browser: fall back to native <video> src (works
-      // for HLS in Safari, and is harmless elsewhere — it just won't play).
+    // `Hls` is a class on window; if hls.js didn't load (or the browser lacks
+    // Media Source Extensions) fall back to <video src>, which is what Safari
+    // plays natively.
+    if (!globalContext.has('Hls') || !_Hls.isSupported().toDart) {
       _openProgressive(url);
       return;
     }
-    // new Hls() with default config; hls.js has sane defaults.
-    final hls = jsu.callConstructor(hlsCtor, <Object?>[]) as js.JsObject;
+    final hls = _Hls();
     _hls = hls;
-    final events = jsu.getProperty(hls, 'Events') as js.JsObject;
-    jsu.callMethod(
-        hls, 'on', [jsu.getProperty(events, 'MANIFEST_PARSED'), _onManifest]);
-    jsu.callMethod(hls, 'on', [jsu.getProperty(events, 'ERROR'), _onHlsError]);
-    jsu.callMethod(hls, 'on', [
-      jsu.getProperty(events, 'FRAG_LOADED'),
-      jsu.allowInterop((_) {
+    final events = _Hls.Events;
+    hls.on(
+      events.getProperty<JSString>('MANIFEST_PARSED'.toJS),
+      ((JSAny? _, JSAny? __) => _onManifest()).toJS,
+    );
+    hls.on(
+      events.getProperty<JSString>('ERROR'.toJS),
+      ((JSAny? _, JSAny? data) => _onHlsError(data)).toJS,
+    );
+    hls.on(
+      events.getProperty<JSString>('FRAG_LOADED'.toJS),
+      ((JSAny? _, JSAny? __) {
         _started = true;
         _buffering = false;
         _emit();
-      })
-    ]);
-    jsu.callMethod(hls, 'loadSource', [url]);
-    jsu.callMethod(hls, 'attachMedia', [video]);
+      }).toJS,
+    );
+    hls.loadSource(url.toJS);
+    hls.attachMedia(video as JSObject);
   }
 
   void _openMpegts(String url) {
-    final ctx = js.context;
-    final mpegts = jsu.getProperty(ctx, 'mpegts');
+    final mpegts = globalContext.getProperty<JSAny?>('mpegts'.toJS);
     if (mpegts == null) {
       _openProgressive(url);
       return;
     }
-    final config = js.JsObject.jsify(<String, dynamic>{
-      'type': 'mpegts',
-      'url': url,
-      'isLive': true,
-    });
+    mpegts as JSObject;
+    final config = JSObject()
+      ..['type'] = 'mpegts'.toJS
+      ..['url'] = url.toJS
+      ..['isLive'] = true.toJS;
     final player =
-        jsu.callMethod(mpegts, 'createPlayer', [config]) as js.JsObject;
+        mpegts.callMethodVarArgs<JSObject>('createPlayer'.toJS, [config]);
     _mpegts = player;
-    jsu.callMethod(player, 'attachMediaElement', [video]);
-    jsu.callMethod(player, 'generateScript', <Object?>[]);
-    jsu.callMethod(player, 'play', <Object?>[]);
-    jsu.callMethod(
-        player, 'on', [jsu.getProperty(mpegts, 'Events').getProperty('ERROR'), _onMpegtsError]);
+    player.callMethodVarArgs('attachMediaElement'.toJS, [video as JSObject]);
+    final events = mpegts.getProperty<JSObject>('Events'.toJS);
+    player.callMethodVarArgs('on'.toJS, [
+      events.getProperty<JSAny?>('ERROR'.toJS),
+      ((JSAny? _, JSAny? __) => _emit()).toJS,
+    ]);
+    player.callMethodVarArgs('load'.toJS, []);
+    player.callMethodVarArgs('play'.toJS, []);
     _started = true;
   }
 
-  void _onManifest(Object? _e) {
+  void _onManifest() {
     _started = true;
     _buffering = false;
     video.play();
     _emit();
   }
 
-  void _onHlsError(Object? data) {
+  void _onHlsError(JSAny? data) {
     // hls.js recovers from most errors itself; only surface a hard fatal one.
-    final fatal = jsu.getProperty(data as js.JsObject, 'fatal');
-    if (fatal == true) _buffering = false;
+    final fatal = (data as JSObject?)?.getProperty<JSAny?>('fatal'.toJS);
+    if (fatal.isA<JSBoolean>() && (fatal as JSBoolean).toDart) {
+      _buffering = false;
+    }
     _emit();
   }
-
-  void _onMpegtsError(Object? _e) => _emit();
 
   void _wireEvents() {
     video.onWaiting.listen((_) {
@@ -207,14 +267,45 @@ class WebPlaybackEngine {
       _buffering = false;
       _emit();
     });
-    video.onPause.listen((_) => _emit());
+    // Mutation callbacks run before the pause event they cause, so they can
+    // flag it in time.
+    _removals = html.MutationObserver((mutations, _) {
+      for (final m in mutations) {
+        final removed = (m as html.MutationRecord).removedNodes ?? const [];
+        if (removed.any((n) => n == video || (n.contains(video)))) {
+          _detachedPause = true;
+          _detachedClear?.cancel();
+          _detachedClear = Timer(const Duration(milliseconds: 500), () {
+            _detachedPause = false;
+          });
+          return;
+        }
+      }
+    })..observe(html.document.body!, childList: true, subtree: true);
+    video.onPause.listen((_) {
+      if (_detachedPause) {
+        _detachedPause = false; // the browser paused it; keep wanting to play
+      } else {
+        _wantPlaying = false; // a real pause
+      }
+      _emit();
+    });
     video.onEnded.listen((_) {
       _ended = true;
       _emit();
     });
     video.onLoadedMetadata.listen((_) => _emit());
     // Time updates carry the position; throttle to ~4Hz in the poll instead.
-    _poll = Timer.periodic(const Duration(milliseconds: 250), (_) => _emit());
+    _poll = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (_wantPlaying &&
+          _started &&
+          !_ended &&
+          video.paused &&
+          (video.isConnected ?? false)) {
+        video.play().catchError((_) {});
+      }
+      _emit();
+    });
   }
 
   WebSnapshot _snapshot() => WebSnapshot(
@@ -233,10 +324,14 @@ class WebPlaybackEngine {
 
   void play() {
     _started = true;
-    video.play();
+    _wantPlaying = true;
+    video.play().catchError((_) {});
   }
 
-  void pause() => video.pause();
+  void pause() {
+    _wantPlaying = false;
+    video.pause();
+  }
 
   Future<void> seekTo(double seconds) async {
     video.currentTime = seconds;
@@ -255,45 +350,51 @@ class WebPlaybackEngine {
   List<WebTrack> tracks() {
     final out = <WebTrack>[];
     final hls = _hls;
-    if (hls != null) {
-      final audio =
-          jsu.callMethod(hls, 'getAudioTracks', <Object?>[]) as js.JsArray;
-      for (var i = 0; i < audio.length; i++) {
-        final t = audio[i] as js.JsObject;
+    if (hls == null) return out;
+    void collect(JSAny? list, String type) {
+      if (list == null) return;
+      final arr = (list as JSArray<JSAny?>).toDart;
+      for (var i = 0; i < arr.length; i++) {
+        final t = arr[i] as JSObject;
+        String? str(String k) =>
+            (t.getProperty<JSAny?>(k.toJS) as JSString?)?.toDart;
+        final id = t.getProperty<JSAny?>('id'.toJS);
         out.add(WebTrack(
-          id: (jsu.getProperty(t, 'id') ?? i.toString()),
-          type: 'audio',
-          label: (jsu.getProperty(t, 'name') ?? '') as String,
-          language: jsu.getProperty(t, 'lang') as String?,
-          selected: jsu.getProperty(t, 'selected') == true,
-        ));
-      }
-      final subs = jsu.getProperty(hls, 'subtitleTracks') as js.JsArray? ??
-          js.JsArray();
-      for (var i = 0; i < subs.length; i++) {
-        final t = subs[i] as js.JsObject;
-        out.add(WebTrack(
-          id: (jsu.getProperty(t, 'id') ?? i.toString()),
-          type: 'text',
-          label: (jsu.getProperty(t, 'name') ?? '') as String,
-          language: jsu.getProperty(t, 'lang') as String?,
-          selected: jsu.getProperty(t, 'selected') == true,
+          id: id == null ? i.toString() : id.dartify().toString(),
+          type: type,
+          label: str('name') ?? '',
+          language: str('lang'),
+          selected: (t.getProperty<JSAny?>('selected'.toJS) as JSBoolean?)
+                  ?.toDart ??
+              false,
         ));
       }
     }
+
+    collect(hls.getAudioTracks(), 'audio');
+    collect(hls.subtitleTracks, 'text');
     return out;
   }
 
   Future<void> dispose() async {
     _poll?.cancel();
     _poll = null;
+    _removals?.disconnect();
+    _removals = null;
+    _detachedClear?.cancel();
+    _teardown();
+  }
+
+  /// Drops the current stream's hls.js / mpegts.js instance but keeps the
+  /// element and its polling timer, so the engine can open the next channel.
+  void _teardown() {
     final hls = _hls;
     if (hls != null) {
-      jsu.callMethod(hls, 'destroy', <Object?>[]);
+      hls.destroy();
     }
     final mpegts = _mpegts;
     if (mpegts != null) {
-      jsu.callMethod(mpegts, 'destroy', <Object?>[]);
+      mpegts.callMethodVarArgs('destroy'.toJS, []);
     }
     _hls = null;
     _mpegts = null;
