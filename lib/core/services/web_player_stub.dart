@@ -51,7 +51,9 @@ class WebPlaybackEngine {
   int get webId => -1;
 
   Future<void> open(String url,
-          {String? streamTypeHint, bool audioFocus = true}) =>
+          {String? streamTypeHint,
+          bool audioFocus = true,
+          Duration? startPosition}) =>
       throw UnsupportedError('WebPlaybackEngine is web-only');
   void play() => throw UnsupportedError('WebPlaybackEngine is web-only');
   void pause() => throw UnsupportedError('WebPlaybackEngine is web-only');
