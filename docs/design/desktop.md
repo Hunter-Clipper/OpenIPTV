@@ -198,13 +198,24 @@ platform's:
   Wayland. Much of this can start alongside phases 1–2 because the shell is
   shared.
 
-## Open questions for the owner
+## Decisions so far (owner, 2026-10-29)
+
+- **Order:** the phase 0 test and closing the web-client gaps (backup,
+  resume position, the power-tools page, Back button) run in parallel.
+- **Test machines:** a Windows 11 PC and a separate Linux desktop, plus the
+  development machine (Linux). Windows 10 is not covered and is noted as
+  untested.
+- **If AC3 / E-AC3 audio fails in Electron:** decide after the test, with the
+  real cost of each option (re-encode audio in the app, or go native).
+- **Linux downloads:** AppImage only for now (`OpenIPTV-linux.AppImage`).
+
+## Still open
 
 - Windows: installer, portable zip, or both for the first test builds (the
   plan above produces both).
 - Windows code signing: later, when it's worth the cost?
-- Linux: AppImage only, or also `.deb` / `.rpm`, or a Flatpak later? Which
-  distros do we promise to test (suggest Ubuntu LTS and Fedora)?
+- Linux: which distros to promise to test (suggest Ubuntu LTS and Fedora);
+  `.deb` / `.rpm` or a Flatpak later?
 - Do we want a tray icon or mini player (the old issue checklist had one as
   optional)?
 - Keep the folder name `desktop/` so macOS builds can reuse the shell later?
