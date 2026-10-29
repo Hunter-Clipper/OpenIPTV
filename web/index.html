@@ -18,25 +18,135 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="OpenIPTV: a free, ad-free IPTV player. Bring your own playlist and find your show in three taps.">
+  <meta name="theme-color" content="#0A0A12">
+  <meta name="color-scheme" content="dark">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="open_iptv">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="OpenIPTV">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png"/>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
 
-  <title>open_iptv</title>
+  <title>OpenIPTV</title>
+
+  <!-- Loading screen. Mirrors the in-app BrandSplash (same ink, mark and
+       wordmark placement) so the page doesn't flash white, and the hand-off
+       to Flutter's own splash is seamless. Removed on the first frame. -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #0A0A12; }
+    #otv-splash {
+      position: fixed; inset: 0; z-index: 10; background: #0A0A12;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .35s ease;
+    }
+    #otv-splash.otv-done { opacity: 0; pointer-events: none; }
+    #otv-splash img.otv-mark {
+      width: 256px; height: 256px; max-width: 60vmin; max-height: 60vmin;
+      animation: otv-breathe 2.4s ease-in-out infinite;
+    }
+    #otv-splash img.otv-word {
+      position: absolute; bottom: 48px; width: 200px; height: auto;
+      opacity: .9;
+    }
+    #otv-splash .otv-status {
+      position: absolute; bottom: 14px; left: 0; right: 0; text-align: center;
+      font: 12px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #8a8a99; letter-spacing: .04em;
+    }
+    @keyframes otv-breathe {
+      0%, 100% { transform: scale(1);    opacity: .85; }
+      50%      { transform: scale(1.04); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #otv-splash img.otv-mark { animation: none; }
+    }
+  </style>
   <!-- In-browser video engines (see lib/core/services/web_player_impl.dart).
-       Loaded before Flutter so window.Hls / window.mpegts are ready. -->
-  <script src="$FLUTTER_BASE_HREFlib/hls.min.js"></script>
-  <script src="$FLUTTER_BASE_HREFlib/mpegts.min.js"></script>
+       They are injected when a stream first needs them, not here: a script in
+       <head> holds up the first paint, and anything prefetched now competes
+       with the app's own download. They are warmed after the first frame
+       instead (see the script at the end of <body>). -->
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <div id="otv-splash" role="status" aria-label="Loading OpenIPTV">
+    <img class="otv-mark" src="splash/mark.png" alt="" width="256" height="256">
+    <img class="otv-word" src="splash/wordmark.png" alt="OpenIPTV">
+    <div class="otv-status" id="otv-status">Loading…</div>
+  </div>
+  <noscript>
+    <p style="position:fixed;inset:0;z-index:11;margin:0;display:flex;align-items:center;justify-content:center;background:#0A0A12;color:#fff;font:16px system-ui,sans-serif">
+      OpenIPTV needs JavaScript to run.
+    </p>
+  </noscript>
+  <script>
+    // Fade the loading screen out once Flutter has drawn its first frame.
+    (function () {
+      var splash = document.getElementById('otv-splash');
+      var status = document.getElementById('otv-status');
+      function done() {
+        if (!splash) return;
+        splash.classList.add('otv-done');
+        setTimeout(function () { splash && splash.remove(); splash = null; }, 450);
+      }
+      window.addEventListener('flutter-first-frame', function () {
+        performance.mark('otv-first-frame');
+        try { logBoot(); } catch (e) {}
+        done();
+        // Now that the app is up, quietly fetch the video engines so the first
+        // channel starts without a download.
+        var warm = function () {
+          ['lib/hls.min.js', 'lib/mpegts.min.js'].forEach(function (src) {
+            var l = document.createElement('link');
+            l.rel = 'prefetch'; l.as = 'script'; l.href = src;
+            document.head.appendChild(l);
+          });
+        };
+        if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 4000 });
+        else setTimeout(warm, 2000);
+      });
+      // The database opens after the first frame, so it reports separately.
+      try {
+        new PerformanceObserver(function (list) {
+          list.getEntries().forEach(function (e) {
+            if (e.name === 'otv-db-ready') console.log('[OTV-boot] database ready at ' + Math.round(e.startTime) + ' ms');
+          });
+        }).observe({ type: 'mark', buffered: true });
+      } catch (e) {}
+      // One line in the console: where the startup time went.
+      function logBoot() {
+        var ms = function (n) { var e = performance.getEntriesByName(n)[0]; return e ? Math.round(e.startTime) : null; };
+        var nav = performance.getEntriesByType('navigation')[0] || {};
+        var fcp = (performance.getEntriesByName('first-contentful-paint')[0] || {}).startTime;
+        var res = {};
+        performance.getEntriesByType('resource').forEach(function (r) {
+          var m = r.name.match(/(main\.dart\.js|canvaskit\.wasm|sqlite3\.wasm|drift_worker\.js|hls\.min\.js|mpegts\.min\.js)/);
+          if (m) res[m[1]] = Math.round(r.responseEnd) + 'ms (' + Math.round((r.transferSize || 0) / 1024) + ' KB)';
+        });
+        var b = {
+          'first paint (splash)': fcp ? Math.round(fcp) : null,
+          'html parsed': Math.round(nav.domContentLoadedEventEnd || 0),
+          'main() started': ms('otv-main'),
+          'database open': ms('otv-db-open'),
+          'database ready': ms('otv-db-ready'),
+          'runApp': ms('otv-run-app'),
+          'first frame': ms('otv-first-frame'),
+          'downloads (finished at)': res
+        };
+        window.__otvBoot = b;
+        console.log('[OTV-boot] ' + JSON.stringify(b));
+      }
+      // A slow connection: say what is happening instead of sitting silent.
+      setTimeout(function () {
+        if (splash && status) status.textContent = 'Still loading — the first visit downloads the app…';
+      }, 8000);
+    })();
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -45,6 +155,26 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    // Developer switch: open the app once with ?dev=1 to show a small link to
+    // /wipe.html (clears everything stored here); ?dev=0 hides it again.
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search).get('dev');
+        if (q === '1') localStorage.setItem('otv_dev', '1');
+        if (q === '0') localStorage.removeItem('otv_dev');
+        if (localStorage.getItem('otv_dev') !== '1') return;
+      } catch (e) { return; }
+      var a = document.createElement('a');
+      a.href = 'wipe.html';
+      a.textContent = 'DEV \u00b7 wipe data';
+      a.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483647;' +
+        'padding:4px 8px;border-radius:8px;background:rgba(10,10,18,.85);' +
+        'color:#a8a8b8;font:11px system-ui,sans-serif;text-decoration:none;' +
+        'border:1px solid #33334d;opacity:.75';
+      document.body.appendChild(a);
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
