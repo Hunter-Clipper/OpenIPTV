@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
+import 'package:open_iptv/shared/widgets/net_image.dart';
 
 /// Standardized movie/series poster thumbnail with a consistent placeholder
 /// and error fallback (a filled surface + outline movie icon). Reimplemented
@@ -35,7 +35,7 @@ class PosterImage extends StatelessWidget {
         ),
       );
     }
-    return CachedNetworkImage(
+    return NetImage(
       imageUrl: posterUrl!,
       cacheManager: ImageCacheManager(),
       fit: BoxFit.cover,
