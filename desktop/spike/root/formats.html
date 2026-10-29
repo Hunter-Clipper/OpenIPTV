@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><title>formats</title>
+<script src="lib/hls.min.js"></script><script src="lib/mpegts.min.js"></script>
+<body style="background:#111;color:#ddd;font:14px monospace"><pre id="o">ready</pre>
+<script>
+const BASE = 'http://localhost:8096/';   // plain http, no CORS headers
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function stats(v, extra) {
+  return { time: +v.currentTime.toFixed(2), w: v.videoWidth, frames: v.webkitDecodedFrameCount,
+           videoBytes: v.webkitVideoDecodedByteCount, audioBytes: v.webkitAudioDecodedByteCount,
+           error: v.error ? v.error.code + ':' + v.error.message : null, ...extra };
+}
+async function run(kind, name, url) {
+  const v = document.createElement('video'); v.muted = false; v.width = 320; document.body.append(v);
+  let engineError = null, destroy = () => {};
+  try {
+    if (kind === 'ts') {
+      const p = mpegts.createPlayer({ type: 'mpegts', url, isLive: false }, { enableWorker: false });
+      p.on(mpegts.Events.ERROR, (t, d, i) => engineError = t + '/' + d + ' ' + (i && i.msg || ''));
+      p.attachMediaElement(v); p.load(); destroy = () => p.destroy();
+    } else if (kind === 'hls') {
+      const h = new Hls(); h.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) engineError = d.type + '/' + d.details; });
+      h.loadSource(url); h.attachMedia(v); destroy = () => h.destroy();
+    } else { v.src = url; }
+    await v.play().catch(e => engineError = engineError || 'play(): ' + e.name);
+    await wait(3500);
+    return { name, kind, ...stats(v, { engineError }) };
+  } catch (e) { return { name, kind, thrown: String(e) }; }
+  finally { destroy(); v.remove(); }
+}
+window.runAll = async () => {
+  const types = ['video/mp4; codecs="avc1.42E01E"', 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
+    'video/mp4; codecs="avc1.42E01E, ac-3"', 'video/mp4; codecs="avc1.42E01E, ec-3"',
+    'video/mp4; codecs="hvc1.1.6.L93.B0"', 'video/mp4; codecs="hev1.1.6.L93.B0"',
+    'video/mp4; codecs="avc1.42E01E, mp3"', 'audio/mp4; codecs="ac-3"', 'audio/mp4; codecs="ec-3"',
+    'video/mp2t; codecs="avc1.42E01E, mp4a.40.2"'];
+  const mse = {}; for (const t of types) mse[t] = MediaSource.isTypeSupported(t);
+  const out = { mse, media: [] };
+  for (const [kind, name] of [['ts','h264_aac.ts'],['ts','h264_ac3.ts'],['ts','h264_eac3.ts'],
+      ['ts','hevc_aac.ts'],['ts','mpeg2_mp2.ts'],['mp4','h264_aac.mp4'],
+      ['hls','hls_aac/index.m3u8'],['hls','hls_ac3/index.m3u8']]) {
+    out.media.push(await run(kind, name, BASE + name));
+  }
+  return out;
+};
+</script>
