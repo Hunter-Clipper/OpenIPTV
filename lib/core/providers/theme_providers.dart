@@ -164,7 +164,7 @@ Future<void> setRefreshIntervalHours(
     WidgetRef ref, int hours, AppPreferences prefs) async {
   ref.read(refreshIntervalHoursProvider.notifier).state = hours;
   await prefs.setRefreshIntervalHours(hours);
-  await syncAutoRefreshRegistration(prefs);
+  if (!kIsWeb) await syncAutoRefreshRegistration(prefs);
 }
 
 Future<void> setRefreshNotificationsEnabled(

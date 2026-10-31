@@ -155,15 +155,19 @@ class SettingsScreen extends ConsumerWidget {
                 ),
 
                 // --------------- AUTO-REFRESH (admin only) ---------------
-                if (!kIsWeb)
                 Consumer(builder: (context, ref, _) {
                   final hours = ref.watch(refreshIntervalHoursProvider);
                   return InfoTooltip(
                     id: 'settings_auto_refresh',
                     title: 'Auto-Refresh',
-                    body: 'Automatically refreshes your playlists and TV guide '
-                        'in the background so channels and schedules stay '
-                        'current without manual refreshing.',
+                    body: kIsWeb
+                        ? 'Refreshes your playlists and TV guide while the '
+                            'app is open so channels and schedules stay '
+                            'current without manual refreshing.'
+                        : 'Automatically refreshes your playlists and TV '
+                            'guide in the background so channels and '
+                            'schedules stay current without manual '
+                            'refreshing.',
                     child: _NavTile(
                       leading: const Icon(Icons.autorenew),
                       title: 'Auto-Refresh',
@@ -597,7 +601,7 @@ class SettingsScreen extends ConsumerWidget {
     if (selected == null || selected == current) return;
     if (!context.mounted) return;
 
-    final turningOn = current <= 0 && selected > 0;
+    final turningOn = !kIsWeb && current <= 0 && selected > 0;
     await setRefreshIntervalHours(ref, selected, prefs);
 
     if (turningOn && context.mounted) {

@@ -18,6 +18,23 @@ const TYPES = {
   '.map': 'application/json',
 };
 
+// Linux: pick Wayland automatically when the session is one. An AppImage
+// can't ship Chromium's setuid sandbox helper, and Ubuntu 23.10+ (and others)
+// block the unprivileged-namespace fallback; only in that case start without
+// the sandbox rather than not at all. Every other setup keeps it on.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+  const read = (f) => { try { return fs.readFileSync(f, 'utf8').trim(); } catch (_) { return ''; } };
+  const nsBlocked =
+    read('/proc/sys/kernel/apparmor_restrict_unprivileged_userns') === '1' ||
+    read('/proc/sys/kernel/unprivileged_userns_clone') === '0' ||
+    read('/proc/sys/user/max_user_namespaces') === '0';
+  if (process.env.APPIMAGE && nsBlocked) {
+    console.warn('OpenIPTV: user namespaces are restricted; starting without the Chromium sandbox.');
+    app.commandLine.appendSwitch('no-sandbox');
+  }
+}
+
 // The private address the app is served from. "standard + secure" gives it
 // everything a normal https page has (IndexedDB, workers, WebAssembly).
 protocol.registerSchemesAsPrivileged([{
