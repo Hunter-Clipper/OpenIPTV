@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -28,6 +29,7 @@ import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
 import 'package:open_iptv/features/onboarding/setup_wizard_screen.dart';
 import 'package:open_iptv/features/player/player_screen.dart';
+import 'package:open_iptv/features/settings/refresh_all.dart';
 import 'package:open_iptv/features/search/search_screen.dart';
 import 'package:open_iptv/features/series/series_detail_screen.dart';
 import 'package:open_iptv/features/series/series_screen.dart';
@@ -128,6 +130,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     // across OS updates or force-stops, so this must run on every launch,
     // not just when the user changes the setting.
     if (!kIsWeb) unawaited(syncAutoRefreshRegistration(prefs));
+    if (kIsWeb) _startOpenAppRefresh();
 
     // Power User Tools: bring the built-in VPN up if asked to. Never
     // prompts and never blocks start-up.
@@ -238,9 +241,39 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     }
   }
 
+  Timer? _refreshTimer;
+
+  /// A browser or the desktop app has no background tasks, so playlists are
+  /// refreshed while the app is open: shortly after start, then every few
+  /// minutes check whether any playlist is older than the chosen interval.
+  void _startOpenAppRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(
+        const Duration(minutes: 10), (_) => unawaited(_refreshIfDue()));
+    Timer(const Duration(seconds: 30), () => unawaited(_refreshIfDue()));
+  }
+
+  Future<void> _refreshIfDue() async {
+    if (!mounted || PlayerScreen.openCount > 0) return;
+    final hours = ref.read(refreshIntervalHoursProvider);
+    if (hours <= 0) return;
+    try {
+      final sources = await ref.read(appDatabaseProvider).getAllSources();
+      final limit = DateTime.now().subtract(Duration(hours: hours));
+      final due = sources.any((s) =>
+          s.lastRefreshed == null || s.lastRefreshed!.isBefore(limit));
+      if (due) {
+        await ref.read(refreshAllProvider.notifier).run(RefreshScope.everything);
+      }
+    } catch (e) {
+      debugPrint('[OTV-refresh] timed refresh failed: $e');
+    }
+  }
+
   @override
   void dispose() {
     _outputNoticeSub?.cancel();
+    _refreshTimer?.cancel();
     _tooltipController.dispose();
     super.dispose();
   }
@@ -474,6 +507,15 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         darkTheme: AppTheme.dark(accent),
         themeMode: ThemeMode.dark,
         routerConfig: _router,
+        // A mouse can drag the horizontal rows like a finger does.
+        scrollBehavior: kIsWeb
+            ? const MaterialScrollBehavior().copyWith(dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              })
+            : null,
         debugShowCheckedModeBanner: false,
         shortcuts: appShortcuts,
         builder: (context, child) => ImageQuality(

@@ -221,7 +221,12 @@ platform's:
   reach), browse, search, playback.
 - **2: feels native** (started: window size, position and maximized state are
   remembered; no menu bar; F11 toggles full screen, Esc leaves it; tested in
-  `desktop/spike/window.mjs`): mouse and keyboard polish, full screen, window size
+  `desktop/spike/window.mjs`; Space pauses and the arrows skip 10 s in the
+  player; a mouse drags the horizontal rows; Auto-Refresh works while the app
+  is open (checks every 10 minutes and 30 s after start); Linux picks
+  Wayland automatically and an AppImage starts without Chromium's sandbox only
+  where the distro blocks user namespaces (Ubuntu 23.10+). Still to do: right
+  click as long-press, encrypted logins, the updater): mouse and keyboard polish, full screen, window size
   remembered, Save / Open dialogs for backups, refresh timer, encrypted
   logins with `safeStorage`.
 - **3: Windows shipping:** installer and zip on GitHub releases, in-app

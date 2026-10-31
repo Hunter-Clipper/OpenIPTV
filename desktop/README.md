@@ -27,3 +27,8 @@ xvfb-run -a node spike/app.mjs ../build/web http://<provider> /tmp
 
 `--no-sandbox` is only for running inside a container or CI box; a shipped
 build keeps Chromium's sandbox on.
+
+Linux AppImage notes: it needs FUSE 2 (`libfuse2`) to start by double-click;
+without it run `OpenIPTV-linux.AppImage --appimage-extract-and-run`. On
+distros that block unprivileged user namespaces (Ubuntu 23.10+) the app starts
+without Chromium's sandbox, and says so in the terminal.

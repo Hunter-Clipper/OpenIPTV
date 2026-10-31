@@ -192,6 +192,7 @@ class NativeVideoPlayer {
       position: s.position * 1000,
       duration: s.duration * 1000,
       playing: s.playing,
+      playWhenReady: s.wantPlaying,
       buffering: s.buffering,
       completed: s.completed,
       videoWidth: s.videoWidth,

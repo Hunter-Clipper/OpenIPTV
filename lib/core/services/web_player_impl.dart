@@ -48,6 +48,7 @@ class WebSnapshot {
     required this.completed,
     required this.videoWidth,
     required this.videoHeight,
+    this.wantPlaying = true,
   });
   final double position; // seconds
   final double duration; // seconds; 0 for live/unknown
@@ -56,6 +57,9 @@ class WebSnapshot {
   final bool completed;
   final int videoWidth;
   final int videoHeight;
+
+  /// False once the user (not the browser) paused it.
+  final bool wantPlaying;
 }
 
 /// hls.js's `Hls` class (loaded from web/lib/hls.min.js).
@@ -355,7 +359,10 @@ class WebPlaybackEngine {
           final aborted = _lastPlayAbort != null &&
               DateTime.now().difference(_lastPlayAbort!) <
                   const Duration(seconds: 1);
-          if (!aborted && video.paused) _wantPlaying = false;
+          if (!aborted && video.paused) {
+            _wantPlaying = false;
+            _emit();
+          }
         });
       }
       _emit();
@@ -405,6 +412,7 @@ class WebPlaybackEngine {
         completed: _ended,
         videoWidth: video.videoWidth,
         videoHeight: video.videoHeight,
+        wantPlaying: _wantPlaying,
       );
 
   void _emit() => onState(_snapshot());
