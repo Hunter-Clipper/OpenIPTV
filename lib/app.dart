@@ -231,13 +231,17 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/live',
       redirect: (context, state) async {
-        final path = state.fullPath ?? '';
-        if (path.startsWith('/setup') || path.startsWith('/onboarding')) {
-          return null;
-        }
+        final path = state.uri.path;
+        final isSetup = path.startsWith('/setup');
+        if (!isSetup && path.startsWith('/onboarding')) return null;
         final db = ref.read(appDatabaseProvider);
         final profiles = await db.getAllProfiles();
         final sources = await db.getAllSources();
+        // First-run setup only makes sense on an empty install; a browser
+        // user can type /setup by hand. Adding a playlist is /onboarding.
+        if (isSetup) {
+          return sources.isNotEmpty ? '/live' : null;
+        }
         if (profiles.isEmpty && sources.isEmpty) return '/setup';
         if (sources.isEmpty) return '/onboarding';
 
