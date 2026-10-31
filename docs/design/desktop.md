@@ -1,6 +1,7 @@
 # Desktop client (issue #27) — an Electron app around the web client
 
-Windows first, then Linux. Status: planned, not started. Branch
+Windows first, then Linux. Status: phases 0 and 1 built (test builds from CI
+for both systems), phase 2 started (window and keyboard behaviour). Branch
 `feature/27-windows-client` (the name stays so the PR and issue links keep
 working).
 
@@ -12,8 +13,9 @@ waits with the rest of the Apple work (#25), though the same shell could
 produce a Mac build later.
 
 Depends on the web client (#44, PR #45): the desktop app is that web app in
-its own window, so PR #45 has to land first (or this branch is rebased onto
-it).
+its own window. This branch is **rebased on top of the web branch**
+(`feature/44-web-client`), so CI builds the web app and the shell from one
+checkout; when PR #45 lands, rebase this branch onto main.
 
 ## Goal
 
@@ -217,7 +219,9 @@ platform's:
 - **1: it runs on Windows:** the shell, the Windows build in CI, the app
   opens, setup wizard, playlists (including providers a browser can't
   reach), browse, search, playback.
-- **2: feels native:** mouse and keyboard polish, full screen, window size
+- **2: feels native** (started: window size, position and maximized state are
+  remembered; no menu bar; F11 toggles full screen, Esc leaves it; tested in
+  `desktop/spike/window.mjs`): mouse and keyboard polish, full screen, window size
   remembered, Save / Open dialogs for backups, refresh timer, encrypted
   logins with `safeStorage`.
 - **3: Windows shipping:** installer and zip on GitHub releases, in-app
