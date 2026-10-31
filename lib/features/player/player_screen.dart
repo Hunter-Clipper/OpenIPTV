@@ -769,6 +769,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       return KeyEventResult.handled;
     }
 
+    // Keyboard and mouse users (browser, desktop app): Space pauses, and on
+    // a movie or episode the arrows skip 10 s. These come first, before a
+    // focused button's own Space / arrow handling (there is no D-pad here).
+    if (kIsWeb) {
+      final service = ref.read(playbackServiceProvider);
+      if (key == LogicalKeyboardKey.space) {
+        unawaited(service.togglePlayPause());
+        return KeyEventResult.handled;
+      }
+      if (!_isChannelPlayback &&
+          (key == LogicalKeyboardKey.arrowLeft ||
+              key == LogicalKeyboardKey.arrowRight)) {
+        unawaited(service.seekRelative(
+            Duration(seconds: key == LogicalKeyboardKey.arrowLeft ? -10 : 10)));
+        _showControls();
+        return KeyEventResult.handled;
+      }
+    }
+
     if (!_isChannelPlayback) return KeyEventResult.ignored;
     // With the controls hidden, Right (or the remote's Guide/Info key)
     // brings up the channel list.

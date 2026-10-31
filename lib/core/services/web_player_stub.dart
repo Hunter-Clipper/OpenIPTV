@@ -32,6 +32,7 @@ class WebSnapshot {
     required this.completed,
     required this.videoWidth,
     required this.videoHeight,
+    this.wantPlaying = true,
   });
   final double position;
   final double duration;
@@ -40,6 +41,9 @@ class WebSnapshot {
   final bool completed;
   final int videoWidth;
   final int videoHeight;
+
+  /// False once the user (not the browser) paused it.
+  final bool wantPlaying;
 }
 
 class WebPlaybackEngine {
