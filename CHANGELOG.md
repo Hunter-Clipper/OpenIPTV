@@ -3,6 +3,14 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.35)
+
+**Fixes**
+- 24/7 movie channels in playlists with no stream-type hint now stay in Live TV instead of landing in Movies.
+- Locked channels no longer show their logo in search results.
+- Change PIN / Set PIN fields now match the unlock prompt: centred, large dots, with a normal-sized hint.
+- Locked content (parental, adult or manually locked) never goes into Continue Watching or Recently Watched, even after unlocking with the admin PIN, and its resume position isn't saved. Existing history entries from locked categories are hidden.
+
 ## 0.14.33 — 2026-10-27
 
 **Performance**
