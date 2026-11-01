@@ -802,11 +802,21 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                 controller: _current,
                 keyboardType: TextInputType.number,
                 obscureText: _obscureCurrent,
+                obscuringCharacter: '●',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall!
+                    .copyWith(letterSpacing: 10),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 maxLength: 8,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   hintText: 'Current PIN',
+                  hintStyle: Theme.of(context)
+                      .textTheme
+                      .bodyLarge!
+                      .copyWith(letterSpacing: 0),
                   // TV: the "0/8" sat inside the focus outline.
                   counterText: PlatformHelper.isTV(context) ? '' : null,
                   suffixIcon: _obscureToggle(
@@ -828,6 +838,12 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               controller: _newPin,
               keyboardType: TextInputType.number,
               obscureText: _obscureNew,
+                obscuringCharacter: '●',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall!
+                    .copyWith(letterSpacing: 10),
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 8,
               autofocus:
@@ -835,6 +851,10 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 hintText: '4–8 digits',
+                  hintStyle: Theme.of(context)
+                      .textTheme
+                      .bodyLarge!
+                      .copyWith(letterSpacing: 0),
                 counterText: PlatformHelper.isTV(context) ? '' : null,
                 suffixIcon: _obscureToggle(
                   obscured: _obscureNew,
@@ -852,10 +872,20 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               controller: _confirm,
               keyboardType: TextInputType.number,
               obscureText: _obscureConfirm,
+                obscuringCharacter: '●',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall!
+                    .copyWith(letterSpacing: 10),
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 8,
               decoration: InputDecoration(
                 hintText: 'Repeat new PIN',
+                  hintStyle: Theme.of(context)
+                      .textTheme
+                      .bodyLarge!
+                      .copyWith(letterSpacing: 0),
                 counterText: PlatformHelper.isTV(context) ? '' : null,
                 suffixIcon: _obscureToggle(
                   obscured: _obscureConfirm,
