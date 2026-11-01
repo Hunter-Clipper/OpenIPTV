@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -8,6 +10,7 @@ import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqlite3/open.dart';
 
 /// All preference keys that should survive a backup/restore round-trip.
 const _expectedBackupKeys = {
@@ -48,6 +51,13 @@ const _excludedPrefKeys = {
 };
 
 void main() {
+  // The host has no libsqlite3.so dev symlink; see database_test.dart.
+  if (Platform.isLinux &&
+      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
+    open.overrideFor(
+        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
+  }
+
   group('BackupManager settings', () {
     late AppDatabase db;
 
