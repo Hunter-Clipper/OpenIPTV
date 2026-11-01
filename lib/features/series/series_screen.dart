@@ -159,6 +159,12 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
             if (!isKid) return true;
             final series = seriesById[e.seriesId];
             return series == null || !isAdultGenre(series.genre);
+          }).where((e) {
+            // Locked shows never appear in Continue Watching.
+            final series = seriesById[e.seriesId];
+            return parentalPrefs != null &&
+                (series == null ||
+                    !isLockedContent(splitGenres(series.genre), parentalPrefs));
           }).toList();
           final hidden = profile?.hiddenCategories.toSet() ?? {};
           final genres = _buildGenres(all, hidden, sort)

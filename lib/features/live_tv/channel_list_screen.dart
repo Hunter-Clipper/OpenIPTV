@@ -39,9 +39,17 @@ import 'package:open_iptv/ui/platform_helper.dart';
 final recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
-  if (profileId == null) return const Stream.empty();
-  return db.watchRecentChannels(profileId,
-      sourceId: ref.watch(activeSourceIdProvider));
+  // Locked channels never show in history; hold everything back until the
+  // lock settings are known.
+  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+  if (profileId == null || prefs == null) return const Stream.empty();
+  return db
+      .watchRecentChannels(profileId,
+          sourceId: ref.watch(activeSourceIdProvider))
+      .map((channels) => [
+            for (final c in channels)
+              if (!isLockedContent(c.categories, prefs)) c
+          ]);
 });
 
 // Caches EPG programme per channel so scrolling doesn't re-fire DB queries.

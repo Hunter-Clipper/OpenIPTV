@@ -32,6 +32,13 @@ bool isCategoryLocked(
       isAdultCategory(name);
 }
 
+/// True if any of [categories] is locked — parental or manually locked —
+/// ignoring session unlocks. Locked content never enters Continue Watching
+/// or Recently Watched, even after the admin PIN opened it, so a screen
+/// left unattended doesn't expose it through history.
+bool isLockedContent(Iterable<String> categories, AppPreferences prefs) =>
+    categories.any((c) => isCategoryLocked(c, prefs, const {}));
+
 /// Categories unlocked for the current app session (cleared on restart).
 final parentalSessionUnlockedProvider =
     StateProvider<Set<String>>((ref) => const {});
