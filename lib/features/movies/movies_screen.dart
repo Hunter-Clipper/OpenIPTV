@@ -52,12 +52,18 @@ final _allMoviesProvider = StreamProvider<List<Movie>>((ref) {
 final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
   final profileId = ref.watch(activeProfileIdProvider);
   final db = ref.watch(appDatabaseProvider);
-  if (profileId == null) return const Stream.empty();
+  // Locked movies never show in history; hold everything back until the
+  // lock settings are known.
+  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+  if (profileId == null || prefs == null) return const Stream.empty();
   // Follow the active playlist, like the rest of the Movies tab.
   final sourceId = ref.watch(activeSourceIdProvider);
-  return db.watchMoviesInProgress(profileId).map((movies) => sourceId == null
-      ? movies
-      : movies.where((m) => m.sourceId == sourceId).toList());
+  return db.watchMoviesInProgress(profileId).map((movies) => [
+        for (final m in movies)
+          if ((sourceId == null || m.sourceId == sourceId) &&
+              !isLockedContent(splitGenres(m.genre), prefs))
+            m
+      ]);
 });
 
 Future<void> _refreshMovies(BuildContext context, WidgetRef ref) async {

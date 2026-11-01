@@ -8,6 +8,8 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
+import 'package:open_iptv/core/services/parental_service.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
@@ -225,6 +227,35 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // disposed") — which previously made the exit-time progress save silently
   // skip, so leaving a movie/episode part-way never saved its position.
   String? _profileId;
+
+  // Locked (parental or manual) content is never added to Continue Watching
+  // or Recently Watched, even once the admin PIN opened it. True until
+  // [_checkLocked] says otherwise, so nothing is saved by mistake.
+  bool _lockedContent = true;
+
+  Future<void> _checkLocked() async {
+    final id = widget.contentId;
+    if (id == null) return;
+    try {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      final db = _playbackService.db;
+      Iterable<String>? categories;
+      switch (widget.contentType) {
+        case 'movie':
+          categories = splitGenres((await db.watchMovieById(id).first)?.genre);
+        case 'episode':
+          final ep = await db.getEpisodeById(id);
+          final show = ep == null ? null : await db.getSeriesById(ep.seriesId);
+          if (show != null) categories = splitGenres(show.genre);
+        default:
+          categories = (await db.getChannelById(id))?.categories;
+      }
+      _lockedContent =
+          categories != null && isLockedContent(categories, prefs);
+    } catch (e) {
+      debugPrint('[OTV-save] lock check failed: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -843,7 +874,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _startPlayback() async {
     // Stamp last-watched time for live channels so Recently Watched updates.
     final profileId = _profileId;
-    if (_isLive && widget.contentId != null && profileId != null) {
+    await _checkLocked();
+    if (_isLive &&
+        !_lockedContent &&
+        widget.contentId != null &&
+        profileId != null) {
       unawaited(_playbackService.db
           .updateChannelLastWatched(profileId, widget.contentId!));
     }
@@ -1064,6 +1099,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // (live, catch-up) have no saved progress.
   Future<void> _saveProgress(
       String profileId, String id, Duration position, Duration total) async {
+    if (_lockedContent) return;
     if (widget.contentType == 'movie') {
       await _playbackService.saveMovieProgress(profileId, id, position, total);
     } else if (widget.contentType == 'episode') {

@@ -162,7 +162,8 @@ class CarLibrary {
         final shows = {for (final s in await _series(c)) s.id: s};
         return [
           for (final e in eps)
-            if (shows.containsKey(e.seriesId))
+            if (shows.containsKey(e.seriesId) &&
+                c.allowGenre(shows[e.seriesId]!.genre))
               _episodeItem(c, e, shows[e.seriesId]),
         ].take(maxItems).toList();
       case 'ser/fav':
