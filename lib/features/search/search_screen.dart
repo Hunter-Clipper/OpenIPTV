@@ -498,7 +498,7 @@ class _ResultsList extends ConsumerWidget {
                   title: context.displayName(c.name),
                   subtitle: results.nowPlaying[c.id] ?? 'Live',
                   highlightSubtitle: results.nowPlaying.containsKey(c.id),
-                  imageUrl: c.logoUrl,
+                  imageUrl: channelLocked(c) ? null : c.logoUrl,
                   locked: channelLocked(c),
                   onTap: () => _open(
                     context,
