@@ -188,6 +188,22 @@ http://host/series/user/pass/12345.mkv
       expect(result.episodes.single.episode, 2);
     });
 
+    test('24/7 movie channels with no URL hint stay live', () async {
+      const content = '''
+#EXTM3U
+#EXTINF:-1 group-title="Movies",24/7 Action Movies
+http://host/stream/11111
+#EXTINF:-1 group-title="24/7 Movies",Classic Cinema
+http://host/stream/22222
+#EXTINF:-1 group-title="Movies",Some Film
+http://host/stream/33333
+''';
+      final result = await M3uParser.parse(_stream(content), sourceId);
+      expect(result.channels.map((c) => c.name),
+          ['24/7 Action Movies', 'Classic Cinema']);
+      expect(result.movies.map((m) => m.title), ['Some Film']);
+    });
+
     test('falls back to group keywords when the URL has no hint', () async {
       const content = '''
 #EXTM3U

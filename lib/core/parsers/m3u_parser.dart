@@ -84,7 +84,7 @@ class M3uParser {
 
       final groupLower = group.toLowerCase();
 
-      if (_isVod(groupLower, streamUrl)) {
+      if (_isVod(groupLower, streamUrl, name)) {
         if (_isSeries(groupLower, name)) {
           final seriesTitle = _extractSeriesTitle(name);
           final seriesId = _generateId(sourceId, seriesTitle);
@@ -197,13 +197,20 @@ class M3uParser {
   /// decide — group keywords alone misfiled live channels in playlists
   /// like iptv-org, whose groups read "Movies;Series" for 24/7 channels.
   /// [groupLower] is the already-lowercased group title.
-  static bool _isVod(String groupLower, String streamUrl) {
+  static bool _isVod(String groupLower, String streamUrl, [String name = '']) {
     final path = (Uri.tryParse(streamUrl)?.path ?? streamUrl).toLowerCase();
     if (path.contains('/movie/') || path.contains('/series/')) return true;
     if (_vodFileExt.hasMatch(path)) return true;
     if (path.contains('/live/') || _liveFileExt.hasMatch(path)) return false;
+    // "24/7 Movies"-style channels loop films around the clock: live.
+    if (_roundTheClock.hasMatch(groupLower) ||
+        _roundTheClock.hasMatch(name.toLowerCase())) {
+      return false;
+    }
     return _vodKeywords.any((kw) => groupLower.contains(kw));
   }
+
+  static final _roundTheClock = RegExp(r'24\s*[/x\-]\s*7');
 
   static final _episodePattern = RegExp(r'[Ss](\d+)[Ee](\d+)');
 
