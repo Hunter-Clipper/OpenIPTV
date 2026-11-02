@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:open_iptv/core/models/profile.dart';
+import 'package:open_iptv/core/services/category_order.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -221,6 +222,51 @@ class ProfileService {
       ..remove(category);
     await db.upsertProfile(
       profile.copyWith(hiddenCategories: hidden, updatedAt: DateTime.now()),
+    );
+  }
+
+  /// Gives [category] a profile-specific name. A null, empty or unchanged
+  /// name removes the custom one.
+  Future<void> renameCategory(
+      String profileId, String category, String? name) async {
+    final profile = await db.getProfileById(profileId);
+    if (profile == null) return;
+    final names = Map<String, String>.from(profile.categoryNames);
+    final clean = name?.trim() ?? '';
+    if (clean.isEmpty || clean == category) {
+      names.remove(category);
+    } else {
+      names[category] = clean;
+    }
+    await db.upsertProfile(
+      profile.copyWith(categoryNames: names, updatedAt: DateTime.now()),
+    );
+  }
+
+  /// Moves [category] one place up (-1) or down (+1) within [visible], the
+  /// list the user sees, and saves that as the profile's category order.
+  Future<void> moveCategory(String profileId, List<String> visible,
+      String category, int delta) async {
+    final profile = await db.getProfileById(profileId);
+    if (profile == null) return;
+    await db.upsertProfile(
+      profile.copyWith(
+        categoryOrder: reorderedCategories(
+            visible, category, delta, profile.categoryOrder),
+        updatedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  /// Back to the provider's category names and order.
+  Future<void> resetCategoryCustomisation(String profileId) async {
+    final profile = await db.getProfileById(profileId);
+    if (profile == null) return;
+    await db.upsertProfile(
+      profile.copyWith(
+          categoryNames: const {},
+          categoryOrder: const [],
+          updatedAt: DateTime.now()),
     );
   }
 

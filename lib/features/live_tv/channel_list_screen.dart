@@ -15,6 +15,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
@@ -160,7 +161,10 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             onRetry: () => ref.invalidate(allChannelsProvider)),
         data: (all) {
           final cats = liveCategories(all,
-              hidden: hiddenCats, isKid: isKid, az: sort == 'az');
+              hidden: hiddenCats,
+              isKid: isKid,
+              az: sort == 'az',
+              order: profile?.categoryOrder ?? const []);
           final favorites = all
               .where((c) => favIds.contains(c.id))
               .where((c) => !isKid || !c.categories.any(isAdultCategory))
@@ -217,7 +221,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   final locked = parentalPrefs != null &&
                       isCategoryLocked(cat, parentalPrefs, sessionUnlocked);
                   return CategoryTile(
-                    label: cat,
+                    label: categoryLabel(context, profile, cat),
                     autofocus: favorites.isEmpty &&
                         recent.isEmpty &&
                         cat == cats.first,
@@ -227,7 +231,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                     onTap: () => _tapCategory(cat),
                     onLongPress: profileId == null
                         ? null
-                        : () => showCategoryOptions(context, ref, profileId, cat),
+                        : () => showCategoryOptions(
+                            context, ref, profileId, cat,
+                            visible: cats),
                   );
                 }),
               ],
@@ -294,7 +300,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.displayName(widget.category)),
+        title: Text(categoryLabel(context, profile, widget.category)),
         actions: [
           ViewModeToggleAction(
             provider: viewModeLiveProvider,
@@ -634,51 +640,6 @@ String _hm(BuildContext context, DateTime t) =>
       TimeOfDay.fromDateTime(t),
       alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
     );
-
-/// Hold OK / long-press on a category: offer to hide it.
-Future<void> showCategoryOptions(BuildContext context, WidgetRef ref,
-    String profileId, String category, {String? label}) async {
-  unawaited(HapticFeedback.mediumImpact());
-  final hide = await showModalBottomSheet<bool>(
-    context: context,
-    useRootNavigator: true,
-    builder: (sheetContext) =>
-        _CategoryOptionsSheet(label: label ?? category),
-  );
-  if (hide == true) {
-    await ref.read(profileServiceProvider).hideCategory(profileId, category);
-    ref.invalidate(activeProfileProvider);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category long-press options sheet
-// ---------------------------------------------------------------------------
-
-class _CategoryOptionsSheet extends StatelessWidget {
-  const _CategoryOptionsSheet({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            autofocus: true,
-            leading: const Icon(Icons.visibility_off_outlined),
-            title: const Text('Hide Category'),
-            subtitle: Text(label,
-                style: Theme.of(context).textTheme.bodySmall),
-            onTap: () => Navigator.of(context).pop(true),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Channel long-press options sheet

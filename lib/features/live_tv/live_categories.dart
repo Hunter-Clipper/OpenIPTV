@@ -5,11 +5,14 @@ import 'package:open_iptv/core/services/parental_service.dart';
 /// first-appearance order (channels arrive in the provider's order), or A–Z.
 /// Hidden categories are left out, adult ones too on a kids profile, and
 /// anything [skip] matches (e.g. locked categories in the player's panel).
+/// A profile's own [order] wins over both: categories it lists come first,
+/// in that order; the rest (new ones) follow in the default order.
 List<String> liveCategories(
   Iterable<Channel> channels, {
   Set<String> hidden = const {},
   bool isKid = false,
   bool az = false,
+  List<String> order = const [],
   bool Function(String category)? skip,
 }) {
   final seen = <String>{};
@@ -23,5 +26,9 @@ List<String> liveCategories(
     }
   }
   if (az) cats.sort();
-  return cats;
+  if (order.isEmpty) return cats;
+  final rank = {for (var i = 0; i < order.length; i++) order[i]: i};
+  final listed = cats.where(rank.containsKey).toList()
+    ..sort((a, b) => rank[a]!.compareTo(rank[b]!));
+  return [...listed, ...cats.where((c) => !rank.containsKey(c))];
 }
