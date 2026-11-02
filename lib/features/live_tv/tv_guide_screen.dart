@@ -123,6 +123,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // The first row's way in: what's on now (or its "No guide" cell).
   final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
   FocusNode? _lastGridFocus;
+  // The category list is lazy: a category scrolled out of sight has no
+  // widget, so its focus node isn't attached and requestFocus does nothing.
+  final _categoryScroll = ScrollController();
+  List<String> _categoryKeys = const [];
+  static const _categoryRowHeight = 42.0;
   bool _initialCategoryFocusDone = false;
   // On a cell with nothing to its left in the row ("No guide"): Left goes
   // straight to the categories.
@@ -139,19 +144,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     ref.listenManual<int>(homeLeaveProvider, (_, __) => _pane.stopPreview());
     TvGuideScreen.requestCategoryFocus = () {
       if (!mounted) return;
-      final key = _focusedCategory ?? _shownCategory;
-      if (key != null) {
-        _categoryNode(key).requestFocus();
-        return;
-      }
-      // Fallback: focus the first category node, or the first row, so the
-      // user is never stranded when focus is lost.
-      final first = _categoryNodes.values.firstOrNull;
-      if (first != null) {
-        first.requestFocus();
-        return;
-      }
-      if (_firstRowNode.context != null) _firstRowNode.requestFocus();
+      _focusCategory(_focusedCategory ?? _shownCategory);
     };
     TvGuideScreen.requestGridFocus = () {
       if (!mounted) return;
@@ -191,6 +184,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     for (final n in _categoryNodes.values) {
       n.dispose();
     }
+    _categoryScroll.dispose();
     _columnNode.dispose();
     _gridNode.dispose();
     _firstRowNode.dispose();
@@ -281,8 +275,43 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   void _exitToCategories() {
     // The guide's own moves keep the column out of the search for a moment.
     _columnNode.descendantsAreFocusable = true;
-    final key = _shownCategory;
-    if (key != null) _categoryNode(key).requestFocus();
+    _focusCategory(_shownCategory);
+  }
+
+  // Focuses a category, scrolling it into the lazy list first when it isn't
+  // built. Never leaves the user stranded: falls back to any built category,
+  // then to the guide's first row.
+  void _focusCategory(String? key) {
+    void fallback() {
+      final built = _categoryNodes.values.where((n) => n.context != null);
+      if (built.isNotEmpty) {
+        built.first.requestFocus();
+      } else if (_firstRowNode.context != null) {
+        _firstRowNode.requestFocus();
+      }
+    }
+
+    if (key == null) return fallback();
+    final node = _categoryNode(key);
+    if (node.context != null) {
+      node.requestFocus();
+      return;
+    }
+    final i = _categoryKeys.indexOf(key);
+    if (i < 0 || !_categoryScroll.hasClients) return fallback();
+    final pos = _categoryScroll.position;
+    final target = i * _categoryRowHeight +
+        12 -
+        (pos.viewportDimension - _categoryRowHeight) / 2;
+    _categoryScroll.jumpTo(target.clamp(0.0, pos.maxScrollExtent));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (node.context != null) {
+        node.requestFocus();
+      } else {
+        fallback();
+      }
+    });
   }
 
   static bool _isRealCategory(String key) =>
@@ -396,14 +425,14 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       _focusedCategory = _shownCategory;
     }
     final shown = _shownCategory!;
+    _categoryKeys = categories;
     if (!_initialCategoryFocusDone) {
       _initialCategoryFocusDone = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Future.delayed(const Duration(milliseconds: 100), () {
           if (!mounted) return;
-          final key = _focusedCategory ?? _shownCategory;
-          if (key != null) _categoryNode(key).requestFocus();
+          _focusCategory(_focusedCategory ?? _shownCategory);
         });
       });
     }
@@ -447,6 +476,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                 ),
               },
               child: ListView.builder(
+                controller: _categoryScroll,
+                itemExtent: _categoryRowHeight,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 itemCount: categories.length,
                 // Rows follow their category when one is moved, so the
