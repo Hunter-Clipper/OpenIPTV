@@ -3,6 +3,17 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.39)
+
+**New**
+- Live stream format per Xtream playlist (Edit Playlist): Automatic, TS or HLS. Automatic follows what your provider allows, usually TS (#136).
+- Rename Live TV categories: hold OK (long-press on phone) on a category and pick Rename Category. Only changes how it looks for your profile; clean-up skips renamed categories (#59).
+- Reorder Live TV categories: hold OK on a category and pick Move Up or Move Down. Works in Live TV, the TV guide and the player's channel panel (#58).
+- Settings: Reset Category Names and Order puts the provider's names and order back.
+
+**Fixes**
+- TV guide: the focused channel now stays centred in the list and glides smoothly while you hold Up or Down, instead of pinning to the bottom and jerking (#135).
+
 ## Unreleased (0.14.36)
 
 **Fixes**
