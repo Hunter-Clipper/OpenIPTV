@@ -17,6 +17,8 @@ class Profile {
     this.customChannelOrder = const {},
     this.epgOverrides = const {},
     this.hiddenCategories = const [],
+    this.categoryNames = const {},
+    this.categoryOrder = const [],
     this.isKidsProfile = false,
     this.isAdmin = false,
     this.accentColor = '0A84FF',
@@ -37,6 +39,11 @@ class Profile {
   final Map<String, int> customChannelOrder;
   final Map<String, String> epgOverrides;
   final List<String> hiddenCategories;
+  /// Live TV: this profile's own names for categories ({original: name}).
+  /// Display-only — search, locks and icons still use the original.
+  final Map<String, String> categoryNames;
+  /// Live TV: this profile's category order (categories not listed follow).
+  final List<String> categoryOrder;
   final bool isKidsProfile;
   final bool isAdmin;
   final String accentColor;
@@ -67,6 +74,8 @@ class Profile {
     Map<String, int>? customChannelOrder,
     Map<String, String>? epgOverrides,
     List<String>? hiddenCategories,
+    Map<String, String>? categoryNames,
+    List<String>? categoryOrder,
     bool? isKidsProfile,
     bool? isAdmin,
     String? accentColor,
@@ -90,6 +99,8 @@ class Profile {
       customChannelOrder: customChannelOrder ?? this.customChannelOrder,
       epgOverrides: epgOverrides ?? this.epgOverrides,
       hiddenCategories: hiddenCategories ?? this.hiddenCategories,
+      categoryNames: categoryNames ?? this.categoryNames,
+      categoryOrder: categoryOrder ?? this.categoryOrder,
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
       isAdmin: isAdmin ?? this.isAdmin,
       accentColor: accentColor ?? this.accentColor,

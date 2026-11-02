@@ -52,6 +52,14 @@ class $SourcesTable extends Sources with TableInfo<$SourcesTable, SourceRow> {
   late final GeneratedColumn<String> epgUrl = GeneratedColumn<String>(
       'epg_url', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _liveFormatMeta =
+      const VerificationMeta('liveFormat');
+  @override
+  late final GeneratedColumn<String> liveFormat = GeneratedColumn<String>(
+      'live_format', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('auto'));
   static const VerificationMeta _lastRefreshedMeta =
       const VerificationMeta('lastRefreshed');
   @override
@@ -68,6 +76,7 @@ class $SourcesTable extends Sources with TableInfo<$SourcesTable, SourceRow> {
         xtreamUsername,
         xtreamPassword,
         epgUrl,
+        liveFormat,
         lastRefreshed
       ];
   @override
@@ -123,6 +132,12 @@ class $SourcesTable extends Sources with TableInfo<$SourcesTable, SourceRow> {
       context.handle(_epgUrlMeta,
           epgUrl.isAcceptableOrUnknown(data['epg_url']!, _epgUrlMeta));
     }
+    if (data.containsKey('live_format')) {
+      context.handle(
+          _liveFormatMeta,
+          liveFormat.isAcceptableOrUnknown(
+              data['live_format']!, _liveFormatMeta));
+    }
     if (data.containsKey('last_refreshed')) {
       context.handle(
           _lastRefreshedMeta,
@@ -154,6 +169,8 @@ class $SourcesTable extends Sources with TableInfo<$SourcesTable, SourceRow> {
           .read(DriftSqlType.string, data['${effectivePrefix}xtream_password']),
       epgUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}epg_url']),
+      liveFormat: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}live_format'])!,
       lastRefreshed: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}last_refreshed']),
     );
@@ -174,6 +191,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
   final String? xtreamUsername;
   final String? xtreamPassword;
   final String? epgUrl;
+  final String liveFormat;
   final DateTime? lastRefreshed;
   const SourceRow(
       {required this.id,
@@ -184,6 +202,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
       this.xtreamUsername,
       this.xtreamPassword,
       this.epgUrl,
+      required this.liveFormat,
       this.lastRefreshed});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -206,6 +225,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
     if (!nullToAbsent || epgUrl != null) {
       map['epg_url'] = Variable<String>(epgUrl);
     }
+    map['live_format'] = Variable<String>(liveFormat);
     if (!nullToAbsent || lastRefreshed != null) {
       map['last_refreshed'] = Variable<DateTime>(lastRefreshed);
     }
@@ -230,6 +250,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
           : Value(xtreamPassword),
       epgUrl:
           epgUrl == null && nullToAbsent ? const Value.absent() : Value(epgUrl),
+      liveFormat: Value(liveFormat),
       lastRefreshed: lastRefreshed == null && nullToAbsent
           ? const Value.absent()
           : Value(lastRefreshed),
@@ -248,6 +269,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
       xtreamUsername: serializer.fromJson<String?>(json['xtreamUsername']),
       xtreamPassword: serializer.fromJson<String?>(json['xtreamPassword']),
       epgUrl: serializer.fromJson<String?>(json['epgUrl']),
+      liveFormat: serializer.fromJson<String>(json['liveFormat']),
       lastRefreshed: serializer.fromJson<DateTime?>(json['lastRefreshed']),
     );
   }
@@ -263,6 +285,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
       'xtreamUsername': serializer.toJson<String?>(xtreamUsername),
       'xtreamPassword': serializer.toJson<String?>(xtreamPassword),
       'epgUrl': serializer.toJson<String?>(epgUrl),
+      'liveFormat': serializer.toJson<String>(liveFormat),
       'lastRefreshed': serializer.toJson<DateTime?>(lastRefreshed),
     };
   }
@@ -276,6 +299,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
           Value<String?> xtreamUsername = const Value.absent(),
           Value<String?> xtreamPassword = const Value.absent(),
           Value<String?> epgUrl = const Value.absent(),
+          String? liveFormat,
           Value<DateTime?> lastRefreshed = const Value.absent()}) =>
       SourceRow(
         id: id ?? this.id,
@@ -288,6 +312,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
         xtreamPassword:
             xtreamPassword.present ? xtreamPassword.value : this.xtreamPassword,
         epgUrl: epgUrl.present ? epgUrl.value : this.epgUrl,
+        liveFormat: liveFormat ?? this.liveFormat,
         lastRefreshed:
             lastRefreshed.present ? lastRefreshed.value : this.lastRefreshed,
       );
@@ -306,6 +331,8 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
           ? data.xtreamPassword.value
           : this.xtreamPassword,
       epgUrl: data.epgUrl.present ? data.epgUrl.value : this.epgUrl,
+      liveFormat:
+          data.liveFormat.present ? data.liveFormat.value : this.liveFormat,
       lastRefreshed: data.lastRefreshed.present
           ? data.lastRefreshed.value
           : this.lastRefreshed,
@@ -323,6 +350,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
           ..write('xtreamUsername: $xtreamUsername, ')
           ..write('xtreamPassword: $xtreamPassword, ')
           ..write('epgUrl: $epgUrl, ')
+          ..write('liveFormat: $liveFormat, ')
           ..write('lastRefreshed: $lastRefreshed')
           ..write(')'))
         .toString();
@@ -330,7 +358,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
 
   @override
   int get hashCode => Object.hash(id, nickname, type, m3uUrl, xtreamHost,
-      xtreamUsername, xtreamPassword, epgUrl, lastRefreshed);
+      xtreamUsername, xtreamPassword, epgUrl, liveFormat, lastRefreshed);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -343,6 +371,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
           other.xtreamUsername == this.xtreamUsername &&
           other.xtreamPassword == this.xtreamPassword &&
           other.epgUrl == this.epgUrl &&
+          other.liveFormat == this.liveFormat &&
           other.lastRefreshed == this.lastRefreshed);
 }
 
@@ -355,6 +384,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
   final Value<String?> xtreamUsername;
   final Value<String?> xtreamPassword;
   final Value<String?> epgUrl;
+  final Value<String> liveFormat;
   final Value<DateTime?> lastRefreshed;
   final Value<int> rowid;
   const SourcesCompanion({
@@ -366,6 +396,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
     this.xtreamUsername = const Value.absent(),
     this.xtreamPassword = const Value.absent(),
     this.epgUrl = const Value.absent(),
+    this.liveFormat = const Value.absent(),
     this.lastRefreshed = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -378,6 +409,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
     this.xtreamUsername = const Value.absent(),
     this.xtreamPassword = const Value.absent(),
     this.epgUrl = const Value.absent(),
+    this.liveFormat = const Value.absent(),
     this.lastRefreshed = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -392,6 +424,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
     Expression<String>? xtreamUsername,
     Expression<String>? xtreamPassword,
     Expression<String>? epgUrl,
+    Expression<String>? liveFormat,
     Expression<DateTime>? lastRefreshed,
     Expression<int>? rowid,
   }) {
@@ -404,6 +437,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
       if (xtreamUsername != null) 'xtream_username': xtreamUsername,
       if (xtreamPassword != null) 'xtream_password': xtreamPassword,
       if (epgUrl != null) 'epg_url': epgUrl,
+      if (liveFormat != null) 'live_format': liveFormat,
       if (lastRefreshed != null) 'last_refreshed': lastRefreshed,
       if (rowid != null) 'rowid': rowid,
     });
@@ -418,6 +452,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
       Value<String?>? xtreamUsername,
       Value<String?>? xtreamPassword,
       Value<String?>? epgUrl,
+      Value<String>? liveFormat,
       Value<DateTime?>? lastRefreshed,
       Value<int>? rowid}) {
     return SourcesCompanion(
@@ -429,6 +464,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
       xtreamUsername: xtreamUsername ?? this.xtreamUsername,
       xtreamPassword: xtreamPassword ?? this.xtreamPassword,
       epgUrl: epgUrl ?? this.epgUrl,
+      liveFormat: liveFormat ?? this.liveFormat,
       lastRefreshed: lastRefreshed ?? this.lastRefreshed,
       rowid: rowid ?? this.rowid,
     );
@@ -461,6 +497,9 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
     if (epgUrl.present) {
       map['epg_url'] = Variable<String>(epgUrl.value);
     }
+    if (liveFormat.present) {
+      map['live_format'] = Variable<String>(liveFormat.value);
+    }
     if (lastRefreshed.present) {
       map['last_refreshed'] = Variable<DateTime>(lastRefreshed.value);
     }
@@ -481,6 +520,7 @@ class SourcesCompanion extends UpdateCompanion<SourceRow> {
           ..write('xtreamUsername: $xtreamUsername, ')
           ..write('xtreamPassword: $xtreamPassword, ')
           ..write('epgUrl: $epgUrl, ')
+          ..write('liveFormat: $liveFormat, ')
           ..write('lastRefreshed: $lastRefreshed, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3303,6 +3343,22 @@ class $ProfilesTable extends Profiles
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('[]'));
+  static const VerificationMeta _categoryNamesMeta =
+      const VerificationMeta('categoryNames');
+  @override
+  late final GeneratedColumn<String> categoryNames = GeneratedColumn<String>(
+      'category_names', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _categoryOrderMeta =
+      const VerificationMeta('categoryOrder');
+  @override
+  late final GeneratedColumn<String> categoryOrder = GeneratedColumn<String>(
+      'category_order', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
   static const VerificationMeta _isKidsProfileMeta =
       const VerificationMeta('isKidsProfile');
   @override
@@ -3360,6 +3416,8 @@ class $ProfilesTable extends Profiles
         customChannelOrder,
         epgOverrides,
         hiddenCategories,
+        categoryNames,
+        categoryOrder,
         isKidsProfile,
         isAdmin,
         accentColor,
@@ -3463,6 +3521,18 @@ class $ProfilesTable extends Profiles
           hiddenCategories.isAcceptableOrUnknown(
               data['hidden_categories']!, _hiddenCategoriesMeta));
     }
+    if (data.containsKey('category_names')) {
+      context.handle(
+          _categoryNamesMeta,
+          categoryNames.isAcceptableOrUnknown(
+              data['category_names']!, _categoryNamesMeta));
+    }
+    if (data.containsKey('category_order')) {
+      context.handle(
+          _categoryOrderMeta,
+          categoryOrder.isAcceptableOrUnknown(
+              data['category_order']!, _categoryOrderMeta));
+    }
     if (data.containsKey('is_kids_profile')) {
       context.handle(
           _isKidsProfileMeta,
@@ -3531,6 +3601,10 @@ class $ProfilesTable extends Profiles
           .read(DriftSqlType.string, data['${effectivePrefix}epg_overrides'])!,
       hiddenCategories: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}hidden_categories'])!,
+      categoryNames: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_names'])!,
+      categoryOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_order'])!,
       isKidsProfile: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_kids_profile'])!,
       isAdmin: attachedDatabase.typeMapping
@@ -3566,6 +3640,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
   final String customChannelOrder;
   final String epgOverrides;
   final String hiddenCategories;
+  final String categoryNames;
+  final String categoryOrder;
   final bool isKidsProfile;
   final bool isAdmin;
   final String accentColor;
@@ -3587,6 +3663,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       required this.customChannelOrder,
       required this.epgOverrides,
       required this.hiddenCategories,
+      required this.categoryNames,
+      required this.categoryOrder,
       required this.isKidsProfile,
       required this.isAdmin,
       required this.accentColor,
@@ -3612,6 +3690,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
     map['custom_channel_order'] = Variable<String>(customChannelOrder);
     map['epg_overrides'] = Variable<String>(epgOverrides);
     map['hidden_categories'] = Variable<String>(hiddenCategories);
+    map['category_names'] = Variable<String>(categoryNames);
+    map['category_order'] = Variable<String>(categoryOrder);
     map['is_kids_profile'] = Variable<bool>(isKidsProfile);
     map['is_admin'] = Variable<bool>(isAdmin);
     map['accent_color'] = Variable<String>(accentColor);
@@ -3639,6 +3719,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       customChannelOrder: Value(customChannelOrder),
       epgOverrides: Value(epgOverrides),
       hiddenCategories: Value(hiddenCategories),
+      categoryNames: Value(categoryNames),
+      categoryOrder: Value(categoryOrder),
       isKidsProfile: Value(isKidsProfile),
       isAdmin: Value(isAdmin),
       accentColor: Value(accentColor),
@@ -3669,6 +3751,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           serializer.fromJson<String>(json['customChannelOrder']),
       epgOverrides: serializer.fromJson<String>(json['epgOverrides']),
       hiddenCategories: serializer.fromJson<String>(json['hiddenCategories']),
+      categoryNames: serializer.fromJson<String>(json['categoryNames']),
+      categoryOrder: serializer.fromJson<String>(json['categoryOrder']),
       isKidsProfile: serializer.fromJson<bool>(json['isKidsProfile']),
       isAdmin: serializer.fromJson<bool>(json['isAdmin']),
       accentColor: serializer.fromJson<String>(json['accentColor']),
@@ -3695,6 +3779,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       'customChannelOrder': serializer.toJson<String>(customChannelOrder),
       'epgOverrides': serializer.toJson<String>(epgOverrides),
       'hiddenCategories': serializer.toJson<String>(hiddenCategories),
+      'categoryNames': serializer.toJson<String>(categoryNames),
+      'categoryOrder': serializer.toJson<String>(categoryOrder),
       'isKidsProfile': serializer.toJson<bool>(isKidsProfile),
       'isAdmin': serializer.toJson<bool>(isAdmin),
       'accentColor': serializer.toJson<String>(accentColor),
@@ -3719,6 +3805,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           String? customChannelOrder,
           String? epgOverrides,
           String? hiddenCategories,
+          String? categoryNames,
+          String? categoryOrder,
           bool? isKidsProfile,
           bool? isAdmin,
           String? accentColor,
@@ -3740,6 +3828,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
         customChannelOrder: customChannelOrder ?? this.customChannelOrder,
         epgOverrides: epgOverrides ?? this.epgOverrides,
         hiddenCategories: hiddenCategories ?? this.hiddenCategories,
+        categoryNames: categoryNames ?? this.categoryNames,
+        categoryOrder: categoryOrder ?? this.categoryOrder,
         isKidsProfile: isKidsProfile ?? this.isKidsProfile,
         isAdmin: isAdmin ?? this.isAdmin,
         accentColor: accentColor ?? this.accentColor,
@@ -3784,6 +3874,12 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       hiddenCategories: data.hiddenCategories.present
           ? data.hiddenCategories.value
           : this.hiddenCategories,
+      categoryNames: data.categoryNames.present
+          ? data.categoryNames.value
+          : this.categoryNames,
+      categoryOrder: data.categoryOrder.present
+          ? data.categoryOrder.value
+          : this.categoryOrder,
       isKidsProfile: data.isKidsProfile.present
           ? data.isKidsProfile.value
           : this.isKidsProfile,
@@ -3813,6 +3909,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           ..write('customChannelOrder: $customChannelOrder, ')
           ..write('epgOverrides: $epgOverrides, ')
           ..write('hiddenCategories: $hiddenCategories, ')
+          ..write('categoryNames: $categoryNames, ')
+          ..write('categoryOrder: $categoryOrder, ')
           ..write('isKidsProfile: $isKidsProfile, ')
           ..write('isAdmin: $isAdmin, ')
           ..write('accentColor: $accentColor, ')
@@ -3823,27 +3921,30 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      name,
-      avatarEmoji,
-      pinHash,
-      sourceIds,
-      favoriteChannelIds,
-      favoriteMovieIds,
-      favoriteSeriesIds,
-      defaultCategory,
-      channelSortOrder,
-      defaultSubtitleLang,
-      defaultAudioLang,
-      customChannelOrder,
-      epgOverrides,
-      hiddenCategories,
-      isKidsProfile,
-      isAdmin,
-      accentColor,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        name,
+        avatarEmoji,
+        pinHash,
+        sourceIds,
+        favoriteChannelIds,
+        favoriteMovieIds,
+        favoriteSeriesIds,
+        defaultCategory,
+        channelSortOrder,
+        defaultSubtitleLang,
+        defaultAudioLang,
+        customChannelOrder,
+        epgOverrides,
+        hiddenCategories,
+        categoryNames,
+        categoryOrder,
+        isKidsProfile,
+        isAdmin,
+        accentColor,
+        createdAt,
+        updatedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3863,6 +3964,8 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           other.customChannelOrder == this.customChannelOrder &&
           other.epgOverrides == this.epgOverrides &&
           other.hiddenCategories == this.hiddenCategories &&
+          other.categoryNames == this.categoryNames &&
+          other.categoryOrder == this.categoryOrder &&
           other.isKidsProfile == this.isKidsProfile &&
           other.isAdmin == this.isAdmin &&
           other.accentColor == this.accentColor &&
@@ -3886,6 +3989,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
   final Value<String> customChannelOrder;
   final Value<String> epgOverrides;
   final Value<String> hiddenCategories;
+  final Value<String> categoryNames;
+  final Value<String> categoryOrder;
   final Value<bool> isKidsProfile;
   final Value<bool> isAdmin;
   final Value<String> accentColor;
@@ -3908,6 +4013,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     this.customChannelOrder = const Value.absent(),
     this.epgOverrides = const Value.absent(),
     this.hiddenCategories = const Value.absent(),
+    this.categoryNames = const Value.absent(),
+    this.categoryOrder = const Value.absent(),
     this.isKidsProfile = const Value.absent(),
     this.isAdmin = const Value.absent(),
     this.accentColor = const Value.absent(),
@@ -3931,6 +4038,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     this.customChannelOrder = const Value.absent(),
     this.epgOverrides = const Value.absent(),
     this.hiddenCategories = const Value.absent(),
+    this.categoryNames = const Value.absent(),
+    this.categoryOrder = const Value.absent(),
     this.isKidsProfile = const Value.absent(),
     this.isAdmin = const Value.absent(),
     this.accentColor = const Value.absent(),
@@ -3958,6 +4067,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     Expression<String>? customChannelOrder,
     Expression<String>? epgOverrides,
     Expression<String>? hiddenCategories,
+    Expression<String>? categoryNames,
+    Expression<String>? categoryOrder,
     Expression<bool>? isKidsProfile,
     Expression<bool>? isAdmin,
     Expression<String>? accentColor,
@@ -3984,6 +4095,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
         'custom_channel_order': customChannelOrder,
       if (epgOverrides != null) 'epg_overrides': epgOverrides,
       if (hiddenCategories != null) 'hidden_categories': hiddenCategories,
+      if (categoryNames != null) 'category_names': categoryNames,
+      if (categoryOrder != null) 'category_order': categoryOrder,
       if (isKidsProfile != null) 'is_kids_profile': isKidsProfile,
       if (isAdmin != null) 'is_admin': isAdmin,
       if (accentColor != null) 'accent_color': accentColor,
@@ -4009,6 +4122,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       Value<String>? customChannelOrder,
       Value<String>? epgOverrides,
       Value<String>? hiddenCategories,
+      Value<String>? categoryNames,
+      Value<String>? categoryOrder,
       Value<bool>? isKidsProfile,
       Value<bool>? isAdmin,
       Value<String>? accentColor,
@@ -4031,6 +4146,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       customChannelOrder: customChannelOrder ?? this.customChannelOrder,
       epgOverrides: epgOverrides ?? this.epgOverrides,
       hiddenCategories: hiddenCategories ?? this.hiddenCategories,
+      categoryNames: categoryNames ?? this.categoryNames,
+      categoryOrder: categoryOrder ?? this.categoryOrder,
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
       isAdmin: isAdmin ?? this.isAdmin,
       accentColor: accentColor ?? this.accentColor,
@@ -4089,6 +4206,12 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     if (hiddenCategories.present) {
       map['hidden_categories'] = Variable<String>(hiddenCategories.value);
     }
+    if (categoryNames.present) {
+      map['category_names'] = Variable<String>(categoryNames.value);
+    }
+    if (categoryOrder.present) {
+      map['category_order'] = Variable<String>(categoryOrder.value);
+    }
     if (isKidsProfile.present) {
       map['is_kids_profile'] = Variable<bool>(isKidsProfile.value);
     }
@@ -4128,6 +4251,8 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
           ..write('customChannelOrder: $customChannelOrder, ')
           ..write('epgOverrides: $epgOverrides, ')
           ..write('hiddenCategories: $hiddenCategories, ')
+          ..write('categoryNames: $categoryNames, ')
+          ..write('categoryOrder: $categoryOrder, ')
           ..write('isKidsProfile: $isKidsProfile, ')
           ..write('isAdmin: $isAdmin, ')
           ..write('accentColor: $accentColor, ')
@@ -4560,6 +4685,7 @@ typedef $$SourcesTableCreateCompanionBuilder = SourcesCompanion Function({
   Value<String?> xtreamUsername,
   Value<String?> xtreamPassword,
   Value<String?> epgUrl,
+  Value<String> liveFormat,
   Value<DateTime?> lastRefreshed,
   Value<int> rowid,
 });
@@ -4572,6 +4698,7 @@ typedef $$SourcesTableUpdateCompanionBuilder = SourcesCompanion Function({
   Value<String?> xtreamUsername,
   Value<String?> xtreamPassword,
   Value<String?> epgUrl,
+  Value<String> liveFormat,
   Value<DateTime?> lastRefreshed,
   Value<int> rowid,
 });
@@ -4672,6 +4799,9 @@ class $$SourcesTableFilterComposer
 
   ColumnFilters<String> get epgUrl => $composableBuilder(
       column: $table.epgUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get liveFormat => $composableBuilder(
+      column: $table.liveFormat, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get lastRefreshed => $composableBuilder(
       column: $table.lastRefreshed, builder: (column) => ColumnFilters(column));
@@ -4796,6 +4926,9 @@ class $$SourcesTableOrderingComposer
   ColumnOrderings<String> get epgUrl => $composableBuilder(
       column: $table.epgUrl, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get liveFormat => $composableBuilder(
+      column: $table.liveFormat, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get lastRefreshed => $composableBuilder(
       column: $table.lastRefreshed,
       builder: (column) => ColumnOrderings(column));
@@ -4833,6 +4966,9 @@ class $$SourcesTableAnnotationComposer
 
   GeneratedColumn<String> get epgUrl =>
       $composableBuilder(column: $table.epgUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get liveFormat => $composableBuilder(
+      column: $table.liveFormat, builder: (column) => column);
 
   GeneratedColumn<DateTime> get lastRefreshed => $composableBuilder(
       column: $table.lastRefreshed, builder: (column) => column);
@@ -4957,6 +5093,7 @@ class $$SourcesTableTableManager extends RootTableManager<
             Value<String?> xtreamUsername = const Value.absent(),
             Value<String?> xtreamPassword = const Value.absent(),
             Value<String?> epgUrl = const Value.absent(),
+            Value<String> liveFormat = const Value.absent(),
             Value<DateTime?> lastRefreshed = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -4969,6 +5106,7 @@ class $$SourcesTableTableManager extends RootTableManager<
             xtreamUsername: xtreamUsername,
             xtreamPassword: xtreamPassword,
             epgUrl: epgUrl,
+            liveFormat: liveFormat,
             lastRefreshed: lastRefreshed,
             rowid: rowid,
           ),
@@ -4981,6 +5119,7 @@ class $$SourcesTableTableManager extends RootTableManager<
             Value<String?> xtreamUsername = const Value.absent(),
             Value<String?> xtreamPassword = const Value.absent(),
             Value<String?> epgUrl = const Value.absent(),
+            Value<String> liveFormat = const Value.absent(),
             Value<DateTime?> lastRefreshed = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -4993,6 +5132,7 @@ class $$SourcesTableTableManager extends RootTableManager<
             xtreamUsername: xtreamUsername,
             xtreamPassword: xtreamPassword,
             epgUrl: epgUrl,
+            liveFormat: liveFormat,
             lastRefreshed: lastRefreshed,
             rowid: rowid,
           ),
@@ -6772,6 +6912,8 @@ typedef $$ProfilesTableCreateCompanionBuilder = ProfilesCompanion Function({
   Value<String> customChannelOrder,
   Value<String> epgOverrides,
   Value<String> hiddenCategories,
+  Value<String> categoryNames,
+  Value<String> categoryOrder,
   Value<bool> isKidsProfile,
   Value<bool> isAdmin,
   Value<String> accentColor,
@@ -6795,6 +6937,8 @@ typedef $$ProfilesTableUpdateCompanionBuilder = ProfilesCompanion Function({
   Value<String> customChannelOrder,
   Value<String> epgOverrides,
   Value<String> hiddenCategories,
+  Value<String> categoryNames,
+  Value<String> categoryOrder,
   Value<bool> isKidsProfile,
   Value<bool> isAdmin,
   Value<String> accentColor,
@@ -6865,6 +7009,12 @@ class $$ProfilesTableFilterComposer
   ColumnFilters<String> get hiddenCategories => $composableBuilder(
       column: $table.hiddenCategories,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryNames => $composableBuilder(
+      column: $table.categoryNames, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryOrder => $composableBuilder(
+      column: $table.categoryOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isKidsProfile => $composableBuilder(
       column: $table.isKidsProfile, builder: (column) => ColumnFilters(column));
@@ -6946,6 +7096,14 @@ class $$ProfilesTableOrderingComposer
       column: $table.hiddenCategories,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get categoryNames => $composableBuilder(
+      column: $table.categoryNames,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get categoryOrder => $composableBuilder(
+      column: $table.categoryOrder,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isKidsProfile => $composableBuilder(
       column: $table.isKidsProfile,
       builder: (column) => ColumnOrderings(column));
@@ -7017,6 +7175,12 @@ class $$ProfilesTableAnnotationComposer
   GeneratedColumn<String> get hiddenCategories => $composableBuilder(
       column: $table.hiddenCategories, builder: (column) => column);
 
+  GeneratedColumn<String> get categoryNames => $composableBuilder(
+      column: $table.categoryNames, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryOrder => $composableBuilder(
+      column: $table.categoryOrder, builder: (column) => column);
+
   GeneratedColumn<bool> get isKidsProfile => $composableBuilder(
       column: $table.isKidsProfile, builder: (column) => column);
 
@@ -7071,6 +7235,8 @@ class $$ProfilesTableTableManager extends RootTableManager<
             Value<String> customChannelOrder = const Value.absent(),
             Value<String> epgOverrides = const Value.absent(),
             Value<String> hiddenCategories = const Value.absent(),
+            Value<String> categoryNames = const Value.absent(),
+            Value<String> categoryOrder = const Value.absent(),
             Value<bool> isKidsProfile = const Value.absent(),
             Value<bool> isAdmin = const Value.absent(),
             Value<String> accentColor = const Value.absent(),
@@ -7094,6 +7260,8 @@ class $$ProfilesTableTableManager extends RootTableManager<
             customChannelOrder: customChannelOrder,
             epgOverrides: epgOverrides,
             hiddenCategories: hiddenCategories,
+            categoryNames: categoryNames,
+            categoryOrder: categoryOrder,
             isKidsProfile: isKidsProfile,
             isAdmin: isAdmin,
             accentColor: accentColor,
@@ -7117,6 +7285,8 @@ class $$ProfilesTableTableManager extends RootTableManager<
             Value<String> customChannelOrder = const Value.absent(),
             Value<String> epgOverrides = const Value.absent(),
             Value<String> hiddenCategories = const Value.absent(),
+            Value<String> categoryNames = const Value.absent(),
+            Value<String> categoryOrder = const Value.absent(),
             Value<bool> isKidsProfile = const Value.absent(),
             Value<bool> isAdmin = const Value.absent(),
             Value<String> accentColor = const Value.absent(),
@@ -7140,6 +7310,8 @@ class $$ProfilesTableTableManager extends RootTableManager<
             customChannelOrder: customChannelOrder,
             epgOverrides: epgOverrides,
             hiddenCategories: hiddenCategories,
+            categoryNames: categoryNames,
+            categoryOrder: categoryOrder,
             isKidsProfile: isKidsProfile,
             isAdmin: isAdmin,
             accentColor: accentColor,
