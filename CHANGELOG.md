@@ -3,6 +3,15 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.36)
+
+**Fixes**
+- Stream type is now decided by the link's file type only, not by words in the server name, so a server like `x.tsc.com` no longer makes a stream play as the wrong kind (#139).
+- A stream that was already playing no longer gets restarted as HLS after a brief hiccup; the HLS retry is only for streams that never showed a picture, and live channels rejoin at the live edge (#139).
+- If the player fails to start once, the next try now works instead of failing until the app is restarted (#139).
+- Switching channels no longer briefly stretches the previous channel's last frame into the new picture's shape (#139).
+- Player cleanup: listeners and video surfaces are released properly when a player closes, and captions stay off after the buffer setting changes (#139).
+
 ## Unreleased (0.14.35)
 
 **Fixes**
