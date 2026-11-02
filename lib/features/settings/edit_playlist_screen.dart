@@ -34,6 +34,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
   late final _guide = TextEditingController(text: _initialGuide());
 
   bool _showPassword = false;
+  late String _liveFormat = widget.source.liveFormat;
   String? _status;
   String? _error;
 
@@ -76,6 +77,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
         xtreamUsername: _user.text,
         xtreamPassword: _pass.text,
         epgUrl: _guide.text,
+        liveFormat: _liveFormat,
       );
       // Validation is quick; once it passes the refresh can take a while.
       Future.delayed(const Duration(seconds: 3), () {
@@ -106,6 +108,48 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
         });
       }
     }
+  }
+
+  static const _liveFormats = [
+    ('auto', 'Automatic', 'Follows what your provider allows, usually TS'),
+    ('ts', 'TS', 'Transport stream: fast to start, works with most providers'),
+    ('hls', 'HLS', 'Adaptive playlist: for providers whose TS streams drop'),
+  ];
+
+  /// Which kind of link live channels use. Movies and series are unaffected.
+  Widget _liveFormatPicker(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Live stream format', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 2),
+          Text(
+            'Changing this updates the playlist\'s channels.',
+            style: theme.textTheme.bodySmall!
+                .copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          for (final (id, label, description) in _liveFormats)
+            TvActivatable(
+              onTap: _saving ? null : () => setState(() => _liveFormat = id),
+              borderRadius: BorderRadius.circular(12),
+              builder: (tap) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  id == _liveFormat
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: id == _liveFormat ? theme.colorScheme.primary : null,
+                ),
+                title: Text(label),
+                subtitle: Text(description, style: theme.textTheme.bodySmall),
+                onTap: tap,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -157,6 +201,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
                       setState(() => _showPassword = !_showPassword),
                 ),
               ),
+              _liveFormatPicker(theme),
             ] else if (!_isFile)
               _Field(
                 label: 'Playlist link',

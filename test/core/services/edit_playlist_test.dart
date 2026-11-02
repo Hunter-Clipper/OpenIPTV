@@ -16,6 +16,8 @@ class _FakeProvider {
   late HttpServer server;
   String user = 'alice';
   String pass = 'new-secret';
+  // What the panel says it allows for live streams.
+  List<String> allowed = ['ts', 'm3u8'];
 
   String get base => 'http://127.0.0.1:${server.port}';
 
@@ -31,11 +33,15 @@ class _FakeProvider {
         if (q['username'] != user || q['password'] != pass) {
           req.response.statusCode = 401;
         } else {
-          req.response.write(jsonEncode(q['action'] == 'get_live_streams'
-              ? [
-                  {'stream_id': 7, 'name': 'Live Seven', 'category_id': '1'}
-                ]
-              : []));
+          req.response.write(jsonEncode(switch (q['action']) {
+            'get_live_streams' => [
+                {'stream_id': 7, 'name': 'Live Seven', 'category_id': '1'}
+              ],
+            null => {
+                'user_info': {'allowed_output_formats': allowed}
+              },
+            _ => [],
+          }));
         }
       } else {
         req.response.statusCode = 404;
@@ -168,5 +174,49 @@ void main() {
     expect((await db.getSourceById('m1'))!.m3uUrl,
         '${provider.base}/list.m3u');
     expect((await db.getAllChannels()).map((c) => c.name), ['Moved Channel']);
+  });
+
+  group('live stream format', () {
+    tearDown(() => provider.allowed = ['ts', 'm3u8']);
+
+    Future<String> liveUrl() async =>
+        (await db.getAllChannels()).single.streamUrl;
+
+    test('HLS rebuilds every live link as .m3u8, TS goes back', () async {
+      final original = await saveXtream(pass: 'new-secret');
+      var result = await manager.updateSource(original,
+          nickname: 'Main', liveFormat: 'hls');
+      expect(result!.playlistError, isNull);
+      expect(await liveUrl(), endsWith('/7.m3u8'));
+      expect((await db.getSourceById('x1'))!.liveFormat, 'hls');
+
+      result = await manager.updateSource(
+          (await db.getSourceById('x1'))!,
+          nickname: 'Main',
+          liveFormat: 'ts');
+      expect(result!.playlistError, isNull);
+      expect(await liveUrl(), endsWith('/7.ts'));
+    });
+
+    test('changing nothing about the format does not refresh', () async {
+      final original = await saveXtream(pass: 'new-secret');
+      expect(
+          await manager.updateSource(original,
+              nickname: 'Main', liveFormat: 'auto'),
+          isNull);
+    });
+
+    test('auto uses TS when the provider allows it', () async {
+      final original = await saveXtream(pass: 'new-secret');
+      await manager.refreshPlaylist(original);
+      expect(await liveUrl(), endsWith('/7.ts'));
+    });
+
+    test('auto uses HLS when that is all the provider allows', () async {
+      provider.allowed = ['m3u8'];
+      final original = await saveXtream(pass: 'new-secret');
+      await manager.refreshPlaylist(original);
+      expect(await liveUrl(), endsWith('/7.m3u8'));
+    });
   });
 }
