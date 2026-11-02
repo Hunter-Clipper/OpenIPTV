@@ -3,6 +3,14 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.42)
+
+**Fixes**
+- TV guide: focus could get stuck in the guide, with Left and Back doing nothing, when the category being shown was scrolled out of view in the category list. The list now scrolls to it first, and falls back to any visible category so you can always get out.
+
+**Improved**
+- Clean Up Names now uses one standard for every playlist, whatever its naming style (`US| NAME HD`, `USA: NAME [1080p]`, `Name (1080p) [Not 24/7]`, `EN - Title (2022)`): provider tags are removed from the front, the middle and the end; country or language moves to the end (`ABC Network (USA)`, English is dropped, `(United Kingdom)` becomes `(UK)`); quality tags (HD, FHD, 1080p, 576i, H265…) are dropped while 4K or UHD becomes a short `4K` at the end; `24/7` and `Events` stay in place; `[Geo-blocked]` is kept. Live sports event names lose their slot prefix and repeated team names and end with `Ended`, `Next` or `Not started` where the provider says so. Names it doesn't recognise, and real titles such as `Mission: Impossible`, are left alone. Movie and series genres follow, since they use the category names.
+
 ## Unreleased (0.14.39)
 
 **New**
