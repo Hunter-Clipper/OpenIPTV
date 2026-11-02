@@ -876,6 +876,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                         child: logo != null && logo.isNotEmpty
                             ? CachedNetworkImage(
                                 imageUrl: logo,
+                                cacheManager: ImageCacheManager(),
                                 fit: BoxFit.contain,
                                 memCacheWidth: 300,
                                 errorWidget: (_, __, ___) => Icon(Icons.tv,

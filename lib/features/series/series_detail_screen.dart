@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/content_details.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
+import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -581,6 +582,7 @@ class _Still extends StatelessWidget {
     if (url == null || url!.isEmpty) return ColoredBox(color: fill);
     return CachedNetworkImage(
       imageUrl: url!,
+      cacheManager: ImageCacheManager(),
       fit: BoxFit.cover,
       memCacheWidth: 400,
       placeholder: (_, __) => ColoredBox(color: fill),

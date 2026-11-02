@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -408,6 +409,7 @@ class _Logo extends StatelessWidget {
           ? fallback
           : CachedNetworkImage(
               imageUrl: url!,
+              cacheManager: ImageCacheManager(),
               fit: BoxFit.contain,
               memCacheWidth: 300,
               errorWidget: (_, __, ___) => fallback,
