@@ -10,6 +10,7 @@ class Source {
     this.xtreamUsername,
     this.xtreamPassword,
     this.epgUrl,
+    this.liveFormat = 'auto',
     this.lastRefreshed,
   });
 
@@ -21,6 +22,9 @@ class Source {
   final String? xtreamUsername;
   final String? xtreamPassword;
   final String? epgUrl;
+  /// Xtream live stream format: 'auto' (follow what the provider allows,
+  /// else TS), 'ts' or 'hls'. Ignored for M3U playlists.
+  final String liveFormat;
   final DateTime? lastRefreshed;
 
   Source copyWith({
@@ -32,6 +36,7 @@ class Source {
     String? xtreamUsername,
     String? xtreamPassword,
     String? epgUrl,
+    String? liveFormat,
     DateTime? lastRefreshed,
   }) {
     return Source(
@@ -43,6 +48,7 @@ class Source {
       xtreamUsername: xtreamUsername ?? this.xtreamUsername,
       xtreamPassword: xtreamPassword ?? this.xtreamPassword,
       epgUrl: epgUrl ?? this.epgUrl,
+      liveFormat: liveFormat ?? this.liveFormat,
       lastRefreshed: lastRefreshed ?? this.lastRefreshed,
     );
   }

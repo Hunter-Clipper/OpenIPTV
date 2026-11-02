@@ -213,6 +213,8 @@ class BackupManager {
         'customChannelOrder': p.customChannelOrder,
         'epgOverrides': p.epgOverrides,
         'hiddenCategories': p.hiddenCategories,
+        'categoryNames': p.categoryNames,
+        'categoryOrder': p.categoryOrder,
         'isKidsProfile': p.isKidsProfile,
         'isAdmin': p.isAdmin,
         'accentColor': p.accentColor,
@@ -241,6 +243,10 @@ class BackupManager {
         epgOverrides: Map<String, String>.from(m['epgOverrides'] as Map? ?? {}),
         hiddenCategories:
             List<String>.from(m['hiddenCategories'] as List? ?? []),
+        categoryNames:
+            Map<String, String>.from(m['categoryNames'] as Map? ?? {}),
+        categoryOrder:
+            List<String>.from(m['categoryOrder'] as List? ?? []),
         isKidsProfile: m['isKidsProfile'] as bool? ?? false,
         isAdmin: m['isAdmin'] as bool? ?? false,
         accentColor: m['accentColor'] as String? ?? '0A84FF',
@@ -261,6 +267,7 @@ class BackupManager {
         'xtreamUsername': s.xtreamUsername,
         'xtreamPassword': s.xtreamPassword,
         'epgUrl': s.epgUrl,
+        'liveFormat': s.liveFormat,
         'lastRefreshed': s.lastRefreshed?.toIso8601String(),
       };
 
@@ -295,6 +302,7 @@ class BackupManager {
         xtreamUsername: m['xtreamUsername'] as String?,
         xtreamPassword: m['xtreamPassword'] as String?,
         epgUrl: m['epgUrl'] as String?,
+        liveFormat: m['liveFormat'] as String? ?? 'auto',
         lastRefreshed: m['lastRefreshed'] is String
             ? DateTime.parse(m['lastRefreshed'] as String)
             : null,

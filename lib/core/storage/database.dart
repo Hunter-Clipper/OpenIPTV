@@ -38,6 +38,8 @@ class Sources extends Table {
   TextColumn get xtreamUsername => text().nullable()();
   TextColumn get xtreamPassword => text().nullable()();
   TextColumn get epgUrl => text().nullable()();
+  // Xtream live stream format: 'auto' | 'ts' | 'hls'.
+  TextColumn get liveFormat => text().withDefault(const Constant('auto'))();
   DateTimeColumn get lastRefreshed => dateTime().nullable()();
 
   @override
@@ -150,6 +152,9 @@ class Profiles extends Table {
       text().withDefault(const Constant('{}'))();
   TextColumn get epgOverrides => text().withDefault(const Constant('{}'))();
   TextColumn get hiddenCategories => text().withDefault(const Constant('[]'))();
+  // Live TV: the profile's own names ({category: name}) and order.
+  TextColumn get categoryNames => text().withDefault(const Constant('{}'))();
+  TextColumn get categoryOrder => text().withDefault(const Constant('[]'))();
   BoolColumn get isKidsProfile =>
       boolean().withDefault(const Constant(false))();
   BoolColumn get isAdmin => boolean().withDefault(const Constant(false))();
@@ -199,7 +204,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -294,6 +299,24 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           if (from < 13) await _createCoveringIndexes();
+          if (from < 14) {
+            // The app can open this database from two places at once (the
+            // UI and the background engine); both may start this upgrade.
+            // The loser's ALTER finds the column already there, so that
+            // error means "done", not "failed".
+            Future<void> addOnce(
+                TableInfo table, GeneratedColumn<Object> column) async {
+              try {
+                await m.addColumn(table, column);
+              } catch (e) {
+                if (!'$e'.contains('duplicate column name')) rethrow;
+              }
+            }
+
+            await addOnce(sources, sources.liveFormat);
+            await addOnce(profiles, profiles.categoryNames);
+            await addOnce(profiles, profiles.categoryOrder);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -1528,6 +1551,7 @@ class AppDatabase extends _$AppDatabase {
         xtreamUsername: row.xtreamUsername,
         xtreamPassword: row.xtreamPassword,
         epgUrl: row.epgUrl,
+        liveFormat: row.liveFormat,
         lastRefreshed: row.lastRefreshed,
       );
 
@@ -1625,6 +1649,10 @@ class AppDatabase extends _$AppDatabase {
             Map<String, String>.from(jsonDecode(row.epgOverrides) as Map),
         hiddenCategories:
             List<String>.from(jsonDecode(row.hiddenCategories) as List),
+        categoryNames:
+            Map<String, String>.from(jsonDecode(row.categoryNames) as Map),
+        categoryOrder:
+            List<String>.from(jsonDecode(row.categoryOrder) as List),
         isKidsProfile: row.isKidsProfile,
         isAdmin: row.isAdmin,
         accentColor: row.accentColor,
@@ -1645,6 +1673,7 @@ class AppDatabase extends _$AppDatabase {
         xtreamUsername: Value(s.xtreamUsername),
         xtreamPassword: Value(s.xtreamPassword),
         epgUrl: Value(s.epgUrl),
+        liveFormat: Value(s.liveFormat),
         lastRefreshed: Value(s.lastRefreshed),
       );
 
@@ -1729,6 +1758,8 @@ class AppDatabase extends _$AppDatabase {
         customChannelOrder: Value(jsonEncode(p.customChannelOrder)),
         epgOverrides: Value(jsonEncode(p.epgOverrides)),
         hiddenCategories: Value(jsonEncode(p.hiddenCategories)),
+        categoryNames: Value(jsonEncode(p.categoryNames)),
+        categoryOrder: Value(jsonEncode(p.categoryOrder)),
         isKidsProfile: Value(p.isKidsProfile),
         isAdmin: Value(p.isAdmin),
         accentColor: Value(p.accentColor),
