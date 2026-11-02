@@ -155,8 +155,11 @@ class NativeVideoPlayer(
         old.release()
         bufferPreset = preset
         exoPlayer = buildPlayer(appContext, preset)
+        currentTracks = Tracks.EMPTY
         exoPlayer.setVideoSurface(output)
         exoPlayer.addListener(playerListener)
+        // The new player starts with default track selection: captions off.
+        clearTextTrack()
         android.util.Log.i("OTV-exo", "buffer preset: $preset")
     }
 
@@ -223,6 +226,9 @@ class NativeVideoPlayer(
                 onVideoSize?.invoke(videoWidth, videoHeight, pixelRatio)
                 emitState()
             }
+            override fun onRenderedFirstFrame() {
+                renderedFrame = true
+            }
             override fun onTracksChanged(tracks: Tracks) {
                 currentTracks = tracks
                 eventSink?.success(mapOf("type" to "tracks", "tracks" to tracksAsList()))
@@ -249,6 +255,10 @@ class NativeVideoPlayer(
     private var currentUrl: String? = null
     private var currentHint: String? = null
     private var hlsRetried = false
+    // The start position open() asked for, and whether any frame has been
+    // drawn since: the HLS retry is only for streams that never played.
+    private var currentStartMs = 0L
+    private var renderedFrame = false
 
     // Follows redirects that switch between http and https, which
     // ExoPlayer refuses by default. Xtream panels commonly answer a stream
@@ -274,6 +284,8 @@ class NativeVideoPlayer(
         currentUrl = url
         currentHint = streamTypeHint
         hlsRetried = false
+        currentStartMs = startPositionMs
+        renderedFrame = false
         // Every stream starts at normal speed (a movie watched at 1.5x must
         // not make the next live channel run fast).
         exoPlayer.setPlaybackSpeed(1f)
@@ -283,6 +295,7 @@ class NativeVideoPlayer(
         videoHeight = 0
         pixelRatio = 1f
         onVideoSize?.invoke(0, 0, 1f)
+        emitState()
         // Captions start off for every stream (the app's default). Without
         // this, ExoPlayer auto-selects any text track matching the device
         // language — e.g. HLS streams declaring an English CC rendition.
@@ -314,7 +327,9 @@ class NativeVideoPlayer(
      */
     private fun retryAsHls(error: androidx.media3.common.PlaybackException): Boolean {
         val url = currentUrl ?: return false
-        if (hlsRetried || currentHint == "hls") return false
+        // A stream that already played hit a transient parse error, not a
+        // wrong guess about its format: don't restart it as HLS.
+        if (hlsRetried || renderedFrame || currentHint == "hls") return false
         var cause: Throwable? = error
         while (cause != null && cause !is ParserException) {
             cause = cause.cause
@@ -322,8 +337,9 @@ class NativeVideoPlayer(
         if (cause == null) return false
         hlsRetried = true
         android.util.Log.w("OTV-exo", "unrecognised format; retrying as HLS")
-        val position = exoPlayer.currentPosition.coerceAtLeast(0L)
-        startSource(buildMediaSource(url, "hls"), position)
+        // Same start as the original open(): a live stream joins at its live
+        // edge instead of seeking into the live window.
+        startSource(buildMediaSource(url, "hls"), currentStartMs)
         return true
     }
 
@@ -479,6 +495,9 @@ class NativeVideoPlayer(
         CarVideo.playerGone(this)
         mainHandler.removeCallbacks(positionUpdater)
         onPlayingChanged(false)
+        exoPlayer.removeListener(playerListener)
+        // Detach whichever surface (app or car) it is drawing on first.
+        exoPlayer.clearVideoSurface()
         exoPlayer.release()
         surface.release()
         texture.release()
@@ -502,6 +521,7 @@ class NativeVideoPlayerManager(
     private val onAnyPlayingChanged: (Boolean) -> Unit = {},
 ) {
     private val players = mutableMapOf<Long, NativeVideoPlayer>()
+    private val eventChannels = mutableMapOf<Long, EventChannel>()
     private val playingIds = mutableSetOf<Long>()
 
     init {
@@ -559,6 +579,7 @@ class NativeVideoPlayerManager(
                     }
                 })
                 players[id] = player
+                eventChannels[id] = eventChannel
                 result.success(id)
             }
             "open" -> {
@@ -608,7 +629,9 @@ class NativeVideoPlayerManager(
                 result.success(null)
             }
             "dispose" -> {
-                players.remove(idArg(call))?.dispose()
+                val id = idArg(call)
+                players.remove(id)?.dispose()
+                eventChannels.remove(id)?.setStreamHandler(null)
                 result.success(null)
             }
             else -> result.notImplemented()
