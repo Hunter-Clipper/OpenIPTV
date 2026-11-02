@@ -15,6 +15,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
+import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
@@ -377,14 +378,16 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           const <Channel>[])
         if (allowed(c)) c
     ];
+    final realCategories = liveCategories(all,
+        hidden: (profile?.hiddenCategories ?? const []).toSet(),
+        isKid: isKid,
+        az: az,
+        order: profile?.categoryOrder ?? const []);
     final categories = [
       if (favorites.isNotEmpty) _favorites,
       if (recent.isNotEmpty) _recent,
       if (!(profile?.hiddenCategories ?? const <String>[]).contains(_all)) _all,
-      ...liveCategories(all,
-          hidden: (profile?.hiddenCategories ?? const []).toSet(),
-          isKid: isKid,
-          az: az),
+      ...realCategories,
     ];
     if (_shownCategory == null || !categories.contains(_shownCategory)) {
       _shownCategory = categories.contains(_rememberedCategory)
@@ -446,9 +449,16 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 itemCount: categories.length,
+                // Rows follow their category when one is moved, so the
+                // focus ring moves with the focused row.
+                findChildIndexCallback: (k) {
+                  final i = k is ValueKey<String> ? categories.indexOf(k.value) : -1;
+                  return i < 0 ? null : i;
+                },
                 itemBuilder: (context, i) {
                   final key = categories[i];
                   return _CategoryItem(
+                    key: ValueKey(key),
                     focusNode: _categoryNode(key),
                     icon: switch (key) {
                       _favorites => Icons.star_rounded,
@@ -460,7 +470,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                       _favorites => 'Favorites',
                       _recent => 'Recently Watched',
                       _all => 'All Channels',
-                      _ => context.displayName(key),
+                      _ => categoryLabel(context, profile, key),
                     },
                     selected: key == shown,
                     locked: locked(key),
@@ -469,7 +479,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     onLongPress: (_isRealCategory(key) || key == _all) && profile != null
                         ? () => showCategoryOptions(
                             context, ref, profile.id, key,
-                            label: key == _all ? 'All Channels' : null)
+                            label: key == _all ? 'All Channels' : null,
+                            visible: realCategories)
                         : null,
                   );
                 },
@@ -982,6 +993,7 @@ class _GuideMessage extends StatelessWidget {
 
 class _CategoryItem extends StatelessWidget {
   const _CategoryItem({
+    super.key,
     required this.focusNode,
     required this.icon,
     required this.label,
@@ -1532,6 +1544,25 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     }
   }
 
+  static DateTime? _lastCentred;
+
+  /// Keeps the focused row in the middle of the list, like a camera
+  /// following it. Every key press re-aims the scroll; while a key is held
+  /// (presses close together) it glides with a short linear move instead of
+  /// restarting an ease on each row, which looked like jerking.
+  static void _centreRow(BuildContext row) {
+    final now = DateTime.now();
+    final held = _lastCentred != null &&
+        now.difference(_lastCentred!) < const Duration(milliseconds: 220);
+    _lastCentred = now;
+    Scrollable.ensureVisible(
+      row,
+      alignment: 0.5,
+      duration: Duration(milliseconds: held ? 110 : 200),
+      curve: held ? Curves.linear : Curves.easeOutCubic,
+    );
+  }
+
   @override
   Object? invoke(DirectionalFocusIntent intent) {
     final dir = intent.direction;
@@ -1543,13 +1574,7 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
       if (next != null) {
         next.requestFocus();
         final c = next.context;
-        if (c != null) {
-          Scrollable.ensureVisible(c,
-              duration: const Duration(milliseconds: 120),
-              alignmentPolicy: dir == TraversalDirection.down
-                  ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
-                  : ScrollPositionAlignmentPolicy.keepVisibleAtStart);
-        }
+        if (c != null) _centreRow(c);
       }
       return true;
     }
