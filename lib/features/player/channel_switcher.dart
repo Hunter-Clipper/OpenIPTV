@@ -14,8 +14,10 @@ import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
+import 'package:open_iptv/shared/widgets/marquee_text.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 
 const _favorites = '\u0000favorites';
 
@@ -201,10 +203,11 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(
+                                  // Not focusable itself, so on TV a long
+                                  // name scrolls on its own.
+                                  child: MarqueeText(
                                     _label(context, cat),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    active: PlatformHelper.isTV(context),
                                     style: theme.textTheme.titleSmall,
                                   ),
                                 ),
