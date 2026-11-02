@@ -3,30 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.47)
-
-**Improved**
-- Images load faster and stay loaded: logos, posters and backdrops now all share one bigger image cache (3,000 images, up from a library default of 200 for several screens), so scrolling back through a large playlist no longer downloads the same logos again, and twice as many images download at the same time on slow connections (#133, #134).
-- Detail-page backdrops are now decoded at your screen's size instead of the picture's full size, which saves a lot of memory on small TVs (#133, #134).
-
-## Unreleased (0.14.46)
-
-**Fixes**
-- TV: a category name that is too long for its box now scrolls sideways instead of being cut off with dots, in the TV guide's category list (while the row is focused) and in the player's channel panel.
-- Back now closes a dialog first, even on a Settings sub-page. Before, pressing Back with a dialog open (for example Change PIN, Edit Profile or New Profile) went back a page behind it and left the dialog hanging open on top of the wrong screen.
-- Hidden Categories (Settings) now shows the same names as Live TV (cleaned up or your own renames), and the built-in "All Channels" row reads properly instead of showing a hidden character.
-- Skip Database Encryption moved into Power User Tools, under a new Database heading, so a stray OK press in the main Settings list can't flip it. Turning encryption back on now asks first too.
-- Power User Tools: the first row is now focused when the page opens on a TV, so Up and Down start from the top.
-
-## Unreleased (0.14.42)
-
-**Fixes**
-- TV guide: focus could get stuck in the guide, with Left and Back doing nothing, when the category being shown was scrolled out of view in the category list. The list now scrolls to it first, and falls back to any visible category so you can always get out.
-
-**Improved**
-- Clean Up Names now uses one standard for every playlist, whatever its naming style (`US| NAME HD`, `USA: NAME [1080p]`, `Name (1080p) [Not 24/7]`, `EN - Title (2022)`): provider tags are removed from the front, the middle and the end; country or language moves to the end (`ABC Network (USA)`, English is dropped, `(United Kingdom)` becomes `(UK)`); quality tags (HD, FHD, 1080p, 576i, H265…) are dropped while 4K or UHD becomes a short `4K` at the end; `24/7` and `Events` stay in place; `[Geo-blocked]` is kept. Live sports event names lose their slot prefix and repeated team names and end with `Ended`, `Next` or `Not started` where the provider says so. Names it doesn't recognise, and real titles such as `Mission: Impossible`, are left alone. Movie and series genres follow, since they use the category names.
-
-## Unreleased (0.14.39)
+## 0.14.47 — 2026-11-02
 
 **New**
 - Live stream format per Xtream playlist (Edit Playlist): Automatic, TS or HLS. Automatic follows what your provider allows, usually TS (#136).
@@ -34,25 +11,28 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - Reorder Live TV categories: hold OK on a category and pick Move Up or Move Down. Works in Live TV, the TV guide and the player's channel panel (#58).
 - Settings: Reset Category Names and Order puts the provider's names and order back.
 
+**Improved**
+- Clean Up Names now uses one standard for every playlist, whatever its naming style (`US| NAME HD`, `USA: NAME [1080p]`, `Name (1080p) [Not 24/7]`, `EN - Title (2022)`): provider tags are removed from the front, the middle and the end; country or language moves to the end (`ABC Network (USA)`, English is dropped, `(United Kingdom)` becomes `(UK)`); quality tags (HD, FHD, 1080p, 576i, H265…) are dropped while 4K or UHD becomes a short `4K` at the end; `24/7` and `Events` stay in place; `[Geo-blocked]` is kept. Live sports event names lose their slot prefix and repeated team names and end with `Ended`, `Next` or `Not started` where the provider says so. Names it doesn't recognise, and real titles such as `Mission: Impossible`, are left alone. Movie and series genres follow, since they use the category names.
+- Images load faster and stay loaded: logos, posters and backdrops now all share one bigger image cache (3,000 images, up from a library default of 200 for several screens), so scrolling back through a large playlist no longer downloads the same logos again, and twice as many images download at the same time on slow connections (#133, #134).
+- Detail-page backdrops are now decoded at your screen's size instead of the picture's full size, which saves a lot of memory on small TVs (#133, #134).
+- TV: a category name that is too long for its box now scrolls sideways instead of being cut off with dots, in the TV guide's category list (while the row is focused) and in the player's channel panel.
+- Skip Database Encryption moved into Power User Tools, under a new Database heading, so a stray OK press in the main Settings list can't flip it. Turning encryption back on now asks first too.
+
 **Fixes**
+- Back now closes a dialog first, even on a Settings sub-page. Before, pressing Back with a dialog open (for example Change PIN, Edit Profile or New Profile) went back a page behind it and left the dialog hanging open on top of the wrong screen.
+- TV guide: focus could get stuck in the guide, with Left and Back doing nothing, when the category being shown was scrolled out of view in the category list. The list now scrolls to it first, and falls back to any visible category so you can always get out.
 - TV guide: the focused channel now stays centred in the list and glides smoothly while you hold Up or Down, instead of pinning to the bottom and jerking (#135).
-
-## Unreleased (0.14.36)
-
-**Fixes**
 - Stream type is now decided by the link's file type only, not by words in the server name, so a server like `x.tsc.com` no longer makes a stream play as the wrong kind (#139).
 - A stream that was already playing no longer gets restarted as HLS after a brief hiccup; the HLS retry is only for streams that never showed a picture, and live channels rejoin at the live edge (#139).
 - If the player fails to start once, the next try now works instead of failing until the app is restarted (#139).
 - Switching channels no longer briefly stretches the previous channel's last frame into the new picture's shape (#139).
 - Player cleanup: listeners and video surfaces are released properly when a player closes, and captions stay off after the buffer setting changes (#139).
-
-## Unreleased (0.14.35)
-
-**Fixes**
 - 24/7 movie channels in playlists with no stream-type hint now stay in Live TV instead of landing in Movies.
 - Locked channels no longer show their logo in search results.
 - Change PIN / Set PIN fields now match the unlock prompt: centred, large dots, with a normal-sized hint.
 - Locked content (parental, adult or manually locked) never goes into Continue Watching or Recently Watched, even after unlocking with the admin PIN, and its resume position isn't saved. Existing history entries from locked categories are hidden.
+- Hidden Categories (Settings) now shows the same names as Live TV (cleaned up or your own renames), and the built-in "All Channels" row reads properly instead of showing a hidden character.
+- Power User Tools: the first row is now focused when the page opens on a TV, so Up and Down start from the top.
 
 ## 0.14.33 — 2026-10-27
 
