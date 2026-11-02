@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -189,8 +190,13 @@ class _Backdrop extends StatelessWidget {
     final fill = Theme.of(context).colorScheme.surfaceContainer;
     final url = backdropUrl ?? posterUrl;
     if (url == null || url.isEmpty) return ColoredBox(color: fill);
+    // Decode at the screen's width, not the source's (a 4K backdrop is
+    // ~33 MB in memory, which a 2 GB TV can't spare).
+    final mq = MediaQuery.of(context);
     final image = CachedNetworkImage(
       imageUrl: url,
+      cacheManager: ImageCacheManager(),
+      memCacheWidth: (mq.size.width * mq.devicePixelRatio).round().clamp(320, 1920),
       fit: BoxFit.cover,
       alignment: backdropUrl != null ? Alignment.topCenter : Alignment.center,
       fadeInDuration: const Duration(milliseconds: 250),

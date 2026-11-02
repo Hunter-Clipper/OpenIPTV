@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
+import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -1573,10 +1575,12 @@ class _UpNextBannerState extends State<_UpNextBanner> {
               if (still != null && still.isNotEmpty)
                 AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: Image.network(
-                    still,
+                  child: CachedNetworkImage(
+                    imageUrl: still,
+                    cacheManager: ImageCacheManager(),
+                    memCacheWidth: 680,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
+                    errorWidget: (_, __, ___) =>
                         ColoredBox(color: scheme.surfaceContainerHighest),
                   ),
                 ),

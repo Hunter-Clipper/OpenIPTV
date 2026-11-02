@@ -6,6 +6,7 @@ import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -309,6 +310,7 @@ class _ChannelRow extends ConsumerWidget {
                         ? const Icon(Icons.tv_rounded, color: Colors.white54)
                         : CachedNetworkImage(
                             imageUrl: logo,
+                            cacheManager: ImageCacheManager(),
                             fit: BoxFit.contain,
                             memCacheWidth: 160,
                             errorWidget: (_, __, ___) => const Icon(

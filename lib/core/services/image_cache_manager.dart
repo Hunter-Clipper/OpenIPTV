@@ -3,9 +3,17 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart' as io_client;
 import 'dart:io';
 
-/// Shared image cache manager with higher concurrency for faster loading.
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
+/// Shared image cache manager. Every poster, logo and backdrop in the app
+/// goes through it, so one cache (not the library's default 200-image one)
+/// holds what you browse.
 class ImageCacheManager extends CacheManager {
   static const key = 'openiptvImageCache';
+
+  /// How many images the cache keeps, and how many download at once.
+  static const maxCacheObjects = 3000;
+  static const concurrentDownloads = 20;
   static ImageCacheManager? _instance;
 
   factory ImageCacheManager() {
@@ -17,11 +25,18 @@ class ImageCacheManager extends CacheManager {
       : super(Config(
           key,
           stalePeriod: const Duration(days: 7),
-          maxNrOfCacheObjects: 1000,
-          fileService: HttpFileService(
-            httpClient: _createHttpClient(),
-          ),
+          // A big catalogue has tens of thousands of logos and posters.
+          maxNrOfCacheObjects: maxCacheObjects,
+          fileService: createFileService(),
         ));
+
+  /// The library downloads at most 10 files at once by default (that, not the
+  /// connection limit below, was the real cap); on a slow or high-latency
+  /// network more in flight at a time fills the screen faster.
+  @visibleForTesting
+  static HttpFileService createFileService() =>
+      HttpFileService(httpClient: _createHttpClient())
+        ..concurrentFetches = concurrentDownloads;
 
   static http.Client _createHttpClient() {
     final ioClient = HttpClient();
