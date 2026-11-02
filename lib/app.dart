@@ -468,6 +468,8 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);
+    // Pages outside the shell (the wizard) get the system's Back.
+    unawaited(_backChannel.invokeMethod('setBlocked', false));
     for (final n in _railNodes) {
       n.dispose();
     }
@@ -541,6 +543,13 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
         return;
       }
     }
+    // Not on a tab root and nothing left to close: an ordinary page, so the
+    // system's Back (go_router) takes it.
+    final location = GoRouterState.of(context).uri.path;
+    if (!_kNavDestinations.any((d) => d.path == location)) {
+      unawaited(_backChannel.invokeMethod('systemBack'));
+      return;
+    }
     final tv = PlatformHelper.isTV(context);
     // On any tab, Back first moves focus to the side menu (rail) instead of
     // jumping tabs — a second Back then does the tab navigation/exit.
@@ -584,14 +593,12 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // True only when sitting exactly at one of the tab roots (not a pushed
-    // sub-route like /movies/genre/action, which the shell's own nested
-    // Navigator still pops normally — native only intervenes when told to).
-    final location = GoRouterState.of(context).uri.path;
-    final isRootTab = _kNavDestinations.any((d) => d.path == location);
-    if (_lastReportedBlocked != isRootTab) {
-      _lastReportedBlocked = isRootTab;
-      unawaited(_backChannel.invokeMethod('setBlocked', isRootTab));
+    // Every Back goes through _handleNativeBackPressed while the shell is
+    // up, so a dialog or sheet on the root navigator closes first even on a
+    // sub-page (the system's own Back would pop the page behind the dialog).
+    if (_lastReportedBlocked != true) {
+      _lastReportedBlocked = true;
+      unawaited(_backChannel.invokeMethod('setBlocked', true));
     }
 
     if (PlatformHelper.isTV(context)) {

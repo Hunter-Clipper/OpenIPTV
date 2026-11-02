@@ -61,6 +61,11 @@ class MainActivity : AudioServiceActivity() {
         backChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/back")
         backChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
+                // Dart had nothing of its own to close: the system's Back.
+                "systemBack" -> {
+                    systemBack()
+                    result.success(null)
+                }
                 "setBlocked" -> {
                     backBlocked = call.arguments as? Boolean ?: false
                     result.success(null)
@@ -125,6 +130,11 @@ class MainActivity : AudioServiceActivity() {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun systemBack() {
+        super.onBackPressed()
     }
 
     @Suppress("DEPRECATION", "MissingSuperCall")
