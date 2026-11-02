@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
@@ -74,6 +75,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
       hidden: (profile?.hiddenCategories ?? const []).toSet(),
       isKid: profile?.isKidsProfile ?? false,
       az: ref.watch(contentSortProvider) == 'az',
+      order: profile?.categoryOrder ?? const [],
       skip: (cat) => prefs != null && isCategoryLocked(cat, prefs, unlocked),
     );
     final hasFavs = (profile?.favoriteChannelIds ?? const []).isNotEmpty;
@@ -94,8 +96,10 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
     return list;
   }
 
-  String _label(BuildContext context, String cat) =>
-      cat == _favorites ? 'Favorites' : context.displayName(cat);
+  String _label(BuildContext context, String cat) => cat == _favorites
+      ? 'Favorites'
+      : categoryLabel(
+          context, ref.read(activeProfileProvider).valueOrNull, cat);
 
   void _step(List<String> cats, int delta) {
     if (_category == null) return;

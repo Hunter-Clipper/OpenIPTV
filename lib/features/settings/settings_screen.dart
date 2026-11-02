@@ -357,6 +357,11 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => _showHiddenCategoriesPage(context),
                   ),
                 ),
+              _NavTile(
+                leading: const Icon(Icons.restart_alt_rounded),
+                title: 'Reset Category Names and Order',
+                onTap: () => _resetCategories(context, ref),
+              ),
             ]),
             // --------------- ABOUT ---------------
             SettingsGroup(title: 'About', children: [
@@ -738,6 +743,40 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Back to the provider's Live TV category names and order, for the
+  /// active profile (hold OK / long-press on a category changes them).
+  Future<void> _resetCategories(BuildContext context, WidgetRef ref) async {
+    final profile = ref.read(activeProfileProvider).valueOrNull;
+    if (profile == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset Category Names and Order?'),
+        content: const Text(
+            'Live TV categories go back to the names and order your '
+            'playlist gives them. Hidden categories stay hidden.'),
+        actions: [
+          TvActivatable(
+            onTap: () => Navigator.of(dialogContext).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Cancel')),
+          ),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(dialogContext).pop(true),
+            builder: (onTap) =>
+                FilledButton(onPressed: onTap, child: const Text('Reset')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref
+        .read(profileServiceProvider)
+        .resetCategoryCustomisation(profile.id);
+    ref.invalidate(activeProfileProvider);
   }
 
   void _showHiddenCategoriesPage(BuildContext context) {
