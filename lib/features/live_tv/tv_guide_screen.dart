@@ -1051,7 +1051,8 @@ class _CategoryItem extends StatelessWidget {
         selected ? theme.colorScheme.primary : theme.colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: TvFocusable(
+      child: _RowFocus(
+       builder: (context, focused) => TvFocusable(
         focusNode: focusNode,
         ensureVisibleOnFocus: true,
         borderRadius: BorderRadius.circular(10),
@@ -1074,10 +1075,10 @@ class _CategoryItem extends StatelessWidget {
               Icon(icon, size: 18, color: color),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
+                // A long name scrolls while the row is focused.
+                child: MarqueeText(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  active: focused,
                   style: theme.textTheme.bodyMedium!.copyWith(
                     color: color,
                     fontWeight: selected ? FontWeight.w600 : null,
@@ -1090,6 +1091,7 @@ class _CategoryItem extends StatelessWidget {
             ],
           ),
         ),
+       ),
       ),
     );
   }
