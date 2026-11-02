@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 
 void main() {
@@ -27,6 +28,20 @@ void main() {
     test('the query string is ignored', () {
       expect(t('http://host/live/1?token=a.ts'), StreamType.auto);
       expect(t('http://host/live/1.m3u8?token=a.ts'), StreamType.hls);
+    });
+  });
+
+  group('XtreamClient.liveExtFor', () {
+    test('a chosen format wins', () {
+      expect(XtreamClient.liveExtFor('hls', ['ts']), 'm3u8');
+      expect(XtreamClient.liveExtFor('ts', ['m3u8']), 'ts');
+    });
+
+    test('auto prefers TS, uses HLS only when TS is not offered', () {
+      expect(XtreamClient.liveExtFor('auto', ['ts', 'm3u8']), 'ts');
+      expect(XtreamClient.liveExtFor('auto', ['M3U8']), 'm3u8');
+      expect(XtreamClient.liveExtFor('auto', ['rtmp']), 'ts');
+      expect(XtreamClient.liveExtFor('auto', const []), 'ts');
     });
   });
 }

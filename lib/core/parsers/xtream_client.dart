@@ -100,7 +100,8 @@ class XtreamClient {
 
   /// Fetches live streams. Resolves category names from a parallel categories
   /// request so that [Channel.groupTitle] is always populated.
-  Future<List<Channel>> getLiveStreams({String? categoryId}) async {
+  Future<List<Channel>> getLiveStreams(
+      {String? categoryId, String ext = 'ts'}) async {
     final params = <String, String>{'action': 'get_live_streams'};
     if (categoryId != null) params['category_id'] = categoryId;
 
@@ -109,7 +110,7 @@ class XtreamClient {
       _get(params),
     ]);
     final catMap = {for (final c in _parseCategories(results[0])) c.id: c.name};
-    return _parseChannels(results[1], catMap);
+    return _parseChannels(results[1], catMap, ext: ext);
   }
 
   // ---------------------------------------------------------------------------
@@ -201,6 +202,24 @@ class XtreamClient {
   // Stream URL builder
   // ---------------------------------------------------------------------------
 
+  /// The live file extension for a playlist's [format] ('auto' | 'ts' |
+  /// 'hls'). 'auto' follows what the provider says it allows
+  /// (`allowed_output_formats`): TS when offered or when nothing is known,
+  /// HLS only when that is all the provider offers.
+  static String liveExtFor(String format, Iterable<String> allowed) {
+    switch (format) {
+      case 'hls':
+        return 'm3u8';
+      case 'ts':
+        return 'ts';
+      default:
+        final formats = allowed.map((f) => f.toLowerCase().trim()).toSet();
+        return !formats.contains('ts') && formats.contains('m3u8')
+            ? 'm3u8'
+            : 'ts';
+    }
+  }
+
   String buildStreamUrl(String streamId, String type, {String ext = 'ts'}) {
     return '$_base$type/$username/$password/$streamId.$ext';
   }
@@ -283,8 +302,9 @@ class XtreamClient {
 
   List<Channel> _parseChannels(
     Map<String, dynamic> data,
-    Map<String, String> catMap,
-  ) {
+    Map<String, String> catMap, {
+    String ext = 'ts',
+  }) {
     final list = (data['_list'] ?? data) as List;
     return list.asMap().entries.map((entry) {
       final m = entry.value as Map<String, dynamic>;
@@ -301,7 +321,7 @@ class XtreamClient {
         sourceId: sourceId,
         name: '${m['name'] ?? 'Unknown'}',
         logoUrl: m['stream_icon'] as String?,
-        streamUrl: buildStreamUrl(streamId, 'live'),
+        streamUrl: buildStreamUrl(streamId, 'live', ext: ext),
         groupTitle: catMap[catId],
         tvgId: m['epg_channel_id'] as String?,
         tvgName: null, // Xtream has no tvg_name field

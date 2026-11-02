@@ -343,7 +343,8 @@ class SourceManager {
       await db.replaceChannelsForSource(source.id, result.channels);
     } else {
       await _withXtream(source, (client) async {
-        final channels = await client.getLiveStreams();
+        final channels =
+            await client.getLiveStreams(ext: await _liveExt(source, client));
         await db.replaceChannelsForSource(source.id, channels);
       });
     }
@@ -470,6 +471,7 @@ class SourceManager {
     String? xtreamUsername,
     String? xtreamPassword,
     String? epgUrl,
+    String? liveFormat,
   }) async {
     String? clean(String? v) => v == null || v.trim().isEmpty ? null : v.trim();
     final name = clean(nickname) ?? original.nickname;
@@ -523,11 +525,16 @@ class SourceManager {
       xtreamUsername: user,
       xtreamPassword: pass,
       epgUrl: guide,
+      liveFormat: isXtream ? liveFormat ?? original.liveFormat : 'auto',
       lastRefreshed: original.lastRefreshed,
     );
     await db.upsertSource(updated);
-    if (!connectionChanged && !guideChanged) return null;
-    return refreshSourceParts(updated, playlist: connectionChanged);
+    // Stored live links carry the format, so a change rebuilds the playlist.
+    final formatChanged = updated.liveFormat != original.liveFormat;
+    if (!connectionChanged && !guideChanged && !formatChanged) return null;
+    return refreshSourceParts(updated,
+        playlist: connectionChanged || formatChanged,
+        guide: connectionChanged || guideChanged);
   }
 
   Future<void> deleteSource(String sourceId) async {
@@ -586,6 +593,24 @@ class SourceManager {
   void _logRefreshError(Source source, String phase, Object e) {
     debugPrint('[Source] ${source.nickname}: $phase refresh failed: '
         '${redactUrl('$e')}');
+  }
+
+  /// The file extension live links get for [source]: its chosen format, or
+  /// for 'auto' whatever the provider says it allows (TS if unknown).
+  Future<String> _liveExt(Source source, XtreamClient client) async {
+    var allowed = const <String>[];
+    if (source.liveFormat == 'auto') {
+      try {
+        final info = await client.getServerInfo();
+        final userInfo = info['user_info'];
+        final formats =
+            userInfo is Map ? userInfo['allowed_output_formats'] : null;
+        if (formats is List) allowed = [for (final f in formats) '$f'];
+      } catch (e) {
+        debugPrint('[Source] ${source.nickname}: provider formats unknown: $e');
+      }
+    }
+    return XtreamClient.liveExtFor(source.liveFormat, allowed);
   }
 
   /// Runs [fn] with an [XtreamClient] for [source], disposing it afterwards.
@@ -659,7 +684,8 @@ class SourceManager {
       onProgress?.call('Connecting to provider…');
       onProgress?.call('Fetching channels…');
       var t = DateTime.now();
-      final channels = await client.getLiveStreams();
+      final channels =
+          await client.getLiveStreams(ext: await _liveExt(source, client));
       debugPrint('[Source] channels: ${channels.length} in ${DateTime.now().difference(t).inMilliseconds}ms');
 
       onProgress?.call('Fetching movies…');
