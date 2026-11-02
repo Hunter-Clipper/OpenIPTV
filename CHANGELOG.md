@@ -3,6 +3,12 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.47)
+
+**Improved**
+- Images load faster and stay loaded: logos, posters and backdrops now all share one bigger image cache (3,000 images, up from a library default of 200 for several screens), so scrolling back through a large playlist no longer downloads the same logos again, and twice as many images download at the same time on slow connections (#133, #134).
+- Detail-page backdrops are now decoded at your screen's size instead of the picture's full size, which saves a lot of memory on small TVs (#133, #134).
+
 ## Unreleased (0.14.46)
 
 **Fixes**
