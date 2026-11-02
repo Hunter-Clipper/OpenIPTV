@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -437,6 +438,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                       },
                       label: 'Connection',
                       value: net.connectionLabel,
+                      autofocus: true,
                     ),
                     _InfoRow(
                       icon: net.vpn ? Icons.vpn_lock : Icons.vpn_lock_outlined,
@@ -473,6 +475,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _vpnGroup(),
           _speedGroup(),
           _bufferGroup(),
+          _databaseGroup(),
         ],
       ),
       ),
@@ -771,6 +774,79 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     );
   }
 
+  // Moved here from the main Settings list so a stray OK can't flip it.
+  Widget _databaseGroup() {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final skip = prefs?.skipDbEncryption ?? false;
+
+    Future<void> change(bool enable) async {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(enable
+              ? 'Skip Database Encryption?'
+              : 'Turn Database Encryption back on?'),
+          content: Text(enable
+              ? 'This will store your database (including playlist '
+                  'credentials and stream links) unencrypted on disk. '
+                  'Anyone with access to the device can read it. The app '
+                  'must be restarted for the change to take effect.'
+              : 'Your database will be encrypted again, which is safer but '
+                  'can be slower on older TVs. The app will restart to '
+                  'apply it.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(enable ? 'Enable' : 'Turn On'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || prefs == null || !mounted) return;
+      await prefs.setSkipDbEncryption(enable);
+      ref.invalidate(appPreferencesProvider);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Restart Required'),
+          content: const Text('The database encryption mode has changed. '
+              'The app will now restart to apply the change.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      exit(0);
+    }
+
+    return SettingsGroup(
+      title: 'Database',
+      description: 'The database holds your playlists, logins and watch '
+          'history, and is encrypted on the device. Turning encryption off '
+          'can make very slow TVs faster.',
+      children: [
+        TvActivatable(
+          onTap: () => change(!skip),
+          builder: (tap) => SwitchListTile(
+            secondary: const IconBadge(icon: Icons.lock_open),
+            title: const Text('Skip Database Encryption'),
+            value: skip,
+            onChanged: tap == null ? null : (_) => tap(),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _bufferGroup() {
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final current = BufferPreset.fromId(prefs?.bufferPreset);
@@ -844,8 +920,10 @@ class _InfoRow extends StatelessWidget {
     required this.value,
     this.onTap,
     this.trailing,
+    this.autofocus = false,
   });
 
+  final bool autofocus;
   final IconData icon;
   final String label;
   final String value;
@@ -860,6 +938,7 @@ class _InfoRow extends StatelessWidget {
     // scrolls out of reach. A row with its own button uses the button.
     final tv = PlatformHelper.isTV(context);
     return TvActivatable(
+      autofocus: autofocus && tv,
       onTap: onTap ?? (tv && trailing == null ? () {} : null),
       builder: (tap) => ListTile(
         leading: IconBadge(icon: icon),

@@ -13,6 +13,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/settings/car_video_addon.dart';
 import 'package:open_iptv/features/settings/edit_playlist_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
@@ -442,69 +443,6 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => context.push('/settings/power-tools'),
                   ),
                 ),
-                Consumer(builder: (context, ref, _) {
-                  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
-                  final skipEnc = prefs?.skipDbEncryption ?? false;
-                  return StatefulBuilder(
-                    builder: (context, setLocal) => _ToggleTile(
-                      icon: Icons.lock_open,
-                      title: 'Skip Database Encryption',
-                      value: skipEnc,
-                      onChanged: (v) async {
-                        if (v) {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Skip Database Encryption?'),
-                              content: const Text(
-                                'This will store your database (including '
-                                'playlist credentials and stream links) '
-                                'unencrypted on disk. Anyone with access to '
-                                'the device can read it. The app must be '
-                                'restarted for the change to take effect.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Enable'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed != true) return;
-                        }
-                        final p = await ref.read(appPreferencesProvider.future);
-                        await p.setSkipDbEncryption(v);
-                        ref.invalidate(appPreferencesProvider);
-                        setLocal(() {});
-                        // Restart app to apply DB encryption mode change
-                        await showDialog<void>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Restart Required'),
-                            content: const Text(
-                              'The database encryption mode has changed. '
-                              'The app will now restart to apply the change.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
-                        // Force app restart
-                        exit(0);
-                      },
-                    ),
-                  );
-                }),
               ]),
             const SizedBox(height: 32),
           ],
@@ -1576,7 +1514,11 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                     controller: controller,
                     itemCount: hidden.length,
                     itemBuilder: (context, i) => ListTile(
-                      title: Text(hidden[i]),
+                      // Same name as in Live TV (the built-in "All Channels"
+                      // row is stored under a private key).
+                      title: Text(hidden[i] == '\u0001all'
+                          ? 'All Channels'
+                          : categoryLabel(context, profile, hidden[i])),
                       trailing: TvActivatable(
                         autofocus: i == 0,
                         onTap: profile == null
