@@ -3,6 +3,15 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.46)
+
+**Fixes**
+- TV: a category name that is too long for its box now scrolls sideways instead of being cut off with dots, in the TV guide's category list (while the row is focused) and in the player's channel panel.
+- Back now closes a dialog first, even on a Settings sub-page. Before, pressing Back with a dialog open (for example Change PIN, Edit Profile or New Profile) went back a page behind it and left the dialog hanging open on top of the wrong screen.
+- Hidden Categories (Settings) now shows the same names as Live TV (cleaned up or your own renames), and the built-in "All Channels" row reads properly instead of showing a hidden character.
+- Skip Database Encryption moved into Power User Tools, under a new Database heading, so a stray OK press in the main Settings list can't flip it. Turning encryption back on now asks first too.
+- Power User Tools: the first row is now focused when the page opens on a TV, so Up and Down start from the top.
+
 ## Unreleased (0.14.42)
 
 **Fixes**
