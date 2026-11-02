@@ -57,7 +57,15 @@ class PlaybackService {
   // One ExoPlayer instance lives for the whole app session (same lifetime
   // media_kit's single global Player had) — this creates its texture once,
   // on first use, and every later play() just reuses it.
-  Future<int> ensureTexture() => _createFuture ??= _player.create();
+  // A failed create is not cached: the next call tries again (the engine
+  // may simply not have been ready yet).
+  Future<int> ensureTexture() => _createFuture ??= _player.create().then(
+        (id) => id,
+        onError: (Object e, StackTrace s) {
+          _createFuture = null;
+          Error.throwWithStackTrace(e, s);
+        },
+      );
 
   bool get hasTexture => _player.isCreated;
   int get textureId => _player.textureId;
@@ -88,14 +96,16 @@ class PlaybackService {
   // ---------------------------------------------------------------------------
 
   static StreamType detectStreamType(String url) {
-    final lower = url.toLowerCase();
-    if (lower.contains('.m3u8') || lower.contains('hls')) return StreamType.hls;
-    if (lower.contains('.ts') || lower.contains('mpeg-ts')) {
-      return StreamType.mpegTs;
+    // Only the path says what a stream is: a host such as `x.tsc.com` or
+    // `hls.example.com` must not make it MPEG-TS or HLS.
+    final path = (Uri.tryParse(url)?.path ?? url).toLowerCase();
+    if (path.endsWith('.m3u8') || path.split('/').contains('hls')) {
+      return StreamType.hls;
     }
-    if (lower.contains('.mp4') ||
-        lower.contains('.mkv') ||
-        lower.contains('.avi')) {
+    if (path.endsWith('.ts')) return StreamType.mpegTs;
+    if (path.endsWith('.mp4') ||
+        path.endsWith('.mkv') ||
+        path.endsWith('.avi')) {
       return StreamType.progressive;
     }
     return StreamType.auto;
