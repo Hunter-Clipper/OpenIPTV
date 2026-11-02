@@ -53,7 +53,11 @@ class _VideoSurfaceState extends State<VideoSurface> {
   void _subscribe() {
     _sub = widget.stateStream.listen((s) {
       final ar = s.aspectRatio;
-      if (ar != null && ar != _aspectRatio) setState(() => _aspectRatio = ar);
+      // A stream that has no picture yet (a new one just opened) clears the
+      // old ratio, so the previous stream's last frame isn't drawn in the
+      // wrong shape.
+      if (ar == _aspectRatio) return;
+      setState(() => _aspectRatio = ar);
     });
   }
 
@@ -67,9 +71,8 @@ class _VideoSurfaceState extends State<VideoSurface> {
   Widget build(BuildContext context) {
     final texture = Texture(textureId: widget.textureId);
     final ar = _aspectRatio;
-    // Before the first frame the size is unknown; nothing is visible yet,
-    // so filling is harmless.
-    if (ar == null) return texture;
+    // Size unknown (no frame yet, or a new stream opening): nothing to show.
+    if (ar == null) return const SizedBox.expand();
     final fitted = Center(child: AspectRatio(aspectRatio: ar, child: texture));
     return LayoutBuilder(builder: (context, c) {
       final screenAr = c.maxWidth / c.maxHeight;
