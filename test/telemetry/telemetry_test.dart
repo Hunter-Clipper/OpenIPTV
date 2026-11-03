@@ -171,8 +171,10 @@ some random line about Channel BBC One
       expect(failed.length, 1);
     });
 
-    test('nothing is sent while the placeholder address is in place', () {
-      expect(statsEndpointConfigured, isFalse);
+    test('the receiver address is the project Worker over HTTPS', () {
+      expect(statsEndpoint, startsWith('https://openiptv-stats.'));
+      expect(statsEndpoint, endsWith('.workers.dev/report'));
+      expect(statsEndpointConfigured, isTrue);
     });
   });
 }

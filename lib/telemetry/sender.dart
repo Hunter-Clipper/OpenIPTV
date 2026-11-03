@@ -7,10 +7,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-/// Where reports go. Replace with the deployed Worker address
-/// (see tools/stats-worker/README.md). While it still holds the placeholder,
-/// nothing is sent and reports simply stay in the queue.
-const statsEndpoint = 'https://openiptv-stats.example.workers.dev/report';
+/// Where reports go: the project's own receiver (tools/stats-worker). Reports
+/// are only ever sent when the user turned them on.
+const statsEndpoint = 'https://openiptv-stats.hunter-clipper.workers.dev/report';
 
 bool get statsEndpointConfigured => !statsEndpoint.contains('example.workers.dev');
 
