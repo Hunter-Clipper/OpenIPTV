@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -13,10 +15,23 @@ class AppTheme {
   static const _outline = Color(0xFF3A3A3C);
   static const defaultAccent = Color(0xFF0A84FF);
   static const defaultAccentHex = '0A84FF';
-  static const _onPrimary = Colors.white;
+  // Near-black ink (the brand tile colour) for labels on a light accent.
+  static const _ink = Color(0xFF0A0A12);
+
+  /// Readable label colour for text or icons on [fill]: white when it reaches
+  /// the 4.5:1 minimum, otherwise ink. Every built-in accent (and the error
+  /// red) is too light for white.
+  static Color onAccent(Color fill) {
+    final a = Colors.white.computeLuminance();
+    final b = fill.computeLuminance();
+    final ratio = (math.max(a, b) + 0.05) / (math.min(a, b) + 0.05);
+    return ratio >= 4.5 ? Colors.white : _ink;
+  }
   static const _onBackground = Color(0xFFF2F2F7);
   static const _onSurface = Color(0xFFEBEBF5);
-  static const _onSurfaceVariant = Color(0xFF8E8E93);
+  // Secondary text. Lightened from #8E8E93 so it reaches 4.5:1 on the filled
+  // input / chip surface too (was 4.27:1 there).
+  static const _onSurfaceVariant = Color(0xFF9A9AA0);
   static const _error = Color(0xFFFF453A);
 
   // Available accent color swatches
@@ -67,14 +82,14 @@ class AppTheme {
       // own apps use) instead of the default zoom.
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.android: _MotionAwareTransitions(),
         },
       ),
       colorScheme: ColorScheme.dark(
         primary: primary,
-        onPrimary: _onPrimary,
+        onPrimary: onAccent(primary),
         secondary: primary,
-        onSecondary: _onPrimary,
+        onSecondary: onAccent(primary),
         surface: _surface,
         onSurface: _onSurface,
         surfaceContainerHighest: _surfaceVariant,
@@ -85,7 +100,7 @@ class AppTheme {
         onInverseSurface: _background,
         surfaceTint: Colors.transparent,
         error: _error,
-        onError: _onPrimary,
+        onError: onAccent(_error),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: _background,
@@ -199,7 +214,7 @@ class AppTheme {
             letterSpacing: 0.2),
         labelSmall: const TextStyle(
             color: _onSurfaceVariant,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.6),
       ),
@@ -224,7 +239,7 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: _onPrimary,
+          foregroundColor: onAccent(primary),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(cardRadius),
@@ -297,4 +312,25 @@ class AppTheme {
         backgroundColor: Theme.of(context).colorScheme.error,
         foregroundColor: Theme.of(context).colorScheme.onError,
       );
+}
+
+/// The app's page transition (Android's fade-forwards), skipped entirely when
+/// the system asks for no animations.
+class _MotionAwareTransitions extends PageTransitionsBuilder {
+  const _MotionAwareTransitions();
+
+  static const _inner = FadeForwardsPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return _inner.buildTransitions<T>(
+        route, context, animation, secondaryAnimation, child);
+  }
 }

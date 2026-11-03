@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/telemetry/consent_dialog.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
@@ -111,7 +112,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     _sparkleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3000),
-    )..repeat();
+    );
+    loopUnlessReduced(_sparkleCtrl);
     _sparkleAngle = Tween(begin: 0.0, end: 2 * pi).animate(_sparkleCtrl);
 
     if (widget.addPlaylistOnly) {
@@ -564,7 +566,8 @@ class _WelcomePageState extends State<_WelcomePage>
     _glowCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+    );
+    loopUnlessReduced(_glowCtrl, reverse: true);
 
     _fadeCtrl = AnimationController(
       vsync: this,
@@ -921,8 +924,8 @@ class _NamePage extends StatelessWidget {
                               : null,
                         ),
                         child: sel
-                            ? const Icon(Icons.check,
-                                color: Colors.white, size: 18)
+                            ? Icon(Icons.check,
+                                color: AppTheme.onAccent(s.color), size: 18)
                             : null,
                       ),
                     ),
@@ -1755,7 +1758,8 @@ class _LoadingPageState extends State<_LoadingPage>
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
+    loopUnlessReduced(_pulseCtrl, reverse: true);
     _pulse = Tween(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
     );
@@ -1935,9 +1939,9 @@ class _AllSetPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.check,
-                              color: Colors.white,
+                              color: AppTheme.onAccent(accentColor),
                               size: 54,
                             ),
                           ),
@@ -2111,14 +2115,20 @@ class _GradientButton extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: enabled
+                      ? AppTheme.onAccent(accentColor)
+                      : Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(icon, color: Colors.white, size: 20),
+              Icon(icon,
+                  color: enabled
+                      ? AppTheme.onAccent(accentColor)
+                      : Colors.white,
+                  size: 20),
             ],
           ),
         ),

@@ -55,7 +55,7 @@ String friendlySourceErrorMessage(Object error) {
   } else if (msg.contains('http_')) {
     return "This link doesn't look like a valid channel list. Check the URL with your provider.";
   }
-  return 'Something went wrong. Check your details and try again.';
+  return "That didn't work. Check your details and try again.";
 }
 
 /// Maps a raw exception thrown while refreshing a TV guide into a

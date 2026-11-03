@@ -529,7 +529,7 @@ class _ChannelRow extends ConsumerWidget {
                           Text(
                             '${_hm(context, now.start)} – ${_hm(context, now.end)}',
                             style: theme.textTheme.bodySmall!
-                                .copyWith(color: muted, fontSize: 11.5),
+                                .copyWith(color: muted, fontSize: 12),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -553,7 +553,7 @@ class _ChannelRow extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall!
-                            .copyWith(color: muted, fontSize: 11.5),
+                            .copyWith(color: muted, fontSize: 12),
                       ),
                     ],
                   ],
@@ -924,7 +924,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall!.copyWith(
-                fontSize: 11.5,
+                fontSize: 12,
                 color: prog == null
                     ? theme.colorScheme.onSurfaceVariant
                     : theme.colorScheme.primary,

@@ -438,7 +438,7 @@ class _ProgrammeCard extends StatelessWidget {
                         style: theme.textTheme.bodySmall!.copyWith(
                           color: theme.colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
-                          fontSize: 10,
+                          fontSize: 12,
                         ),
                       ),
                     ),

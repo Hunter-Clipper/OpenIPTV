@@ -505,7 +505,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
   Future<void> _save() async {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Please enter a name.');
+      setState(() => _error = 'Enter a name.');
       return;
     }
     try {
@@ -616,7 +616,7 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
   Future<void> _create() async {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Please enter a name.');
+      setState(() => _error = 'Enter a name.');
       return;
     }
     try {
