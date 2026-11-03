@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.52)
+## 0.14.53 — 2026-11-03
 
 **Improved**
 - Text on coloured buttons and badges is now readable on every accent colour. White labels were too faint on all six accents (Orange, Green and Teal were close to unreadable); they now switch to dark where white would fail.
@@ -11,6 +11,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - If your device is set to remove animations, OpenIPTV now follows it: no screen-slide transitions, and the looping glow and shimmer effects hold still.
 - Smaller text raised to a readable minimum: the LIVE badge, programme times in channel rows and rails.
 - Clearer wording: "Couldn't load this" and "That didn't work" instead of "Something went wrong", "Enter a name." instead of "Please enter a name.", and refresh messages say "playlists refreshed".
+
+**Fixes**
+- TV: the one-time "Help improve OpenIPTV?" question now takes focus when it opens. Before, neither button could be selected with the remote until you pressed Back, because the Live TV guide behind it grabbed focus as it finished loading.
 
 ## 0.14.51 — 2026-11-03
 

@@ -293,6 +293,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // built. Never leaves the user stranded: falls back to any built category,
   // then to the guide's first row.
   void _focusCategory(String? key) {
+    // Never pull focus out of a dialog that opened meanwhile (the first-run
+    // question about anonymous reports can open just as the categories
+    // finish loading): its buttons would stop responding.
+    final held = FocusManager.instance.primaryFocus?.context;
+    if (held != null && ModalRoute.of(held) is PopupRoute) return;
     void fallback() {
       final built = _categoryNodes.values.where((n) => n.context != null);
       if (built.isNotEmpty) {
