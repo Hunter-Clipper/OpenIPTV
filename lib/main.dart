@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/telemetry/consent.dart';
+import 'package:open_iptv/telemetry/telemetry.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/car_library.dart';
@@ -18,6 +20,9 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Optional anonymous crash reports (#150); records nothing unless the user
+  // turned them on.
+  Telemetry.install();
   // Increase image cache to handle large libraries (Movies/Series/Live TV).
   PaintingBinding.instance.imageCache.maximumSize = 2000;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 200 * 1024 * 1024; // 200MB
@@ -61,10 +66,14 @@ void main() async {
           () async => (await container.read(activeProfileProvider.future))?.id;
   }
 
+  container.read(statsChoiceProvider.notifier).state = await readStatsChoice();
+
   runApp(
     UncontrolledProviderScope(
       container: container,
       child: const OpenIPTVApp(),
     ),
   );
+  // Well after the first frame: pick up a native crash and send what waits.
+  unawaited(Future<void>.delayed(const Duration(seconds: 20), Telemetry.startup));
 }

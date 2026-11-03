@@ -1,0 +1,13 @@
+name = "openiptv-stats"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# The R2 bucket the reports are written to (create it first, see README).
+[[r2_buckets]]
+binding = "REPORTS"
+bucket_name = "openiptv-reports"
+
+# No public routes beyond the default workers.dev address; no logs of request
+# bodies or IPs are enabled here.
+[observability]
+enabled = false

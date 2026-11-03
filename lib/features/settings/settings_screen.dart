@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
@@ -464,6 +465,24 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: Text('Network info for troubleshooting',
                         style: theme.textTheme.bodySmall),
                     onTap: () => context.push('/settings/power-tools'),
+                  ),
+                ),
+                InfoTooltip(
+                  id: 'settings_anonymous_reports',
+                  title: 'Anonymous Reports',
+                  body: 'Optionally send an anonymous report when the app '
+                      'crashes, so problems get fixed faster. Off unless you '
+                      'turn it on, and you can see exactly what is sent.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.bug_report_outlined),
+                    title: 'Anonymous Reports',
+                    subtitle: Consumer(builder: (context, ref, _) {
+                      final on =
+                          ref.watch(statsChoiceProvider) == StatsChoice.on;
+                      return Text(on ? 'On' : 'Off',
+                          style: theme.textTheme.bodySmall);
+                    }),
+                    onTap: () => context.push('/settings/anonymous-reports'),
                   ),
                 ),
               ]),

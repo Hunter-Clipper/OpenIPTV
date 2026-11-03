@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/telemetry/consent_dialog.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -314,6 +315,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 
       if (!mounted) return;
       ref.invalidate(allSourcesProvider);
+
+      // New installs are asked once, here (#150). Playlist-only mode is an
+      // existing install and is asked from the main screen instead.
+      if (!widget.addPlaylistOnly) {
+        await askStatsConsentOnce(context, ProviderScope.containerOf(context));
+        if (!mounted) return;
+      }
 
       _goToPage(6);
       unawaited(_checkCtrl.forward());

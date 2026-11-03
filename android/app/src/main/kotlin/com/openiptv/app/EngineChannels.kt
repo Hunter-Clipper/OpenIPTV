@@ -56,6 +56,9 @@ object EngineChannels {
                     result.success(handler != null && !handler.contains("frameworkpackagestubs"))
                 }
                 "networkInfo" -> result.success(networkInfo(context))
+                // Optional anonymous crash reports (#150).
+                "deviceFacts" -> result.success(NativeCrashReporter.deviceFacts())
+                "takeNativeCrash" -> result.success(NativeCrashReporter.take(context))
                 else -> result.notImplemented()
             }
         }
@@ -120,5 +123,6 @@ class OpenIptvApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         EngineChannels.install()
+        NativeCrashReporter.install(this)
     }
 }

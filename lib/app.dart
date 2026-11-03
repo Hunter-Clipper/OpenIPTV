@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/telemetry/reports_screen.dart';
+import 'package:open_iptv/telemetry/consent_dialog.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
@@ -292,6 +294,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                   path: 'power-tools',
                   builder: (_, __) => const PowerUserScreen(),
                 ),
+                GoRoute(
+                  path: 'anonymous-reports',
+                  builder: (_, __) => const AnonymousReportsScreen(),
+                ),
               ],
             ),
           ],
@@ -436,6 +442,12 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    // One-time question about anonymous crash reports (#150) for people who
+    // updated or restored a backup; new installs are asked in the wizard.
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      askStatsConsentOnce(context, ProviderScope.containerOf(context));
+    });
     FocusManager.instance.addListener(_trackContentFocus);
     // Sideloaded installs have no store to update them — offer new GitHub
     // releases. Runs once the main UI is up (i.e. after setup and the
