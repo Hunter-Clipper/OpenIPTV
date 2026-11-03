@@ -38,6 +38,8 @@ const _pxPerMinute = 4.0;
 const _windowBefore = Duration(minutes: 30);
 const _windowAfter = Duration(hours: 5, minutes: 30);
 const _categoryWidth = 200.0;
+// With focus in the guide the column shrinks to its icons (#148).
+const _categoryWidthCollapsed = 64.0;
 const _channelWidth = 210.0;
 const _paneHeight = 164.0;
 const _headerHeight = 30.0;
@@ -123,6 +125,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // The first row's way in: what's on now (or its "No guide" cell).
   final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
   FocusNode? _lastGridFocus;
+  // True while focus is inside the guide: the category column shows icons only.
+  bool _collapsed = false;
   // The category list is lazy: a category scrolled out of sight has no
   // widget, so its focus node isn't attached and requestFocus does nothing.
   final _categoryScroll = ScrollController();
@@ -156,6 +160,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       }
     };
     TvGuideScreen.categoryColumnHasFocus = () => _columnNode.hasFocus;
+    _gridNode.addListener(_syncCollapsed);
     final now = DateTime.now();
     // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
     // with that half hour at the left edge.
@@ -171,8 +176,14 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  void _syncCollapsed() {
+    final inGrid = _gridNode.hasFocus;
+    if (inGrid != _collapsed && mounted) setState(() => _collapsed = inGrid);
+  }
+
   @override
   void dispose() {
+    _gridNode.removeListener(_syncCollapsed);
     TvGuideScreen.requestCategoryFocus = null;
     TvGuideScreen.requestGridFocus = null;
     TvGuideScreen.categoryColumnHasFocus = null;
@@ -459,9 +470,12 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ---- Category column ----
-        Container(
-          width: _categoryWidth,
-          color: theme.colorScheme.surfaceContainerLow,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: _collapsed ? _categoryWidthCollapsed : _categoryWidth,
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow),
           child: Focus(
             focusNode: _columnNode,
             canRequestFocus: false,
@@ -505,6 +519,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     },
                     selected: key == shown,
                     locked: locked(key),
+                    compact: _collapsed,
                     onFocus: () => _onCategoryFocused(key),
                     onTap: () => _openCategory(key),
                     onLongPress: (_isRealCategory(key) || key == _all) && profile != null
@@ -1030,6 +1045,7 @@ class _CategoryItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.locked,
+    required this.compact,
     required this.onFocus,
     required this.onTap,
     this.onLongPress,
@@ -1040,6 +1056,8 @@ class _CategoryItem extends StatelessWidget {
   final String label;
   final bool selected;
   final bool locked;
+  // Icon only (focus is in the guide).
+  final bool compact;
   final VoidCallback onFocus;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
@@ -1071,8 +1089,11 @@ class _CategoryItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
+            mainAxisAlignment:
+                compact ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
               Icon(icon, size: 18, color: color),
+              if (!compact) ...[
               const SizedBox(width: 10),
               Expanded(
                 // A long name scrolls while the row is focused.
@@ -1088,6 +1109,7 @@ class _CategoryItem extends StatelessWidget {
               if (locked)
                 Icon(Icons.lock_outline_rounded,
                     size: 16, color: theme.colorScheme.onSurfaceVariant),
+              ],
             ],
           ),
         ),

@@ -3,7 +3,10 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.48)
+## Unreleased (0.14.49)
+
+**Improved**
+- TV guide: the category column shrinks to just its icons while you are in the guide, giving the programme grid more room. Move Left to bring the names back (#148).
 
 **Fixes**
 - Typing a server address in Add Playlist (or Edit Playlist) no longer fills in the password box from your phone's password manager. These fields now opt out of autofill (#147).
