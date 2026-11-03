@@ -314,7 +314,7 @@ String vpnConnectMessage(String result) => switch (result) {
       'ok' => 'VPN connected',
       'starting' => 'Connecting the VPN…',
       'denied' => 'OpenIPTV needs your permission to set up a VPN. '
-          'Tap Connect and allow it.',
+          'Select Connect and allow it.',
       'bad_config' => 'This profile has a problem. Import it again.',
       _ => "Couldn't connect the VPN. Check the profile and try again.",
     };

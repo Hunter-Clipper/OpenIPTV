@@ -108,8 +108,8 @@ class ProfileScreen extends ConsumerWidget {
                       title: const Text('PIN Lock'),
                       subtitle: Text(
                         profile.hasPin
-                            ? 'PIN is set — tap to change or remove'
-                            : 'No PIN — tap to set one',
+                            ? 'PIN is set — select to change or remove'
+                            : 'No PIN — select to set one',
                         style: theme.textTheme.bodySmall,
                       ),
                       trailing: profile.hasPin

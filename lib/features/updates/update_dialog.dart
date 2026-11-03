@@ -263,7 +263,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
       case _Phase.needsPermission:
         return Text(
           'To install updates, OpenIPTV needs permission to install apps.\n\n'
-          'Tap Open Settings, turn on "Allow from this source", then come '
+          'Select Open Settings, turn on "Allow from this source", then come '
           'back here — the update will continue automatically.',
           style: theme.textTheme.bodyMedium,
         );
@@ -286,7 +286,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
         return Text(
           'Follow the prompts on screen to finish installing. OpenIPTV will '
           'restart on the new version.\n\n'
-          "If nothing appeared, or you cancelled, tap Install again.",
+          "If nothing appeared, or you cancelled, select Install again.",
           style: theme.textTheme.bodyMedium,
         );
       case _Phase.failed:

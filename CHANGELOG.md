@@ -6,7 +6,11 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased (0.14.54)
 
 **Improved**
+- Wording that fits both phones and TVs: hints now say "select" instead of "tap" (Profiles, PIN, VPN, update and car-video steps), since a remote doesn't tap.
 - "Remove animations" now covers the whole app, not just screen changes: focus highlights, posters growing on focus, the player's controls fading, the TV guide column, scrolling to a focused item and the setup steps all switch instantly, and long names stay shortened instead of scrolling.
+
+**Fixes**
+- Turning database encryption on or off told you the app would restart, but it just closed. The message now says it will close and to open it again.
 
 ## 0.14.53 — 2026-11-03
 

@@ -815,13 +815,13 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Restart Required'),
+          title: const Text('Reopen OpenIPTV to finish'),
           content: const Text('The database encryption mode has changed. '
-              'The app will now restart to apply the change.'),
+              'OpenIPTV will close now. Open it again to apply the change.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
+              child: const Text('Close OpenIPTV'),
             ),
           ],
         ),

@@ -58,7 +58,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Profile',
                 body: 'OpenIPTV supports multiple profiles on one device. '
                     'Each profile has its own watch history, favorites, hidden '
-                    'categories, and PIN lock. Tap to manage profiles.',
+                    'categories, and PIN lock. Select to manage profiles.',
                 child: _NavTile(
                   autofocus: true,
                   leading: profile != null
