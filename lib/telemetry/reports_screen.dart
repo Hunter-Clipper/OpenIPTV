@@ -100,7 +100,7 @@ class _AnonymousReportsScreenState
               '• Playlists, logins, passwords or links\n'
               '• Channel, movie or series names, or what you watch\n'
               '• Search text, profile names or settings\n'
-              '• IP addresses, device or advertising IDs, or any ID that '
+              '• IP addresses, device IDs, or any ID that '
               'could tie reports together\n'
               '• Error messages (they can contain links or names)',
             )),

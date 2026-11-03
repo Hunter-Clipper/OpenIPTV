@@ -4,7 +4,7 @@
 //
 // Deliberately absent: exception messages, URLs, host names, IPs, logins,
 // playlist / profile / channel / title names, search text, settings, and any
-// device, advertising or install ID.
+// device or install ID.
 
 import 'package:open_iptv/telemetry/scrubber.dart';
 
