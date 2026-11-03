@@ -181,6 +181,10 @@ class NativeVideoPlayer(
     private val playerListener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 CarVideo.streamStateChanged(this@NativeVideoPlayer)
+                // Auto frame rate (#149): hand the screen back when the main
+                // player stops (multi-view's other tiles must not).
+                if (audible && (playbackState == Player.STATE_IDLE ||
+                        playbackState == Player.STATE_ENDED)) FrameRateMatcher.restore()
                 emitState()
             }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
@@ -224,6 +228,7 @@ class NativeVideoPlayer(
                 videoHeight = videoSize.height
                 pixelRatio = videoSize.pixelWidthHeightRatio
                 onVideoSize?.invoke(videoWidth, videoHeight, pixelRatio)
+                matchFrameRate()
                 emitState()
             }
             override fun onRenderedFirstFrame() {
@@ -491,7 +496,15 @@ class NativeVideoPlayer(
     val hasStream get() =
         exoPlayer.playbackState != Player.STATE_IDLE && exoPlayer.playbackState != Player.STATE_ENDED
 
+    // Auto frame rate (#149): the player you hear drives the screen's rate.
+    private fun matchFrameRate() {
+        if (!audible) return
+        val fps = exoPlayer.videoFormat?.frameRate ?: return
+        if (fps > 0f) FrameRateMatcher.match(fps)
+    }
+
     fun dispose() {
+        if (audible) FrameRateMatcher.restore()
         CarVideo.playerGone(this)
         mainHandler.removeCallbacks(positionUpdater)
         onPlayingChanged(false)
@@ -590,6 +603,11 @@ class NativeVideoPlayerManager(
                     call.argument<String>("bufferPreset") ?: "fast",
                     call.argument<Boolean>("carScreen") ?: false,
                 )
+                result.success(null)
+            }
+            "setAutoFrameRate" -> {
+                FrameRateMatcher.enabled = call.argument<Boolean>("enabled") ?: false
+                if (!FrameRateMatcher.enabled) FrameRateMatcher.restore(immediately = true)
                 result.success(null)
             }
             "play" -> {

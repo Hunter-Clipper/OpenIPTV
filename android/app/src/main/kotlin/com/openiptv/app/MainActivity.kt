@@ -46,6 +46,7 @@ class MainActivity : AudioServiceActivity() {
     private var backBlocked = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        FrameRateMatcher.attach(this)
         super.configureFlutterEngine(flutterEngine)
         pipChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "openiptv/pip")
         pipChannel?.setMethodCallHandler { call, result ->

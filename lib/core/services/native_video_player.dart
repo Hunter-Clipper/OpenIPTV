@@ -199,6 +199,16 @@ class NativeVideoPlayer {
     });
   }
 
+  /// Auto frame rate (#149): lets the native side switch the screen's
+  /// refresh rate to suit the video. App-wide, not per player.
+  static Future<void> setAutoFrameRate(bool enabled) async {
+    try {
+      await _control.invokeMethod('setAutoFrameRate', {'enabled': enabled});
+    } catch (_) {
+      // No native player on this platform (tests, web): nothing to do.
+    }
+  }
+
   Future<void> play() => _control.invokeMethod('play', {'id': _textureId});
 
   /// Whether this is the player you hear: full volume and media audio

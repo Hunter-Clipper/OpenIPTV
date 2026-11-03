@@ -232,6 +232,29 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               Consumer(builder: (context, ref, _) {
+                final autoRate = ref.watch(autoFrameRateProvider);
+                return InfoTooltip(
+                  id: 'settings_auto_frame_rate',
+                  title: 'Match Frame Rate',
+                  body: 'Switches your screen to a refresh rate that suits '
+                      'the video (for example 24 Hz for films), so motion '
+                      'looks smoother. Only works if your screen supports '
+                      'it, and some TVs go black for a moment when it '
+                      'switches. The screen goes back to normal when you '
+                      'stop watching.',
+                  child: _ToggleTile(
+                    icon: Icons.speed_rounded,
+                    title: 'Match Frame Rate',
+                    value: autoRate,
+                    onChanged: (v) async {
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setAutoFrameRate(ref, v, prefs);
+                    },
+                  ),
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
                 final pipEnabled = ref.watch(pipEnabledProvider);
                 return InfoTooltip(
                   id: 'settings_pip',
