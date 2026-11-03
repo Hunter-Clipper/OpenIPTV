@@ -14,7 +14,9 @@ tray).
 
 **Decided:** icons only while collapsed; TV only.
 
-## #149 Auto frame rate / auto resolution (TV and capable devices)
+## #149 Auto frame rate / auto resolution (TV and capable devices) — frame rate DONE (0.14.50)
+
+Frame rate matching built as `FrameRateMatcher.kt` plus Settings → Playback → Match Frame Rate (off by default), confirmed by the owner on the Chromecast, 2026-11-03. Resolution switching is still to do. The text below is the original plan.
 
 - Frame rate: Media3 can ask the display to match the video's frame rate
   (`setVideoChangeFrameRateStrategy`, Android 11+). Needs a Settings →
