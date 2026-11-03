@@ -26,7 +26,7 @@ One small JSON report per event:
 
 **Never sent:** exception messages (they can contain links or names), URLs,
 host names, IP addresses, logins, playlist or profile names, channel, movie or
-series titles, search text, settings, device or advertising IDs, account
+series titles, search text, settings, device IDs, account
 details, anything from the database. There is **no install ID**: reports
 cannot be tied to each other or to a person. (Trade-off: you can count
 reports, not unique users.)
