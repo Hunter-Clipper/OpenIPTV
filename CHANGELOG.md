@@ -3,23 +3,17 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.49)
+## 0.14.51 — 2026-11-03
+
+**New**
+- Optional anonymous crash reports, off unless you turn them on: if the app crashes, it can send a short report with the app version, your device model and where in the code it went wrong. Never your playlists, logins, links, channel names or what you watch, and it can't be tied to you. People who update are asked once, new installs are asked once in setup, and Settings → Advanced → Anonymous Reports changes it and shows exactly what is sent (#150).
+- Settings → Playback → Match Frame Rate: switches your screen to a refresh rate that suits the video (for example 24 Hz for films) while you watch, then puts it back. Off by default; needs a screen that offers that rate, and some TVs go black for a moment when switching (#149).
 
 **Improved**
 - TV guide: the category column shrinks to just its icons while you are in the guide, giving the programme grid more room. Move Left to bring the names back (#148).
 
 **Fixes**
 - Typing a server address in Add Playlist (or Edit Playlist) no longer fills in the password box from your phone's password manager. These fields now opt out of autofill (#147).
-
-## Unreleased (0.14.51)
-
-**New**
-- Anonymous crash reports (optional, off unless you turn them on): if the app crashes, it can send a short report with the app version, your device model and where in the code it went wrong. Never your playlists, logins, links, channel names or what you watch, and it can't be tied to you. People who update are asked once, new installs are asked once in setup, and Settings → Advanced → Anonymous Reports changes it and shows exactly what is sent (#150).
-
-## Unreleased (0.14.50)
-
-**New**
-- Settings → Playback → Match Frame Rate: switches your screen to a refresh rate that suits the video (for example 24 Hz for films) while you watch, then puts it back. Off by default; needs a screen that offers that rate, and some TVs go black for a moment when switching (#149).
 
 ## 0.14.47 — 2026-11-02
 
