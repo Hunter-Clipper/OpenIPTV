@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 
 /// Renders a native video texture at the content's own aspect ratio,
@@ -86,7 +87,7 @@ class _VideoSurfaceState extends State<VideoSurface> {
       return ClipRect(
         child: AnimatedScale(
           scale: scale,
-          duration: const Duration(milliseconds: 220),
+          duration: motionDuration(const Duration(milliseconds: 220)),
           curve: Curves.easeOutCubic,
           child: fitted,
         ),

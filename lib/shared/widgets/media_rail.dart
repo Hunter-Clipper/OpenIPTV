@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -246,10 +247,10 @@ class _PosterCardState extends State<_PosterCard> {
           children: [
             AnimatedScale(
               scale: lit ? 1.07 : 1.0,
-              duration: const Duration(milliseconds: 160),
+              duration: motionDuration(const Duration(milliseconds: 160)),
               curve: Curves.easeOut,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
+                duration: motionDuration(const Duration(milliseconds: 160)),
                 width: widget.width,
                 height: widget.height,
                 decoration: BoxDecoration(

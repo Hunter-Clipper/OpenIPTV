@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -964,7 +965,7 @@ class _EmojiPicker extends StatelessWidget {
           onTap: () => onSelected(emoji),
           borderRadius: BorderRadius.circular(8),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: motionDuration(const Duration(milliseconds: 150)),
             width: 40,
             height: 40,
             decoration: BoxDecoration(

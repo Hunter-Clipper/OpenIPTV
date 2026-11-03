@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/telemetry/reports_screen.dart';
 import 'package:open_iptv/telemetry/consent_dialog.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
@@ -872,10 +873,10 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
       onFocusChange: (focused) => setState(() => _focused = focused),
       child: AnimatedScale(
         scale: _focused ? 1.08 : 1.0,
-        duration: _duration,
+        duration: motionDuration(_duration),
         curve: _curve,
         child: AnimatedContainer(
-          duration: _duration,
+          duration: motionDuration(_duration),
           curve: _curve,
           margin: const EdgeInsets.symmetric(horizontal: 10),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),

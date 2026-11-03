@@ -1,3 +1,4 @@
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:flutter/material.dart';
 
 /// A profile's emoji on a round, softly tinted background. The tint is
@@ -36,7 +37,7 @@ class ProfileAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = colorFor(name);
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
+      duration: motionDuration(const Duration(milliseconds: 160)),
       width: size,
       height: size,
       alignment: Alignment.center,

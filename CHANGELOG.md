@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.54)
+
+**Improved**
+- "Remove animations" now covers the whole app, not just screen changes: focus highlights, posters growing on focus, the player's controls fading, the TV guide column, scrolling to a focused item and the setup steps all switch instantly, and long names stay shortened instead of scrolling.
+
 ## 0.14.53 — 2026-11-03
 
 **Improved**

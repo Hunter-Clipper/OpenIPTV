@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/update_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -383,7 +384,7 @@ class _NotesBoxState extends State<_NotesBox> {
     // At either end, let the D-pad move focus on (to the buttons) instead.
     if (target == null) return KeyEventResult.ignored;
     _scroll.animateTo(target.clamp(pos.minScrollExtent, pos.maxScrollExtent),
-        duration: const Duration(milliseconds: 120), curve: Curves.easeOut);
+        duration: motionDuration(const Duration(milliseconds: 120)), curve: Curves.easeOut);
     return KeyEventResult.handled;
   }
 

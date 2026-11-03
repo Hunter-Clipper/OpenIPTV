@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -219,7 +220,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           _timelineWidth);
 
   void _scrollTimeTo(double x) => _time.animateTo(x.clamp(0.0, _maxOffset),
-      duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      duration: motionDuration(const Duration(milliseconds: 200)), curve: Curves.easeOut);
 
   // A programme cell came into focus: bring its start into view if it isn't.
   void _revealTime(double x) {
@@ -476,9 +477,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       children: [
         // ---- Category column ----
         AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 180),
+          duration: motionDuration(const Duration(milliseconds: 180)),
           curve: Curves.easeOutCubic,
           width: _collapsed ? _categoryWidthCollapsed : _categoryWidth,
           clipBehavior: Clip.hardEdge,
@@ -1620,7 +1619,7 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     Scrollable.ensureVisible(
       row,
       alignment: 0.5,
-      duration: Duration(milliseconds: held ? 110 : 200),
+      duration: motionDuration(Duration(milliseconds: held ? 110 : 200)),
       curve: held ? Curves.linear : Curves.easeOutCubic,
     );
   }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
@@ -308,7 +309,7 @@ class MultiViewState extends State<MultiView> {
             for (var i = 0; i < _tiles.length; i++)
               AnimatedPositioned(
                 key: ObjectKey(_tiles[i]),
-                duration: const Duration(milliseconds: 250),
+                duration: motionDuration(const Duration(milliseconds: 250)),
                 curve: Curves.easeOutCubic,
                 left: rects[i].left,
                 top: rects[i].top,
@@ -673,7 +674,7 @@ class _TileView extends StatelessWidget {
             bottom: 0,
             child: AnimatedOpacity(
               opacity: showLabel || message != null ? 1 : 0,
-              duration: const Duration(milliseconds: 300),
+              duration: motionDuration(const Duration(milliseconds: 300)),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(12, 18, 12, 10),
                 decoration: const BoxDecoration(
@@ -712,7 +713,7 @@ class _TileView extends StatelessWidget {
           // stands out even on a bright, busy picture.
           IgnorePointer(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: motionDuration(const Duration(milliseconds: 200)),
               color: highlighted ? Colors.transparent : const Color(0x59000000),
             ),
           ),
@@ -721,7 +722,7 @@ class _TileView extends StatelessWidget {
           IgnorePointer(
             child: AnimatedOpacity(
               opacity: highlighted ? 1 : 0,
-              duration: const Duration(milliseconds: 150),
+              duration: motionDuration(const Duration(milliseconds: 150)),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.white, width: tv ? 5 : 3),

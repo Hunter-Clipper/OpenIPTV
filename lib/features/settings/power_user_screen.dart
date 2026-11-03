@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/network_info.dart';
@@ -59,7 +60,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       if (!mounted || !ctx.mounted) return;
       Scrollable.ensureVisible(ctx,
           alignment: 0.35,
-          duration: const Duration(milliseconds: 150),
+          duration: motionDuration(const Duration(milliseconds: 150)),
           curve: Curves.easeOut);
     });
   }

@@ -1,3 +1,4 @@
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -142,7 +143,7 @@ class TvKeyboardInset extends StatelessWidget {
         valueListenable: TvTextInput.showing,
         builder: (context, showing, child) => TweenAnimationBuilder<double>(
           tween: Tween(end: showing ? 1 : 0),
-          duration: _slide,
+          duration: motionDuration(_slide),
           curve: Curves.easeOutCubic,
           child: child,
           builder: (context, t, child) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -1228,7 +1229,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_cueText.isEmpty) return const SizedBox.shrink();
     // Lifted clear of the controls' bottom panel while it's showing.
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 250),
+      duration: motionDuration(const Duration(milliseconds: 250)),
       curve: Curves.easeOut,
       left: 24,
       right: 24,
@@ -1332,7 +1333,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 // Buffering / recovery overlay.
                 AnimatedOpacity(
                   opacity: _isBuffering ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
+                  duration: motionDuration(const Duration(milliseconds: 300)),
                   child: IgnorePointer(
                     ignoring: !_isBuffering,
                     child: Container(
@@ -1382,7 +1383,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 // Controls overlay
                 AnimatedOpacity(
                   opacity: _showOverlayControls ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 250),
+                  duration: motionDuration(const Duration(milliseconds: 250)),
                   child: IgnorePointer(
                     ignoring: !_showOverlayControls,
                     child: ExcludeFocus(
@@ -1468,7 +1469,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         child: AnimatedOpacity(
                           opacity:
                               always || (tv && _showOverlayControls) ? 1 : 0,
-                          duration: const Duration(milliseconds: 250),
+                          duration: motionDuration(const Duration(milliseconds: 250)),
                           child: PlayerClock(fontSize: tv ? 20 : 15),
                         ),
                       ),
@@ -1673,7 +1674,7 @@ class _LoadingView extends StatelessWidget {
     final theme = Theme.of(context);
     return AnimatedOpacity(
       opacity: visible ? 1 : 0,
-      duration: const Duration(milliseconds: 200),
+      duration: motionDuration(const Duration(milliseconds: 200)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
