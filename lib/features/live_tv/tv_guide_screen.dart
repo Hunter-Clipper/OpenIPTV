@@ -471,7 +471,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       children: [
         // ---- Category column ----
         AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           width: _collapsed ? _categoryWidthCollapsed : _categoryWidth,
           clipBehavior: Clip.hardEdge,

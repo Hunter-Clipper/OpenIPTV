@@ -48,8 +48,8 @@ void main() {
       expect(
         refreshSummary(RefreshScope.everything, results),
         "1 of 4 updated. Main: This TV guide link doesn't look valid. Check the URL with your provider.; "
-        "Old: Something went wrong. Check your details and try again.; "
-        "Gone: Something went wrong. Check your details and try again..",
+        "Old: That didn't work. Check your details and try again.; "
+        "Gone: That didn't work. Check your details and try again..",
       );
     });
 

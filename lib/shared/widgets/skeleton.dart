@@ -1,3 +1,4 @@
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:flutter/material.dart';
 
 /// Loading placeholder shaped like the list that's about to appear — rows of
@@ -83,7 +84,14 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat();
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // A still placeholder when the system asks for no animations.
+    loopUnlessReduced(_controller);
+  }
 
   @override
   void dispose() {

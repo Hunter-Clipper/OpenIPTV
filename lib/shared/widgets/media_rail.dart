@@ -350,7 +350,7 @@ class _PosterCardState extends State<_PosterCard> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall!.copyWith(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   color: item.highlightSubtitle
                       ? theme.colorScheme.primary
                       : null,
