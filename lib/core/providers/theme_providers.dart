@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -33,6 +34,8 @@ final refreshNotificationsEnabledProvider = StateProvider<bool>((ref) => true);
 // the persisted default (on for phones/tablets, off on TV).
 final pipEnabledProvider =
     StateProvider<bool>((ref) => !PlatformHelper.isTVDevice);
+// Auto frame rate (#149) — runtime cache of the preference.
+final autoFrameRateProvider = StateProvider<bool>((ref) => false);
 // Bumped when Home is pressed and Picture-in-Picture isn't going to take
 // over: whatever is playing (player, guide preview, multi-view) stops.
 final homeLeaveProvider = StateProvider<int>((ref) => 0);
@@ -149,6 +152,13 @@ Future<void> setRefreshNotificationsEnabled(
   await prefs.setRefreshNotificationsEnabled(enabled);
 }
 
+Future<void> setAutoFrameRate(
+    WidgetRef ref, bool enabled, AppPreferences prefs) async {
+  ref.read(autoFrameRateProvider.notifier).state = enabled;
+  await prefs.setAutoFrameRate(enabled);
+  await NativeVideoPlayer.setAutoFrameRate(enabled);
+}
+
 Future<void> setPipEnabled(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(pipEnabledProvider.notifier).state = enabled;
@@ -184,6 +194,8 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(refreshNotificationsEnabledProvider.notifier).state =
       prefs.refreshNotificationsEnabled;
   ref.read(pipEnabledProvider.notifier).state = prefs.pipEnabled;
+  ref.read(autoFrameRateProvider.notifier).state = prefs.autoFrameRate;
+  NativeVideoPlayer.setAutoFrameRate(prefs.autoFrameRate);
   ref.read(mediaNotificationEnabledProvider.notifier).state =
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);

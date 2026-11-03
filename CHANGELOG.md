@@ -11,6 +11,11 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 **Fixes**
 - Typing a server address in Add Playlist (or Edit Playlist) no longer fills in the password box from your phone's password manager. These fields now opt out of autofill (#147).
 
+## Unreleased (0.14.50)
+
+**New**
+- Settings → Playback → Match Frame Rate: switches your screen to a refresh rate that suits the video (for example 24 Hz for films) while you watch, then puts it back. Off by default; needs a screen that offers that rate, and some TVs go black for a moment when switching (#149).
+
 ## 0.14.47 — 2026-11-02
 
 **New**

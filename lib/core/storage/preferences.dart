@@ -24,6 +24,7 @@ const _kLastRegisteredRefreshIntervalHours =
     'last_registered_refresh_interval_hours';
 const _kRefreshNotificationsEnabled = 'refresh_notifications_enabled';
 const _kPipEnabled = 'pip_enabled';
+const _kAutoFrameRate = 'auto_frame_rate';
 const _kMediaNotificationEnabled = 'media_notification_enabled';
 const _kAutoUpdateCheck = 'auto_update_check';
 const _kCleanNames = 'clean_names';
@@ -138,6 +139,10 @@ class AppPreferences {
   }
 
   Future<void> setPipEnabled(bool v) => _prefs.setBool(_kPipEnabled, v);
+
+  /// Match the screen's refresh rate to the video (#149). Off by default.
+  bool get autoFrameRate => _prefs.getBool(_kAutoFrameRate) ?? false;
+  Future<void> setAutoFrameRate(bool v) => _prefs.setBool(_kAutoFrameRate, v);
 
   // Now Playing / media notification
   bool get mediaNotificationEnabled =>
