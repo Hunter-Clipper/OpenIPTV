@@ -1314,7 +1314,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           // which Up/Down change channel.
           skipTraversal: true,
           onKeyEvent: _handleKeyEvent,
-          child: GestureDetector(
+          child: Semantics(
+            button: true,
+            label: 'Video',
+            hint: 'Double tap to show or hide the playback controls',
+            child: GestureDetector(
             onTap: _onTap,
             // Swipe left (from anywhere) for the channel list on Live TV.
             onHorizontalDragEnd: _isChannelPlayback
@@ -1497,7 +1501,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ),
               ],
             ),
-          ),
+          )),
         ),
       ),
     );
