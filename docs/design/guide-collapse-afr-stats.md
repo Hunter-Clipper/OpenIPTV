@@ -2,7 +2,9 @@
 
 Status: owner decisions recorded 2026-11-03. Each item can ship on its own.
 
-## #148 Collapse the category column in the TV guide
+## #148 Collapse the category column in the TV guide — DONE (0.14.49)
+
+Built and confirmed by the owner on TV and phone, 2026-11-03.
 
 When focus moves right into the guide, the category column shrinks (icons or
 nothing) so the time grid gets the room. Moving Left back to the column
