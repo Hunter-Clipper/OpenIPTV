@@ -825,11 +825,11 @@ class _NamePage extends StatelessWidget {
                   fillColor: AppTheme.surfaceVariantColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppTheme.outlineColor),
+                    borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppTheme.outlineColor),
+                    borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -1239,8 +1239,8 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
     super.initState();
     _pressCtrl = AnimationController(
       vsync: this,
-      duration: motionDuration(const Duration(milliseconds: 120)),
-      lowerBound: 0.95,
+      duration: motionDuration(const Duration(milliseconds: 150)),
+      lowerBound: 0.96,
       upperBound: 1.0,
       value: 1.0,
     );
@@ -1708,11 +1708,11 @@ class _WizardField extends StatelessWidget {
             fillColor: AppTheme.surfaceVariantColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.outlineColor),
+              borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.outlineColor),
+              borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

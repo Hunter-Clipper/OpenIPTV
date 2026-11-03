@@ -13,6 +13,9 @@ class AppTheme {
   static const _surface = Color(0xFF1C1C1E);
   static const _surfaceVariant = Color(0xFF2C2C2E);
   static const _outline = Color(0xFF3A3A3C);
+  // Text-field edge: 3.7:1 against the page (the plain outline is 1.7:1, too
+  // faint to find a field by). Dividers and card borders keep the softer one.
+  static const fieldBorderColor = Color(0xFF6E6E73);
   static const defaultAccent = Color(0xFF0A84FF);
   static const defaultAccentHex = '0A84FF';
   // Near-black ink (the brand tile colour) for labels on a light accent.
@@ -162,7 +165,7 @@ class AppTheme {
         fillColor: _surfaceVariant,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: fieldBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),

@@ -6,6 +6,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased (0.14.54)
 
 **Improved**
+- Text fields have a clearer edge, so they are easy to spot against the dark background (name, playlist, PIN, search and dialogs). Setup cards also press in a touch more gently.
 - Wording that fits both phones and TVs: hints now say "select" instead of "tap" (Profiles, PIN, VPN, update and car-video steps), since a remote doesn't tap.
 - "Remove animations" now covers the whole app, not just screen changes: focus highlights, posters growing on focus, the player's controls fading, the TV guide column, scrolling to a focused item and the setup steps all switch instantly, and long names stay shortened instead of scrolling.
 
