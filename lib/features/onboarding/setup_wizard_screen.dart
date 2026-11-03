@@ -1685,6 +1685,9 @@ class _WizardField extends StatelessWidget {
           keyboardType: type,
           obscureText: obscure,
           autocorrect: false,
+          // Playlist logins are never the device's saved logins: an empty hint
+          // list stops Android autofill from pairing the URL with a saved password.
+          autofillHints: const <String>[],
           textInputAction: TextInputAction.next,
           style: const TextStyle(color: Colors.white, fontSize: 15),
           decoration: InputDecoration(
