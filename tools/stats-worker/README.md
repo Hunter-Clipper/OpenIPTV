@@ -30,9 +30,7 @@ npx wrangler deploy
 `wrangler deploy` prints the address, like
 `https://openiptv-stats.<your-account>.workers.dev`. Put
 `https://…workers.dev/report` into `statsEndpoint` in
-`lib/telemetry/sender.dart` (one constant). While it still holds the
-`example.workers.dev` placeholder the app sends nothing and keeps reports
-only in its on-device queue.
+`lib/telemetry/sender.dart` (one constant). The project's own deployment is already set.
 
 The bucket stays private: only you can read it (R2 dashboard or `wrangler r2
 object get`).

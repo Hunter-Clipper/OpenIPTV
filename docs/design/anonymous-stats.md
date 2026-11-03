@@ -1,6 +1,6 @@
 # Optional anonymous crash and error reports (#150)
 
-Status: owner approved 2026-11-03 (field list, no install ID, workers.dev address, wording). Scope: crashes and fatal errors only; playback errors are NOT reported. Built; waiting on deploying the Worker and setting `statsEndpoint`.
+Status: owner approved 2026-11-03 (field list, no install ID, workers.dev address, wording). Scope: crashes and fatal errors only; playback errors are NOT reported. Built. Worker deployed at `openiptv-stats.hunter-clipper.workers.dev` with the private R2 bucket `openiptv-reports` (90-day lifecycle rule, 2026-11-03).
 
 Goal: learn about crashes and playback failures nobody reports, without
 collecting anything about a person, a provider or what they watch. Off by
