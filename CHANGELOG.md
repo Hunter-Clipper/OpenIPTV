@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.48)
+
+**Fixes**
+- Typing a server address in Add Playlist (or Edit Playlist) no longer fills in the password box from your phone's password manager. These fields now opt out of autofill (#147).
+
 ## 0.14.47 — 2026-11-02
 
 **New**
