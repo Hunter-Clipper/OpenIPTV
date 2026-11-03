@@ -1,11 +1,11 @@
 # Optional anonymous crash and error reports (#150)
 
-Status: design for owner approval. No code yet.
+Status: owner approved 2026-11-03 (field list, no install ID, workers.dev address, wording). Scope: crashes and fatal errors only; playback errors are NOT reported. Built; waiting on deploying the Worker and setting `statsEndpoint`.
 
 Goal: learn about crashes and playback failures nobody reports, without
 collecting anything about a person, a provider or what they watch. Off by
 default for everyone. Every line of this feature lives in one folder
-(`lib/telemetry/`, plus one small Kotlin file) so it can be audited in
+(`lib/telemetry/`, plus one small Kotlin file, `NativeCrashReporter.kt`) so it can be audited in
 minutes.
 
 ## What is sent (the complete list)
@@ -20,10 +20,9 @@ One small JSON report per event:
 | `os` | `34` | Android API level |
 | `device` | `Google Chromecast` (maker + model) | hardware-specific bugs |
 | `day` | `2026-11-03` | the date only, no time, no time zone |
-| `kind` | `crash`, `native-crash`, `playback-error` | what happened |
+| `kind` | `crash`, `native-crash` | what happened |
 | `error` | `StateError` | exception class name only |
 | `stack` | up to 30 lines of function name + file:line | where it happened |
-| `code` | `ERROR_CODE_IO_BAD_HTTP_STATUS`, `404` | playback errors only: player error name and HTTP status |
 
 **Never sent:** exception messages (they can contain links or names), URLs,
 host names, IP addresses, logins, playlist or profile names, channel, movie or
@@ -51,8 +50,7 @@ Off until the user says yes. `stats_choice` preference: unset / on / off.
 Draft wording (plain English, no brand names):
 
 > **Help improve OpenIPTV?**
-> OpenIPTV can send an anonymous report when the app crashes or a stream
-> fails to start. A report holds the app version, your device model and where
+> OpenIPTV can send an anonymous report when the app crashes. A report holds the app version, your device model and where
 > in the code the problem happened. It never holds your playlists, logins,
 > links, channel names or what you watch, and it can't be tied to you.
 > This is off unless you turn it on. You can change your mind any time in
@@ -67,8 +65,7 @@ Draft wording (plain English, no brand names):
   file; oldest dropped), `sender.dart` (HTTPS POST), `consent.dart`.
 - Catches Dart errors (`FlutterError.onError`, `PlatformDispatcher.onError`)
   and native crashes (a Kotlin `UncaughtExceptionHandler` writes the report to
-  a file; Dart reads and queues it on the next launch). Playback errors come
-  from the player's existing error event.
+  a file; Dart reads and queues it on the next launch).
 - Nothing is queued or sent while consent is off. Turning it off clears the
   queue.
 - Sending: next launch and then at most once a day, on any network, in the
@@ -100,11 +97,10 @@ reports we store contain no IP.
 3. Consent: Settings toggle and "See what is sent", update dialog, wizard step.
 4. Changelog and a privacy section in the README (what, why, how to audit).
 
-## Questions for the owner
+## Decided by the owner
 
-1. Is the field list above right? Anything to drop or add?
-2. Include playback errors (error name + HTTP status only), or crashes only?
-3. No install ID (counts only, no unique users): OK?
-4. Is the Worker's address a `workers.dev` URL or one of your domains? I will
-   keep it in a single constant.
-5. Wording of the prompt: any changes?
+1. The field list above is final.
+2. Crashes and fatal errors only, no playback errors.
+3. No install ID.
+4. A `workers.dev` address is fine.
+5. The prompt wording is approved.

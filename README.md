@@ -120,6 +120,17 @@
 
 ---
 
+## Privacy
+
+OpenIPTV has no ads, accounts or tracking. There is one optional feature:
+**anonymous crash reports**, off unless you turn them on (you are asked once).
+A report holds only the app version, Android version, device model, the date
+and where in the code a crash happened, never your playlists, logins, links,
+channel names or what you watch, and nothing that can tie reports to you.
+Settings → Advanced → Anonymous Reports shows exactly what is sent. The code
+is small and lives in `lib/telemetry/` (plus `tools/stats-worker/` for the
+receiver); the design is in `docs/design/anonymous-stats.md`.
+
 ## Developer setup
 
 | Tool | Version |
