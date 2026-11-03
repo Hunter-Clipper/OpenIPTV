@@ -1,6 +1,6 @@
 # Guide category collapse, auto frame rate, anonymous stats (#148, #149, #150)
 
-Status: plan only. Nothing is built yet. Each item can ship on its own.
+Status: owner decisions recorded 2026-11-03. Each item can ship on its own.
 
 ## #148 Collapse the category column in the TV guide
 
@@ -10,8 +10,7 @@ expands it. Lives in `TvGuideScreen`; the shared time offset and row focus
 logic should not change, only the column width (animated, like the keyboard
 tray).
 
-Open questions: show icons while collapsed, or hide it completely? Should it
-also collapse on the phone-sized tablet layout? (Default: TV only.)
+**Decided:** icons only while collapsed; TV only.
 
 ## #149 Auto frame rate / auto resolution (TV and capable devices)
 
@@ -24,8 +23,9 @@ also collapse on the phone-sized tablet layout? (Default: TV only.)
 - Related: #140 (tearing on non-4K streams on a 4K display) may be linked.
   It is tabled until the reporter sends more detail.
 
-Open questions: per-playlist or global setting? Does the Chromecast report
-usable modes over HDMI?
+**Decided:** one global setting; frame rate first, resolution later; don't
+wait for #140. Still to check on device: does the Chromecast report usable
+modes over HDMI?
 
 ## #150 Optional anonymous stats and crash reports
 
@@ -39,13 +39,15 @@ provider or stream. No URLs, hostnames, logins, channel or title names, IP
 logging on the receiving side. The payload is shown to the user in-app
 ("See exactly what is sent") before they enable it.
 
-Open questions (owner decisions needed before any code):
-1. What is collected? Suggested minimum: app version, Android version and
-   device model, crash stack traces with URLs and names stripped.
-2. Where does it go and who stores it? Options: a self-hosted endpoint, or a
-   third-party crash service. A third party means a new privacy policy and a
-   service dependency, so a self-hosted receiver is the likely fit for an
-   open-source, no-tracking project.
-3. Wording of the two prompts, and a way to turn it off and view the payload
-   in Settings.
-4. Retention period and who can see the data.
+**Decided:**
+1. Collect only what is needed to fix problems: app version, Android version,
+   device model, crash traces. Never URLs, hostnames, logins, channel or
+   title names.
+2. Self-hosted receiver, stored in a Cloudflare R2 bucket.
+3. Only the owner can see it; kept 90 days (bucket lifecycle rule).
+4. Settings shows exactly what is sent, before and after opting in.
+5. A Settings toggle as well as the two one-time prompts (updating users,
+   new-user wizard).
+
+Still to design: the receiving endpoint (a small Cloudflare Worker writing to
+R2 is the obvious fit), abuse limits, and the exact payload fields.
