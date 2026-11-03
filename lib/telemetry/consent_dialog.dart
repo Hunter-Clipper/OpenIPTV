@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/telemetry/telemetry.dart';
@@ -12,12 +13,17 @@ import 'package:open_iptv/telemetry/telemetry.dart';
 /// Asks once. Returns without asking if a choice was already made.
 Future<void> askStatsConsentOnce(
     BuildContext context, ProviderContainer container) async {
-  if (await readStatsChoice() != StatsChoice.unset) return;
+  // Test builds only: --dart-define=OPENIPTV_FORCE_STATS_PROMPT=true shows the
+  // question again so the prompt can be checked on a device that already
+  // answered it.
+  const force = bool.fromEnvironment('OPENIPTV_FORCE_STATS_PROMPT');
+  if (!force && await readStatsChoice() != StatsChoice.unset) return;
   if (!context.mounted) return;
   final yes = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => _KeepFocus(
+        child: AlertDialog(
       title: const Text('Help improve OpenIPTV?'),
       scrollable: true,
       content: const Text(
@@ -43,9 +49,58 @@ Future<void> askStatsConsentOnce(
               FilledButton(onPressed: onTap, child: const Text('Turn On')),
         ),
       ],
-    ),
+    )),
   );
   final choice = yes == true ? StatsChoice.on : StatsChoice.off;
   await Telemetry.setChoice(choice);
   container.read(statsChoiceProvider.notifier).state = choice;
+}
+
+/// Keeps the remote working inside the dialog on TV. Something behind it
+/// (a screen finishing its own start-up focus) could take focus away, leaving
+/// both buttons unreachable; this puts focus back on the dialog's first
+/// action whenever it ends up outside the dialog.
+class _KeepFocus extends StatefulWidget {
+  const _KeepFocus({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepFocus> createState() => _KeepFocusState();
+}
+
+class _KeepFocusState extends State<_KeepFocus> {
+  final _scope = FocusScopeNode(debugLabel: 'StatsConsent');
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_check);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_check);
+    _scope.dispose();
+    super.dispose();
+  }
+
+  void _check() {
+    if (!mounted || !PlatformHelper.isTVDevice) return;
+    final f = FocusManager.instance.primaryFocus;
+    if (f != null && _scope.descendants.contains(f)) return;
+    // Outside the dialog: back to its first action, after this frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cur = FocusManager.instance.primaryFocus;
+      if (cur != null && _scope.descendants.contains(cur)) return;
+      final first = _scope.traversalDescendants.firstOrNull;
+      first?.requestFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      FocusScope(node: _scope, child: widget.child);
 }
