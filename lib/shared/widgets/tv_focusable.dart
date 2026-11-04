@@ -50,6 +50,7 @@ class TvFocusable extends StatefulWidget {
     this.focusNode,
     this.showFocusRing = true,
     this.focusScale = 1.0,
+    this.lighten = false,
   });
 
   final Widget child;
@@ -98,6 +99,9 @@ class TvFocusable extends StatefulWidget {
   // How much the item grows while focused. Off by default: wide rows and
   // cells would spill over their neighbours; small items opt in.
   final double focusScale;
+  // For accent-filled children (a FilledButton): a tint of the same hue would
+  // vanish on them, so the focus pill lightens them with white instead.
+  final bool lighten;
 
   @override
   State<TvFocusable> createState() => _TvFocusableState();
@@ -199,6 +203,23 @@ class _TvFocusableState extends State<TvFocusable> {
     return KeyEventResult.ignored;
   }
 
+  /// The theme the child sees on TV: no ink focus fill (the pill is the
+  /// indicator) and, for accent-filled buttons, a clearly lighter fill with a
+  /// label colour re-picked for it while focused.
+  ThemeData _tvTheme(BuildContext context, bool lit) {
+    final base = Theme.of(context).copyWith(focusColor: Colors.transparent);
+    if (!(lit && widget.lighten)) return base;
+    final bg = Color.lerp(base.colorScheme.primary, Colors.white, 0.55)!;
+    return base.copyWith(
+      filledButtonTheme: FilledButtonThemeData(
+        style: (base.filledButtonTheme.style ?? const ButtonStyle()).copyWith(
+          backgroundColor: WidgetStatePropertyAll(bg),
+          foregroundColor: WidgetStatePropertyAll(AppTheme.onAccent(bg)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var content = widget.child;
@@ -217,7 +238,11 @@ class _TvFocusableState extends State<TvFocusable> {
           curve: TvFocusStyle.curve,
           // The pill is painted over the child so it takes no layout space.
           foregroundDecoration: BoxDecoration(
-            color: lit ? TvFocusStyle.fill(context) : Colors.transparent,
+            color: lit
+                ? (widget.lighten
+                    ? Colors.transparent
+                    : TvFocusStyle.fill(context))
+                : Colors.transparent,
             borderRadius: widget.borderRadius ??
                 BorderRadius.circular(AppTheme.cardRadius),
           ),
@@ -226,8 +251,7 @@ class _TvFocusableState extends State<TvFocusable> {
               // button would also paint its own ink focus fill — a second,
               // differently-sized highlight under it.
               ? Theme(
-                  data: Theme.of(context)
-                      .copyWith(focusColor: Colors.transparent),
+                  data: _tvTheme(context, lit),
                   child: widget.child,
                 )
               : widget.child,
@@ -341,6 +365,8 @@ class TvActivatable extends StatelessWidget {
       autofocus: autofocus,
       borderRadius: round ? BorderRadius.circular(40) : borderRadius,
       focusScale: focusScale ?? (round ? 1.12 : 1.0),
+      // A filled (accent) button lightens when focused.
+      lighten: child is FilledButton,
       focusNode: focusNode,
       child: child,
     );

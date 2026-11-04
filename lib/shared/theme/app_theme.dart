@@ -270,7 +270,21 @@ class AppTheme {
             borderRadius: BorderRadius.circular(cardRadius),
           ),
         ).copyWith(
-          overlayColor: _focusOverlay(Colors.white, 0.32)),
+          overlayColor: _focusOverlay(Colors.white, 0.20),
+          // Focused: a clearly lighter fill (the remote's cursor), with the
+          // label colour re-picked for it so it stays readable.
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            final base = states.contains(WidgetState.disabled)
+                ? primary.withValues(alpha: 0.38)
+                : primary;
+            return states.contains(WidgetState.focused)
+                ? Color.lerp(base, Colors.white, 0.55)
+                : base;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.focused)
+                  ? onAccent(Color.lerp(primary, Colors.white, 0.55)!)
+                  : onAccent(primary))),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(

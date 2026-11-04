@@ -312,10 +312,10 @@ class _ProfileHero extends StatelessWidget {
        child: TvFocusable(
         onTap: onEdit,
         autofocus: true,
-        borderRadius: BorderRadius.circular(28),
-        focusScale: 1.04,
+        borderRadius: BorderRadius.circular(22),
+        focusScale: 1.0,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           // One focus target for the whole block (picture + name): the tiny
           // edit badge on its own was too small to show focus.
           child: Column(

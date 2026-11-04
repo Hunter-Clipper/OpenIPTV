@@ -344,7 +344,7 @@ class DetailActions extends StatelessWidget {
           TvActivatable(
             autofocus: true,
             round: true,
-            focusScale: 1.035,
+            focusScale: 1.0,
             onTap: onPrimary,
             builder: (onTap) => FilledButton.icon(
               style: FilledButton.styleFrom(

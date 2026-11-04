@@ -639,9 +639,13 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                 itemExtent: _rowHeight,
                 itemBuilder: (context, i) {
                   final channel = channels[i];
-                  return _GuideRow(
+                  // Rebuilds when the playing channel changes.
+                  return ValueListenableBuilder<String?>(
+                    valueListenable: _pane.playingIdNotifier,
+                    builder: (context, playingId, _) => _GuideRow(
                     channel: channel,
                     rowKey: _rowKey(channel),
+                    playing: playingId == channel.id,
                     time: _time,
                     entryNode: i == 0 ? _firstRowNode : null,
                     autofocus: i == 0,
@@ -653,6 +657,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                         : () => showChannelOptions(context, ref, channel,
                             profileId, favIds.contains(channel.id),
                             recent: _shownCategory == _recent),
+                  ),
                   );
                 },
               ),
@@ -685,6 +690,17 @@ class _PaneModel extends ChangeNotifier {
       _check();
     });
     _errorSub = service.errorStream.listen(_onError);
+  }
+
+  /// Changes only when the playing channel does, so guide rows can mark it
+  /// without rebuilding on every focus move.
+  final playingIdNotifier = ValueNotifier<String?>(null);
+
+  @override
+  void notifyListeners() {
+    super.notifyListeners();
+    final id = playingId;
+    if (playingIdNotifier.value != id) playingIdNotifier.value = id;
   }
 
   final PlaybackService service;
@@ -1343,8 +1359,11 @@ class _GuideRow extends ConsumerWidget {
     this.onLongPress,
     this.entryNode,
     this.autofocus = false,
+    this.playing = false,
   });
 
+  // This channel is the one playing in the pane.
+  final bool playing;
   final Channel channel;
   final _RowKey rowKey;
   final Animation<double> time;
@@ -1382,24 +1401,51 @@ class _GuideRow extends ConsumerWidget {
           SizedBox(
             width: _channelWidth,
             // A label, not a stop for the remote: the programmes are.
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 3, 8, 3),
-              child: Row(
-                children: [
-                  LogoTile(url: channel.logoUrl, width: 48),
-                  const SizedBox(width: 8),
-                  // Long names get a second line rather than being cut.
-                  Expanded(
-                    child: MarqueeText(
-                      context.displayName(channel.name),
-                      maxLines: 2,
-                      active: rowFocused,
-                      style: theme.textTheme.bodyMedium!
-                          .copyWith(fontSize: 13, height: 1.15),
+            child: Stack(
+              children: [
+                // Marks the channel that is playing (accent bar + text).
+                Positioned(
+                  left: 0,
+                  top: 12,
+                  bottom: 12,
+                  width: 3,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color:
+                          playing ? theme.colorScheme.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ],
-              ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 3, 8, 3),
+                  child: Row(
+                    children: [
+                      LogoTile(url: channel.logoUrl, width: 48),
+                      const SizedBox(width: 8),
+                      // Long names get a second line rather than being cut.
+                      Expanded(
+                        child: MarqueeText(
+                          context.displayName(channel.name),
+                          maxLines: 2,
+                          active: rowFocused,
+                          style: theme.textTheme.bodyMedium!.copyWith(
+                              fontSize: 13,
+                              height: 1.15,
+                              fontWeight:
+                                  playing ? FontWeight.w700 : null,
+                              color: playing
+                                  ? theme.colorScheme.primary
+                                  : null),
+                        ),
+                      ),
+                      if (playing)
+                        Icon(Icons.graphic_eq_rounded,
+                            size: 18, color: theme.colorScheme.primary),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           // ---- Its programmes ----

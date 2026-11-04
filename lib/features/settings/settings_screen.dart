@@ -1109,6 +1109,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                   // first key lands on an off-screen row. This is the one
                   // harmless choice (a row would switch playlists on OK).
                   autofocus: true,
+                  focusScale: 1.06,
                   onTap: () {
                     // Grab the router before popping — this sheet's context
                     // is torn down by the pop.
