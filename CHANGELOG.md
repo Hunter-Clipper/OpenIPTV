@@ -3,6 +3,19 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.65 — 2026-11-04
+
+**Fixed**
+- Multi-view with providers that allow several connections: extra channels no longer die off one by one. Some providers tell connections apart by the device's name, so channels on one phone looked like a single connection and the others were dropped. Each channel now introduces itself separately.
+- Multi-view: moving the sound to another channel could leave a different channel paused for good. Only one player now holds the sound; the others are just muted.
+
+**New**
+- Settings → Advanced → Power User Tools → **User agent**: choose the name the player gives your provider, for providers that only accept a particular one. Leave it empty to use OpenIPTV's own. It is included in backups.
+
+**Improved**
+- Live channels from providers that cut the stream every minute or so now carry straight on, with no short buffering pause at each cut.
+- The player now introduces itself as OpenIPTV (with its version and your device) instead of a generic Android name, so your provider can tell your devices apart.
+
 ## 0.14.64 — 2026-11-04
 
 **New**

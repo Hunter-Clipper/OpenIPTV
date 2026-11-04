@@ -72,3 +72,10 @@ Two measurements, both on tap:
   pending.
 - **Outside services:** api.ipify.org (public IP) and speed.cloudflare.com
   (speed test), only on tap, both named on screen.
+- **User agent (0.14.65):** Settings → Advanced → Power User Tools → User
+  agent. Replaces the player's default `OpenIPTV/<version> (…)` identity for
+  providers that only accept particular strings (blank = default). Extra
+  Multi-view tiles still append their own tag, because providers count
+  connections by IP + user agent (see `multi-view.md`). Stored in pref
+  `user_agent` and included in backups; text field goes through
+  `TvTextFieldGate` on TV.
