@@ -107,6 +107,9 @@ class TvGuideScreen extends ConsumerStatefulWidget {
   static void Function()? requestGridFocus;
   static bool Function()? categoryColumnHasFocus;
 
+  /// Hold Back: back to the full-screen player of what's playing in the pane.
+  static void Function()? resumeFullScreen;
+
   @override
   ConsumerState<TvGuideScreen> createState() => _TvGuideScreenState();
 }
@@ -169,6 +172,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       }
     };
     TvGuideScreen.categoryColumnHasFocus = () => _columnNode.hasFocus;
+    TvGuideScreen.resumeFullScreen = _resumeFullScreen;
+    _pane.onCatchupEnded = _continueAfterCatchup;
     _gridNode.addListener(_syncCollapsed);
     _columnNode.addListener(_syncCollapsed);
     final now = DateTime.now();
@@ -187,6 +192,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   }
 
   void _syncCollapsed() {
+    // A dialog or sheet (start over / live) takes focus off the grid: keep
+    // the layout as it is instead of expanding the rail and categories.
+    if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+      return;
+    }
     final inGrid = _gridNode.hasFocus;
     TvGuideScreen.railCompact.value = inGrid || _columnNode.hasFocus;
     if (inGrid != _collapsed && mounted) setState(() => _collapsed = inGrid);
@@ -201,6 +211,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         (_) => TvGuideScreen.railCompact.value = false);
     TvGuideScreen.requestGridFocus = null;
     TvGuideScreen.categoryColumnHasFocus = null;
+    TvGuideScreen.resumeFullScreen = null;
     WidgetsBinding.instance.removeObserver(this);
     _nowTicker?.cancel();
     _categoryDebounce?.cancel();
@@ -360,6 +371,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   }
 
   Future<void> _activate(Channel channel, Programme? programme) async {
+    await _activateInner(channel, programme);
+    if (mounted) _syncCollapsed();
+  }
+
+  Future<void> _activateInner(Channel channel, Programme? programme) async {
     // An earlier programme plays from catch-up where the channel has it;
     // anything else (on now, later, no catch-up) plays the channel live.
     final now = DateTime.now();
@@ -381,8 +397,57 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         'handBackTo': _pane,
       }));
     } else {
+      // A catch-up channel with a show underway: start over or live?
+      await openChannelWithStartChoice(
+        context: context,
+        ref: ref,
+        channel: channel,
+        programme: programme,
+        handBackTo: _pane,
+        beforeCatchup: _pane.stopPreview,
+        playLive: () => _pane.startPreview(channel),
+      );
+    }
+  }
+
+  // The catch-up show in the pane is over: play what follows it from
+  // catch-up if that is well underway, otherwise live.
+  Future<void> _continueAfterCatchup(Channel channel, Programme done) async {
+    final db = ref.read(appDatabaseProvider);
+    final next = await db.getProgrammeStartingFrom(channel.id, done.end);
+    final source = await db.getSourceById(channel.sourceId);
+    if (!mounted || !_pane.previewing) return;
+    final now = DateTime.now();
+    final url = next != null &&
+            source != null &&
+            channel.hasCatchup &&
+            now.difference(next.start) >= const Duration(minutes: 2)
+        ? catchupUrlFor(channel, source, next)
+        : null;
+    if (url != null) {
+      _pane.rememberCatchup(url, channel, next!);
+      await _pane.service.play(url, owner: _pane);
+    } else {
       _pane.startPreview(channel);
     }
+  }
+
+  void _resumeFullScreen() {
+    if (!mounted || (ModalRoute.of(context)?.isCurrent ?? true) == false) {
+      return;
+    }
+    final url = _pane.service.nowPlaying.value?.url;
+    final channel = _pane.playing;
+    if (url == null || channel == null) return;
+    final cu = _pane.catchup;
+    unawaited(context.push('/player', extra: {
+      'streamUrl': url,
+      'title': cu?.programme.title ?? channel.name,
+      'contentType': cu != null ? 'catchup' : 'live',
+      'contentId': channel.id,
+      'continuePlaying': true,
+      'handBackTo': _pane,
+    }));
   }
 
   Future<void> _playCatchup(Channel channel, Programme programme) async {
@@ -679,7 +744,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 /// the same stream (no restart), and the player hands it back here on Back
 /// (it owns the stream meanwhile). This model is the owner while the pane
 /// plays.
-class _PaneModel extends ChangeNotifier {
+class _PaneModel extends ChangeNotifier implements CatchupAware {
   _PaneModel(this.service) {
     service.nowPlaying.addListener(_onNowPlaying);
     _stateSub = service.stateStream.listen((st) {
@@ -704,6 +769,12 @@ class _PaneModel extends ChangeNotifier {
   }
 
   final PlaybackService service;
+
+  /// Set by the guide: what plays when a catch-up show in the pane ends.
+  Future<void> Function(Channel channel, Programme programme)? onCatchupEnded;
+  bool _advancing = false;
+  // Right after a switch the engine still reports the old stream's end.
+  DateTime _quietUntil = DateTime.fromMillisecondsSinceEpoch(0);
   Channel? channel;
   Programme? programme;
   bool _disposed = false;
@@ -749,12 +820,41 @@ class _PaneModel extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(milliseconds: 500), (_) => _check());
   }
 
+  // A catch-up show that has run its course (the stream ends, or dies once
+  // the show's scheduled end has passed — it can't go past it).
+  bool _catchupOver(({Channel channel, Programme programme}) cu) {
+    final s = service.lastState;
+    final dur = s.duration > Duration.zero ? s.duration : cu.programme.duration;
+    return s.completed ||
+        (s.position > Duration.zero &&
+            dur - s.position <= const Duration(seconds: 3));
+  }
+
+  void _advance(({Channel channel, Programme programme}) cu) {
+    final cb = onCatchupEnded;
+    if (_advancing || cb == null) return;
+    _advancing = true;
+    unawaited(cb(cu.channel, cu.programme).whenComplete(() {
+      _advancing = false;
+      _quietUntil = DateTime.now().add(const Duration(seconds: 6));
+    }));
+  }
+
   void _check() {
     final dog = _dog;
     if (!previewing || dog == null) return;
+    final cu = catchup;
+    if (cu != null &&
+        DateTime.now().isAfter(_quietUntil) &&
+        _catchupOver(cu)) {
+      _advance(cu);
+      return;
+    }
     final wasLoading = dog.loading;
     _act(dog.check(service.lastState,
-        now: DateTime.now(), openCount: service.openCount, live: true));
+        now: DateTime.now(),
+        openCount: service.openCount,
+        live: catchup == null));
     if (wasLoading != dog.loading && !_disposed) notifyListeners();
   }
 
@@ -774,7 +874,15 @@ class _PaneModel extends ChangeNotifier {
     final url = service.nowPlaying.value?.url;
     switch (action) {
       case WatchdogAction.reconnect:
-        if (url != null) unawaited(service.play(url, owner: this));
+        final cu = catchup;
+        if (cu != null && !cu.programme.end.isAfter(DateTime.now())) {
+          // Dead after the show's end time: carry on with what follows.
+          _advance(cu);
+        } else if (url != null) {
+          // A catch-up show picks up where it froze; live just reconnects.
+          final pos = catchup == null ? null : service.lastState.position;
+          unawaited(service.play(url, startPosition: pos, owner: this));
+        }
       case WatchdogAction.giveUp:
         _fail("This channel isn't available right now.");
       case WatchdogAction.none:
@@ -786,6 +894,21 @@ class _PaneModel extends ChangeNotifier {
     final id = playingId;
     if (id != null) failed = (channelId: id, text: text);
     stopPreview();
+  }
+
+  // Catch-up shows launched from here, by stream URL — their channel isn't
+  // found by URL like a live stream.
+  final Map<String, ({Channel channel, Programme programme})> _catchups = {};
+
+  @override
+  void rememberCatchup(String url, Channel channel, Programme programme) {
+    _catchups[url] = (channel: channel, programme: programme);
+  }
+
+  /// The catch-up show playing in the pane, if that's what it is.
+  ({Channel channel, Programme programme})? get catchup {
+    final url = service.nowPlaying.value?.url;
+    return previewing && url != null ? _catchups[url] : null;
   }
 
   Map<String, Channel> _byUrl = const {};
@@ -801,8 +924,9 @@ class _PaneModel extends ChangeNotifier {
   bool get previewing => service.nowPlaying.value?.owner == this;
 
   /// The channel playing in the pane (full screen may have switched it).
-  Channel? get playing =>
-      previewing ? _byUrl[service.nowPlaying.value!.url] : null;
+  Channel? get playing => !previewing
+      ? null
+      : _byUrl[service.nowPlaying.value!.url] ?? catchup?.channel;
   String? get playingId => playing?.id;
 
   void show(Channel c, Programme? p) {
@@ -1439,6 +1563,12 @@ class _GuideRow extends ConsumerWidget {
                                   : null),
                         ),
                       ),
+                      if (channel.hasCatchup) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.history_rounded,
+                            size: 15,
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ],
                       if (playing)
                         Icon(Icons.graphic_eq_rounded,
                             size: 18, color: theme.colorScheme.primary),

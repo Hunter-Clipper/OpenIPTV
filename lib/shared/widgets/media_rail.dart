@@ -19,6 +19,7 @@ class RailItem {
     this.heroTag,
     this.locked = false,
     this.highlightSubtitle = false,
+    this.catchup = false,
   });
 
   final String title;
@@ -35,6 +36,8 @@ class RailItem {
   final bool locked;
   // Subtitle in the accent colour (e.g. a channel's programme on now).
   final bool highlightSubtitle;
+  // Channel keeps catch-up: a small history icon after the title.
+  final bool catchup;
 }
 
 /// Card shape of a [MediaRail]: 2:3 artwork posters, or 16:9 tiles with a
@@ -353,14 +356,24 @@ class _PosterCardState extends State<_PosterCard> {
                 ),
               ),
             const SizedBox(height: 8),
-            Text(
-              item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium!
-                  .copyWith(
-                      fontWeight: lit ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 13),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                        fontWeight: lit ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 13),
+                  ),
+                ),
+                if (item.catchup) ...[
+                  const SizedBox(width: 4),
+                  Icon(Icons.history_rounded,
+                      size: 14, color: theme.colorScheme.onSurfaceVariant),
+                ],
+              ],
             ),
             if (item.subtitle != null)
               Text(

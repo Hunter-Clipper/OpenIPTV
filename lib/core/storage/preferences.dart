@@ -31,6 +31,7 @@ const _kCleanNames = 'clean_names';
 const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
+const _kAskStartOver = 'ask_start_over';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
 const _kVpnAutoConnect = 'vpn_auto_connect';
@@ -158,6 +159,11 @@ class AppPreferences {
   bool get playerClockAlways => _prefs.getBool(_kPlayerClockAlways) ?? false;
   Future<void> setPlayerClockAlways(bool v) =>
       _prefs.setBool(_kPlayerClockAlways, v);
+
+  /// Catch-up channels: ask "Start from the beginning or Watch live?" when
+  /// opening a show that's already underway.
+  bool get askStartOver => _prefs.getBool(_kAskStartOver) ?? true;
+  Future<void> setAskStartOver(bool v) => _prefs.setBool(_kAskStartOver, v);
 
   /// Player buffer size (Power User Tools); null = the default.
   String? get bufferPreset => _prefs.getString(_kBufferPreset);

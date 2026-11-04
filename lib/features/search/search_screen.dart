@@ -11,6 +11,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/search_service.dart';
+import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/detail_header.dart';
@@ -45,9 +46,20 @@ final _searchResultsProvider =
   final epg = ref.watch(epgServiceProvider);
   final sourceId = ref.watch(activeSourceIdProvider);
   final airing = await epg.searchCurrentProgrammes(query);
+  final nowT = DateTime.now();
+  // Earlier (newest first) and coming up are fetched separately so a busy
+  // title can't push one side out of the cap.
+  final guide = [
+    ...await epg.searchProgrammesBetween(
+        query, nowT.subtract(const Duration(days: 3)), nowT,
+        newestFirst: true),
+    ...await epg.searchProgrammesBetween(
+        query, nowT, nowT.add(const Duration(days: 3))),
+  ];
   final results = await search.search(
     query: query,
     currentProgrammes: airing,
+    guideMatches: guide,
     sourceId: sourceId,
   );
 
@@ -63,6 +75,9 @@ final _searchResultsProvider =
     movies: results.movies.where((m) => !isAdultGenre(m.genre)).toList(),
     series: results.series.where((s) => !isAdultGenre(s.genre)).toList(),
     nowPlaying: results.nowPlaying,
+    programmes: results.programmes
+        .where((m) => !m.channel.categories.any(isAdultCategory))
+        .toList(),
   );
 });
 
@@ -472,6 +487,55 @@ class _ResultsList extends ConsumerWidget {
     proceed();
   }
 
+  void _playLive(BuildContext context, WidgetRef ref, Channel c) {
+    unawaited(openChannelWithStartChoice(
+      context: context,
+      ref: ref,
+      channel: c,
+      programme: results.programmes
+          .where((m) => m.channel.id == c.id && m.programme.isLive)
+          .map((m) => m.programme)
+          .firstOrNull,
+      playLive: () => context.push('/player', extra: {
+        'streamUrl': c.streamUrl,
+        'title': c.name,
+        'contentType': 'live',
+        'contentId': c.id,
+      }),
+    ));
+  }
+
+  // A guide match: on now → live (or start over); coming up → the channel
+  // live; earlier → catch-up from the start of that show.
+  Future<void> _playMatch(BuildContext context, WidgetRef ref,
+      ProgrammeMatch m, DateTime now) async {
+    final p = m.programme;
+    if (!p.end.isAfter(now)) {
+      final source =
+          await ref.read(appDatabaseProvider).getSourceById(m.channel.sourceId);
+      if (source == null || !context.mounted) return;
+      await launchCatchup(
+        context: context,
+        ref: ref,
+        channel: m.channel,
+        source: source,
+        programme: p,
+        replace: false,
+      );
+      return;
+    }
+    if (p.isLive) {
+      _playLive(context, ref, m.channel);
+      return;
+    }
+    unawaited(context.push('/player', extra: {
+      'streamUrl': m.channel.streamUrl,
+      'title': m.channel.name,
+      'contentType': 'live',
+      'contentId': m.channel.id,
+    }));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
@@ -484,9 +548,67 @@ class _ResultsList extends ConsumerWidget {
     bool genreLocked(String? genre) =>
         prefs != null && isGenreLocked(genre, prefs, sessionUnlocked);
 
+    final now = DateTime.now();
+    final onNow = [
+      for (final m in results.programmes)
+        if (m.programme.start.isBefore(now) && m.programme.end.isAfter(now)) m
+    ];
+    final upcoming = [
+      for (final m in results.programmes)
+        if (!m.programme.start.isBefore(now)) m
+    ];
+    // Most recent first.
+    final earlier = [
+      for (final m in results.programmes)
+        if (!m.programme.end.isAfter(now)) m
+    ]..sort((a, b) => b.programme.start.compareTo(a.programme.start));
+
+    String when(DateTime t) {
+      final loc = MaterialLocalizations.of(context);
+      final time = loc.formatTimeOfDay(TimeOfDay.fromDateTime(t));
+      final today = DateTime(now.year, now.month, now.day);
+      final day = DateTime(t.year, t.month, t.day).difference(today).inDays;
+      if (day == 0) return time;
+      if (day == 1) return 'Tomorrow $time';
+      if (day == -1) return 'Yesterday $time';
+      return '${loc.formatShortDate(t)} $time';
+    }
+
+    Widget programmeRail(String title, List<ProgrammeMatch> matches) {
+      return MediaRail(
+        title: title,
+        count: matches.length,
+        shape: RailShape.logo,
+        fallbackIcon: Icons.tv_rounded,
+        items: [
+          for (final m in matches)
+            RailItem(
+              title: m.programme.title,
+              subtitle:
+                  '${context.displayName(m.channel.name)} · ${when(m.programme.start)}',
+              highlightSubtitle: m.programme.isLive,
+              imageUrl: channelLocked(m.channel) ? null : m.channel.logoUrl,
+              locked: channelLocked(m.channel),
+              progress: m.programme.isLive
+                  ? m.programme.progressAt(now).clamp(0.0, 1.0)
+                  : null,
+              catchup: m.channel.hasCatchup,
+              onTap: () => _open(
+                context,
+                ref,
+                context.displayName(m.channel.name),
+                channelLocked(m.channel),
+                () => _playMatch(context, ref, m, now),
+              ),
+            ),
+        ],
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        if (onNow.isNotEmpty) programmeRail('On now', onNow),
         if (results.channels.isNotEmpty)
           MediaRail(
             title: 'Live TV',
@@ -501,21 +623,19 @@ class _ResultsList extends ConsumerWidget {
                   highlightSubtitle: results.nowPlaying.containsKey(c.id),
                   imageUrl: channelLocked(c) ? null : c.logoUrl,
                   locked: channelLocked(c),
+                  catchup: c.hasCatchup,
                   onTap: () => _open(
                     context,
                     ref,
                     context.displayName(c.name),
                     channelLocked(c),
-                    () => context.push('/player', extra: {
-                      'streamUrl': c.streamUrl,
-                      'title': c.name,
-                      'contentType': 'live',
-                      'contentId': c.id,
-                    }),
+                    () => _playLive(context, ref, c),
                   ),
                 ),
             ],
           ),
+        if (upcoming.isNotEmpty) programmeRail('Coming up', upcoming),
+        if (earlier.isNotEmpty) programmeRail('Earlier', earlier),
         if (results.movies.isNotEmpty)
           MediaRail(
             title: 'Movies',

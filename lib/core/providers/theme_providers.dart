@@ -72,6 +72,15 @@ Future<void> setPlayerClockAlways(
   await prefs.setPlayerClockAlways(on);
 }
 
+/// Ask "Start from the beginning or Watch live?" on catch-up channels.
+final askStartOverProvider = StateProvider<bool>((ref) => true);
+
+Future<void> setAskStartOver(
+    WidgetRef ref, bool on, AppPreferences prefs) async {
+  ref.read(askStartOverProvider.notifier).state = on;
+  await prefs.setAskStartOver(on);
+}
+
 // Movies / Series home layout: 'posters' (a rail per genre) or 'compact'
 // (the plain genre list).
 final homeLayoutMoviesProvider = StateProvider<String>((ref) => 'posters');
@@ -202,6 +211,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;
+  ref.read(askStartOverProvider.notifier).state = prefs.askStartOver;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;
   ref.read(homeLayoutSeriesProvider.notifier).state = prefs.homeLayoutSeries;
 }

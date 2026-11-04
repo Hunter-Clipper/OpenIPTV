@@ -459,6 +459,9 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _backChannel.setMethodCallHandler((call) async {
       if (call.method == 'backPressed') _handleNativeBackPressed();
+      if (call.method == 'backLongPressed') {
+        TvGuideScreen.resumeFullScreen?.call();
+      }
     });
   }
 

@@ -858,12 +858,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           'live=$_isPlainLive casting=$_casting failed=$_playbackFailed '
           'parked=$_mainParked');
       if (back != null &&
-          _isPlainLive &&
+          (_isPlainLive || widget.contentType == 'catchup') &&
           !_casting &&
           !_playbackFailed &&
           !_mainParked) {
-        // Opened from the TV guide's preview: the channel keeps playing
-        // there.
+        // Opened from the TV guide's preview: the channel (or the catch-up
+        // show) keeps playing there.
         _playbackService.adopt(back);
         nowPlayingHandler.endSession();
       } else {

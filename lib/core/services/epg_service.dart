@@ -156,6 +156,12 @@ class EpgService {
   Future<List<Programme>> searchCurrentProgrammes(String query) =>
       db.searchCurrentProgrammes(query);
 
+  Future<List<Programme>> searchProgrammesBetween(
+          String query, DateTime from, DateTime to,
+          {int limit = 150, bool newestFirst = false}) =>
+      db.searchProgrammesBetween(query, from, to,
+          limit: limit, newestFirst: newestFirst);
+
   /// Fetches and stores EPG data for a source.
   ///
   /// HTTP fetch and XMLTV parse run in a temporary background isolate via

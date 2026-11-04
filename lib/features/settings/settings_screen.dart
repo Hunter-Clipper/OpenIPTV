@@ -256,6 +256,27 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }),
               Consumer(builder: (context, ref, _) {
+                final ask = ref.watch(askStartOverProvider);
+                return InfoTooltip(
+                  id: 'settings_ask_start_over',
+                  title: 'Ask to Start Over',
+                  body: 'On channels that keep recordings (catch-up), asks '
+                      'whether to start the show from the beginning or watch '
+                      'it live when you open a show that is already '
+                      'underway. Turn this off to always go straight to live.',
+                  child: _ToggleTile(
+                    icon: Icons.history_rounded,
+                    title: 'Ask to Start Over',
+                    value: ask,
+                    onChanged: (v) async {
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setAskStartOver(ref, v, prefs);
+                    },
+                  ),
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
                 final pipEnabled = ref.watch(pipEnabledProvider);
                 return InfoTooltip(
                   id: 'settings_pip',

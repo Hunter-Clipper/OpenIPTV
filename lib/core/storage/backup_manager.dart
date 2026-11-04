@@ -448,6 +448,13 @@ class BackupManager {
         if (v is bool) await p.setPlayerClockAlways(v);
       },
     ),
+    PreferenceEntry(
+      key: 'askStartOver',
+      encode: (p) => p.askStartOver,
+      decode: (p, v) async {
+        if (v is bool) await p.setAskStartOver(v);
+      },
+    ),
     // Player buffer (Power User Tools)
     PreferenceEntry(
       key: 'bufferPreset',

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
+import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
@@ -402,13 +403,18 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
 // Channel tile actions (shared by grid card and list row)
 // ---------------------------------------------------------------------------
 
-void playLiveChannel(BuildContext context, Channel channel) {
-  context.push('/player', extra: {
-    'streamUrl': channel.streamUrl,
-    'title': channel.name,
-    'contentType': 'live',
-    'contentId': channel.id,
-  });
+void playLiveChannel(BuildContext context, WidgetRef ref, Channel channel) {
+  unawaited(openChannelWithStartChoice(
+    context: context,
+    ref: ref,
+    channel: channel,
+    playLive: () => context.push('/player', extra: {
+      'streamUrl': channel.streamUrl,
+      'title': channel.name,
+      'contentType': 'live',
+      'contentId': channel.id,
+    }),
+  ));
 }
 
 /// Hold OK / long-press on a channel: favourite, and with [recent] also
@@ -465,7 +471,7 @@ class _ChannelRow extends ConsumerWidget {
     final guide = ref.watch(_nowNextProvider(channel.id)).valueOrNull;
     final now = guide?.$1;
     final next = guide?.$2;
-    void onTap() => playLiveChannel(context, channel);
+    void onTap() => playLiveChannel(context, ref, channel);
     final onLongPress = profileId == null
         ? null
         : () => showChannelOptions(
@@ -831,7 +837,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
       ensureVisibleOnFocus: true,
       showFocusRing: false,
       onFocusChange: (f) => setState(() => _focused = f),
-      onTap: () => playLiveChannel(context, ch),
+      onTap: () => playLiveChannel(context, ref, ch),
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
         scale: lit ? 1.05 : 1.0,

@@ -7,7 +7,9 @@ import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/core/services/profile_service.dart';
 
 /// Builds a catch-up stream URL for [programme] on [channel] and navigates
 /// into the player, replacing the current route. Shared by [EpgPanel]
@@ -27,6 +29,28 @@ import 'package:open_iptv/core/services/playback_service.dart';
 /// itself a PlayerScreen, e.g. the TV guide grid, where there's no existing
 /// player instance to race with and a plain push lets back-navigation
 /// return to that screen instead of skipping past it).
+/// Whoever receives the stream back when the player closes (the TV guide's
+/// preview pane) and needs to know which channel/programme a catch-up URL is.
+abstract interface class CatchupAware {
+  void rememberCatchup(String url, Channel channel, Programme programme);
+}
+
+/// The catch-up stream URL for [programme], or null if the channel/source
+/// can't do catch-up.
+String? catchupUrlFor(Channel channel, Source source, Programme programme) {
+  if (channel.streamId == null ||
+      source.xtreamHost == null ||
+      source.xtreamUsername == null ||
+      source.xtreamPassword == null) {
+    return null;
+  }
+  final client = XtreamClient.fromSource(source);
+  final url = client.buildCatchupUrl(
+      channel.streamId!, programme.start, programme.duration);
+  client.dispose();
+  return url;
+}
+
 Future<void> launchCatchup({
   required BuildContext context,
   required WidgetRef ref,
@@ -48,6 +72,9 @@ Future<void> launchCatchup({
   final url = client.buildCatchupUrl(
       channel.streamId!, programme.start, programme.duration);
   client.dispose();
+  if (handBackTo is CatchupAware) {
+    handBackTo.rememberCatchup(url, channel, programme);
+  }
 
   final router = GoRouter.of(context);
   // pop() (via dismiss) only dismisses a sheet/overlay, leaving the
@@ -75,4 +102,88 @@ Future<void> launchCatchup({
   unawaited(replace
       ? router.pushReplacement('/player', extra: extra)
       : router.push('/player', extra: extra));
+}
+
+/// Opens a channel from anywhere. On a catch-up channel with a show already
+/// underway (and "Ask to Start Over" on), asks whether to start that show
+/// from the beginning or watch live; otherwise just calls [playLive].
+/// [programme] is what's airing, when the caller already knows it.
+/// Returns true if it went to catch-up.
+Future<bool> openChannelWithStartChoice({
+  required BuildContext context,
+  required WidgetRef ref,
+  required Channel channel,
+  required VoidCallback playLive,
+  Programme? programme,
+  Object? handBackTo,
+  VoidCallback? beforeCatchup,
+}) async {
+  if (!ref.read(askStartOverProvider) ||
+      !channel.hasCatchup ||
+      channel.streamId == null) {
+    playLive();
+    return false;
+  }
+  final db = ref.read(appDatabaseProvider);
+  final p = programme ?? await db.getCurrentProgramme(channel.id);
+  final now = DateTime.now();
+  // Only a show that's really underway, and still inside the provider's
+  // catch-up window; a show that just began has nothing to start over.
+  if (p == null ||
+      !p.isLive ||
+      now.difference(p.start) < const Duration(minutes: 2) ||
+      now.difference(p.start) > Duration(days: channel.catchupDays)) {
+    playLive();
+    return false;
+  }
+  if (!context.mounted) return false;
+  final startOver = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      content: Text(
+          "This show started ${_ago(now.difference(p.start))} ago. "
+          'Where would you like to start?'),
+      actions: [
+        TextButton(
+          autofocus: true,
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Start from the beginning'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Watch live'),
+        ),
+      ],
+    ),
+  );
+  // Dismissed (Back) = changed my mind: stay where I was.
+  if (startOver == null) return false;
+  if (!startOver) {
+    playLive();
+    return false;
+  }
+  final source = await db.getSourceById(channel.sourceId);
+  if (source == null || !context.mounted) {
+    playLive();
+    return false;
+  }
+  beforeCatchup?.call();
+  await launchCatchup(
+    context: context,
+    ref: ref,
+    channel: channel,
+    source: source,
+    programme: p,
+    handBackTo: handBackTo,
+    replace: false,
+  );
+  return true;
+}
+
+String _ago(Duration d) {
+  if (d.inMinutes < 60) return '${d.inMinutes} minutes';
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  return m == 0 ? '$h hour${h == 1 ? '' : 's'}' : '${h}h ${m}m';
 }

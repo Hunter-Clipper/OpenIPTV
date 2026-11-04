@@ -3,6 +3,22 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.64 — 2026-11-04
+
+**New**
+- Search now looks inside the TV guide too. Search for a show (say "NFL Football") and you get **On now**, **Coming up** and **Earlier** rows, with the channel, the time and a progress bar for what is airing. Pick one to play it; earlier shows play from catch-up on channels that keep it.
+- On channels with catch-up, opening a show that is already underway asks whether to **start from the beginning** or **watch live**. It works from search, the guide and the channel list, and you can turn it off in Settings → Playback → Ask to Start Over.
+
+**Fixed**
+- TV guide: the "Start from the beginning / Watch live" question no longer makes the menu and the category column suddenly expand behind it.
+- TV guide: when a catch-up show playing in the preview reaches its end (for example at the top of the hour), it now carries on with the next show (or live, if that has only just begun) instead of stopping on an endless spinner.
+
+**Improved**
+- TV guide: pressing Back out of a catch-up show no longer stops it. It keeps playing in the guide's preview, like live channels do, until you pick another channel.
+- TV guide: **hold Back** to return to the full-screen player of whatever is playing in the preview, live or catch-up.
+- The catch-up (history) icon now shows next to the channel name on TV, in the guide and in search results, as it already did on phones.
+- Search results for channels now show what is on right now under each channel, not only when the show was the reason it matched.
+
 ## 0.14.61 — 2026-11-03
 
 **Improved**

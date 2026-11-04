@@ -1055,6 +1055,19 @@ class AppDatabase extends _$AppDatabase {
     return row == null ? null : _programmeFromRow(row);
   }
 
+  /// The programme that follows one ending at [end] on [channelId].
+  Future<model.Programme?> getProgrammeStartingFrom(
+      String channelId, DateTime end) async {
+    final row = await (select(programmes)
+          ..where((t) =>
+              t.channelId.equals(channelId) &
+              t.start.isBiggerOrEqualValue(end))
+          ..orderBy([(t) => OrderingTerm.asc(t.start)])
+          ..limit(1))
+        .getSingleOrNull();
+    return row == null ? null : _programmeFromRow(row);
+  }
+
   Future<model.Programme?> getNextProgramme(String channelId) async {
     final now = DateTime.now();
     final row = await (select(programmes)
@@ -1141,6 +1154,74 @@ class AppDatabase extends _$AppDatabase {
           title: r.read(programmes.title)!,
         ),
     ];
+  }
+
+  /// Programmes whose title contains [query], from [from] to [to], for the
+  /// search screen's On now / Coming up / Earlier rows. Narrow columns only
+  /// (idx_programmes_airing), capped — never a full-row scan.
+  Future<List<model.Programme>> searchProgrammesBetween(
+      String query, DateTime from, DateTime to,
+      {int limit = 150, bool newestFirst = false}) async {
+    final rows = await (selectOnly(programmes)
+          ..addColumns([
+            programmes.channelId,
+            programmes.start,
+            programmes.end,
+            programmes.title,
+          ])
+          ..where(programmes.end.isBiggerThanValue(from) &
+              programmes.start.isSmallerThanValue(to) &
+              _textContains(programmes.title, query))
+          ..orderBy([
+            newestFirst
+                ? OrderingTerm.desc(programmes.start)
+                : OrderingTerm.asc(programmes.start)
+          ])
+          ..limit(limit))
+        .get();
+    return [
+      for (final r in rows)
+        model.Programme(
+          channelId: r.read(programmes.channelId)!,
+          start: r.read(programmes.start)!,
+          end: r.read(programmes.end)!,
+          title: r.read(programmes.title)!,
+        ),
+    ];
+  }
+
+  /// Channels for [ids] (bounded: callers pass at most a few hundred),
+  /// limited to [sourceId] when given.
+  Future<List<model.Channel>> getChannelsByIds(Iterable<String> ids,
+      {String? sourceId}) async {
+    final list = ids.toList();
+    if (list.isEmpty) return const [];
+    final rows = await (select(channels)
+          ..where((t) =>
+              t.id.isIn(list) &
+              (sourceId == null
+                  ? const Constant(true)
+                  : t.sourceId.equals(sourceId))))
+        .get();
+    return rows.map(_channelFromRow).toList();
+  }
+
+  /// What is airing now on each of [channelIds] (title only), in one query.
+  Future<Map<String, String>> currentTitlesFor(
+      Iterable<String> channelIds) async {
+    final list = channelIds.toList();
+    if (list.isEmpty) return const {};
+    final now = DateTime.now();
+    final rows = await (selectOnly(programmes)
+          ..addColumns([programmes.channelId, programmes.title])
+          ..where(programmes.channelId.isIn(list) &
+              programmes.start.isSmallerOrEqualValue(now) &
+              programmes.end.isBiggerThanValue(now)))
+        .get();
+    return {
+      for (final r in rows)
+        r.read(programmes.channelId)!: r.read(programmes.title)!,
+    };
   }
 
   // ---------------------------------------------------------------------------

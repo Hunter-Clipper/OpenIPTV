@@ -147,6 +147,17 @@ class MainActivity : AudioServiceActivity() {
         }
     }
 
+    // Holding Back (TV remote): "back to the full-screen player of whatever
+    // is playing". Returning true cancels the key, so the normal Back
+    // (onBackPressed on key-up) doesn't also fire.
+    override fun onKeyLongPress(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_BACK && backBlocked) {
+            backChannel?.invokeMethod("backLongPressed", null)
+            return true
+        }
+        return super.onKeyLongPress(keyCode, event)
+    }
+
     // Fired when the user presses Home (or otherwise leaves the activity)
     // while it's in the foreground.
     override fun onUserLeaveHint() {
