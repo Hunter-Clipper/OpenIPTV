@@ -206,10 +206,13 @@ class _Backdrop extends StatelessWidget {
     );
     if (backdropUrl != null) return image;
     // No backdrop: a soft, blurred wash of the poster instead.
-    return ClipRect(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Opacity(opacity: 0.7, child: image),
+    // Cached as one layer so scrolling the page doesn't re-run the blur.
+    return RepaintBoundary(
+      child: ClipRect(
+        child: ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Opacity(opacity: 0.7, child: image),
+        ),
       ),
     );
   }

@@ -850,7 +850,7 @@ class _TvNavRailState extends State<_TvNavRail> {
   }
 }
 
-// A soft glowing pill (rather than TvFocusable's default hard-edged border
+// A soft pill (rather than TvFocusable's default hard-edged border
 // box) with a subtle scale pop on focus — reads as more deliberate/"designed"
 // for a rail the user dwells on and arrows up/down through, vs. the generic
 // ring used for one-off targets elsewhere in the app. Active-route coloring
@@ -911,14 +911,6 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
             color:
                 _focused ? accent.withValues(alpha: 0.16) : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: _focused
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.35),
-                      blurRadius: 18,
-                    ),
-                  ]
-                : const [],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

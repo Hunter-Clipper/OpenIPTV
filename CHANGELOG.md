@@ -3,10 +3,12 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.58)
+## 0.14.60 — 2026-11-03
 
 **Improved**
 - TV guide: the layout now gives the programme grid room in steps. On the left menu, everything is full size; in the category list, the left menu shrinks to small icons; in the guide grid, the categories shrink too. The change glides smoothly instead of snapping.
+- TV: poster and channel cards no longer glow in the accent colour when focused (the white outline and the grow effect stay), and focusing them is smoother on slower TVs. Movie and series pages scroll more smoothly when there is no backdrop.
+- TV: the left menu's focused icon no longer has a glow around it; the soft highlight pill is enough.
 - Screen readers: each Multi-view tile now announces its channel name and whether it is the one you are hearing.
 - The next-episode countdown ring is a little bigger so its number is readable.
 - Screen readers: the full-screen video area is now announced ("Video, double tap to show or hide the playback controls") instead of being an unnamed control.
@@ -15,6 +17,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - "Remove animations" now covers the whole app, not just screen changes: focus highlights, posters growing on focus, the player's controls fading, the TV guide column, scrolling to a focused item and the setup steps all switch instantly, and long names stay shortened instead of scrolling.
 
 **Fixes**
+- Updates: if GitHub can't be reached and the backup download copy is an older build than the release, the app now skips it instead of trying to install it (which would fail).
 - Turning database encryption on or off told you the app would restart, but it just closed. The message now says it will close and to open it again.
 
 ## 0.14.53 — 2026-11-03

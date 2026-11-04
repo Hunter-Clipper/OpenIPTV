@@ -244,7 +244,13 @@ class UpdateService {
         final r = await _client
             .send(http.Request('GET', Uri.parse(url)))
             .timeout(const Duration(seconds: 30));
-        if (r.statusCode == 200) {
+        // A mirror copy must be the same size as the release asset, or it
+        // is a stale older build (installing it would fail as a downgrade).
+        final sizeKnown = info.apkSize != null && fileName == 'OpenIPTV';
+        final stale = url != info.apkUrl &&
+            sizeKnown &&
+            r.contentLength != info.apkSize;
+        if (r.statusCode == 200 && !stale) {
           response = r;
           break;
         }
