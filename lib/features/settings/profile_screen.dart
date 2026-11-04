@@ -349,6 +349,7 @@ class _ProfileHero extends StatelessWidget {
                   .copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Row(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
