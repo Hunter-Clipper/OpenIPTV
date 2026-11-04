@@ -607,7 +607,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
     super.initState();
     if (widget.openOnShow) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !PlatformHelper.isTV(context)) return;
+        if (!mounted || !PlatformHelper.usesNativeTvKeyboard) return;
         _gate.requestFocus();
         _startTyping();
       });
@@ -765,7 +765,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (!PlatformHelper.isTV(context)) {
+    if (!PlatformHelper.usesNativeTvKeyboard) {
       return widget.builder(context, widget.focusNode ?? _field);
     }
     final built = widget.builder(context, _field);

@@ -10,6 +10,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 **Web browser version (in development, not part of any release yet)**
 - OpenIPTV now runs in a desktop browser: add an M3U link or an Xtream login, browse Live TV, Movies and Series, search, and watch. Many providers block websites from loading their lists, so some playlists only work once the planned self-hosted helper exists.
+- The page picks its layout from the browser: a computer gets the big-screen layout (channel guide and side menu), a phone or tablet browser gets the phone layout.
 - Your profile, playlists and channels are saved in the browser and survive a reload.
 - Backup and restore work in the browser: export downloads a file, restore opens the browser's file chooser.
 - Movies and episodes reopen where you left off, and the browser's Back and Forward buttons step through screens.
