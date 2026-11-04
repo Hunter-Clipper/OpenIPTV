@@ -1618,8 +1618,8 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                                   shape: const StadiumBorder(),
                                   minimumSize: const Size.fromHeight(44)),
                               icon: SizedBox(
-                                width: 20,
-                                height: 20,
+                                width: 26,
+                                height: 26,
                                 child: Stack(
                                   alignment: Alignment.center,
                                   children: [
@@ -1632,7 +1632,7 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                                     ),
                                     Text('$_remaining',
                                         style: TextStyle(
-                                            fontSize: 10,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w700,
                                             color: scheme.onPrimary)),
                                   ],
