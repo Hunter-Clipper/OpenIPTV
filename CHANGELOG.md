@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.61)
+## 0.14.61 — 2026-11-03
 
 **Improved**
 - TV: one cleaner focus look everywhere. The white outline is gone; whatever you have selected now gets a soft accent-coloured highlight, like the left menu always had, and small items grow a little. It covers menus and settings rows, the guide, poster and channel cards (the highlight sits behind the picture and title and the title turns bold), round buttons (back, favourite, layout, the small ⓘ and refresh icons), the Play button, dialog buttons, profile tiles and text fields. The video player's buttons keep their white highlight so they stay visible over video.
