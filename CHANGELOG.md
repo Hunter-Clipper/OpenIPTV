@@ -10,7 +10,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - TV: "selected" and "focused" no longer look alike. The chosen category, the channel that is playing and the chosen avatar are marked with accent text, a thin bar or an outline, while the highlight fill means "this is where the remote is".
 - TV guide: the channel that is playing is marked in the list (accent name, a thin bar and a small sound icon), so you can tell which one it is.
 - TV: filled buttons (Play, Add Playlist, Save…) turn a clearly lighter shade when selected, and the highlight on your picture and name in Settings → Profile is a compact pill.
-- TV: Settings → Profile now starts on your picture and name (one big target) instead of a tiny edit badge, and the back arrow, ⓘ icons and episode rows have a clear highlight.
+- TV: Settings → Profile now starts on your picture and name (one target) instead of a tiny edit badge, and the back arrow, ⓘ icons and episode rows have a clear highlight.
 
 ## 0.14.60 — 2026-11-03
 
