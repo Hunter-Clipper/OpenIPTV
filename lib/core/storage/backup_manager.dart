@@ -463,6 +463,13 @@ class BackupManager {
         if (v is String) await p.setBufferPreset(v);
       },
     ),
+    PreferenceEntry(
+      key: 'userAgent',
+      encode: (p) => p.userAgent,
+      decode: (p, v) async {
+        if (v is String) await p.setUserAgent(v);
+      },
+    ),
     // VPN (Power User Tools)
     PreferenceEntry(
       key: 'vpnRoute',

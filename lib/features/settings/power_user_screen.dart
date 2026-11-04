@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/network_info.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/speed_test.dart';
 import 'package:open_iptv/core/services/vpn_service.dart';
+import 'package:open_iptv/core/services/user_agent.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/utils/snack_bar_utils.dart';
 import 'package:open_iptv/shared/widgets/device_file_picker.dart';
@@ -477,6 +478,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _vpnGroup(),
           _speedGroup(),
           _bufferGroup(),
+          _userAgentGroup(),
           _databaseGroup(),
         ],
       ),
@@ -881,6 +883,109 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           ),
       ],
     );
+  }
+
+  Widget _userAgentGroup() {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final custom = prefs?.userAgent;
+    return SettingsGroup(
+      title: 'User agent',
+      description: 'How the player introduces itself to your provider. '
+          'OpenIPTV sends its own name, version and device. Change it only '
+          'if your provider asks for a particular one. Each extra channel '
+          'in multi-view adds its own tag on the end, so your provider can '
+          'tell them apart. Applies from the next channel you open.',
+      children: [
+        TvActivatable(
+          onTap: _editUserAgent,
+          builder: (tap) => ListTile(
+            leading: const IconBadge(icon: Icons.badge_outlined),
+            title: const Text('Player user agent'),
+            subtitle: Text(
+              custom ?? 'OpenIPTV (default)',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: tap,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editUserAgent() async {
+    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    if (prefs == null) return;
+    final controller = TextEditingController(text: prefs.userAgent ?? '');
+    String? error;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          void trySave() {
+            try {
+              parseCustomUserAgent(controller.text);
+              Navigator.of(ctx).pop(true);
+            } on FormatException catch (e) {
+              setLocal(() => error = e.message);
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('User agent'),
+            scrollable: true,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Leave it empty to use OpenIPTV\'s own.'),
+                const SizedBox(height: 12),
+                TvTextFieldGate(
+                  autofocus: true,
+                  builder: (context, node) => TextField(
+                    focusNode: node,
+                    controller: controller,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: 'User agent',
+                      hintText: 'e.g. VLC/3.0.20 LibVLC/3.0.20',
+                      errorText: error,
+                    ),
+                    onSubmitted: (_) => trySave(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TvActivatable(
+                onTap: () {
+                  controller.clear();
+                  Navigator.of(ctx).pop(true);
+                },
+                builder: (onTap) => TextButton(
+                    onPressed: onTap, child: const Text('Use default')),
+              ),
+              TvActivatable(
+                onTap: () => Navigator.of(ctx).pop(false),
+                builder: (onTap) =>
+                    TextButton(onPressed: onTap, child: const Text('Cancel')),
+              ),
+              TvActivatable(
+                onTap: trySave,
+                builder: (onTap) =>
+                    FilledButton(onPressed: onTap, child: const Text('Save')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    final text = controller.text;
+    controller.dispose();
+    if (saved != true) return;
+    await prefs.setUserAgent(parseCustomUserAgent(text));
+    if (mounted) setState(() {});
   }
 
   Widget _publicIpRow(ThemeData theme) {

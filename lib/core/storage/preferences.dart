@@ -33,6 +33,7 @@ const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
+const _kUserAgent = 'user_agent'; // custom player user agent (Power User Tools)
 const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
 const _kVpnAutoConnect = 'vpn_auto_connect';
 const _kVpnKind = 'vpn_kind'; // 'wireguard' | 'openvpn' (last connected)
@@ -168,6 +169,12 @@ class AppPreferences {
   /// Player buffer size (Power User Tools); null = the default.
   String? get bufferPreset => _prefs.getString(_kBufferPreset);
   Future<void> setBufferPreset(String v) => _prefs.setString(_kBufferPreset, v);
+
+  /// A custom user agent for streams (Power User Tools); null = the app's own.
+  String? get userAgent => _prefs.getString(_kUserAgent);
+  Future<void> setUserAgent(String? v) => v == null || v.isEmpty
+      ? _prefs.remove(_kUserAgent)
+      : _prefs.setString(_kUserAgent, v);
 
   /// Built-in VPN: send only OpenIPTV ('app', default) or the whole device
   /// ('device') through the tunnel; and whether to connect on app start.
