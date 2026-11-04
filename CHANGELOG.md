@@ -3,9 +3,10 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.55)
+## Unreleased (0.14.58)
 
 **Improved**
+- TV guide: the layout now gives the programme grid room in steps. On the left menu, everything is full size; in the category list, the left menu shrinks to small icons; in the guide grid, the categories shrink too. The change glides smoothly instead of snapping.
 - Screen readers: each Multi-view tile now announces its channel name and whether it is the one you are hearing.
 - The next-episode countdown ring is a little bigger so its number is readable.
 - Screen readers: the full-screen video area is now announced ("Video, double tap to show or hide the playback controls") instead of being an unnamed control.
