@@ -171,23 +171,42 @@ class _ProfileCardState extends State<_ProfileCard> {
       autofocus: widget.autofocus,
       showFocusRing: false,
       onFocusChange: (f) => setState(() => _focused = f),
-      child: SizedBox(
+      child: AnimatedScale(
+        scale: lit ? 1.06 : 1.0,
+        duration: motionDuration(TvFocusStyle.duration),
+        curve: TvFocusStyle.curve,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // The shared focus pill, behind the avatar and name.
+            Positioned.fill(
+              left: -4,
+              right: -4,
+              top: -8,
+              bottom: -8,
+              child: IgnorePointer(
+                child: AnimatedContainer(
+                  duration: motionDuration(TvFocusStyle.duration),
+                  curve: TvFocusStyle.curve,
+                  decoration: BoxDecoration(
+                    color: lit ? TvFocusStyle.fill(context) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
         width: size + 24,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedScale(
-              scale: lit ? 1.08 : 1.0,
-              duration: motionDuration(const Duration(milliseconds: 160)),
-              curve: Curves.easeOut,
-              child: Stack(
+            Stack(
                 clipBehavior: Clip.none,
                 children: [
                   ProfileAvatar(
                     emoji: profile.avatarEmoji,
                     name: profile.name,
                     size: size,
-                    highlighted: lit,
                   ),
                   if (profile.hasPin)
                     Positioned(
@@ -205,7 +224,6 @@ class _ProfileCardState extends State<_ProfileCard> {
                     ),
                 ],
               ),
-            ),
             const SizedBox(height: 14),
             Text(
               profile.name,
@@ -225,6 +243,9 @@ class _ProfileCardState extends State<_ProfileCard> {
                       .copyWith(color: theme.colorScheme.primary),
                 ),
               ),
+          ],
+        ),
+      ),
           ],
         ),
       ),

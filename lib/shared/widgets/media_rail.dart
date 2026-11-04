@@ -98,11 +98,11 @@ class MediaRail extends StatelessWidget {
         ),
         SizedBox(
           // Poster + padding + title (+ subtitle) lines.
-          height: posterHeight + 40 + (hasSubtitle ? 16 : 0),
+          height: posterHeight + 45 + (hasSubtitle ? 16 : 0),
           child: TvRowFocus(
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+              padding: const EdgeInsets.fromLTRB(16, 9, 16, 6),
               clipBehavior: Clip.none,
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
@@ -240,16 +240,36 @@ class _PosterCardState extends State<_PosterCard> {
       ensureVisibleOnFocus: true,
       showFocusRing: false,
       onFocusChange: (f) => setState(() => _focused = f),
-      child: SizedBox(
+      child: AnimatedScale(
+        scale: lit ? 1.05 : 1.0,
+        duration: motionDuration(TvFocusStyle.duration),
+        curve: TvFocusStyle.curve,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // The shared focus pill, behind the whole card (picture + title).
+            Positioned(
+              left: -8,
+              right: -8,
+              top: -7,
+              bottom: -5,
+              child: IgnorePointer(
+                child: AnimatedContainer(
+                  duration: motionDuration(TvFocusStyle.duration),
+                  curve: TvFocusStyle.curve,
+                  decoration: BoxDecoration(
+                    color: lit ? TvFocusStyle.cardFill(context) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
         width: widget.width,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AnimatedScale(
-              scale: lit ? 1.07 : 1.0,
-              duration: motionDuration(const Duration(milliseconds: 160)),
-              curve: Curves.easeOut,
-              child: AnimatedContainer(
+            AnimatedContainer(
                 duration: motionDuration(const Duration(milliseconds: 160)),
                 width: widget.width,
                 height: widget.height,
@@ -262,10 +282,6 @@ class _PosterCardState extends State<_PosterCard> {
                           colors: logoTileColors,
                         )
                       : null,
-                  border: Border.all(
-                    color: lit ? Colors.white : Colors.transparent,
-                    width: 2.5,
-                  ),
                   // A still shadow: animating the blur radius re-rasterised
                   // it every frame, which stuttered on TV hardware.
                   boxShadow: [
@@ -336,14 +352,15 @@ class _PosterCardState extends State<_PosterCard> {
                   ),
                 ),
               ),
-            ),
             const SizedBox(height: 8),
             Text(
               item.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodyMedium!
-                  .copyWith(fontWeight: FontWeight.w500, fontSize: 13),
+                  .copyWith(
+                      fontWeight: lit ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 13),
             ),
             if (item.subtitle != null)
               Text(
@@ -357,6 +374,9 @@ class _PosterCardState extends State<_PosterCard> {
                       : null,
                 ),
               ),
+          ],
+        ),
+      ),
           ],
         ),
       ),

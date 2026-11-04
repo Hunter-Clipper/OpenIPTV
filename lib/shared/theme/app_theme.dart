@@ -24,6 +24,22 @@ class AppTheme {
   /// Readable label colour for text or icons on [fill]: white when it reaches
   /// the 4.5:1 minimum, otherwise ink. Every built-in accent (and the error
   /// red) is too light for white.
+  /// A button overlay that shows [color] clearly while focused (the default
+  /// state layer is a faint 10%), and keeps Material's lighter hover/press.
+  static WidgetStateProperty<Color?> _focusOverlay(Color color, double alpha) =>
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused)) {
+          return color.withValues(alpha: alpha);
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return color.withValues(alpha: 0.16);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return color.withValues(alpha: 0.08);
+        }
+        return null;
+      });
+
   static Color onAccent(Color fill) {
     final a = Colors.white.computeLuminance();
     final b = fill.computeLuminance();
@@ -230,6 +246,9 @@ class AppTheme {
         textColor: _onSurface,
         tileColor: Colors.transparent,
       ),
+      // A visible keyboard/remote focus for plain Material controls (back
+      // arrows, icon buttons, tiles) that don't sit inside a TvFocusable.
+      focusColor: primary.withValues(alpha: 0.30),
       iconTheme: const IconThemeData(color: _onSurfaceVariant),
       // Explicit track: Material 3 draws it in secondaryContainer, which
       // (unset here) falls back to secondary == primary — making every
@@ -239,6 +258,9 @@ class AppTheme {
         linearTrackColor: Colors.white.withValues(alpha: 0.15),
         circularTrackColor: Colors.transparent,
       ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(overlayColor: _focusOverlay(primary, 0.34)),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
@@ -247,7 +269,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(cardRadius),
           ),
-        ),
+        ).copyWith(
+          overlayColor: _focusOverlay(Colors.white, 0.32)),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -256,7 +279,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(cardRadius),
           ),
-        ),
+        ).copyWith(
+          overlayColor: _focusOverlay(primary, 0.30)),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
@@ -266,7 +290,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(cardRadius),
           ),
-        ),
+        ).copyWith(
+          overlayColor: _focusOverlay(primary, 0.30)),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: _surface,

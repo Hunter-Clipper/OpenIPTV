@@ -101,6 +101,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
                         leading: const IconBadge(icon: Icons.lock_outline),
                         title: Text(context.displayName(cat)),
                         trailing: TvActivatable(
+        round: true,
                           onTap: () => _removeLockedCat(prefs, cat),
                           builder: (onTap) => IconButton(
                             icon: Icon(Icons.delete_outline,

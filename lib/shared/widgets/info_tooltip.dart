@@ -77,19 +77,24 @@ class InfoTooltip extends StatelessWidget {
                 Expanded(child: child),
                 const SizedBox(width: 8),
                 Padding(
-                  padding: const EdgeInsets.only(right: 16),
+                  padding: const EdgeInsets.only(right: 8),
                   child: TvFocusable(
                     onTap: () => controller.toggle(id),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Icon(
-                      Icons.info_outline,
-                      size: 18,
-                      color: isOpen
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(24),
+                    focusScale: 1.15,
+                    // A roomy round target, so the focus pill is easy to see.
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: isOpen
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.55),
+                      ),
                     ),
                   ),
                 ),

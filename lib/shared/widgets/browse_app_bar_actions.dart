@@ -16,6 +16,7 @@ class SortToggleAction extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sort = ref.watch(contentSortProvider);
     return TvActivatable(
+        round: true,
       onTap: () async {
         final prefs = await ref.read(appPreferencesProvider.future);
         await setContentSort(ref, sort == 'az' ? 'provider' : 'az', prefs);
@@ -47,6 +48,7 @@ class ViewModeToggleAction extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final viewMode = ref.watch(provider);
     return TvActivatable(
+        round: true,
       onTap: () async {
         final prefs = await ref.read(appPreferencesProvider.future);
         await setMode(ref, viewMode == 'grid' ? 'list' : 'grid', prefs);
@@ -81,6 +83,7 @@ class HomeLayoutToggleAction extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final posters = ref.watch(provider) != 'compact';
     return TvActivatable(
+        round: true,
       onTap: () async {
         final prefs = await ref.read(appPreferencesProvider.future);
         await setLayout(ref, posters ? 'compact' : 'posters', prefs);

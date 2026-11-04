@@ -833,16 +833,36 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
       onFocusChange: (f) => setState(() => _focused = f),
       onTap: () => playLiveChannel(context, ch),
       onLongPress: widget.onLongPress,
-      child: SizedBox(
+      child: AnimatedScale(
+        scale: lit ? 1.05 : 1.0,
+        duration: motionDuration(TvFocusStyle.duration),
+        curve: TvFocusStyle.curve,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // The shared focus pill, behind the whole card (picture + title).
+            Positioned(
+              left: -8,
+              right: -8,
+              top: -7,
+              bottom: -5,
+              child: IgnorePointer(
+                child: AnimatedContainer(
+                  duration: motionDuration(TvFocusStyle.duration),
+                  curve: TvFocusStyle.curve,
+                  decoration: BoxDecoration(
+                    color: lit ? TvFocusStyle.cardFill(context) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
         width: widget.width,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AnimatedScale(
-              scale: lit ? 1.06 : 1.0,
-              duration: motionDuration(const Duration(milliseconds: 160)),
-              curve: Curves.easeOut,
-              child: AnimatedContainer(
+            AnimatedContainer(
                 duration: motionDuration(const Duration(milliseconds: 160)),
                 width: widget.width,
                 height: widget.width * 9 / 16,
@@ -852,10 +872,6 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: logoTileColors,
-                  ),
-                  border: Border.all(
-                    color: lit ? Colors.white : Colors.transparent,
-                    width: 2.5,
                   ),
                   // A still shadow: animating the blur radius re-rasterised
                   // it every frame, which stuttered on TV hardware.
@@ -911,7 +927,6 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                   ),
                 ),
               ),
-            ),
             const SizedBox(height: 8),
             Text(
               context.displayName(ch.name),
@@ -931,6 +946,9 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                     : theme.colorScheme.primary,
               ),
             ),
+          ],
+        ),
+      ),
           ],
         ),
       ),

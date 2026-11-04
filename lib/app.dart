@@ -908,8 +908,7 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
           padding: EdgeInsets.symmetric(
               vertical: widget.compact ? 10 : 12, horizontal: 4),
           decoration: BoxDecoration(
-            color:
-                _focused ? accent.withValues(alpha: 0.16) : Colors.transparent,
+            color: _focused ? TvFocusStyle.fill(context) : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
           ),
           child: Column(

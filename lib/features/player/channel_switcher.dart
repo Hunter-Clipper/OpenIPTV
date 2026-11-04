@@ -283,9 +283,9 @@ class _ChannelRow extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         child: Material(
-          color: current
-              ? scheme.primary.withValues(alpha: 0.16)
-              : Colors.transparent,
+          // The playing channel is marked by an accent bar; a fill is for
+          // focus alone.
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -294,6 +294,16 @@ class _ChannelRow extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
                 children: [
+                  // Marks the channel that is playing.
+                  Container(
+                    width: 3,
+                    height: 32,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: current ? scheme.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   Container(
                     width: 76,
                     height: 48,

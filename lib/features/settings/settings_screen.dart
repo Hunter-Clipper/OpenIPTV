@@ -1349,6 +1349,7 @@ class _SourceAction extends StatelessWidget {
       // swapping it for a bare spinner removed the node the remote's focus
       // was on, and focus jumped back to another playlist's row.
       child: TvActivatable(
+        round: true,
         onTap: busy ? () {} : onTap,
         builder: (onTap) => IconButton(
           icon: busy

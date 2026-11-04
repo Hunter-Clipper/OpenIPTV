@@ -268,6 +268,7 @@ class _RoundBackButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(6),
       child: TvActivatable(
+        round: true,
         onTap: () => Navigator.of(context).maybePop(),
         builder: (onTap) => IconButton(
           style: IconButton.styleFrom(backgroundColor: Colors.black38),
@@ -298,6 +299,7 @@ class DetailBarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TvActivatable(
+        round: true,
       onTap: onTap,
       builder: (onTap) => IconButton(
         style: IconButton.styleFrom(backgroundColor: Colors.black38),
@@ -336,18 +338,26 @@ class DetailActions extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FilledButton.icon(
+          // Wrapped so the remote shows the shared focus look (a pill that
+          // follows the button's shape, plus a small grow) — a lighter
+          // fill alone was hard to spot on a full-width accent button.
+          TvActivatable(
             autofocus: true,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              shape: const StadiumBorder(),
-              textStyle: theme.textTheme.titleMedium!
-                  .copyWith(fontWeight: FontWeight.w600),
+            round: true,
+            focusScale: 1.035,
+            onTap: onPrimary,
+            builder: (onTap) => FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: const StadiumBorder(),
+                textStyle: theme.textTheme.titleMedium!
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              icon: Icon(primaryIcon, size: 28),
+              label: Text(primaryLabel,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              onPressed: onTap,
             ),
-            icon: Icon(primaryIcon, size: 28),
-            label: Text(primaryLabel,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            onPressed: onPrimary,
           ),
           if (progress != null) ...[
             const SizedBox(height: 10),
@@ -399,6 +409,7 @@ class RoundAction extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           TvActivatable(
+        round: true,
             onTap: onTap,
             builder: (onTap) => IconButton.filledTonal(
               style: IconButton.styleFrom(

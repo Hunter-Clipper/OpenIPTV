@@ -1122,12 +1122,30 @@ class _CategoryItem extends StatelessWidget {
           // column, so it glides there instead of jumping.
           padding: EdgeInsets.symmetric(horizontal: compact ? 15 : 10),
           decoration: BoxDecoration(
-            color: selected
-                ? theme.colorScheme.primary.withValues(alpha: 0.14)
-                : null,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Row(
+          // Selected = accent text plus a thin bar; a tinted fill is kept
+          // for focus alone, so the two never look alike.
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: -6,
+                top: 8,
+                bottom: 8,
+                width: 3,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              Row(
             children: [
               Icon(icon, size: 18, color: color),
               AnimatedContainer(
@@ -1155,6 +1173,8 @@ class _CategoryItem extends StatelessWidget {
               if (locked && !compact)
                 Icon(Icons.lock_outline_rounded,
                     size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
             ],
           ),
         ),

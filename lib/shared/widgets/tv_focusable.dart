@@ -9,6 +9,25 @@ import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+/// The one focus look for the whole TV interface: a soft accent-tinted pill
+/// and a gentle grow (the look the side menu always had). No outline, no
+/// glow. Everything that shows focus on TV uses these so it stays cohesive.
+class TvFocusStyle {
+  const TvFocusStyle._();
+
+  static const duration = Duration(milliseconds: 160);
+  static const curve = Curves.easeOut;
+
+  /// A stronger pill for picture cards, whose artwork covers most of the
+  /// area and would otherwise leave only a thin rim of tint.
+  static Color cardFill(BuildContext context) =>
+      Theme.of(context).colorScheme.primary.withValues(alpha: 0.30);
+
+  /// The pill colour for the current accent.
+  static Color fill(BuildContext context) =>
+      Theme.of(context).colorScheme.primary.withValues(alpha: 0.20);
+}
+
 /// Wraps [child] so it can receive D-pad/keyboard focus: shows an animated
 /// accent focus ring (matching AppTheme.focusDecoration) when focused,
 /// activates [onTap] on remote OK/Enter, and scrolls itself into view when
@@ -30,6 +49,7 @@ class TvFocusable extends StatefulWidget {
     this.wrapsGesture = true,
     this.focusNode,
     this.showFocusRing = true,
+    this.focusScale = 1.0,
   });
 
   final Widget child;
@@ -75,6 +95,9 @@ class TvFocusable extends StatefulWidget {
   // scroll-into-view behavior are unaffected — only the built-in ring is
   // skipped.
   final bool showFocusRing;
+  // How much the item grows while focused. Off by default: wide rows and
+  // cells would spill over their neighbours; small items opt in.
+  final double focusScale;
 
   @override
   State<TvFocusable> createState() => _TvFocusableState();
@@ -185,29 +208,30 @@ class _TvFocusableState extends State<TvFocusable> {
       // regular (transparent-until-focused) border it inset every focusable
       // widget by 3px, misaligning it against non-focusable siblings (e.g.
       // the active, non-tappable row in a list of tappable ones).
-      content = AnimatedContainer(
-        duration: motionDuration(const Duration(milliseconds: 150)),
-        foregroundDecoration: BoxDecoration(
-          border: Border.all(
-            // White, not the accent: the accent already marks *selected*
-            // things (chosen avatar, active playlist), and a focus ring in
-            // the same colour made the two indistinguishable on TV.
-            color: lit ? Colors.white : Colors.transparent,
-            width: 3,
+      content = AnimatedScale(
+        scale: lit ? widget.focusScale : 1.0,
+        duration: motionDuration(TvFocusStyle.duration),
+        curve: TvFocusStyle.curve,
+        child: AnimatedContainer(
+          duration: motionDuration(TvFocusStyle.duration),
+          curve: TvFocusStyle.curve,
+          // The pill is painted over the child so it takes no layout space.
+          foregroundDecoration: BoxDecoration(
+            color: lit ? TvFocusStyle.fill(context) : Colors.transparent,
+            borderRadius: widget.borderRadius ??
+                BorderRadius.circular(AppTheme.cardRadius),
           ),
-          borderRadius: widget.borderRadius ??
-              BorderRadius.circular(AppTheme.cardRadius),
+          child: PlatformHelper.isTV(context)
+              // The pill is the focus indicator on TV. A wrapped ListTile or
+              // button would also paint its own ink focus fill — a second,
+              // differently-sized highlight under it.
+              ? Theme(
+                  data: Theme.of(context)
+                      .copyWith(focusColor: Colors.transparent),
+                  child: widget.child,
+                )
+              : widget.child,
         ),
-        child: PlatformHelper.isTV(context)
-            // The ring is the focus indicator on TV. A wrapped ListTile or
-            // button would also paint its own ink focus fill — a second,
-            // differently-sized highlight under the ring.
-            ? Theme(
-                data: Theme.of(context)
-                    .copyWith(focusColor: Colors.transparent),
-                child: widget.child,
-              )
-            : widget.child,
       );
     }
     return Focus(
@@ -292,12 +316,18 @@ class TvActivatable extends StatelessWidget {
     this.autofocus = false,
     this.borderRadius,
     this.focusNode,
+    this.round = false,
+    this.focusScale,
   });
 
   final VoidCallback? onTap;
   final Widget Function(VoidCallback? onTap) builder;
   final bool autofocus;
   final BorderRadius? borderRadius;
+  // A round control (icon button): the focus pill is a circle and the
+  // control grows a little.
+  final bool round;
+  final double? focusScale;
   final FocusNode? focusNode;
 
   @override
@@ -309,7 +339,8 @@ class TvActivatable extends StatelessWidget {
       wrapsGesture: false,
       onTap: tap,
       autofocus: autofocus,
-      borderRadius: borderRadius,
+      borderRadius: round ? BorderRadius.circular(40) : borderRadius,
+      focusScale: focusScale ?? (round ? 1.12 : 1.0),
       focusNode: focusNode,
       child: child,
     );
@@ -369,7 +400,7 @@ class TvMenuTheme extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Theme(
         data: Theme.of(context)
-            .copyWith(focusColor: Colors.white.withValues(alpha: 0.24)),
+            .copyWith(focusColor: TvFocusStyle.fill(context)),
         child: child,
       );
 }
@@ -735,14 +766,14 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
         padding: EdgeInsets.only(
             bottom: _typing && _inDialog ? _dialogTypingRoom : 0),
         child: Container(
+        // Focused: the shared pill. Typing: an accent outline, so it is clear
+        // the field is open for input.
         foregroundDecoration: BoxDecoration(
+          color: _gateFocused && !_typing
+              ? TvFocusStyle.fill(context)
+              : Colors.transparent,
           border: Border.all(
-              color: _typing
-                  ? scheme.primary
-                  : _gateFocused
-                      ? Colors.white
-                      : Colors.transparent,
-              width: 3),
+              color: _typing ? scheme.primary : Colors.transparent, width: 3),
           borderRadius: widget.borderRadius,
         ),
         // The field never has focus on TV (typing goes through the native

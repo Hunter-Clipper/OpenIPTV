@@ -72,7 +72,6 @@ class ProfileScreen extends ConsumerWidget {
                         'from Live, Movies, and Series. Requires Parental '
                         'Protection to be enabled.',
                     child: TvActivatable(
-                      autofocus: true,
                       onTap: profile.isAdmin
                           ? null
                           : () => _setKidsProfile(
@@ -307,8 +306,20 @@ class _ProfileHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 28),
-      child: Column(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      // Centred so the focus pill hugs the picture and name.
+      child: Center(
+       child: TvFocusable(
+        onTap: onEdit,
+        autofocus: true,
+        borderRadius: BorderRadius.circular(28),
+        focusScale: 1.04,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
+          // One focus target for the whole block (picture + name): the tiny
+          // edit badge on its own was too small to show focus.
+          child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Stack(
             alignment: Alignment.bottomRight,
@@ -318,10 +329,7 @@ class _ProfileHero extends StatelessWidget {
                 name: profile.name,
                 size: 104,
               ),
-              TvFocusable(
-                onTap: onEdit,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
+              Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
@@ -332,7 +340,7 @@ class _ProfileHero extends StatelessWidget {
                   child: Icon(Icons.edit_rounded,
                       size: 16, color: theme.colorScheme.onPrimary),
                 ),
-              ),
+
             ],
           ),
           const SizedBox(height: 14),
@@ -376,6 +384,9 @@ class _ProfileHero extends StatelessWidget {
           ),
         ],
       ),
+        ),
+      ),
+     ),
     );
   }
 }
@@ -964,14 +975,14 @@ class _EmojiPicker extends StatelessWidget {
         return TvFocusable(
           onTap: () => onSelected(emoji),
           borderRadius: BorderRadius.circular(8),
+          focusScale: 1.15,
           child: AnimatedContainer(
             duration: motionDuration(const Duration(milliseconds: 150)),
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
-                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+              // Selected = accent outline only; a tint is for focus alone.
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isSelected

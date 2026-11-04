@@ -469,7 +469,10 @@ class _EpisodeCard extends ConsumerWidget {
     final radius = BorderRadius.circular(10);
     void onTap() => _playEpisode(context, episode);
 
-    return TvFocusable(
+    // Inset from the screen edges, so the focus pill never touches them.
+    return Padding(
+     padding: const EdgeInsets.symmetric(horizontal: 8),
+     child: TvFocusable(
       wrapsGesture: false,
       onTap: onTap,
       ensureVisibleOnFocus: true,
@@ -567,7 +570,7 @@ class _EpisodeCard extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

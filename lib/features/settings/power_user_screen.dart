@@ -394,6 +394,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         title: const Text('Power User Tools'),
         actions: [
           TvActivatable(
+        round: true,
             onTap: _refresh,
             builder: (onTap) => IconButton(
               icon: const Icon(Icons.refresh),
