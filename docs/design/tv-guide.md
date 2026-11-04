@@ -87,6 +87,36 @@ the top, and a channel × time grid below. Phones and tablets are unchanged.
   stream."), and shows the channel logo with a spinner until the new
   stream's first frame (the texture otherwise still shows the last one).
 
+## Catch-up in the pane, start over, hold Back (0.14.62–0.14.64)
+
+- A catch-up show can play in the pane like a live channel. The guide's
+  pane model (`_PaneModel`) implements `CatchupAware` (`catchup_launcher.dart`):
+  `launchCatchup` tells it the URL → channel/programme, since a catch-up
+  URL isn't one of the channel list's live URLs. `PlayerScreen` hands the
+  stream back on Back for live **and** `contentType == 'catchup'`.
+- The pane's watchdog treats catch-up as VOD (`live: false`) and a
+  reconnect resumes at the frozen position. When the show ends (stream
+  completed, within 3 s of its length, or the stream dies after the
+  show's scheduled end) `_continueAfterCatchup` plays the next programme
+  from catch-up if it began ≥ 2 min ago, else the channel live. A 6 s
+  quiet period after each switch ignores the old stream's end state.
+  *Not yet observed across a real hour roll-over — owner is long-term
+  testing it.*
+- **Hold Back** = back to the full-screen player of what the pane is
+  playing: `MainActivity.onKeyLongPress(KEYCODE_BACK)` → `openiptv/back`
+  `backLongPressed` → `TvGuideScreen.resumeFullScreen`. Returning true
+  cancels the key so the normal Back doesn't also fire. Only the guide
+  registers it.
+- **Start over or live?** `openChannelWithStartChoice` (catchup_launcher
+  .dart), used by the guide, search and the phone channel list: on a
+  catch-up channel with a show ≥ 2 min underway and inside the catch-up
+  window, asks "Start from the beginning" / "Watch live" (Back cancels).
+  Pref `ask_start_over` (default on) — Settings → Playback → Ask to Start
+  Over. While any dialog/sheet is over the guide, `_syncCollapsed` keeps
+  the rail and category column as they are.
+- The catch-up (history) icon shows on guide channel labels and search
+  cards (`RailItem.catchup`).
+
 ## Testing
 
 - Chromecast: main (full guide), iptv-org (no guide data, many dead
