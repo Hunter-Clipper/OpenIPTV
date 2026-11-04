@@ -39,7 +39,7 @@ void main() async {
   // Must resolve before the orientation lock below — a TV has no rotation
   // concept and no portrait mode at all, so requesting one here causes
   // Android to letterbox the whole app into a small portrait compat box.
-  if (!kIsWeb) await PlatformHelper.initTvDetection();
+  await PlatformHelper.initTvDetection();
   if (!kIsWeb && !PlatformHelper.isTVDevice) {
     unawaited(
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
