@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -95,6 +96,14 @@ class TvGuideScreen extends ConsumerStatefulWidget {
   // Static bridge so the app shell (nav rail / Back handler) can move
   // focus into this screen's category column without holding a reference.
   static void Function()? requestCategoryFocus;
+
+  /// True while focus is inside the guide (category column or grid): the TV
+  /// nav rail shrinks to icons. The column itself shrinks only in the grid.
+  static final ValueNotifier<bool> railCompact = ValueNotifier(false);
+
+  /// One pace for every shrink/grow of the rail and category column.
+  static const shiftDuration = Duration(milliseconds: 340);
+  static const shiftCurve = Curves.easeInOutCubic;
   static void Function()? requestGridFocus;
   static bool Function()? categoryColumnHasFocus;
 
@@ -161,6 +170,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     };
     TvGuideScreen.categoryColumnHasFocus = () => _columnNode.hasFocus;
     _gridNode.addListener(_syncCollapsed);
+    _columnNode.addListener(_syncCollapsed);
     final now = DateTime.now();
     // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
     // with that half hour at the left edge.
@@ -178,13 +188,17 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   void _syncCollapsed() {
     final inGrid = _gridNode.hasFocus;
+    TvGuideScreen.railCompact.value = inGrid || _columnNode.hasFocus;
     if (inGrid != _collapsed && mounted) setState(() => _collapsed = inGrid);
   }
 
   @override
   void dispose() {
     _gridNode.removeListener(_syncCollapsed);
+    _columnNode.removeListener(_syncCollapsed);
     TvGuideScreen.requestCategoryFocus = null;
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => TvGuideScreen.railCompact.value = false);
     TvGuideScreen.requestGridFocus = null;
     TvGuideScreen.categoryColumnHasFocus = null;
     WidgetsBinding.instance.removeObserver(this);
@@ -219,7 +233,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           _timelineWidth);
 
   void _scrollTimeTo(double x) => _time.animateTo(x.clamp(0.0, _maxOffset),
-      duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      duration: motionDuration(const Duration(milliseconds: 200)), curve: Curves.easeOut);
 
   // A programme cell came into focus: bring its start into view if it isn't.
   void _revealTime(double x) {
@@ -471,15 +485,21 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     };
 
     final theme = Theme.of(context);
+    return LayoutBuilder(builder: (context, outer) {
+    // The grid is laid out once at its final width and only revealed by the
+    // shrinking column (clip), so the shift never re-lays-out every row on
+    // every frame — that was what dropped it below 30 fps on the TV.
+    final gridWidth = math.max(
+        0.0,
+        outer.maxWidth -
+            (_collapsed ? _categoryWidthCollapsed : _categoryWidth));
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ---- Category column ----
         AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
+          duration: motionDuration(TvGuideScreen.shiftDuration),
+          curve: TvGuideScreen.shiftCurve,
           width: _collapsed ? _categoryWidthCollapsed : _categoryWidth,
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow),
@@ -543,7 +563,12 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         ),
         // ---- Programme pane + guide ----
         Expanded(
-          child: Column(
+          child: ClipRect(
+           child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: gridWidth,
+            maxWidth: gridWidth,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
@@ -574,9 +599,12 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               ),
             ],
           ),
+           ),
+          ),
         ),
       ],
     );
+    });
   }
 
   Widget _buildGrid(
@@ -1086,9 +1114,13 @@ class _CategoryItem extends StatelessWidget {
         },
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Container(
+        child: AnimatedContainer(
+          duration: motionDuration(TvGuideScreen.shiftDuration),
+          curve: TvGuideScreen.shiftCurve,
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          // Icon-only: the same padding that centres the icon in the narrow
+          // column, so it glides there instead of jumping.
+          padding: EdgeInsets.symmetric(horizontal: compact ? 15 : 10),
           decoration: BoxDecoration(
             color: selected
                 ? theme.colorScheme.primary.withValues(alpha: 0.14)
@@ -1096,27 +1128,33 @@ class _CategoryItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
-            mainAxisAlignment:
-                compact ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
               Icon(icon, size: 18, color: color),
-              if (!compact) ...[
-              const SizedBox(width: 10),
+              AnimatedContainer(
+                duration: motionDuration(TvGuideScreen.shiftDuration),
+                curve: TvGuideScreen.shiftCurve,
+                width: compact ? 0 : 10,
+              ),
               Expanded(
-                // A long name scrolls while the row is focused.
-                child: MarqueeText(
-                  label,
-                  active: focused,
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: color,
-                    fontWeight: selected ? FontWeight.w600 : null,
+                // The name fades out as the column narrows (and stays
+                // laid out, so nothing pops). A long name scrolls while
+                // the row is focused.
+                child: AnimatedOpacity(
+                  duration: motionDuration(TvGuideScreen.shiftDuration),
+                  opacity: compact ? 0 : 1,
+                  child: MarqueeText(
+                    label,
+                    active: focused && !compact,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: color,
+                      fontWeight: selected ? FontWeight.w600 : null,
+                    ),
                   ),
                 ),
               ),
-              if (locked)
+              if (locked && !compact)
                 Icon(Icons.lock_outline_rounded,
                     size: 16, color: theme.colorScheme.onSurfaceVariant),
-              ],
             ],
           ),
         ),
@@ -1620,7 +1658,7 @@ class _GridDirectionalAction extends Action<DirectionalFocusIntent> {
     Scrollable.ensureVisible(
       row,
       alignment: 0.5,
-      duration: Duration(milliseconds: held ? 110 : 200),
+      duration: motionDuration(Duration(milliseconds: held ? 110 : 200)),
       curve: held ? Curves.linear : Curves.easeOutCubic,
     );
   }

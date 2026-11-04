@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
@@ -465,7 +466,7 @@ class _DetailSynopsisState extends State<DetailSynopsis> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
+                    duration: motionDuration(const Duration(milliseconds: 200)),
                     alignment: Alignment.topCenter,
                     child: Text(
                       text,

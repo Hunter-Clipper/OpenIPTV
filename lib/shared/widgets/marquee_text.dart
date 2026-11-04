@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:flutter/material.dart';
 
 /// A single line of text that is cut with an ellipsis, unless [active] and
@@ -90,7 +91,9 @@ class _MarqueeTextState extends State<MarqueeText> {
       final overflows = painter.didExceedMaxLines;
       painter.dispose();
 
-      if (!(widget.active && overflows)) {
+      // With motion reduced, a long name stays truncated instead of scrolling
+      // (the full name is shown elsewhere on the screen).
+      if (!(widget.active && overflows && !reduceMotion)) {
         if (_running) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) _stop();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -122,7 +123,7 @@ class _PlayerButtonState extends State<PlayerButton> {
         message: widget.tooltip,
         child: AnimatedScale(
           scale: lit ? 1.1 : 1.0,
-          duration: const Duration(milliseconds: 150),
+          duration: motionDuration(const Duration(milliseconds: 150)),
           curve: Curves.easeOut,
           child: Material(
             type: MaterialType.circle,

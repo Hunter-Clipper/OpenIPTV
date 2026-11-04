@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/telemetry/reports_screen.dart';
 import 'package:open_iptv/telemetry/consent_dialog.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
@@ -636,9 +637,27 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
                 onSelect: () => _holdRail = false,
               ),
               Expanded(
-                child: TvNavRailFocus(
-                  focusNode: _activeRailNode,
-                  child: widget.child,
+                // The page is laid out once at its final width and only
+                // revealed as the rail narrows (clip), so the shift doesn't
+                // re-lay-out the whole page on every frame.
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: TvGuideScreen.railCompact,
+                  builder: (context, compact, child) {
+                    final w = MediaQuery.sizeOf(context).width -
+                        (compact ? 64 : 96);
+                    return ClipRect(
+                      child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth: w,
+                        maxWidth: w,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: TvNavRailFocus(
+                    focusNode: _activeRailNode,
+                    child: widget.child,
+                  ),
                 ),
               ),
             ],
@@ -783,8 +802,12 @@ class _TvNavRailState extends State<_TvNavRail> {
       canRequestFocus: false,
       skipTraversal: true,
       onKeyEvent: _onKey,
-      child: Container(
-        width: 96,
+      child: ValueListenableBuilder<bool>(
+       valueListenable: TvGuideScreen.railCompact,
+       builder: (context, compact, _) => AnimatedContainer(
+        duration: motionDuration(TvGuideScreen.shiftDuration),
+        curve: TvGuideScreen.shiftCurve,
+        width: compact ? 64 : 96,
         color: theme.colorScheme.surface,
         child: SafeArea(
           child: Column(
@@ -797,6 +820,7 @@ class _TvNavRailState extends State<_TvNavRail> {
                     icon: _kNavDestinations[i].icon,
                     label: _kNavDestinations[i].label,
                     active: i == index,
+                    compact: compact,
                     // Only the very first item auto-claims focus, and only on
                     // the rail's initial mount (cold app start, landing on
                     // Live TV) — NOT `i == index`, which would re-fire
@@ -820,6 +844,7 @@ class _TvNavRailState extends State<_TvNavRail> {
             ],
           ),
         ),
+       ),
       ),
     );
   }
@@ -837,10 +862,12 @@ class _TvNavRailItem extends StatefulWidget {
     required this.label,
     required this.active,
     required this.onTap,
+    this.compact = false,
     this.autofocus = false,
     this.focusNode,
   });
 
+  final bool compact;
   final IconData icon;
   final String label;
   final bool active;
@@ -872,13 +899,14 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
       onFocusChange: (focused) => setState(() => _focused = focused),
       child: AnimatedScale(
         scale: _focused ? 1.08 : 1.0,
-        duration: _duration,
+        duration: motionDuration(_duration),
         curve: _curve,
         child: AnimatedContainer(
-          duration: _duration,
+          duration: motionDuration(_duration),
           curve: _curve,
-          margin: const EdgeInsets.symmetric(horizontal: 10),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          margin: EdgeInsets.symmetric(horizontal: widget.compact ? 6 : 10),
+          padding: EdgeInsets.symmetric(
+              vertical: widget.compact ? 10 : 12, horizontal: 4),
           decoration: BoxDecoration(
             color:
                 _focused ? accent.withValues(alpha: 0.16) : Colors.transparent,
@@ -895,11 +923,44 @@ class _TvNavRailItemState extends State<_TvNavRailItem> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, size: 28, color: color),
-              const SizedBox(height: 4),
-              Text(
-                widget.label,
-                style: theme.textTheme.labelSmall!.copyWith(color: color),
+              Semantics(
+                label: widget.label,
+                excludeSemantics: true,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: widget.compact ? 22 : 28),
+                  duration: motionDuration(TvGuideScreen.shiftDuration),
+                  curve: TvGuideScreen.shiftCurve,
+                  builder: (_, size, __) =>
+                      Icon(widget.icon, size: size, color: color),
+                ),
+              ),
+              // The label fades and folds away (still laid out, so nothing
+              // pops when the rail narrows).
+              ClipRect(
+                child: AnimatedAlign(
+                  duration: motionDuration(TvGuideScreen.shiftDuration),
+                  curve: TvGuideScreen.shiftCurve,
+                  alignment: Alignment.topCenter,
+                  heightFactor: widget.compact ? 0 : 1,
+                  child: AnimatedOpacity(
+                    duration: motionDuration(TvGuideScreen.shiftDuration),
+                    opacity: widget.compact ? 0 : 1,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.clip,
+                          style: theme.textTheme.labelSmall!
+                              .copyWith(color: color),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

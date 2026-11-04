@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/admin_biometric.dart';
@@ -177,7 +178,7 @@ class _ProfileCardState extends State<_ProfileCard> {
           children: [
             AnimatedScale(
               scale: lit ? 1.08 : 1.0,
-              duration: const Duration(milliseconds: 160),
+              duration: motionDuration(const Duration(milliseconds: 160)),
               curve: Curves.easeOut,
               child: Stack(
                 clipBehavior: Clip.none,

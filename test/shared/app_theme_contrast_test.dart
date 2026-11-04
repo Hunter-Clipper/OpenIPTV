@@ -37,4 +37,11 @@ void main() {
       expect(_ratio(muted, bg), greaterThanOrEqualTo(4.5));
     }
   });
+
+  test('text-field edges reach 3:1 against the page and the surface', () {
+    expect(_ratio(AppTheme.fieldBorderColor, AppTheme.backgroundColor),
+        greaterThanOrEqualTo(3));
+    expect(_ratio(AppTheme.fieldBorderColor, AppTheme.surfaceColor),
+        greaterThanOrEqualTo(3));
+  });
 }

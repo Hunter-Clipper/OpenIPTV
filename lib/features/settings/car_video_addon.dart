@@ -201,7 +201,7 @@ class _CarVideoAddonDialogState extends ConsumerState<_CarVideoAddonDialog>
       case _Phase.needsPermission:
         return Text(
           'To install the add-on, OpenIPTV needs permission to install apps.'
-          '\n\nTap Open Settings, turn on "Allow from this source", then '
+          '\n\nSelect Open Settings, turn on "Allow from this source", then '
           'come back here — the install will continue automatically.',
           style: style,
         );
@@ -223,7 +223,7 @@ class _CarVideoAddonDialogState extends ConsumerState<_CarVideoAddonDialog>
       case _Phase.handedOff:
         return Text(
           'Follow the prompts on screen to finish installing.\n\n'
-          'If nothing appeared, or you cancelled, tap Install again.',
+          'If nothing appeared, or you cancelled, select Install again.',
           style: style,
         );
       case _Phase.unavailable:

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
@@ -65,14 +66,16 @@ enum _TileAction { fullScreen, swap, add, remove }
 class MultiViewState extends State<MultiView> {
   late final List<_Tile> _tiles = [
     _Tile.main(widget.mainChannel, widget.playbackService),
-    _Tile.extra(widget.firstAdded, widget.playbackService.bufferPreset, _changed),
+    _Tile.extra(
+        widget.firstAdded, widget.playbackService.bufferPreset, _changed),
   ];
   // The channel just added is the one you see highlighted and hear.
   int _highlight = 1;
 
   // Null = automatic (one big from 3 tiles, equal grid from 4).
   bool? _featured;
-  bool get _isFeatured => _tiles.length >= 3 && (_featured ?? _tiles.length == 3);
+  bool get _isFeatured =>
+      _tiles.length >= 3 && (_featured ?? _tiles.length == 3);
 
   // Channel names show briefly after anything changes, then fade.
   bool _labels = true;
@@ -300,15 +303,15 @@ class MultiViewState extends State<MultiView> {
     return ColoredBox(
       color: Colors.black,
       child: LayoutBuilder(builder: (context, box) {
-        final rects = multiViewLayout(box.biggest, _tiles.length,
-            featured: _isFeatured);
+        final rects =
+            multiViewLayout(box.biggest, _tiles.length, featured: _isFeatured);
         _laidOut = rects;
         return Stack(
           children: [
             for (var i = 0; i < _tiles.length; i++)
               AnimatedPositioned(
                 key: ObjectKey(_tiles[i]),
-                duration: const Duration(milliseconds: 250),
+                duration: motionDuration(const Duration(milliseconds: 250)),
                 curve: Curves.easeOutCubic,
                 left: rects[i].left,
                 top: rects[i].top,
@@ -320,25 +323,34 @@ class MultiViewState extends State<MultiView> {
                     if (f) _highlightTile(i);
                   },
                   onKeyEvent: (_, e) => _onTileKey(i, e),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    // Phones: tap to hear a tile, tap it again for options.
-                    onTap: () {
-                      if (i == _highlight) {
-                        unawaited(_openOptions(i));
-                      } else {
-                        _tiles[i].node.requestFocus();
-                        _highlightTile(i);
-                      }
-                    },
-                    child: _TileView(
-                      tile: _tiles[i],
-                      playbackService: widget.playbackService,
-                      mainLoading: widget.mainLoading,
-                      mainMessage: widget.mainMessage,
-                      highlighted: i == _highlight,
-                      showLabel: _labels,
-                      tv: tv,
+                  child: Semantics(
+                    button: true,
+                    selected: i == _highlight,
+                    label: context.displayName(_tiles[i].channel.name),
+                    hint: i == _highlight
+                        ? 'Double tap for options'
+                        : 'Double tap to hear this channel',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      // Phones: tap to hear a tile, tap it again for options.
+                      onTap: () {
+                        if (i == _highlight) {
+                          unawaited(_openOptions(i));
+                        } else {
+                          _tiles[i].node.requestFocus();
+                          _highlightTile(i);
+                        }
+                      },
+                      child: _TileView(
+                        tile: _tiles[i],
+                        playbackService: widget.playbackService,
+                        mainLoading: widget.mainLoading,
+                        mainMessage: widget.mainMessage,
+                        highlighted: i == _highlight,
+                        showLabel: _labels,
+                        tv: tv,
+                      ),
                     ),
                   ),
                 ),
@@ -511,8 +523,8 @@ class _ExtraPlayer {
     final s = last;
     if (_disposed || s == null || message != null) return;
     final wasLoading = _dog.loading;
-    final action = _dog.check(s,
-        now: DateTime.now(), openCount: _openCount, live: true);
+    final action =
+        _dog.check(s, now: DateTime.now(), openCount: _openCount, live: true);
     _act(action);
     if (wasLoading != _dog.loading) onChange();
   }
@@ -640,8 +652,8 @@ class _TileView extends StatelessWidget {
     return Alignment.center.inscribe(fitted.destination, Offset.zero & size);
   }
 
-  Widget _overlays(
-          BuildContext context, ThemeData theme, bool loading, String? message) =>
+  Widget _overlays(BuildContext context, ThemeData theme, bool loading,
+          String? message) =>
       Stack(
         fit: StackFit.expand,
         children: [
@@ -662,8 +674,8 @@ class _TileView extends StatelessWidget {
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium!
-                    .copyWith(color: Colors.white70),
+                style:
+                    theme.textTheme.bodyMedium!.copyWith(color: Colors.white70),
               ),
             ),
           // Name along the bottom, shown for a few seconds after a change.
@@ -673,7 +685,7 @@ class _TileView extends StatelessWidget {
             bottom: 0,
             child: AnimatedOpacity(
               opacity: showLabel || message != null ? 1 : 0,
-              duration: const Duration(milliseconds: 300),
+              duration: motionDuration(const Duration(milliseconds: 300)),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(12, 18, 12, 10),
                 decoration: const BoxDecoration(
@@ -712,7 +724,7 @@ class _TileView extends StatelessWidget {
           // stands out even on a bright, busy picture.
           IgnorePointer(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: motionDuration(const Duration(milliseconds: 200)),
               color: highlighted ? Colors.transparent : const Color(0x59000000),
             ),
           ),
@@ -721,14 +733,15 @@ class _TileView extends StatelessWidget {
           IgnorePointer(
             child: AnimatedOpacity(
               opacity: highlighted ? 1 : 0,
-              duration: const Duration(milliseconds: 150),
+              duration: motionDuration(const Duration(milliseconds: 150)),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.white, width: tv ? 5 : 3),
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0x99000000), width: 2),
+                    border:
+                        Border.all(color: const Color(0x99000000), width: 2),
                   ),
                 ),
               ),

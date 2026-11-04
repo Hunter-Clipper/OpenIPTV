@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
@@ -114,7 +115,7 @@ class _TvFocusableState extends State<TvFocusable> {
         Scrollable.ensureVisible(
           context,
           alignment: 0.5,
-          duration: const Duration(milliseconds: 200),
+          duration: motionDuration(const Duration(milliseconds: 200)),
           curve: Curves.easeOut,
         );
       });
@@ -185,7 +186,7 @@ class _TvFocusableState extends State<TvFocusable> {
       // widget by 3px, misaligning it against non-focusable siblings (e.g.
       // the active, non-tappable row in a list of tappable ones).
       content = AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: motionDuration(const Duration(milliseconds: 150)),
         foregroundDecoration: BoxDecoration(
           border: Border.all(
             // White, not the accent: the accent already marks *selected*
@@ -450,7 +451,7 @@ class _TvRowFocusState extends State<TvRowFocus> {
       best.requestFocus();
       Scrollable.ensureVisible(
         best.context!,
-        duration: const Duration(milliseconds: 150),
+        duration: motionDuration(const Duration(milliseconds: 150)),
         curve: Curves.easeOut,
         alignmentPolicy: sign > 0
             ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
@@ -597,7 +598,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
           .clamp(position.minScrollExtent, position.maxScrollExtent);
       if ((target - position.pixels).abs() < 1) return;
       position.animateTo(target,
-          duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+          duration: motionDuration(const Duration(milliseconds: 200)), curve: Curves.easeOut);
     });
   }
 
@@ -805,7 +806,7 @@ class TvRevealOnFocus extends StatelessWidget {
           .clamp(position.minScrollExtent, position.maxScrollExtent);
       if ((target - position.pixels).abs() < 1) return;
       position.animateTo(target,
-          duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
+          duration: motionDuration(const Duration(milliseconds: 150)), curve: Curves.easeOut);
     });
   }
 }

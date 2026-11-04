@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/update_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -262,7 +263,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
       case _Phase.needsPermission:
         return Text(
           'To install updates, OpenIPTV needs permission to install apps.\n\n'
-          'Tap Open Settings, turn on "Allow from this source", then come '
+          'Select Open Settings, turn on "Allow from this source", then come '
           'back here — the update will continue automatically.',
           style: theme.textTheme.bodyMedium,
         );
@@ -285,7 +286,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
         return Text(
           'Follow the prompts on screen to finish installing. OpenIPTV will '
           'restart on the new version.\n\n'
-          "If nothing appeared, or you cancelled, tap Install again.",
+          "If nothing appeared, or you cancelled, select Install again.",
           style: theme.textTheme.bodyMedium,
         );
       case _Phase.failed:
@@ -383,7 +384,7 @@ class _NotesBoxState extends State<_NotesBox> {
     // At either end, let the D-pad move focus on (to the buttons) instead.
     if (target == null) return KeyEventResult.ignored;
     _scroll.animateTo(target.clamp(pos.minScrollExtent, pos.maxScrollExtent),
-        duration: const Duration(milliseconds: 120), curve: Curves.easeOut);
+        duration: motionDuration(const Duration(milliseconds: 120)), curve: Curves.easeOut);
     return KeyEventResult.handled;
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Shared state so only one tooltip is open across the entire screen.
@@ -95,7 +96,7 @@ class InfoTooltip extends StatelessWidget {
               ],
             ),
             AnimatedSize(
-              duration: const Duration(milliseconds: 200),
+              duration: motionDuration(const Duration(milliseconds: 200)),
               curve: Curves.easeInOut,
               child: isOpen
                   ? _TooltipCard(title: title, body: body, tip: tip)

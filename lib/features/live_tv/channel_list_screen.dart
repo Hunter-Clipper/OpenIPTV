@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -839,10 +840,10 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
           children: [
             AnimatedScale(
               scale: lit ? 1.06 : 1.0,
-              duration: const Duration(milliseconds: 160),
+              duration: motionDuration(const Duration(milliseconds: 160)),
               curve: Curves.easeOut,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
+                duration: motionDuration(const Duration(milliseconds: 160)),
                 width: widget.width,
                 height: widget.width * 9 / 16,
                 decoration: BoxDecoration(

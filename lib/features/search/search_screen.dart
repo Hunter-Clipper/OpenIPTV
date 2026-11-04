@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
@@ -322,7 +323,7 @@ class _SearchBar extends StatelessWidget {
     final theme = Theme.of(context);
     final pill = OutlineInputBorder(
       borderRadius: BorderRadius.circular(28),
-      borderSide: BorderSide.none,
+      borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
     );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),

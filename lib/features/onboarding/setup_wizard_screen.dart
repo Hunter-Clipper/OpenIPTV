@@ -104,14 +104,14 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     super.initState();
     _checkCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: motionDuration(const Duration(milliseconds: 800)),
     );
     _checkScale = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut),
     );
     _sparkleCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3000),
+      duration: motionDuration(const Duration(milliseconds: 3000)),
     );
     loopUnlessReduced(_sparkleCtrl);
     _sparkleAngle = Tween(begin: 0.0, end: 2 * pi).animate(_sparkleCtrl);
@@ -180,7 +180,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     setState(() => _page = page);
     _pageController.animateToPage(
       page,
-      duration: const Duration(milliseconds: 380),
+      duration: motionDuration(const Duration(milliseconds: 380)),
       curve: Curves.easeInOutCubic,
     );
     // PageView keeps every page built at once, so each page's own controls
@@ -565,13 +565,13 @@ class _WelcomePageState extends State<_WelcomePage>
     super.initState();
     _glowCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: motionDuration(const Duration(milliseconds: 2000)),
     );
     loopUnlessReduced(_glowCtrl, reverse: true);
 
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: motionDuration(const Duration(milliseconds: 1200)),
     );
 
     _glowPulse = Tween(begin: 0.5, end: 1.0).animate(
@@ -825,11 +825,11 @@ class _NamePage extends StatelessWidget {
                   fillColor: AppTheme.surfaceVariantColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppTheme.outlineColor),
+                    borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppTheme.outlineColor),
+                    borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -862,7 +862,7 @@ class _NamePage extends StatelessWidget {
                       ensureVisibleOnFocus: true,
                       onTap: () => onAvatarSelected(emoji),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: motionDuration(const Duration(milliseconds: 200)),
                         margin: const EdgeInsets.only(right: 10),
                         width: 54,
                         height: 54,
@@ -903,7 +903,7 @@ class _NamePage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(19),
                       onTap: () => onColorSelected(s.color),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: motionDuration(const Duration(milliseconds: 200)),
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
@@ -1239,8 +1239,8 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
     super.initState();
     _pressCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
-      lowerBound: 0.95,
+      duration: motionDuration(const Duration(milliseconds: 150)),
+      lowerBound: 0.96,
       upperBound: 1.0,
       value: 1.0,
     );
@@ -1708,11 +1708,11 @@ class _WizardField extends StatelessWidget {
             fillColor: AppTheme.surfaceVariantColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.outlineColor),
+              borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.outlineColor),
+              borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1757,7 +1757,7 @@ class _LoadingPageState extends State<_LoadingPage>
     super.initState();
     _pulseCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: motionDuration(const Duration(milliseconds: 900)),
     );
     loopUnlessReduced(_pulseCtrl, reverse: true);
     _pulse = Tween(begin: 0.4, end: 1.0).animate(
@@ -2047,7 +2047,7 @@ class _StepIndicator extends StatelessWidget {
         final active = i == current;
         final done = i < current;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
+          duration: motionDuration(const Duration(milliseconds: 300)),
           margin: const EdgeInsets.only(right: 6),
           width: active ? 28 : 8,
           height: 8,
@@ -2086,7 +2086,7 @@ class _GradientButton extends StatelessWidget {
       onTap: onTap ?? () {},
       borderRadius: BorderRadius.circular(14),
       child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
+        duration: motionDuration(const Duration(milliseconds: 200)),
         opacity: enabled ? 1.0 : 0.45,
         child: Container(
           height: 56,
