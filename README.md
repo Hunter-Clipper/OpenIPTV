@@ -74,7 +74,7 @@
 - Your logins are **stored encrypted** on the device, with a key only the app can use. (Encryption is on by default; slow TV devices can disable it under Settings → Power User Tools → Skip Database Encryption for faster reads.)
 
 **Watch**
-- **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home. On a TV, Live TV is a full programme guide — categories on the left, the focused programme at the top, every channel on a timeline below — with an optional live preview.
+- **Live TV** with categories, channel logos, and what's on now and next (with time and progress) from your playlist's TV guide (XMLTV). Favorites and Recently Watched rows on the Live TV home. On a TV, Live TV is a full programme guide — categories on the left, the focused programme at the top, every channel on a timeline below — with a live preview. The side menu and category list shrink to icons as you move into the grid, so the guide gets the room.
 - **Movies and Series** with a row of posters for every genre, Continue Watching and Favorites, or a compact genre list. Detail pages with full-width artwork, cast, runtime, More Like This, and season-by-season episodes with pictures and progress.
 - **The player**, inspired by top apps and styled like the rest of the app: centred controls with your accent colour on phones and a slim bar along the bottom on TV, a Material 3 seek bar, what's on now and next, and a **playback settings** sheet for subtitles, audio track, picture fit (Fit, Zoom, Fill screen — never stretched) and speed. On Live TV, a **channel list** slides in (swipe left, press Right on a remote, or tap the list button) so you can switch without leaving the player. Closed captions (CEA-608/708), catch-up on providers that support it, Picture-in-Picture and a Now Playing notification.
 - **Multi-view:** watch several live channels at once — tap **Add a channel** in the player. The screen splits automatically (side by side, one big with smaller ones, or a grid), the sound follows the channel you highlight, and Back keeps that channel full screen.
@@ -92,6 +92,8 @@
 - Material 3 design with Google Sans, six accent colours and Android-style grouped Settings.
 - Works with a TV remote: a side navigation rail (Live TV, Movies, Series, Search, Settings), a clear white focus ring, the TV's own on-screen keyboard in a full-width tray for search, logins and PINs, and Android TV launcher support.
 - Background refresh of playlists and guides on a schedule you choose.
+- **Match Frame Rate** (Settings → Playback, off by default): switches your screen to a refresh rate that suits the video, such as 24 Hz for films, then puts it back.
+- **Accessible:** follows your device's "Remove animations" setting across the whole app, readable text on every accent colour, clear field edges, and screen-reader names on the video area and Multi-view tiles.
 - **In-app updates** for sideloaded installs.
 
 **Power User Tools** (Settings → Advanced, admin profiles)
@@ -101,7 +103,7 @@
 - **Playback buffer:** Fast start, Balanced or Smooth, for steady or shaky connections.
 - **Skip Database Encryption:** disables SQLCipher encryption (uses plain SQLite) for faster reads on slow TV devices. Off by default; the database converts automatically when toggled.
 
-- **No ads, no telemetry, no accounts.** The only outside services OpenIPTV ever contacts on its own are your playlists and GitHub (update checks); the public-IP and speed tests contact api.ipify.org and speed.cloudflare.com only when you tap them.
+- **No ads, no tracking, no accounts.** The only outside services OpenIPTV contacts on its own are your playlists and GitHub (update checks, with a Cloudflare-hosted backup copy of the download if GitHub can't be reached). If you opt in to anonymous crash reports, it also sends those (see Privacy). The public-IP and speed tests contact api.ipify.org and speed.cloudflare.com only when you tap them.
 
 ---
 
@@ -186,14 +188,14 @@ android/app/src/main/kotlin/com/openiptv/app/
 - **TV text input:** on Android TV, typing goes through a native Android text box mirrored into the Flutter field, because TV keyboards can't be driven by the remote in a Flutter text field.
 - **Casting:** the Google Cast framework with the Default Media Receiver (no custom receiver app); phones only — it is switched off on TVs.
 - **Background work:** `workmanager` for scheduled refresh, `flutter_local_notifications` for results, `audio_service` for the media notification.
-- **Updates:** reads GitHub's `releases/latest` API anonymously, downloads the APK and hands it to Android's installer. Play Store installs are skipped.
+- **Updates:** reads GitHub's `releases/latest` API anonymously, downloads the APK and hands it to Android's installer. If GitHub can't be reached, it falls back to a mirror in a Cloudflare R2 bucket (and skips a mirror copy whose size doesn't match the release). Every release is uploaded there with `tools/mirror-release.sh vX.Y.Z`. Play Store installs are skipped.
 - **Branding:** edit the SVGs in `assets/branding/`, then run `python3 assets/branding/export.py`, `dart run flutter_launcher_icons` and `dart run flutter_native_splash:create`.
 - **Release signing:** release builds are signed with a dedicated key referenced by the git-ignored `android/key.properties`. Every release must use the same key or Android refuses the update.
 
 ### Project rules
 
 - **No content.** The app ships with no channels, playlists or stream sources, and the project won't add any or document where to find them.
-- **No analytics, telemetry or accounts.** The app only contacts the playlists and guides you add, plus GitHub for update checks.
+- **No ads, tracking or accounts.** The app only contacts the playlists and guides you add, GitHub (and its R2 mirror) for update checks, and — only if the user opts in — the anonymous crash-report receiver.
 - **Plain-English errors.** Never show stack traces, HTTP codes or library error strings to users.
 - **Open dependencies:** the only proprietary library is the Google Cast framework, used for casting from phones. Everything else is open source, so an F-Droid build without casting remains possible.
 - **Performance targets:** cold start to channel list under 3 s, channel tap to video under 2 s.
