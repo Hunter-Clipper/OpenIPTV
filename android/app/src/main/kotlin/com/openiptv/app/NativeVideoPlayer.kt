@@ -13,6 +13,8 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.TimestampAdjuster
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -79,6 +81,11 @@ class NativeVideoPlayer(
     // Multi-view (#52) moves it between tiles; the TV guide preview starts
     // without it.
     private var audible = audioFocus
+    // Only the app's main player ever holds audio focus. Multi-view's other
+    // tiles are made audible by volume alone: with several players asking
+    // for focus, a late request from one tile took it from the audible one,
+    // and ExoPlayer paused that tile for good (a "dead" tile).
+    private val ownsFocus = audioFocus
 
     private val mediaAudioAttributes = androidx.media3.common.AudioAttributes.Builder()
         .setUsage(C.USAGE_MEDIA)
@@ -117,7 +124,7 @@ class NativeVideoPlayer(
         // channel for the app that holds focus (without it the car
         // showed the channel but played no sound), and calls /
         // navigation prompts pause or duck it.
-        player.setAudioAttributes(mediaAudioAttributes, on)
+        player.setAudioAttributes(mediaAudioAttributes, ownsFocus)
         // Pause when headphones / the car disconnect instead of blaring
         // from the phone speaker.
         player.setHandleAudioBecomingNoisy(on)
@@ -173,6 +180,7 @@ class NativeVideoPlayer(
     private var pixelRatio = 1f
     private val positionUpdater = object : Runnable {
         override fun run() {
+            maybeQueueNext()
             emitState()
             mainHandler.postDelayed(this, 500)
         }
@@ -187,7 +195,17 @@ class NativeVideoPlayer(
                         playbackState == Player.STATE_ENDED)) FrameRateMatcher.restore()
                 emitState()
             }
-            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                // A muted multi-view tile never holds audio focus, so a
+                // focus loss that still reaches it must not pause it for
+                // good (nothing would ever resume it).
+                if (!playWhenReady && !ownsFocus &&
+                    reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
+                    exoPlayer.playWhenReady = true
+                    return
+                }
+                emitState()
+            }
             override fun onPlaybackSuppressionReasonChanged(reason: Int) {
                 // Another app took the sound (a video starting elsewhere, a
                 // call): stay paused. ExoPlayer would otherwise resume on its
@@ -272,8 +290,73 @@ class NativeVideoPlayer(
     // "Response code: 302" and shows a black screen.
     private val dataSourceFactory = DefaultDataSource.Factory(
         appContext,
-        DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true),
+        DataSource.Factory {
+            LoggingDataSource(
+                DefaultHttpDataSource.Factory()
+                    .setAllowCrossProtocolRedirects(true)
+                    .setUserAgent(currentUserAgent())
+                    .createDataSource(),
+                System.identityHashCode(this),
+                onEnd = { ends.incrementAndGet() },
+            )
+        },
     )
+
+    // The app's own user agent. Providers tell connections apart by IP +
+    // user agent (confirmed on the owner's provider, #52): left to Android,
+    // every player on one device sent the same "Dalvik/…" string and the
+    // provider counted several streams as one. The short per-install tag
+    // keeps two devices of the same model on one network apart too; a
+    // multi-view tile adds its own tag on top.
+    private val baseUserAgent: String by lazy {
+        val version = try {
+            appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName
+        } catch (e: Exception) { "0" }
+        val prefs = appContext.getSharedPreferences("openiptv_native", Context.MODE_PRIVATE)
+        var tag = prefs.getString("ua_install", null)
+        if (tag == null) {
+            tag = java.util.UUID.randomUUID().toString().substring(0, 6)
+            prefs.edit().putString("ua_install", tag).apply()
+        }
+        "OpenIPTV/$version (Android ${android.os.Build.VERSION.RELEASE}; ${android.os.Build.MODEL}; $tag)"
+    }
+    private var userAgentSuffix: String? = null
+    // The user's own user agent from Power User Tools (replaces the app's).
+    private var customUserAgent: String? = null
+
+    private fun currentUserAgent(): String {
+        val base = customUserAgent ?: baseUserAgent
+        return userAgentSuffix?.let { "$base $it" } ?: base
+    }
+
+    // Live MPEG-TS from some providers arrives as ~60 s bursts: the server
+    // ends the response and the player used to wait until its buffer ran dry
+    // before reconnecting (1–2 s of buffering a minute). With this on, the
+    // next connection is queued as the playlist's next item shortly before
+    // the buffer ends, so ExoPlayer moves on without a gap.
+    private var liveReconnect = false
+    private val ends = java.util.concurrent.atomic.AtomicInteger(0)
+    private var itemsOpened = 1
+
+    private fun maybeQueueNext() {
+        if (!liveReconnect) return
+        val player = exoPlayer
+        // Drop items already played.
+        val done = player.currentMediaItemIndex
+        if (done > 0) {
+            player.removeMediaItems(0, done)
+            itemsOpened -= done
+            ends.addAndGet(-done)
+        }
+        val url = currentUrl ?: return
+        if (player.playbackState != Player.STATE_READY) return
+        if (ends.get() < itemsOpened) return // still downloading the current one
+        if (player.totalBufferedDuration > 3_500) return
+        itemsOpened++
+        android.util.Log.i("OTV-http", "[${System.identityHashCode(this)}] next connection queued " +
+            "(${player.totalBufferedDuration} ms left)")
+        player.addMediaSource(buildMediaSource(url, currentHint))
+    }
 
     fun open(
         url: String,
@@ -281,7 +364,17 @@ class NativeVideoPlayer(
         startPositionMs: Long = 0L,
         bufferPreset: String = this.bufferPreset,
         carScreen: Boolean = false,
+        userAgentSuffix: String? = null,
+        liveReconnect: Boolean = false,
+        userAgent: String? = null,
     ) {
+        this.userAgentSuffix = userAgentSuffix
+        this.customUserAgent = userAgent?.takeIf { it.isNotBlank() }
+        this.liveReconnect = liveReconnect && streamTypeHint == "ts"
+        ends.set(0)
+        itemsOpened = 1
+        android.util.Log.i("OTV-http", "[${System.identityHashCode(this)}] user agent: " +
+            "${currentUserAgent()}${if (this.liveReconnect) " (seamless)" else ""}")
         applyBufferPreset(bufferPreset)
         // Only what the car started goes to the car screen; a stream opened
         // on the phone shows on the phone.
@@ -341,6 +434,7 @@ class NativeVideoPlayer(
         }
         if (cause == null) return false
         hlsRetried = true
+        liveReconnect = false
         android.util.Log.w("OTV-exo", "unrecognised format; retrying as HLS")
         // Same start as the original open(): a live stream joins at its live
         // edge instead of seeking into the live window.
@@ -602,6 +696,9 @@ class NativeVideoPlayerManager(
                     call.argument<Number>("startPositionMs")?.toLong() ?: 0L,
                     call.argument<String>("bufferPreset") ?: "fast",
                     call.argument<Boolean>("carScreen") ?: false,
+                    call.argument<String>("userAgentSuffix"),
+                    call.argument<Boolean>("liveReconnect") ?: false,
+                    call.argument<String>("userAgent"),
                 )
                 result.success(null)
             }
@@ -654,5 +751,69 @@ class NativeVideoPlayerManager(
             }
             else -> result.notImplemented()
         }
+    }
+}
+
+/**
+ * Logs what the provider answers to each request (status, the headers that
+ * say who is limiting us, how long a stream's connection lived), without the
+ * URL — it holds the login. For finding out why multi-view tiles die (#52).
+ */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+private class LoggingDataSource(
+    private val inner: DataSource,
+    private val owner: Int,
+    private val onEnd: () -> Unit = {},
+) : DataSource by inner {
+    private var openedAt = 0L
+    private var bytes = 0L
+    private var what = ""
+
+    private fun pick(h: Map<String, List<String>>): String {
+        val keys = listOf("server", "connection", "x-ratelimit-remaining",
+            "retry-after", "content-type", "location")
+        val parts = h.entries.mapNotNull { (k, v) ->
+            val lk = k?.lowercase() ?: return@mapNotNull null
+            if (lk in keys || lk.startsWith("x-ratelimit")) "$lk=${v.firstOrNull()?.take(60)}"
+            else if (lk == "set-cookie") "set-cookie=yes" else null
+        }
+        return parts.joinToString(" ")
+    }
+
+    override fun open(dataSpec: DataSpec): Long {
+        val name = dataSpec.uri.lastPathSegment ?: ""
+        what = (if (name.contains('.')) name.substringAfterLast('.') else "?").take(8) +
+            (if (dataSpec.position > 0) "+range" else "")
+        openedAt = android.os.SystemClock.elapsedRealtime()
+        bytes = 0
+        try {
+            return inner.open(dataSpec)
+        } catch (e: androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+            android.util.Log.w("OTV-http", "[$owner] open $what HTTP ${e.responseCode} ${pick(e.headerFields)}")
+            throw e
+        } catch (e: java.io.IOException) {
+            android.util.Log.w("OTV-http", "[$owner] open $what failed ${e.javaClass.simpleName}: ${e.message?.take(80)}")
+            throw e
+        }
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        val n = try {
+            inner.read(buffer, offset, length)
+        } catch (e: java.io.IOException) {
+            android.util.Log.w("OTV-http", "[$owner] read $what failed after ${bytes / 1024} KB, " +
+                "${(android.os.SystemClock.elapsedRealtime() - openedAt) / 1000}s: ${e.javaClass.simpleName}")
+            throw e
+        }
+        if (n > 0) bytes += n
+        if (n == androidx.media3.common.C.RESULT_END_OF_INPUT) onEnd()
+        return n
+    }
+
+    override fun close() {
+        // Only long-lived streams are worth a line (HLS segments are many).
+        val secs = (android.os.SystemClock.elapsedRealtime() - openedAt) / 1000
+        if (secs >= 5) android.util.Log.i("OTV-http", "[$owner] closed $what after ${secs}s, ${bytes / 1024} KB")
+        inner.close()
     }
 }

@@ -66,8 +66,8 @@ enum _TileAction { fullScreen, swap, add, remove }
 class MultiViewState extends State<MultiView> {
   late final List<_Tile> _tiles = [
     _Tile.main(widget.mainChannel, widget.playbackService),
-    _Tile.extra(
-        widget.firstAdded, widget.playbackService.bufferPreset, _changed),
+    _Tile.extra(widget.firstAdded, widget.playbackService.bufferPreset,
+        widget.playbackService.userAgent, _changed),
   ];
   // The channel just added is the one you see highlighted and hear.
   int _highlight = 1;
@@ -117,15 +117,21 @@ class MultiViewState extends State<MultiView> {
     });
   }
 
-  // Sound (and audio focus) on the highlighted tile only.
+  // Sound (and audio focus) on the highlighted tile only. The tile losing
+  // the sound lets go of audio focus *first*: if the new one asked while
+  // the old one still held it, the old one got a permanent focus loss and
+  // ExoPlayer paused it for good (only when moving to a lower tile).
   void _applySound() {
-    for (var i = 0; i < _tiles.length; i++) {
-      final t = _tiles[i];
-      final on = i == _highlight;
-      if (t.isMain) {
-        unawaited(widget.playbackService.setAudible(on));
-      } else {
-        t.extra!.setAudible(on);
+    for (var pass = 0; pass < 2; pass++) {
+      for (var i = 0; i < _tiles.length; i++) {
+        final t = _tiles[i];
+        final on = i == _highlight;
+        if (on != (pass == 1)) continue;
+        if (t.isMain) {
+          unawaited(widget.playbackService.setAudible(on));
+        } else {
+          t.extra!.setAudible(on);
+        }
       }
     }
   }
@@ -227,8 +233,8 @@ class MultiViewState extends State<MultiView> {
     final picked =
         await showChannelSwitcher(context, _tiles[_highlight].channel.id);
     if (picked == null || !mounted) return;
-    final tile =
-        _Tile.extra(picked, widget.playbackService.bufferPreset, _changed);
+    final tile = _Tile.extra(picked, widget.playbackService.bufferPreset,
+        widget.playbackService.userAgent, _changed);
     setState(() {
       _tiles.add(tile);
       _highlight = _tiles.length - 1;
@@ -430,9 +436,10 @@ class _Tile {
       : isMain = true,
         extra = null,
         aspects = _aspects(service.stateStream);
-  factory _Tile.extra(
-      Channel channel, BufferPreset preset, VoidCallback onChange) {
-    final extra = _ExtraPlayer(channel.streamUrl, preset, onChange);
+  factory _Tile.extra(Channel channel, BufferPreset preset, String? userAgent,
+      VoidCallback onChange) {
+    final extra =
+        _ExtraPlayer(channel.streamUrl, preset, userAgent, onChange);
     return _Tile._(channel, extra, _aspects(extra.stateStream));
   }
   _Tile._(this.channel, this.extra, this.aspects) : isMain = false;
@@ -452,14 +459,21 @@ class _Tile {
 /// An added channel's own player, with its own freeze check and
 /// plain-English messages.
 class _ExtraPlayer {
-  _ExtraPlayer(this._url, this.preset, this.onChange)
+  _ExtraPlayer(this._url, this.preset, this.userAgent, this.onChange)
       : _dog = StreamWatchdog(
           freezeLimit: preset.freezeLimit,
           connectLimit: preset.connectLimit,
         );
 
+  // Each added tile identifies itself differently to the provider.
+  static int _nextTag = 1;
+  final String _tag = 'mv${_nextTag++}';
+
   String _url;
   final BufferPreset preset;
+
+  /// The user's own user agent (Power User Tools), or null for the app's.
+  final String? userAgent;
   final VoidCallback onChange;
   final StreamWatchdog _dog;
   final NativeVideoPlayer _player = NativeVideoPlayer();
@@ -501,7 +515,10 @@ class _ExtraPlayer {
     _openCount++;
     await _player.open(_url,
         streamTypeHint: PlaybackService.streamTypeHint(_url),
-        bufferPreset: preset.id);
+        bufferPreset: preset.id,
+        userAgentSuffix: _tag,
+        userAgent: userAgent,
+        liveReconnect: PlaybackService.isLiveTs(_url));
     await _player.play();
   }
 
@@ -533,6 +550,7 @@ class _ExtraPlayer {
     if (_disposed || message != null) return;
     final code = e.code.toUpperCase();
     final http = e.httpStatus;
+    debugPrint('[OTV-mv] extra#$textureId error code=$code http=$http');
     if (code.contains('DECODER') || code.contains('DECODING')) {
       _fail("This device can't play another channel at the same time.");
     } else if (const {401, 403, 429, 458, 509, 551}.contains(http)) {
@@ -545,6 +563,10 @@ class _ExtraPlayer {
   }
 
   void _act(WatchdogAction action) {
+    if (action != WatchdogAction.none) {
+      debugPrint('[OTV-mv] extra#$textureId watchdog -> ${action.name} '
+          '(attempts ${_dog.attempts})');
+    }
     switch (action) {
       case WatchdogAction.reconnect:
         unawaited(_open());
@@ -556,6 +578,7 @@ class _ExtraPlayer {
   }
 
   void _fail(String text) {
+    debugPrint('[OTV-mv] extra#$textureId failed: $text');
     message = text;
     // Free the provider connection.
     unawaited(_player.stop());

@@ -20,19 +20,29 @@ PlaybackService playbackService(PlaybackServiceRef ref) {
     db: db,
     bufferPreset: () => BufferPreset.fromId(
         ref.read(appPreferencesProvider).valueOrNull?.bufferPreset),
+    userAgent: () => ref.read(appPreferencesProvider).valueOrNull?.userAgent,
   );
   ref.onDispose(service.dispose);
   return service;
 }
 
 class PlaybackService {
-  PlaybackService({required this.db, BufferPreset Function()? bufferPreset})
-      : _bufferPreset = bufferPreset ?? (() => BufferPreset.fast) {
+  PlaybackService(
+      {required this.db,
+      BufferPreset Function()? bufferPreset,
+      String? Function()? userAgent})
+      : _bufferPreset = bufferPreset ?? (() => BufferPreset.fast),
+        _userAgent = userAgent ?? (() => null) {
     _stateSub = _player.stateStream.listen((s) => _lastState = s);
   }
 
   final AppDatabase db;
   final BufferPreset Function() _bufferPreset;
+  final String? Function() _userAgent;
+
+  /// The user's own user agent for streams, or null for the app's (Power
+  /// User Tools).
+  String? get userAgent => _userAgent();
 
   /// The buffer setting new streams open with (Power User Tools).
   BufferPreset get bufferPreset => _bufferPreset();
@@ -111,6 +121,14 @@ class PlaybackService {
     return StreamType.auto;
   }
 
+  /// A live channel's raw MPEG-TS link (`…/live/user/pass/id.ts`): the only
+  /// kind that may be reconnected without a gap when the server ends it.
+  /// Catch-up and VOD links end for real.
+  static bool isLiveTs(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+    return path.endsWith('.ts') && path.contains('/live/');
+  }
+
   /// The extractor hint for [url]'s native `open()`: null lets ExoPlayer
   /// pick.
   static String? streamTypeHint(String url) {
@@ -172,7 +190,9 @@ class PlaybackService {
         streamTypeHint: streamTypeHint(streamUrl),
         startPosition: startPosition,
         bufferPreset: bufferPreset.id,
-        carScreen: carScreen);
+        carScreen: carScreen,
+        userAgent: userAgent,
+        liveReconnect: isLiveTs(streamUrl));
     await _player.play();
     debugPrint('[OTV-play] open()/play() done');
   }

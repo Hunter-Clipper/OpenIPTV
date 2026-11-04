@@ -188,7 +188,10 @@ class NativeVideoPlayer {
       {String? streamTypeHint,
       Duration? startPosition,
       String bufferPreset = 'fast',
-      bool carScreen = false}) {
+      bool carScreen = false,
+      String? userAgentSuffix,
+      String? userAgent,
+      bool liveReconnect = false}) {
     return _control.invokeMethod('open', {
       'id': _textureId,
       'url': url,
@@ -196,6 +199,9 @@ class NativeVideoPlayer {
       'startPositionMs': startPosition?.inMilliseconds ?? 0,
       'bufferPreset': bufferPreset,
       'carScreen': carScreen,
+      'userAgentSuffix': userAgentSuffix,
+      'userAgent': userAgent,
+      'liveReconnect': liveReconnect,
     });
   }
 
