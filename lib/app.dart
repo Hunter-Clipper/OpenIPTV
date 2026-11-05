@@ -928,7 +928,7 @@ class _TvNavRailState extends State<_TvNavRail> {
                     // the rail's initial mount (cold app start, landing on
                     // Live TV) — NOT `i == index`, which would re-fire
                     // autofocus on every navigation.
-                    autofocus: i == 0,
+                    autofocus: i == 0 && !kIsWeb,
                     focusNode: widget.nodes[i],
                     onTap: () {
                       // Picking a tab hands the remote to that page: drop
