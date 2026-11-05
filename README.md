@@ -134,6 +134,7 @@ channel names or what you watch, and nothing that can tie reports to you.
 Settings → Advanced → Anonymous Reports shows exactly what is sent. The code
 is small and lives in `lib/telemetry/` (plus `tools/stats-worker/` for the
 receiver); the design is in `docs/design/anonymous-stats.md`.
+The full list of what the app contacts is in [PRIVACY.md](PRIVACY.md).
 
 ## Developer setup
 
