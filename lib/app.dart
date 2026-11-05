@@ -48,6 +48,10 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+// Set while the shell is up, so the app root can send Escape (web/desktop)
+// to the same Back handling the Android Back key uses.
+VoidCallback? _shellBack;
+
 class OpenIPTVApp extends ConsumerStatefulWidget {
   const OpenIPTVApp({super.key});
 
@@ -482,7 +486,21 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         builder: (context, child) => DisplayNames(
           enabled: ref.watch(cleanNamesProvider),
           child: TvKeyboardInset(
-            child: TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+            // Browsers and desktop windows have no remote Back key: Escape
+            // is Back. Dialogs and menus handle their own Escape first.
+            child: Actions(
+              actions: {
+                if (kIsWeb)
+                  DismissIntent: CallbackAction<DismissIntent>(
+                    onInvoke: (_) {
+                      _shellBack?.call();
+                      return null;
+                    },
+                  ),
+              },
+              child: TvTextFieldEscape(
+                  child: child ?? const SizedBox.shrink()),
+            ),
           ),
         ),
       ),
@@ -559,6 +577,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // …and again when the app is brought back from the background (Android
     // usually keeps it running, so that isn't a fresh launch).
     WidgetsBinding.instance.addObserver(this);
+    _shellBack = _handleNativeBackPressed;
     _backChannel.setMethodCallHandler((call) async {
       if (call.method == 'backPressed') _handleNativeBackPressed();
       if (call.method == 'backLongPressed') {
@@ -586,6 +605,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);
+    _shellBack = null;
     // Pages outside the shell (the wizard) get the system's Back.
     unawaited(_backChannel.invokeMethod('setBlocked', false));
     for (final n in _railNodes) {
@@ -665,7 +685,12 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // system's Back (go_router) takes it.
     final location = GoRouterState.of(context).uri.path;
     if (!_kNavDestinations.any((d) => d.path == location)) {
-      unawaited(_backChannel.invokeMethod('systemBack'));
+      if (kIsWeb) {
+        final router = GoRouter.of(context);
+        if (router.canPop()) router.pop();
+      } else {
+        unawaited(_backChannel.invokeMethod('systemBack'));
+      }
       return;
     }
     final tv = PlatformHelper.isTV(context);
@@ -747,7 +772,10 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
                 // re-lay-out the whole page on every frame.
                 child: ValueListenableBuilder<bool>(
                   valueListenable: TvGuideScreen.railCompact,
-                  builder: (context, compact, child) {
+                  builder: (context, narrow, child) {
+                    // In a browser or desktop window the rail is narrow on
+                    // every page and opens on hover.
+                    final compact = narrow || kIsWeb;
                     final w = MediaQuery.sizeOf(context).width -
                         (compact ? 64 : 96);
                     return ClipRect(
@@ -871,6 +899,8 @@ class _TvNavRail extends StatefulWidget {
 }
 
 class _TvNavRailState extends State<_TvNavRail> {
+  bool _hover = false;
+  bool _focusIn = false;
   // Up/Down move between rail items only. Left to Flutter's directional
   // search, Down from an item could land in a *covered* page of the shell
   // navigator (e.g. the Live TV home under a category page) — invisible
@@ -907,9 +937,19 @@ class _TvNavRailState extends State<_TvNavRail> {
       canRequestFocus: false,
       skipTraversal: true,
       onKeyEvent: _onKey,
-      child: ValueListenableBuilder<bool>(
+      onFocusChange: (f) {
+        if (f != _focusIn && mounted) setState(() => _focusIn = f);
+      },
+      child: MouseRegion(
+       // A mouse over the narrow rail opens it again (no remote to press
+       // Left with). The page keeps its width: the rail just grows over it.
+       onEnter: (_) => setState(() => _hover = true),
+       onExit: (_) => setState(() => _hover = false),
+       child: ValueListenableBuilder<bool>(
        valueListenable: TvGuideScreen.railCompact,
-       builder: (context, compact, _) => AnimatedContainer(
+       builder: (context, narrow, _) {
+        final compact = (narrow || kIsWeb) && !_hover && !_focusIn;
+        return AnimatedContainer(
         duration: motionDuration(TvGuideScreen.shiftDuration),
         curve: TvGuideScreen.shiftCurve,
         width: compact ? 64 : 96,
@@ -930,7 +970,7 @@ class _TvNavRailState extends State<_TvNavRail> {
                     // the rail's initial mount (cold app start, landing on
                     // Live TV) — NOT `i == index`, which would re-fire
                     // autofocus on every navigation.
-                    autofocus: i == 0,
+                    autofocus: i == 0 && !kIsWeb,
                     focusNode: widget.nodes[i],
                     onTap: () {
                       // Picking a tab hands the remote to that page: drop
@@ -949,6 +989,8 @@ class _TvNavRailState extends State<_TvNavRail> {
             ],
           ),
         ),
+        );
+       },
        ),
       ),
     );

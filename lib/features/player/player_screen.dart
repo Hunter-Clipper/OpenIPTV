@@ -30,6 +30,7 @@ import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
+import 'package:open_iptv/shared/utils/browser_fullscreen.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -749,6 +750,45 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  bool _muted = false;
+
+  /// The keys a video player has in a browser or desktop window: Space / K
+  /// pause and play, J / L (and Left / Right on a movie or episode with
+  /// nothing focused) skip 10 seconds, M mutes, F toggles full screen.
+  bool _handleWebKey(LogicalKeyboardKey key, FocusNode node) {
+    Future<void> skip(bool forward) async {
+      if (_isPlainLive) {
+        await (forward ? _onLiveForward() : _onLiveRewind());
+      } else {
+        const step = Duration(seconds: 10);
+        await _playbackService.seekRelative(forward ? step : -step);
+      }
+    }
+
+    if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.keyK) {
+      unawaited(_isPlainLive
+          ? _onLivePlayPause()
+          : _playbackService.togglePlayPause());
+    } else if (key == LogicalKeyboardKey.keyJ ||
+        key == LogicalKeyboardKey.keyL ||
+        (!_isChannelPlayback &&
+            node.hasPrimaryFocus &&
+            (key == LogicalKeyboardKey.arrowLeft ||
+                key == LogicalKeyboardKey.arrowRight))) {
+      unawaited(skip(key == LogicalKeyboardKey.keyL ||
+          key == LogicalKeyboardKey.arrowRight));
+    } else if (key == LogicalKeyboardKey.keyM) {
+      _muted = !_muted;
+      unawaited(_playbackService.setAudible(!_muted));
+    } else if (key == LogicalKeyboardKey.keyF) {
+      toggleBrowserFullscreen();
+    } else {
+      return false;
+    }
+    _showControls();
+    return true;
+  }
+
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     // Multi-view handles its own keys.
@@ -769,23 +809,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       return KeyEventResult.handled;
     }
 
-    // Keyboard and mouse users (browser, desktop app): Space pauses, and on
-    // a movie or episode the arrows skip 10 s. These come first, before a
-    // focused button's own Space / arrow handling (there is no D-pad here).
     if (kIsWeb) {
-      final service = ref.read(playbackServiceProvider);
-      if (key == LogicalKeyboardKey.space) {
-        unawaited(service.togglePlayPause());
-        return KeyEventResult.handled;
-      }
-      if (!_isChannelPlayback &&
-          (key == LogicalKeyboardKey.arrowLeft ||
-              key == LogicalKeyboardKey.arrowRight)) {
-        unawaited(service.seekRelative(
-            Duration(seconds: key == LogicalKeyboardKey.arrowLeft ? -10 : 10)));
-        _showControls();
-        return KeyEventResult.handled;
-      }
+      final handled = _handleWebKey(key, node);
+      if (handled) return KeyEventResult.handled;
     }
 
     if (!_isChannelPlayback) return KeyEventResult.ignored;
