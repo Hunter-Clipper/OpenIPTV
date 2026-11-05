@@ -9,11 +9,22 @@ import 'package:open_iptv/telemetry/queue.dart';
 import 'package:open_iptv/telemetry/report.dart';
 import 'package:open_iptv/telemetry/scrubber.dart';
 import 'package:open_iptv/telemetry/sender.dart';
+import 'package:open_iptv/telemetry/telemetry.dart';
 
 const _facts = DeviceFacts(
     app: '0.14.51+17', platform: 'android-tv', os: 34, device: 'Google Chromecast');
 
 void main() {
+  group('isReportableError', () {
+    test('real crashes are reported', () {
+      expect(Telemetry.isReportableError(StateError('x')), isTrue);
+    });
+    test('handled (silent) errors and network failures are not', () {
+      expect(Telemetry.isReportableError(Exception('x'), silent: true), isFalse);
+      expect(Telemetry.isReportableError(const SocketException('x')), isFalse);
+      expect(Telemetry.isReportableError(http.ClientException('x')), isFalse);
+    });
+  });
   group('scrubber', () {
     test('keeps code frames, drops everything else', () {
       const raw = '''

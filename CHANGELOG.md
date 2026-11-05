@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased
+
+**Fixed**
+- Anonymous crash reports no longer include things that aren't crashes: a logo or poster that can't be loaded, or a network hiccup such as a provider being down. Only real app crashes are reported now.
+
 ## 0.14.65 — 2026-11-04
 
 **Fixed**

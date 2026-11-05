@@ -37,13 +37,19 @@ class Telemetry {
   static void install() {
     final previousFlutter = FlutterError.onError;
     FlutterError.onError = (details) {
-      unawaited(_record(details.exception, details.stack ?? StackTrace.empty,
-          ReportKind.crash));
+      // Silent errors are ones Flutter or a library already handled (a logo
+      // that won't decode just shows the placeholder), so they aren't crashes.
+      if (isReportableError(details.exception, silent: details.silent)) {
+        unawaited(_record(details.exception,
+            details.stack ?? StackTrace.empty, ReportKind.crash));
+      }
       previousFlutter?.call(details);
     };
     final previousPlatform = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (error, stack) {
-      unawaited(_record(error, stack, ReportKind.crash));
+      if (isReportableError(error)) {
+        unawaited(_record(error, stack, ReportKind.crash));
+      }
       return previousPlatform?.call(error, stack) ?? false;
     };
   }
@@ -98,6 +104,22 @@ class Telemetry {
       os: (native['sdk'] as num?)?.toInt() ?? 0,
       device: '${native['manufacturer'] ?? ''} ${native['model'] ?? ''}'.trim(),
     );
+  }
+
+  /// Whether an uncaught error is a real crash worth reporting. Handled
+  /// ("silent") framework errors and plain network failures (provider down,
+  /// no signal) are not bugs in the app.
+  @visibleForTesting
+  static bool isReportableError(Object error, {bool silent = false}) {
+    if (silent) return false;
+    if (error is SocketException ||
+        error is HandshakeException ||
+        error is TimeoutException ||
+        error is HttpException) {
+      return false;
+    }
+    final type = error.runtimeType.toString();
+    return !type.contains('SocketException') && !type.contains('ClientException');
   }
 
   static Future<void> _record(
