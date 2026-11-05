@@ -854,6 +854,7 @@ class _TvNavRail extends StatefulWidget {
 }
 
 class _TvNavRailState extends State<_TvNavRail> {
+  bool _hover = false;
   // Up/Down move between rail items only. Left to Flutter's directional
   // search, Down from an item could land in a *covered* page of the shell
   // navigator (e.g. the Live TV home under a category page) — invisible
@@ -890,9 +891,16 @@ class _TvNavRailState extends State<_TvNavRail> {
       canRequestFocus: false,
       skipTraversal: true,
       onKeyEvent: _onKey,
-      child: ValueListenableBuilder<bool>(
+      child: MouseRegion(
+       // A mouse over the narrow rail opens it again (no remote to press
+       // Left with). The page keeps its width: the rail just grows over it.
+       onEnter: (_) => setState(() => _hover = true),
+       onExit: (_) => setState(() => _hover = false),
+       child: ValueListenableBuilder<bool>(
        valueListenable: TvGuideScreen.railCompact,
-       builder: (context, compact, _) => AnimatedContainer(
+       builder: (context, narrow, _) {
+        final compact = narrow && !_hover;
+        return AnimatedContainer(
         duration: motionDuration(TvGuideScreen.shiftDuration),
         curve: TvGuideScreen.shiftCurve,
         width: compact ? 64 : 96,
@@ -932,6 +940,8 @@ class _TvNavRailState extends State<_TvNavRail> {
             ],
           ),
         ),
+        );
+       },
        ),
       ),
     );
