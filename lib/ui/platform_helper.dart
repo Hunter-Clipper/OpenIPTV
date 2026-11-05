@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 
@@ -39,6 +41,20 @@ class PlatformHelper {
   /// very first frame; defaults to false (phone/tablet layout) if queried
   /// before this completes.
   static Future<void> initTvDetection() async {
+    if (kIsWeb) {
+      // Browsers: a computer gets the TV layout (big screen, keyboard and
+      // mouse, 10-foot design); a phone or tablet browser gets the phone
+      // layout. Flutter maps the browser's user agent onto the target
+      // platform, so android/iOS/fuchsia means a handheld.
+      _cachedIsTv = !isHandheldBrowser;
+      // The keyboard's arrow keys are the D-pad: draw the focus ring the way
+      // a TV does, even after the mouse was last used.
+      if (_cachedIsTv!) {
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.alwaysTraditional;
+      }
+      return;
+    }
     _cachedIsTv = await isTelevisionDevice();
     // A TV is driven by the remote only. Flutter otherwise decides whether
     // to draw ink focus highlights (popup menu items, list tiles) from the
@@ -53,6 +69,17 @@ class PlatformHelper {
   /// Context-free equivalent of isTV(context), for call sites that run
   /// before a BuildContext exists (e.g. main(), before runApp()).
   static bool get isTVDevice => _isTV();
+
+  /// True when the page runs in a phone or tablet browser.
+  static bool get isHandheldBrowser =>
+      kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.fuchsia);
+
+  /// TV typing goes through a native Android text box; a browser has none,
+  /// so the desktop-web "TV" layout types in ordinary text fields.
+  static bool get usesNativeTvKeyboard => isTVDevice && !kIsWeb;
 
   static bool _isTV() => _cachedIsTv ?? false;
 }

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0A0A12">
+  <meta name="color-scheme" content="dark">
+  <title>Wipe local data · OpenIPTV</title>
+  <link rel="icon" href="favicon.png">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #0A0A12; color: #e8e8f0;
+           font: 15px/1.5 system-ui, sans-serif; display: flex;
+           align-items: center; justify-content: center; }
+    main { width: min(520px, 100% - 32px); }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { margin: 0 0 16px; color: #a8a8b8; }
+    button, a.btn { font: inherit; font-weight: 600; border: 0; border-radius: 12px;
+           padding: 12px 20px; cursor: pointer; color: #fff; text-decoration: none;
+           background: #3B82F6; display: inline-block; }
+    a.btn.quiet { background: #23233a; margin-left: 8px; }
+    button[disabled] { opacity: .5; cursor: default; }
+    pre { background: #12121f; border-radius: 12px; padding: 12px 14px; margin: 20px 0 0;
+          white-space: pre-wrap; min-height: 2em; font-size: 13px; color: #c8c8d8; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Wipe local data</h1>
+  <p>Developer tool. Removes everything OpenIPTV stored in this browser for this
+     address: the database (profiles, playlists, channels), settings, cookies,
+     cached files and the service worker. Nothing on a server or on other
+     devices is touched.</p>
+  <button id="go">Wipe everything</button>
+  <a class="btn quiet" href="./">Back to the app</a>
+  <pre id="log">Ready.</pre>
+</main>
+<script>
+(function () {
+  var logEl = document.getElementById('log');
+  var lines = [];
+  function log(s) { lines.push(s); logEl.textContent = lines.join('\n'); }
+  function withTimeout(p, ms, what) {
+    return Promise.race([p, new Promise(function (res) {
+      setTimeout(function () { res('timeout'); }, ms);
+    })]).then(function (r) { if (r === 'timeout') log('  ' + what + ': timed out'); });
+  }
+
+  function wipeStorage() {
+    // The dev link's own switch survives a wipe, so it doesn't vanish.
+    var keep = null;
+    try { keep = localStorage.getItem('otv_dev'); } catch (e) {}
+    try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+    try { if (keep) localStorage.setItem('otv_dev', keep); } catch (e) {}
+    log('Settings storage cleared');
+  }
+
+  function wipeCookies() {
+    var n = 0;
+    document.cookie.split(';').forEach(function (c) {
+      var name = c.split('=')[0].trim();
+      if (!name) return;
+      document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      n++;
+    });
+    log('Cookies cleared (' + n + ')');
+  }
+
+  function wipeCaches() {
+    if (!window.caches) return Promise.resolve();
+    return caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (k) { return caches.delete(k); }))
+        .then(function () { log('Cached files cleared (' + keys.length + ')'); });
+    });
+  }
+
+  function wipeWorkers() {
+    if (!navigator.serviceWorker) return Promise.resolve();
+    return navigator.serviceWorker.getRegistrations().then(function (regs) {
+      return Promise.all(regs.map(function (r) { return r.unregister(); }))
+        .then(function () { log('Service workers removed (' + regs.length + ')'); });
+    });
+  }
+
+  function deleteDb(name) {
+    return new Promise(function (resolve) {
+      var req = indexedDB.deleteDatabase(name);
+      req.onsuccess = function () { log('  deleted ' + name); resolve(); };
+      req.onerror = function () { log('  could not delete ' + name); resolve(); };
+      // Another tab still has it open: it finishes once that tab closes.
+      req.onblocked = function () { log('  ' + name + ' is open in another tab; close it'); };
+    });
+  }
+
+  function wipeDatabases() {
+    if (!indexedDB.databases) { log('Browser cannot list databases; skipped'); return Promise.resolve(); }
+    return indexedDB.databases().then(function (dbs) {
+      log('Databases found: ' + dbs.length);
+      return dbs.reduce(function (chain, d) {
+        return chain.then(function () { return withTimeout(deleteDb(d.name), 8000, d.name); });
+      }, Promise.resolve());
+    });
+  }
+
+  function wipeFiles() {
+    if (!navigator.storage || !navigator.storage.getDirectory) return Promise.resolve();
+    return navigator.storage.getDirectory().then(function (root) {
+      var names = [];
+      return (async function () {
+        for await (var key of root.keys()) names.push(key);
+        for (var i = 0; i < names.length; i++) {
+          try { await root.removeEntry(names[i], { recursive: true }); } catch (e) {}
+        }
+        log('Browser file storage cleared (' + names.length + ')');
+      })();
+    }).catch(function () { log('Browser file storage: skipped'); });
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    lines = []; log('Wiping…');
+    wipeStorage(); wipeCookies();
+    wipeWorkers()
+      .then(wipeCaches)
+      .then(wipeDatabases)
+      .then(wipeFiles)
+      .then(function () {
+        log('Done. Opening the app…');
+        setTimeout(function () { location.replace('./'); }, 1200);
+      }, function (e) {
+        log('Stopped: ' + e);
+        btn.disabled = false;
+      });
+  });
+})();
+</script>
+</body>
+</html>

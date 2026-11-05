@@ -158,7 +158,7 @@ class UpdateService {
   late final Future<bool> _selfUpdatable = _askSelfUpdatable();
 
   Future<bool> _askSelfUpdatable() async {
-    if (!Platform.isAndroid) return false;
+    if (kIsWeb || !Platform.isAndroid) return false;
     try {
       final installer = await _channel.invokeMethod<String>('installerPackage');
       return installer != _playStoreInstaller;
@@ -207,7 +207,7 @@ class UpdateService {
   /// The installed version (versionCode) of another app, or null if it
   /// isn't installed.
   Future<int?> packageVersion(String package) async {
-    if (!Platform.isAndroid) return null;
+    if (kIsWeb || !Platform.isAndroid) return null;
     try {
       return await _channel
           .invokeMethod<int>('packageVersion', {'package': package});

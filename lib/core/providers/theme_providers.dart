@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
@@ -181,7 +182,7 @@ Future<void> setMediaNotificationEnabled(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(mediaNotificationEnabledProvider.notifier).state = enabled;
   await prefs.setMediaNotificationEnabled(enabled);
-  nowPlayingHandler.setEnabled(enabled);
+  if (!kIsWeb) nowPlayingHandler.setEnabled(enabled);
 }
 
 /// Pushes every persisted setting into its runtime StateProvider. These
@@ -207,7 +208,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   NativeVideoPlayer.setAutoFrameRate(prefs.autoFrameRate);
   ref.read(mediaNotificationEnabledProvider.notifier).state =
       prefs.mediaNotificationEnabled;
-  nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
+  if (!kIsWeb) nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;

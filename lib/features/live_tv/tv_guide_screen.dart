@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -138,7 +139,12 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
   FocusNode? _lastGridFocus;
   // True while focus is inside the guide: the category column shows icons only.
-  bool _collapsed = false;
+  // In a browser or desktop window the categories start as icons and open
+  // on hover or when keyboard focus is in them; on a TV they follow focus.
+  bool _collapsed = kIsWeb;
+  // A mouse over the narrow category column opens it again (no remote to
+  // press Left with).
+  bool _hoverCategories = false;
   // The category list is lazy: a category scrolled out of sight has no
   // widget, so its focus node isn't attached and requestFocus does nothing.
   final _categoryScroll = ScrollController();
@@ -197,9 +203,13 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
       return;
     }
+    // The window lost focus (another app or tab came forward): Flutter drops
+    // focus altogether. Keep the layout as it was instead of expanding.
+    if (FocusManager.instance.primaryFocus == null) return;
     final inGrid = _gridNode.hasFocus;
     TvGuideScreen.railCompact.value = inGrid || _columnNode.hasFocus;
-    if (inGrid != _collapsed && mounted) setState(() => _collapsed = inGrid);
+    final collapsed = kIsWeb ? !_columnNode.hasFocus : inGrid;
+    if (collapsed != _collapsed && mounted) setState(() => _collapsed = collapsed);
   }
 
   @override
@@ -283,8 +293,17 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       return;
     }
     if (!mounted) return;
+    // A mouse click doesn't focus the row first. Focus it now: with focus in
+    // the guide, swapping the rows below dropped focus onto the first
+    // category ("All Channels"), whose focus handler then swapped the guide
+    // straight back. Then go into the guide once its new rows are built.
+    _focusedCategory = key;
+    final node = _categoryNode(key);
+    if (node.context != null) node.requestFocus();
     _showCategory(key);
-    _enterGrid();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _enterGrid();
+    });
   }
 
   // Right from the column (or OK on a category): into the guide, back to
@@ -523,7 +542,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     _categoryKeys = categories;
     if (!_initialCategoryFocusDone) {
       _initialCategoryFocusDone = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Browsers keep the categories shut until the mouse or keyboard asks.
+      if (!kIsWeb) WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Future.delayed(const Duration(milliseconds: 100), () {
           if (!mounted) return;
@@ -554,18 +574,28 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     // The grid is laid out once at its final width and only revealed by the
     // shrinking column (clip), so the shift never re-lays-out every row on
     // every frame — that was what dropped it below 30 fps on the TV.
+    final collapsed = _collapsed && !_hoverCategories;
     final gridWidth = math.max(
         0.0,
         outer.maxWidth -
-            (_collapsed ? _categoryWidthCollapsed : _categoryWidth));
+            (collapsed ? _categoryWidthCollapsed : _categoryWidth));
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ---- Category column ----
-        AnimatedContainer(
+        MouseRegion(
+         onEnter: (_) {
+           if (_collapsed && !_hoverCategories) {
+             setState(() => _hoverCategories = true);
+           }
+         },
+         onExit: (_) {
+           if (_hoverCategories) setState(() => _hoverCategories = false);
+         },
+         child: AnimatedContainer(
           duration: motionDuration(TvGuideScreen.shiftDuration),
           curve: TvGuideScreen.shiftCurve,
-          width: _collapsed ? _categoryWidthCollapsed : _categoryWidth,
+          width: collapsed ? _categoryWidthCollapsed : _categoryWidth,
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow),
           child: Focus(
@@ -611,7 +641,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     },
                     selected: key == shown,
                     locked: locked(key),
-                    compact: _collapsed,
+                    compact: collapsed,
                     onFocus: () => _onCategoryFocused(key),
                     onTap: () => _openCategory(key),
                     onLongPress: (_isRealCategory(key) || key == _all) && profile != null
@@ -625,6 +655,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               ),
             ),
           ),
+         ),
         ),
         // ---- Programme pane + guide ----
         Expanded(
