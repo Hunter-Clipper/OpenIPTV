@@ -200,6 +200,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
       return;
     }
+    // The window lost focus (another app or tab came forward): Flutter drops
+    // focus altogether. Keep the layout as it was instead of expanding.
+    if (FocusManager.instance.primaryFocus == null) return;
     final inGrid = _gridNode.hasFocus;
     TvGuideScreen.railCompact.value = inGrid || _columnNode.hasFocus;
     if (inGrid != _collapsed && mounted) setState(() => _collapsed = inGrid);
