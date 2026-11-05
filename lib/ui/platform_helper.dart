@@ -47,6 +47,12 @@ class PlatformHelper {
       // layout. Flutter maps the browser's user agent onto the target
       // platform, so android/iOS/fuchsia means a handheld.
       _cachedIsTv = !isHandheldBrowser;
+      // The keyboard's arrow keys are the D-pad: draw the focus ring the way
+      // a TV does, even after the mouse was last used.
+      if (_cachedIsTv!) {
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.alwaysTraditional;
+      }
       return;
     }
     _cachedIsTv = await isTelevisionDevice();
