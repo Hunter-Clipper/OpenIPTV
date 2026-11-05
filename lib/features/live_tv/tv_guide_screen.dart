@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -139,7 +140,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   final _firstRowNode = FocusNode(debugLabel: 'GuideFirstRow');
   FocusNode? _lastGridFocus;
   // True while focus is inside the guide: the category column shows icons only.
-  bool _collapsed = false;
+  // In a browser or desktop window the categories start as icons and open
+  // on hover or when keyboard focus is in them; on a TV they follow focus.
+  bool _collapsed = kIsWeb;
   // A mouse over the narrow category column opens it again (no remote to
   // press Left with).
   bool _hoverCategories = false;
@@ -206,7 +209,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (FocusManager.instance.primaryFocus == null) return;
     final inGrid = _gridNode.hasFocus;
     TvGuideScreen.railCompact.value = inGrid || _columnNode.hasFocus;
-    if (inGrid != _collapsed && mounted) setState(() => _collapsed = inGrid);
+    final collapsed = kIsWeb ? !_columnNode.hasFocus : inGrid;
+    if (collapsed != _collapsed && mounted) setState(() => _collapsed = collapsed);
   }
 
   @override
@@ -543,7 +547,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     _categoryKeys = categories;
     if (!_initialCategoryFocusDone) {
       _initialCategoryFocusDone = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Browsers keep the categories shut until the mouse or keyboard asks.
+      if (!kIsWeb) WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Future.delayed(const Duration(milliseconds: 100), () {
           if (!mounted) return;
