@@ -46,6 +46,10 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+// Set while the shell is up, so the app root can send Escape (web/desktop)
+// to the same Back handling the Android Back key uses.
+VoidCallback? _shellBack;
+
 class OpenIPTVApp extends ConsumerStatefulWidget {
   const OpenIPTVApp({super.key});
 
@@ -440,7 +444,21 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         builder: (context, child) => DisplayNames(
           enabled: ref.watch(cleanNamesProvider),
           child: TvKeyboardInset(
-            child: TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+            // Browsers and desktop windows have no remote Back key: Escape
+            // is Back. Dialogs and menus handle their own Escape first.
+            child: Actions(
+              actions: {
+                if (kIsWeb)
+                  DismissIntent: CallbackAction<DismissIntent>(
+                    onInvoke: (_) {
+                      _shellBack?.call();
+                      return null;
+                    },
+                  ),
+              },
+              child: TvTextFieldEscape(
+                  child: child ?? const SizedBox.shrink()),
+            ),
           ),
         ),
       ),
@@ -517,6 +535,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // …and again when the app is brought back from the background (Android
     // usually keeps it running, so that isn't a fresh launch).
     WidgetsBinding.instance.addObserver(this);
+    _shellBack = _handleNativeBackPressed;
     _backChannel.setMethodCallHandler((call) async {
       if (call.method == 'backPressed') _handleNativeBackPressed();
       if (call.method == 'backLongPressed') {
@@ -544,6 +563,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);
+    _shellBack = null;
     // Pages outside the shell (the wizard) get the system's Back.
     unawaited(_backChannel.invokeMethod('setBlocked', false));
     for (final n in _railNodes) {
@@ -623,7 +643,12 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // system's Back (go_router) takes it.
     final location = GoRouterState.of(context).uri.path;
     if (!_kNavDestinations.any((d) => d.path == location)) {
-      unawaited(_backChannel.invokeMethod('systemBack'));
+      if (kIsWeb) {
+        final router = GoRouter.of(context);
+        if (router.canPop()) router.pop();
+      } else {
+        unawaited(_backChannel.invokeMethod('systemBack'));
+      }
       return;
     }
     final tv = PlatformHelper.isTV(context);

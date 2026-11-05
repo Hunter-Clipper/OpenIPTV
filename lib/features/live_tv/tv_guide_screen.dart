@@ -139,6 +139,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   FocusNode? _lastGridFocus;
   // True while focus is inside the guide: the category column shows icons only.
   bool _collapsed = false;
+  // A mouse over the narrow category column opens it again (no remote to
+  // press Left with).
+  bool _hoverCategories = false;
   // The category list is lazy: a category scrolled out of sight has no
   // widget, so its focus node isn't attached and requestFocus does nothing.
   final _categoryScroll = ScrollController();
@@ -554,18 +557,28 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     // The grid is laid out once at its final width and only revealed by the
     // shrinking column (clip), so the shift never re-lays-out every row on
     // every frame — that was what dropped it below 30 fps on the TV.
+    final collapsed = _collapsed && !_hoverCategories;
     final gridWidth = math.max(
         0.0,
         outer.maxWidth -
-            (_collapsed ? _categoryWidthCollapsed : _categoryWidth));
+            (collapsed ? _categoryWidthCollapsed : _categoryWidth));
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ---- Category column ----
-        AnimatedContainer(
+        MouseRegion(
+         onEnter: (_) {
+           if (_collapsed && !_hoverCategories) {
+             setState(() => _hoverCategories = true);
+           }
+         },
+         onExit: (_) {
+           if (_hoverCategories) setState(() => _hoverCategories = false);
+         },
+         child: AnimatedContainer(
           duration: motionDuration(TvGuideScreen.shiftDuration),
           curve: TvGuideScreen.shiftCurve,
-          width: _collapsed ? _categoryWidthCollapsed : _categoryWidth,
+          width: collapsed ? _categoryWidthCollapsed : _categoryWidth,
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow),
           child: Focus(
@@ -611,7 +624,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     },
                     selected: key == shown,
                     locked: locked(key),
-                    compact: _collapsed,
+                    compact: collapsed,
                     onFocus: () => _onCategoryFocused(key),
                     onTap: () => _openCategory(key),
                     onLongPress: (_isRealCategory(key) || key == _all) && profile != null
@@ -625,6 +638,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               ),
             ),
           ),
+         ),
         ),
         // ---- Programme pane + guide ----
         Expanded(
