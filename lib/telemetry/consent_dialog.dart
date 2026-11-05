@@ -3,6 +3,7 @@
 // new installs. Either button is a final answer; it never asks again, and
 // Settings → Advanced → Anonymous Reports changes it any time.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -13,6 +14,9 @@ import 'package:open_iptv/telemetry/telemetry.dart';
 /// Asks once. Returns without asking if a choice was already made.
 Future<void> askStatsConsentOnce(
     BuildContext context, ProviderContainer container) async {
+  // Crash reports are a native-app feature (they need the device's file
+  // storage); the browser version never asks, and Settings hides the row.
+  if (kIsWeb) return;
   // Test builds only: --dart-define=OPENIPTV_FORCE_STATS_PROMPT=true shows the
   // question again so the prompt can be checked on a device that already
   // answered it.

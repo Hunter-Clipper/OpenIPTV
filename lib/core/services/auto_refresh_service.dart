@@ -4,10 +4,10 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/storage/database.dart';
-import 'package:open_iptv/core/storage/db_encryption.dart';
+import 'package:open_iptv/core/storage/db_encryption.dart' if (dart.library.html) 'package:open_iptv/core/storage/db_encryption_stub.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:workmanager/workmanager.dart';
 
 const _kAutoRefreshUniqueName = 'openiptv_auto_refresh';
@@ -121,7 +121,7 @@ void autoRefreshCallbackDispatcher() {
     final db = AppDatabase.background();
     final epgService = EpgService(db: db);
     final sourceManager = SourceManager(db: db, epgService: epgService);
-    final prefs = AppPreferences(await SharedPreferences.getInstance());
+    final prefs = AppPreferences(await PrefsStore.open());
 
     final List<Source> sources;
     try {

@@ -1,0 +1,7 @@
+node_modules/
+app/
+build/
+dist/
+spike/media/
+spike/out/
+spike/root/lib/

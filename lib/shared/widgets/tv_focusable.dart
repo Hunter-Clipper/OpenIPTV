@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -330,6 +331,18 @@ final Map<ShortcutActivator, Intent> appShortcuts = {
           SingleActivator(a.trigger, includeRepeats: false): e.value
         else
           e.key: e.value,
+      // A browser's default shortcuts make the arrow keys scroll the page;
+      // here they are the D-pad, as on a TV remote.
+      if (kIsWeb) ...{
+        const SingleActivator(LogicalKeyboardKey.arrowLeft):
+            const DirectionalFocusIntent(TraversalDirection.left),
+        const SingleActivator(LogicalKeyboardKey.arrowRight):
+            const DirectionalFocusIntent(TraversalDirection.right),
+        const SingleActivator(LogicalKeyboardKey.arrowUp):
+            const DirectionalFocusIntent(TraversalDirection.up),
+        const SingleActivator(LogicalKeyboardKey.arrowDown):
+            const DirectionalFocusIntent(TraversalDirection.down),
+      },
     };
 
 class TvActivatable extends StatelessWidget {
@@ -607,7 +620,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
     super.initState();
     if (widget.openOnShow) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !PlatformHelper.isTV(context)) return;
+        if (!mounted || !PlatformHelper.usesNativeTvKeyboard) return;
         _gate.requestFocus();
         _startTyping();
       });
@@ -765,7 +778,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (!PlatformHelper.isTV(context)) {
+    if (!PlatformHelper.usesNativeTvKeyboard) {
       return widget.builder(context, widget.focusNode ?? _field);
     }
     final built = widget.builder(context, _field);

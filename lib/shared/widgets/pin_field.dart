@@ -62,7 +62,7 @@ class _PinFieldState extends State<PinField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tv = PlatformHelper.isTV(context);
+    final tv = PlatformHelper.usesNativeTvKeyboard;
     // TV: the outline is the stop and typing goes through the native
     // keyboard bridge (see TvTextFieldGate) — Google TV's keyboard can't be
     // driven by the remote in a Flutter field. Autofocus opens it at once.

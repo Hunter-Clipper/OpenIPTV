@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Web: clean path URLs (/live) instead of hash URLs (/#/live).
+  flutter_web_plugins:
+    sdk: flutter
 
   # State
   flutter_riverpod: ^2.5.1
