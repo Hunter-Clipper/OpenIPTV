@@ -289,8 +289,17 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       return;
     }
     if (!mounted) return;
+    // A mouse click doesn't focus the row first. Focus it now: with focus in
+    // the guide, swapping the rows below dropped focus onto the first
+    // category ("All Channels"), whose focus handler then swapped the guide
+    // straight back. Then go into the guide once its new rows are built.
+    _focusedCategory = key;
+    final node = _categoryNode(key);
+    if (node.context != null) node.requestFocus();
     _showCategory(key);
-    _enterGrid();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _enterGrid();
+    });
   }
 
   // Right from the column (or OK on a category): into the guide, back to
