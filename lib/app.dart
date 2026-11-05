@@ -768,7 +768,10 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
                 // re-lay-out the whole page on every frame.
                 child: ValueListenableBuilder<bool>(
                   valueListenable: TvGuideScreen.railCompact,
-                  builder: (context, compact, child) {
+                  builder: (context, narrow, child) {
+                    // In a browser or desktop window the rail is narrow on
+                    // every page and opens on hover.
+                    final compact = narrow || kIsWeb;
                     final w = MediaQuery.sizeOf(context).width -
                         (compact ? 64 : 96);
                     return ClipRect(
@@ -893,6 +896,7 @@ class _TvNavRail extends StatefulWidget {
 
 class _TvNavRailState extends State<_TvNavRail> {
   bool _hover = false;
+  bool _focusIn = false;
   // Up/Down move between rail items only. Left to Flutter's directional
   // search, Down from an item could land in a *covered* page of the shell
   // navigator (e.g. the Live TV home under a category page) — invisible
@@ -929,6 +933,9 @@ class _TvNavRailState extends State<_TvNavRail> {
       canRequestFocus: false,
       skipTraversal: true,
       onKeyEvent: _onKey,
+      onFocusChange: (f) {
+        if (f != _focusIn && mounted) setState(() => _focusIn = f);
+      },
       child: MouseRegion(
        // A mouse over the narrow rail opens it again (no remote to press
        // Left with). The page keeps its width: the rail just grows over it.
@@ -937,7 +944,7 @@ class _TvNavRailState extends State<_TvNavRail> {
        child: ValueListenableBuilder<bool>(
        valueListenable: TvGuideScreen.railCompact,
        builder: (context, narrow, _) {
-        final compact = narrow && !_hover;
+        final compact = (narrow || kIsWeb) && !_hover && !_focusIn;
         return AnimatedContainer(
         duration: motionDuration(TvGuideScreen.shiftDuration),
         curve: TvGuideScreen.shiftCurve,
