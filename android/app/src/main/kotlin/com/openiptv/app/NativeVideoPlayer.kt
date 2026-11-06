@@ -255,10 +255,38 @@ class NativeVideoPlayer(
     // (seen on catch-up on the Chromecast): give up on tunneling, carry on.
     private var lastPos = -1L
     private var lastMoveAt = 0L
+    // Tunneled frames go straight to the screen hardware, not into our video
+    // texture, so on a TV that can't composite them the picture stays black
+    // (or on the last frame) while the audio plays and ExoPlayer reports
+    // everything fine (seen on the Mi TV). The texture's frame timestamp
+    // only moves when real pictures arrive.
+    private var lastTexTs = -1L
+    private var lastTexAt = 0L
+    private fun checkTunnelPicture(now: Long): Boolean {
+        val p = exoPlayer
+        if (output !== surface || !p.playWhenReady || p.playbackState != Player.STATE_READY) {
+            lastTexAt = now
+            return false
+        }
+        val ts = try { texture.surfaceTexture().timestamp } catch (_: Exception) { return false }
+        if (ts != lastTexTs) {
+            lastTexTs = ts
+            lastTexAt = now
+            return false
+        }
+        if (now - lastTexAt > 3_500) {
+            lastTexAt = now
+            tunnelingFailed("no pictures reach the screen")
+            return true
+        }
+        return false
+    }
+
     private fun checkTunnelFreeze() {
         if (!builtOutput.tunneling) return
         val p = exoPlayer
         val now = android.os.SystemClock.elapsedRealtime()
+        if (checkTunnelPicture(now)) return
         val pos = p.currentPosition
         val state = p.playbackState
         // A network stall has an empty buffer ahead of the clock instead.
