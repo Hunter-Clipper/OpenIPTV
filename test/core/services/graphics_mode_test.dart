@@ -52,4 +52,13 @@ void main() {
     expect(GraphicsModeInfo.fromMap(null), isNull);
     expect(GraphicsModeInfo.fromMap('x'), isNull);
   });
+
+  test('the setting is shown on TVs only', () {
+    final i = info('auto', 'standard', 'standard');
+    expect(showGraphicsMode(isTv: true, info: i), isTrue);
+    // Phones and tablets never see it.
+    expect(showGraphicsMode(isTv: false, info: i), isFalse);
+    // No native side (tests, web): hidden even on a TV layout.
+    expect(showGraphicsMode(isTv: true, info: null), isFalse);
+  });
 }

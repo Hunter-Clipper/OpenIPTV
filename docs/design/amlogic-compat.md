@@ -46,6 +46,9 @@ Vulkan; tried via manifest and shell args), so Skia is the only alternative.
 
 ## What was built
 
+**TVs only.** Phones and tablets never see the setting, `GraphicsMode.apply`
+returns before touching Flutter, and the logging is not attached.
+
 - Settings → Advanced → Power User Tools → **Graphics mode**: Automatic /
   Standard / Compatible. Shows the chip (`AMLS905X5M · s7d`) and what is in use.
   Applies after a restart (offered in one tap).

@@ -106,17 +106,23 @@ class NativeVideoPlayer(
             .build()
             .also {
                 applyAudible(it, audible)
-                val tag = if (audible) "main" else "aux"
-                it.addAnalyticsListener(VideoDiagnostics(tag))
-                val cadence = FrameCadence(tag)
-                it.setVideoFrameMetadataListener(cadence)
-                it.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
-                    override fun onVideoDecoderInitialized(
-                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
-                        decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long,
-                    ) = cadence.reset()
-                })
+                // Decoder / frame-timing logging (#157): TVs only, so phones
+                // run exactly the player they always did.
+                if (EngineChannels.isTelevision(context)) attachDiagnostics(it)
             }
+
+    private fun attachDiagnostics(player: ExoPlayer) {
+        val tag = if (audible) "main" else "aux"
+        player.addAnalyticsListener(VideoDiagnostics(tag))
+        val cadence = FrameCadence(tag)
+        player.setVideoFrameMetadataListener(cadence)
+        player.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+            override fun onVideoDecoderInitialized(
+                eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long,
+            ) = cadence.reset()
+        })
+    }
 
     /**
      * Makes this the player you hear (multi-view, #52): volume and media

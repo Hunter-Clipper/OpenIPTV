@@ -6,7 +6,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased
 
 **New**
-- Settings → Advanced → Power User Tools → **Graphics mode**: if the picture looks torn (a line across it) or jittery on fast motion, try Compatible. Automatic switches it on for Mi TV (Amlogic S7D) televisions, where this was measured and fixed; other devices keep the standard mode. Takes effect when the app restarts, which it offers to do for you.
+- On TVs: Settings → Advanced → Power User Tools → **Graphics mode**: if the picture looks torn (a line across it) or jittery on fast motion, try Compatible. Automatic switches it on for Mi TV (Amlogic S7D) televisions, where this was measured and fixed; other devices keep the standard mode. Takes effect when the app restarts, which it offers to do for you.
 
 **Fixed**
 - Tearing and jitter on Mi TV (Amlogic S7D) televisions during fast motion — see Graphics mode above.

@@ -97,6 +97,12 @@ class GraphicsModeInfo {
   }
 }
 
+/// Whether Settings shows the Graphics mode group. TVs only: phones and
+/// tablets never see it (and the native side ignores it there). Also hidden
+/// where there is no native side to ask (tests, web).
+bool showGraphicsMode({required bool isTv, required GraphicsModeInfo? info}) =>
+    isTv && info != null;
+
 /// The current graphics mode, or null where there's no native side (tests,
 /// web, other platforms).
 Future<GraphicsModeInfo?> graphicsModeInfo() async {
