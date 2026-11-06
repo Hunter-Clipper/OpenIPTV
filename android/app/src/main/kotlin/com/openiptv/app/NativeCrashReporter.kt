@@ -1,5 +1,7 @@
 package com.openiptv.app
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
 import java.io.File
@@ -60,6 +62,57 @@ object NativeCrashReporter {
         } finally {
             file.delete()
         }
+    }
+
+    /**
+     * Freezes (ANRs) and native crashes (signals) kill the process without
+     * running any exception handler, so Android's own exit history is read on
+     * the next launch (API 30+). Returns what happened since the last call as
+     * {kind: hang|native-crash, type, stack}, newest last, at most 3, and
+     * remembers where it stopped so nothing is reported twice. Only the main
+     * process counts. Reasons, signal names and code frames only: no messages.
+     */
+    fun takeExitReports(context: Context, report: Boolean): List<Map<String, String>> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return emptyList()
+        val prefs = context.getSharedPreferences("otv_exit_seen", Context.MODE_PRIVATE)
+        val seen = prefs.getLong("last_ts", 0L)
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val exits = try {
+            am.getHistoricalProcessExitReasons(context.packageName, 0, 10)
+        } catch (_: Throwable) {
+            return emptyList()
+        }.filter { it.processName == context.packageName && it.timestamp > seen }
+        if (exits.isEmpty()) return emptyList()
+        prefs.edit().putLong("last_ts", exits.maxOf { it.timestamp }).apply()
+        if (!report) return emptyList()
+        val out = mutableListOf<Map<String, String>>()
+        for (e in exits.sortedBy { it.timestamp }) {
+            when (e.reason) {
+                ApplicationExitInfo.REASON_ANR ->
+                    out += mapOf("kind" to "hang", "type" to "ANR", "stack" to anrMainThread(e))
+                ApplicationExitInfo.REASON_CRASH_NATIVE -> {
+                    val signal = Regex("SIG[A-Z0-9]+").find(e.description ?: "")?.value
+                    out += mapOf(
+                        "kind" to "native-crash",
+                        "type" to if (signal != null) "NativeCrash.$signal" else "NativeCrash",
+                        "stack" to "",
+                    )
+                }
+            }
+        }
+        return out.takeLast(3)
+    }
+
+    /** The Java frames of the "main" thread from an ANR trace (text). */
+    private fun anrMainThread(e: ApplicationExitInfo): String = try {
+        val text = e.traceInputStream?.use { it.readBytes().take(1_000_000).toByteArray().toString(Charsets.UTF_8) } ?: ""
+        val start = text.indexOf("\"main\" prio=")
+        if (start < 0) "" else {
+            val block = text.substring(start).substringBefore("\n\n")
+            block.lines().filter { it.trim().startsWith("at ") }.take(60).joinToString("\n")
+        }
+    } catch (_: Throwable) {
+        ""
     }
 
     /** Device facts for a report: maker, model, Android API level. No IDs. */

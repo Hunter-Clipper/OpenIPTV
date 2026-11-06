@@ -20,7 +20,7 @@ One small JSON report per event:
 | `os` | `34` | Android API level |
 | `device` | `Google Chromecast` (maker + model) | hardware-specific bugs |
 | `day` | `2026-11-03` | the date only, no time, no time zone |
-| `kind` | `crash`, `native-crash` | what happened |
+| `kind` | `crash`, `native-crash`, `hang` | what happened |
 | `error` | `StateError` | exception class name only |
 | `stack` | up to 30 lines of function name + file:line | where it happened |
 

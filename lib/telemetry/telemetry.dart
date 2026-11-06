@@ -22,7 +22,9 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 const _device = MethodChannel('openiptv/device');
 const _lastSendKey = 'stats_last_send_ms';
-const _sendEvery = Duration(days: 1);
+// Waiting reports go out right away, but never more often than this, so a
+// crash loop can't hammer the receiver.
+const _minSendGap = Duration(minutes: 10);
 // A crash loop must not flood the queue.
 const _maxPerRun = 5;
 
@@ -31,6 +33,7 @@ class Telemetry {
 
   static int _recorded = 0;
   static bool _busy = false;
+  static bool _flushing = false;
   static DeviceFacts? _facts;
 
   /// Hooks Dart's uncaught-error handlers. Existing handlers still run.
@@ -60,9 +63,11 @@ class Telemetry {
     try {
       if (await readStatsChoice() != StatsChoice.on) {
         await _discardNativeCrash();
+        await _discardExitInfo();
         return;
       }
       await _ingestNativeCrash();
+      await _ingestExitInfo();
       await _flushIfDue();
     } catch (e) {
       debugPrint('[OTV-stats] startup skipped: $e');
@@ -75,6 +80,7 @@ class Telemetry {
     if (choice != StatsChoice.on) {
       await (await _queue()).clear();
       await _discardNativeCrash();
+      await _discardExitInfo();
     }
   }
 
@@ -137,11 +143,47 @@ class Telemetry {
       );
       await (await _queue()).add(report.toJson());
       _recorded++;
+      debugPrint('[OTV-stats] queued a ${kind.wire} report');
     } catch (_) {
       // Never let reporting cause a problem of its own.
     } finally {
       _busy = false;
     }
+    // Send it now rather than waiting for the next launch (rate limited).
+    unawaited(_flushIfDue());
+  }
+
+  /// Android keeps a short history of why the app's process ended. Freezes
+  /// (ANRs) and native crashes never reach a Dart or Java error handler, so
+  /// they are read from there on the next launch.
+  static Future<void> _ingestExitInfo() async {
+    final List<Map<dynamic, dynamic>> exits;
+    try {
+      final raw = await _device.invokeListMethod<Map<dynamic, dynamic>>(
+              'takeExitReports', {'report': true}) ??
+          const [];
+      exits = raw;
+    } catch (_) {
+      return;
+    }
+    for (final e in exits) {
+      final report = StatsReport.build(
+        facts: await _deviceFacts(),
+        now: DateTime.now(),
+        kind: e['kind'] == 'hang' ? ReportKind.hang : ReportKind.nativeCrash,
+        errorType: '${e['type'] ?? ''}',
+        rawStack: '${e['stack'] ?? ''}',
+      );
+      await (await _queue()).add(report.toJson());
+      debugPrint('[OTV-stats] queued a ${report.kind.wire} report (exit history)');
+    }
+  }
+
+  /// Marks the exit history as seen without reporting it.
+  static Future<void> _discardExitInfo() async {
+    try {
+      await _device.invokeMethod('takeExitReports');
+    } catch (_) {}
   }
 
   /// The native crash handler (OpenIptvApplication) saves the crash to a file
@@ -168,17 +210,35 @@ class Telemetry {
   }
 
   static Future<void> _flushIfDue() async {
-    if (!statsEndpointConfigured) return;
-    final prefs = await SharedPreferences.getInstance();
-    final last = prefs.getInt(_lastSendKey) ?? 0;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - last < _sendEvery.inMilliseconds) return;
-    final queue = await _queue();
-    final waiting = await queue.read();
-    if (waiting.isEmpty) return;
-    final failed = await sendReports(waiting);
-    await queue.replace(failed);
-    // Only count a day as "sent" when something got through.
-    if (failed.length < waiting.length) await prefs.setInt(_lastSendKey, now);
+    try {
+      if (!statsEndpointConfigured || _flushing) return;
+      if (await readStatsChoice() != StatsChoice.on) return;
+      final prefs = await SharedPreferences.getInstance();
+      final last = prefs.getInt(_lastSendKey) ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - last < _minSendGap.inMilliseconds) {
+        debugPrint('[OTV-stats] send held back (sent recently)');
+        return;
+      }
+      final queue = await _queue();
+      final waiting = await queue.read();
+      if (waiting.isEmpty) return;
+      _flushing = true;
+      final failed = await sendReports(waiting);
+      // Reports queued while sending must not be lost.
+      final current = await queue.read();
+      final added = current.length > waiting.length
+          ? current.sublist(waiting.length)
+          : const <Map<String, dynamic>>[];
+      await queue.replace([...failed, ...added]);
+      debugPrint('[OTV-stats] sent ${waiting.length - failed.length} of '
+          '${waiting.length} report(s)');
+      // Only count it as "sent" when something got through.
+      if (failed.length < waiting.length) await prefs.setInt(_lastSendKey, now);
+    } catch (e) {
+      debugPrint('[OTV-stats] send skipped: $e');
+    } finally {
+      _flushing = false;
+    }
   }
 }

@@ -70,3 +70,9 @@ test('rate limit kicks in', () => {
   for (let i = 0; i < 40; i++) blocked = limited('3.3.3.3') || blocked;
   assert.equal(blocked, true);
 });
+
+test('hang and native-crash reports pass, even with no stack', () => {
+  assert.equal(validate({ ...good(), kind: 'hang', error: 'ANR' }), null);
+  assert.equal(validate({ ...good(), kind: 'native-crash', error: 'NativeCrash.SIGSEGV', stack: [] }), null);
+  assert.ok(validate({ ...good(), kind: 'other' }));
+});

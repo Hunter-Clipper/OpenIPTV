@@ -59,6 +59,9 @@ object EngineChannels {
                 // Optional anonymous crash reports (#150).
                 "deviceFacts" -> result.success(NativeCrashReporter.deviceFacts())
                 "takeNativeCrash" -> result.success(NativeCrashReporter.take(context))
+                "takeExitReports" -> result.success(
+                    NativeCrashReporter.takeExitReports(context, call.argument<Boolean>("report") ?: false),
+                )
                 // Graphics mode (#157): applies on the next start.
                 "graphicsInfo" -> result.success(GraphicsMode.info(context))
                 "setGraphicsMode" -> {

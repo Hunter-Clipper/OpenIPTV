@@ -14,7 +14,11 @@ enum ReportKind {
   crash('crash'),
 
   /// An uncaught crash in the native (Kotlin/Java) layer.
-  nativeCrash('native-crash');
+  nativeCrash('native-crash'),
+
+  /// The app froze long enough that Android offered to close it (an ANR).
+  /// The stack is where the main thread was stuck.
+  hang('hang');
 
   const ReportKind(this.wire);
   final String wire;

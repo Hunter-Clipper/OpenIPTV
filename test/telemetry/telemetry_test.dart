@@ -94,6 +94,20 @@ some random line about Channel BBC One
       expect(r['platform'], 'android-tv');
     });
 
+    test('a hang keeps only code frames and no addresses', () {
+      final r = StatsReport.build(
+        facts: _facts,
+        now: DateTime.utc(2026, 11, 6),
+        kind: ReportKind.hang,
+        errorType: 'ANR',
+        rawStack: '  at android.os.MessageQueue.nativePollOnce(Native Method)\n'
+            '  at com.openiptv.app.X.y(X.kt:1)\n  at /data/app/~~abc/base.apk',
+      ).toJson();
+      expect(r['kind'], 'hang');
+      expect(r['error'], 'ANR');
+      expect((r['stack'] as List).length, 2);
+    });
+
     test('free text is scrubbed even if the caller passes junk', () {
       final r = StatsReport.build(
         facts: const DeviceFacts(
