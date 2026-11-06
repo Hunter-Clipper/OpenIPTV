@@ -3,10 +3,10 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.79)
+## 0.14.79 — 2026-11-06
 
 **Fixed**
-- Tunneled playback no longer leaves a black or frozen picture on TVs that can't show it (seen on Mi TV): if sound plays but no picture arrives for a few seconds, OpenIPTV switches Tunneled playback off, tells you, and the picture comes back.
+- Fixed some TVs showing no video during Tunneled playback. If a TV can't show it, OpenIPTV now switches it off by itself and tells you.
 
 ## 0.14.78 — 2026-11-06
 
