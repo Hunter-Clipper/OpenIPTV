@@ -79,3 +79,5 @@ Two measurements, both on tap:
   connections by IP + user agent (see `multi-view.md`). Stored in pref
   `user_agent` and included in backups; text field goes through
   `TvTextFieldGate` on TV.
+
+- **Graphics mode (0.14.74, #157):** Automatic / Standard / Compatible; picks how Flutter draws the video (Compatible = Skia). Details and measurements in `docs/design/amlogic-compat.md`.

@@ -59,6 +59,16 @@ object EngineChannels {
                 // Optional anonymous crash reports (#150).
                 "deviceFacts" -> result.success(NativeCrashReporter.deviceFacts())
                 "takeNativeCrash" -> result.success(NativeCrashReporter.take(context))
+                // Graphics mode (#157): applies on the next start.
+                "graphicsInfo" -> result.success(GraphicsMode.info(context))
+                "setGraphicsMode" -> {
+                    GraphicsMode.setSetting(context, call.argument<String>("mode") ?: GraphicsMode.AUTO)
+                    result.success(GraphicsMode.info(context))
+                }
+                "restartApp" -> {
+                    result.success(true)
+                    RestartActivity.restart(context)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -122,6 +132,9 @@ object EngineChannels {
 class OpenIptvApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // The restart helper's own process must not start Flutter.
+        if (RestartActivity.isHelperProcess()) return
+        GraphicsMode.apply(this)
         EngineChannels.install()
         NativeCrashReporter.install(this)
     }

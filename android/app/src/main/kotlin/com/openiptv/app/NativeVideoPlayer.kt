@@ -104,7 +104,19 @@ class NativeVideoPlayer(
         ExoPlayer.Builder(context)
             .setLoadControl(loadControlFor(preset))
             .build()
-            .also { applyAudible(it, audible) }
+            .also {
+                applyAudible(it, audible)
+                val tag = if (audible) "main" else "aux"
+                it.addAnalyticsListener(VideoDiagnostics(tag))
+                val cadence = FrameCadence(tag)
+                it.setVideoFrameMetadataListener(cadence)
+                it.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+                    override fun onVideoDecoderInitialized(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long,
+                    ) = cadence.reset()
+                })
+            }
 
     /**
      * Makes this the player you hear (multi-view, #52): volume and media
