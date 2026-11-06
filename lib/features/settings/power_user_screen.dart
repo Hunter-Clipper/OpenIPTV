@@ -898,26 +898,30 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Widget _graphicsGroup() {
     final info = _graphics;
-    // Only Android has this (the native side is missing in tests and on web).
-    if (info == null) return const SizedBox.shrink();
+    // TVs only (the native side is also missing in tests and on web).
+    if (!showGraphicsMode(isTv: PlatformHelper.isTV(context), info: info)) {
+      return const SizedBox.shrink();
+    }
+    // Non-null from here: showGraphicsMode checked it.
+    final current = info!;
     final theme = Theme.of(context);
     return SettingsGroup(
       title: 'Graphics mode',
       description: 'How OpenIPTV draws the screen and the video. If the '
           'picture looks torn (a line across it) or jittery on fast motion, '
           'try Compatible. Takes effect when the app restarts.'
-          '${info.chip == null ? '' : '\nThis device: ${info.chip}.'}'
-          '\nIn use now: ${info.active == 'compat' ? 'Compatible' : 'Standard'}.',
+          '${current.chip == null ? '' : '\nThis device: ${current.chip}.'}'
+          '\nIn use now: ${current.active == 'compat' ? 'Compatible' : 'Standard'}.',
       children: [
         for (final mode in GraphicsModeSetting.values)
           TvActivatable(
             onTap: () => _pickGraphics(mode),
             builder: (tap) => ListTile(
               leading: Icon(
-                mode == info.setting
+                mode == current.setting
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
-                color: mode == info.setting ? theme.colorScheme.primary : null,
+                color: mode == current.setting ? theme.colorScheme.primary : null,
               ),
               title: Text(mode.label),
               subtitle:

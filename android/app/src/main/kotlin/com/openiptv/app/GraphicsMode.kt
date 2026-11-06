@@ -18,6 +18,8 @@ import io.flutter.FlutterInjector
  * engine exists, because the engine reads these flags once, at its first
  * initialisation (a change applies on the next start).
  *
+ * TVs only — [apply] does nothing on phones and tablets.
+ *
  * Setting (Power User Tools → Graphics mode):
  *  - `auto`     — compatibility only on chips where tearing was measured;
  *  - `standard` — Flutter's default (Impeller);
@@ -74,6 +76,9 @@ object GraphicsMode {
         private set
 
     fun apply(app: Application) {
+        // TVs only: phones and tablets always keep Flutter's default, whatever
+        // was stored.
+        if (!EngineChannels.isTelevision(app)) return
         active = resolve(setting(app), socModel(), boardPlatform())
         if (active != COMPAT) return
         Log.i(TAG, "graphics mode: compatibility (setting=${setting(app)} soc=${socModel()} board=${boardPlatform()})")
