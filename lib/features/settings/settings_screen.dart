@@ -492,7 +492,7 @@ class SettingsScreen extends ConsumerWidget {
                   id: 'settings_anonymous_reports',
                   title: 'Anonymous Reports',
                   body: 'Optionally send an anonymous report when the app '
-                      'crashes, so problems get fixed faster. Off unless you '
+                      'crashes or freezes, so problems get fixed faster. Off unless you '
                       'turn it on, and you can see exactly what is sent.',
                   child: _NavTile(
                     leading: const Icon(Icons.bug_report_outlined),

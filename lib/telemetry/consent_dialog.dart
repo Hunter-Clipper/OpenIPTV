@@ -27,7 +27,7 @@ Future<void> askStatsConsentOnce(
       title: const Text('Help improve OpenIPTV?'),
       scrollable: true,
       content: const Text(
-        'OpenIPTV can send an anonymous report when the app crashes. A report '
+        'OpenIPTV can send an anonymous report when the app crashes or freezes. A report '
         'holds the app version, your device model and where in the code the '
         "problem happened. It never holds your playlists, logins, links, "
         "channel names or what you watch, and it can't be tied to you.\n\n"

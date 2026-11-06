@@ -1,6 +1,6 @@
 # Optional anonymous crash and error reports (#150)
 
-Status: owner approved 2026-11-03 (field list, no install ID, workers.dev address, wording). Scope: crashes and fatal errors only; playback errors are NOT reported. Built. Worker deployed at `openiptv-stats.hunter-clipper.workers.dev` with the private R2 bucket `openiptv-reports` (90-day lifecycle rule, 2026-11-03).
+Status: owner approved 2026-11-03 (field list, no install ID, workers.dev address, wording). Scope: crashes, freezes (ANR) and native crashes only (freezes and native crashes added 2026-11-06, v0.14.77); playback errors are NOT reported. Built. Worker deployed at `openiptv-stats.hunter-clipper.workers.dev` with the private R2 bucket `openiptv-reports` (90-day lifecycle rule, 2026-11-03).
 
 Goal: learn about crashes and playback failures nobody reports, without
 collecting anything about a person, a provider or what they watch. Off by
@@ -50,7 +50,7 @@ Off until the user says yes. `stats_choice` preference: unset / on / off.
 Draft wording (plain English, no brand names):
 
 > **Help improve OpenIPTV?**
-> OpenIPTV can send an anonymous report when the app crashes. A report holds the app version, your device model and where
+> OpenIPTV can send an anonymous report when the app crashes or freezes. A report holds the app version, your device model and where
 > in the code the problem happened. It never holds your playlists, logins,
 > links, channel names or what you watch, and it can't be tied to you.
 > This is off unless you turn it on. You can change your mind any time in
@@ -66,10 +66,20 @@ Draft wording (plain English, no brand names):
 - Catches Dart errors (`FlutterError.onError`, `PlatformDispatcher.onError`)
   and native crashes (a Kotlin `UncaughtExceptionHandler` writes the report to
   a file; Dart reads and queues it on the next launch).
+- Freezes and native signal crashes kill the process without running any
+  handler, so on the next launch Android's own exit history
+  (`ActivityManager.getHistoricalProcessExitReasons`, API 30+) is read:
+  an ANR becomes a `hang` report (the "main" thread's code frames from the
+  ANR trace, scrubbed like any stack), a native crash becomes a `native-crash`
+  report with the signal name (e.g. `NativeCrash.SIGSEGV`) and no stack. The
+  last-seen exit time is kept so each exit is reported once; with consent off
+  the history is marked seen and nothing is queued.
 - Nothing is queued or sent while consent is off. Turning it off clears the
   queue.
-- Sending: next launch and then at most once a day, on any network, in the
-  background; failures just retry later; one short HTTP request, no cookies.
+- Sending: a report is sent right after it is queued and again at each
+  launch, but never more than once every 10 minutes (a crash loop must not
+  hammer the receiver), on any network, in the background; failures just retry
+  later; one short HTTP request per report, no cookies.
 - Never delays startup, never blocks playback, never throws: every call is
   wrapped so telemetry cannot cause a crash.
 

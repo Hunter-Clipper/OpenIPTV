@@ -33,9 +33,15 @@ You are asked once. "No Thanks" counts as an answer and you are not asked
 again. You can change your mind at any time in Settings → Advanced →
 Anonymous Reports, which also shows exactly what would be sent.
 
-A report holds only: the app version, platform, Android version, device make
-and model, the date (no time), the kind of crash, the error class name, and
-up to 30 lines saying where in the code it happened.
+A report is sent when the app crashes, when it freezes badly enough that
+Android offers to close it, or when it dies inside the system's video code. It
+holds only: the app version, platform, Android version, device make and model,
+the date (no time), the kind (`crash`, `native-crash` or `hang`), the error
+class name (or the signal name, or "ANR" for a freeze), and up to 30 lines
+saying where in the code it happened. For a freeze, those lines show what the
+app was busy doing when it got stuck. Reports are sent in the background soon
+after they are noticed, at most once every 10 minutes, and only while the
+setting is on.
 
 It never holds: playlists, logins, links, host names, IP addresses, channel
 or title names, search text, settings, or anything from the database. There is

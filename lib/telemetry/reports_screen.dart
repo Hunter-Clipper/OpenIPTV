@@ -81,8 +81,9 @@ class _AnonymousReportsScreenState
               ),
             ),
             block(Text(
-              'When the app crashes, a short report is saved on this device '
-              'and sent in the background, at most once a day. It cannot be '
+              'When the app crashes or freezes, a short report is saved on this '
+              'device and sent in the background soon after, never more than '
+              'once every 10 minutes. It cannot be '
               'tied to you or to anything you watch.',
               style: theme.textTheme.bodyMedium,
             )),
@@ -92,7 +93,7 @@ class _AnonymousReportsScreenState
               '• Android version\n'
               '• Device maker and model\n'
               '• The date (no time)\n'
-              '• Crash type (the error\'s name only)\n'
+              '• What kind of problem (crash or freeze) and its name only\n'
               '• Where in the code it happened (up to 30 lines)',
             )),
             heading('Never included'),

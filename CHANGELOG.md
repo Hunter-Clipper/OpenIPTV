@@ -5,6 +5,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+**Improved**
+- Anonymous Reports now says plainly that reports are also sent when the app freezes, and how often they are sent.
+
 ## 0.14.77 — 2026-11-06
 
 **New**
