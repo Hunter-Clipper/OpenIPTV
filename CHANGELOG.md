@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.79 — 2026-11-06
+
+**Fixed**
+- Fixed some TVs showing no video during Tunneled playback. If a TV can't show it, OpenIPTV now switches it off by itself and tells you.
+
 ## 0.14.78 — 2026-11-06
 
 **New**
