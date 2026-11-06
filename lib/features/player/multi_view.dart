@@ -85,6 +85,8 @@ class MultiViewState extends State<MultiView> {
   @override
   void initState() {
     super.initState();
+    // Tunneling and passthrough pause while several streams play (#159).
+    unawaited(NativeVideoPlayer.setMultiViewActive(true));
     unawaited(_tiles[1].extra!.start());
     _applySound();
     _showLabels();
@@ -100,6 +102,7 @@ class MultiViewState extends State<MultiView> {
       t.extra?.dispose();
       t.node.dispose();
     }
+    unawaited(NativeVideoPlayer.setMultiViewActive(false));
     // Whatever happens next, the main player is the one you hear again.
     unawaited(widget.playbackService.setAudible(true));
     super.dispose();

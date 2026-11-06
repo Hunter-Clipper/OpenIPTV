@@ -145,6 +145,8 @@ class NativeVideoPlayer {
                   Map<Object?, Object?>.from(t as Map)))
               .toList();
           _tracksController.add(list);
+        case 'outputNotice':
+          _outputNotices.add(map['feature'] as String? ?? '');
         case 'error':
           _errorController.add(NativePlaybackError(
             code: map['code'] as String? ?? 'unknown',
@@ -191,7 +193,8 @@ class NativeVideoPlayer {
       bool carScreen = false,
       String? userAgentSuffix,
       String? userAgent,
-      bool liveReconnect = false}) {
+      bool liveReconnect = false,
+      bool live = false}) {
     return _control.invokeMethod('open', {
       'id': _textureId,
       'url': url,
@@ -202,8 +205,31 @@ class NativeVideoPlayer {
       'userAgentSuffix': userAgentSuffix,
       'userAgent': userAgent,
       'liveReconnect': liveReconnect,
+      'live': live,
     });
   }
+
+  /// Audio passthrough / tunneled playback (#159): each 'auto' | 'on' | 'off'.
+  /// App-wide; the native side rebuilds the main player when they change.
+  static Future<void> setOutputModes(
+      {required String passthrough, required String tunneling}) async {
+    try {
+      await _control.invokeMethod(
+          'setOutputModes', {'passthrough': passthrough, 'tunneling': tunneling});
+    } catch (_) {}
+  }
+
+  /// Multi-view starting / ending: both features pause while it is on.
+  static Future<void> setMultiViewActive(bool active) async {
+    try {
+      await _control.invokeMethod('setMultiViewActive', {'active': active});
+    } catch (_) {}
+  }
+
+  /// A feature ('tunneling' | 'passthrough') failed on this device and was
+  /// switched off automatically.
+  static final _outputNotices = StreamController<String>.broadcast();
+  static Stream<String> get outputNotices => _outputNotices.stream;
 
   /// Auto frame rate (#149): lets the native side switch the screen's
   /// refresh rate to suit the video. App-wide, not per player.

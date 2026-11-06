@@ -33,6 +33,8 @@ const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
+const _kAudioPassthrough = 'audio_passthrough'; // auto | on | off (#159)
+const _kTunneledPlayback = 'tunneled_playback'; // auto | on | off (#159)
 const _kUserAgent = 'user_agent'; // custom player user agent (Power User Tools)
 const _kVpnRoute = 'vpn_route'; // 'app' | 'device'
 const _kVpnAutoConnect = 'vpn_auto_connect';
@@ -171,6 +173,14 @@ class AppPreferences {
   Future<void> setBufferPreset(String v) => _prefs.setString(_kBufferPreset, v);
 
   /// A custom user agent for streams (Power User Tools); null = the app's own.
+  /// 'auto' (default) | 'on' | 'off'. See docs/design/tunneling-passthrough.md.
+  String get audioPassthrough => _prefs.getString(_kAudioPassthrough) ?? 'auto';
+  Future<void> setAudioPassthrough(String v) =>
+      _prefs.setString(_kAudioPassthrough, v);
+  String get tunneledPlayback => _prefs.getString(_kTunneledPlayback) ?? 'auto';
+  Future<void> setTunneledPlayback(String v) =>
+      _prefs.setString(_kTunneledPlayback, v);
+
   String? get userAgent => _prefs.getString(_kUserAgent);
   Future<void> setUserAgent(String? v) => v == null || v.isEmpty
       ? _prefs.remove(_kUserAgent)

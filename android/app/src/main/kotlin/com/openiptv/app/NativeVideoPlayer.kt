@@ -71,6 +71,8 @@ class NativeVideoPlayer(
     fun setExternalSurface(external: android.view.Surface?) {
         output = external ?: surface
         exoPlayer.setVideoSurface(output)
+        // The car screen gets plain output (no tunneling / passthrough).
+        refreshOutput()
     }
 
     /** The current picture's display size (width, height × pixel ratio), for the car screen. */
@@ -97,19 +99,40 @@ class NativeVideoPlayer(
     // player at the next open() — between streams, where nothing is lost.
     private var bufferPreset = "fast"
 
-    var exoPlayer: ExoPlayer = buildPlayer(context, bufferPreset)
+    // Tunneling / passthrough (#159): what this player was built with.
+    private var speed = 1f
+    // Set by open(): tunneling is only for live streams.
+    private var liveStream = false
+    private var builtOutput = wantedOutput()
+
+    private fun wantedOutput() = OutputModes.wanted(
+        isTelevision = EngineChannels.isTelevision(appContext),
+        mainPlayer = ownsFocus,
+        onCarScreen = output !== surface,
+        speedIsNormal = speed == 1f,
+        liveStream = liveStream,
+    )
+
+    var exoPlayer: ExoPlayer = buildPlayer(context, bufferPreset, builtOutput)
         private set
 
-    private fun buildPlayer(context: Context, preset: String): ExoPlayer =
-        ExoPlayer.Builder(context)
+    private fun buildPlayer(context: Context, preset: String, out: OutputModes.Output): ExoPlayer {
+        val selector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(context)
+        selector.parameters = selector.buildUponParameters()
+            .setTunnelingEnabled(out.tunneling)
+            .build()
+        return ExoPlayer.Builder(context, OutputModes.Factory(context, out.passthrough))
+            .setTrackSelector(selector)
             .setLoadControl(loadControlFor(preset))
             .build()
             .also {
                 applyAudible(it, audible)
+                it.addAnalyticsListener(AudioPathLog(if (audible) "main" else "aux", out))
                 // Decoder / frame-timing logging (#157): TVs only, so phones
                 // run exactly the player they always did.
                 if (EngineChannels.isTelevision(context)) attachDiagnostics(it)
             }
+    }
 
     private fun attachDiagnostics(player: ExoPlayer) {
         val tag = if (audible) "main" else "aux"
@@ -172,20 +195,86 @@ class NativeVideoPlayer(
             .build()
     }
 
-    /** Rebuilds the player with [preset]'s buffer if it differs. */
+    /** Rebuilds the player with [preset]'s buffer / the wanted output if either differs. */
     private fun applyBufferPreset(preset: String) {
-        if (preset == bufferPreset) return
+        val want = wantedOutput()
+        if (preset == bufferPreset && want == builtOutput) return
         val old = exoPlayer
         old.removeListener(playerListener)
         old.release()
         bufferPreset = preset
-        exoPlayer = buildPlayer(appContext, preset)
+        builtOutput = want
+        exoPlayer = buildPlayer(appContext, preset, want)
         currentTracks = Tracks.EMPTY
         exoPlayer.setVideoSurface(output)
         exoPlayer.addListener(playerListener)
         // The new player starts with default track selection: captions off.
         clearTextTrack()
-        android.util.Log.i("OTV-exo", "buffer preset: $preset")
+        android.util.Log.i("OTV-exo", "buffer preset: $preset, output: $want")
+    }
+
+    /**
+     * The settings changed, multi-view started or ended, or a feature failed:
+     * if this player should now be built differently, rebuild it and carry on
+     * with the same stream (a live channel rejoins at the live edge, a movie
+     * resumes where it was). A short pause, never a manual step.
+     */
+    fun refreshOutput() {
+        if (wantedOutput() == builtOutput) return
+        val url = currentUrl
+        val old = exoPlayer
+        val live = old.isCurrentMediaItemLive || old.isCurrentMediaItemDynamic
+        val pos = if (live) 0L else old.currentPosition
+        val resume = url != null && old.playbackState != Player.STATE_IDLE
+        val play = old.playWhenReady
+        applyBufferPreset(bufferPreset)
+        if (resume && url != null) {
+            renderedFrame = false
+            startSource(buildMediaSource(url, currentHint), pos)
+            exoPlayer.playWhenReady = play
+        }
+    }
+
+    // Tunneled video that never shows a picture while the audio plays is the
+    // classic failure: give up on tunneling for this device and carry on.
+    private val noPictureCheck = Runnable {
+        if (builtOutput.tunneling && !renderedFrame &&
+            exoPlayer.playbackState == Player.STATE_READY) {
+            tunnelingFailed("no picture")
+        }
+    }
+
+    private fun tunnelingFailed(why: String) {
+        android.util.Log.w("OTV-video", "tunneling: $why, switching it off")
+        OutputModes.markTunnelingBroken(appContext)
+        eventSink?.success(mapOf("type" to "outputNotice", "feature" to "tunneling"))
+        refreshOutput()
+    }
+
+    // Tunneled playback whose clock stands still although data is waiting
+    // (seen on catch-up on the Chromecast): give up on tunneling, carry on.
+    private var lastPos = -1L
+    private var lastMoveAt = 0L
+    private fun checkTunnelFreeze() {
+        if (!builtOutput.tunneling) return
+        val p = exoPlayer
+        val now = android.os.SystemClock.elapsedRealtime()
+        val pos = p.currentPosition
+        val state = p.playbackState
+        // A network stall has an empty buffer ahead of the clock instead.
+        val ahead = p.bufferedPosition - pos
+        val stuckCandidate = p.playWhenReady &&
+            (state == Player.STATE_READY || state == Player.STATE_BUFFERING) && ahead > 1_000
+        if (!stuckCandidate || pos != lastPos) {
+            lastPos = pos
+            lastMoveAt = now
+            return
+        }
+        // Shorter than the Dart watchdog's 4 s, so this gets there first.
+        if (now - lastMoveAt > 2_500) {
+            lastMoveAt = now
+            tunnelingFailed("clock stuck at ${pos}ms, state=$state, ${ahead}ms buffered, frame=$renderedFrame")
+        }
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -199,6 +288,7 @@ class NativeVideoPlayer(
     private val positionUpdater = object : Runnable {
         override fun run() {
             maybeQueueNext()
+            checkTunnelFreeze()
             emitState()
             mainHandler.postDelayed(this, 500)
         }
@@ -206,6 +296,10 @@ class NativeVideoPlayer(
 
     private val playerListener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
+                mainHandler.removeCallbacks(noPictureCheck)
+                if (playbackState == Player.STATE_READY && builtOutput.tunneling && !renderedFrame) {
+                    mainHandler.postDelayed(noPictureCheck, 4_000)
+                }
                 CarVideo.streamStateChanged(this@NativeVideoPlayer)
                 // Auto frame rate (#149): hand the screen back when the main
                 // player stops (multi-view's other tiles must not).
@@ -240,6 +334,7 @@ class NativeVideoPlayer(
             }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 android.util.Log.e("OTV-exo", "playback error: ${error.errorCodeName}", error)
+                if (outputFeatureFailed(error)) return
                 if (retryAsHls(error)) return
                 // Tell Dart, so the player can show a message or reconnect
                 // instead of sitting idle on the last frame.
@@ -289,6 +384,7 @@ class NativeVideoPlayer(
         exoPlayer.setVideoSurface(surface)
         exoPlayer.addListener(playerListener)
         mainHandler.post(positionUpdater)
+        OutputModes.register(this)
     }
 
     // What the current open() asked for — kept so a format-mismatch failure
@@ -385,7 +481,9 @@ class NativeVideoPlayer(
         userAgentSuffix: String? = null,
         liveReconnect: Boolean = false,
         userAgent: String? = null,
+        live: Boolean = false,
     ) {
+        liveStream = live
         this.userAgentSuffix = userAgentSuffix
         this.customUserAgent = userAgent?.takeIf { it.isNotBlank() }
         this.liveReconnect = liveReconnect && streamTypeHint == "ts"
@@ -393,6 +491,7 @@ class NativeVideoPlayer(
         itemsOpened = 1
         android.util.Log.i("OTV-http", "[${System.identityHashCode(this)}] user agent: " +
             "${currentUserAgent()}${if (this.liveReconnect) " (seamless)" else ""}")
+        speed = 1f
         applyBufferPreset(bufferPreset)
         // Only what the car started goes to the car screen; a stream opened
         // on the phone shows on the phone.
@@ -441,6 +540,25 @@ class NativeVideoPlayer(
      * connection, which single-connection accounts may reject), retry once
      * as HLS when a parse failure happens. Returns true if a retry started.
      */
+    /** A tunneling / passthrough failure: drop that feature and carry on. */
+    private fun outputFeatureFailed(error: androidx.media3.common.PlaybackException): Boolean {
+        val audioFail = error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+            error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
+        val decodeFail = error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+            error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED
+        val feature = when {
+            audioFail && builtOutput.passthrough != OutputModes.Pass.PCM -> "passthrough"
+            (audioFail || decodeFail) && builtOutput.tunneling -> "tunneling"
+            else -> return false
+        }
+        android.util.Log.w("OTV-video", "$feature failed (${error.errorCodeName}), switching it off")
+        if (feature == "passthrough") OutputModes.markPassthroughBroken()
+        else OutputModes.markTunnelingBroken(appContext)
+        eventSink?.success(mapOf("type" to "outputNotice", "feature" to feature))
+        refreshOutput()
+        return true
+    }
+
     private fun retryAsHls(error: androidx.media3.common.PlaybackException): Boolean {
         val url = currentUrl ?: return false
         // A stream that already played hit a transient parse error, not a
@@ -452,6 +570,7 @@ class NativeVideoPlayer(
         }
         if (cause == null) return false
         hlsRetried = true
+        currentHint = "hls"
         liveReconnect = false
         android.util.Log.w("OTV-exo", "unrecognised format; retrying as HLS")
         // Same start as the original open(): a live stream joins at its live
@@ -512,7 +631,12 @@ class NativeVideoPlayer(
     fun stop() = exoPlayer.stop()
 
     // 0.25–4x; ExoPlayer keeps audio pitch-corrected.
-    fun setSpeed(speed: Float) = exoPlayer.setPlaybackSpeed(speed.coerceIn(0.25f, 4f))
+    fun setSpeed(speed: Float) {
+        this.speed = speed.coerceIn(0.25f, 4f)
+        // A bitstream or a tunnel can't be sped up: use plain output meanwhile.
+        refreshOutput()
+        exoPlayer.setPlaybackSpeed(this.speed)
+    }
 
     // Returns the resulting position immediately — unlike mpv, ExoPlayer
     // updates currentPosition synchronously on seekTo, so callers no longer
@@ -616,6 +740,8 @@ class NativeVideoPlayer(
     }
 
     fun dispose() {
+        OutputModes.unregister(this)
+        mainHandler.removeCallbacks(noPictureCheck)
         if (audible) FrameRateMatcher.restore()
         CarVideo.playerGone(this)
         mainHandler.removeCallbacks(positionUpdater)
@@ -717,7 +843,21 @@ class NativeVideoPlayerManager(
                     call.argument<String>("userAgentSuffix"),
                     call.argument<Boolean>("liveReconnect") ?: false,
                     call.argument<String>("userAgent"),
+                    call.argument<Boolean>("live") ?: false,
                 )
+                result.success(null)
+            }
+            // Tunneling / passthrough settings (#159) and the multi-view signal.
+            "setOutputModes" -> {
+                OutputModes.configure(
+                    context,
+                    call.argument<String>("passthrough") ?: OutputModes.AUTO,
+                    call.argument<String>("tunneling") ?: OutputModes.AUTO,
+                )
+                result.success(null)
+            }
+            "setMultiViewActive" -> {
+                OutputModes.setMultiView(call.argument<Boolean>("active") ?: false)
                 result.success(null)
             }
             "setAutoFrameRate" -> {
