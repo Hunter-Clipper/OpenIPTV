@@ -69,7 +69,8 @@ class NativeVideoPlayer(
 
     /** Sends the picture to [external] (the car screen), or back to the app with null. */
     fun setExternalSurface(external: android.view.Surface?) {
-        output = external ?: layerSurface ?: surface
+        carSurface = external
+        output = desiredSurface()
         exoPlayer.setVideoSurface(output)
         // The car screen gets plain output (no tunneling / passthrough).
         refreshOutput()
@@ -107,42 +108,72 @@ class NativeVideoPlayer(
 
 
     // The real video layer (#162): the picture goes to a SurfaceView behind
-    // Flutter instead of the texture, while Dart asks for it.
+    // Flutter instead of the texture while this (main) player has claimed it.
+    // The layer's surface exists from app start (a 1-pixel view), so a claimed
+    // player is built on it from its very first frame and never has to
+    // switch surfaces (which would restart the stream).
     private var layerSurface: android.view.Surface? = null
+    private var layerClaimed = false
+    private var carSurface: android.view.Surface? = null
 
-    /** The layer's surface exists: send the picture there (rebuilds if tunneling is now possible). */
+    private fun desiredSurface(): android.view.Surface = carSurface
+        ?: layerSurface.takeIf { layerClaimed && !OutputModes.multiViewActive }
+        ?: surface
+
+    /** Points the video at [desiredSurface]; true if that changed it. */
+    private fun applySurface(): Boolean {
+        val want = desiredSurface()
+        if (want === output) return false
+        output = want
+        exoPlayer.setVideoSurface(want)
+        return true
+    }
+
+    /** The layer's surface exists. */
     fun layerSurfaceReady(s: android.view.Surface) {
-        if (layerSurface === s && output === s) return
         layerSurface = s
-        if (output === surface) {
-            output = s
-            exoPlayer.setVideoSurface(s)
-            refreshOutput()
-        }
+        if (applySurface()) refreshOutput()
     }
 
-    /** The layer is going away: back to the texture, untunneled. */
+    /** The layer's surface is gone (screen off / app stopped): back to the texture. */
     fun layerSurfaceGone() {
-        val had = layerSurface
         layerSurface = null
-        if (had != null && output === had) {
-            output = surface
-            exoPlayer.setVideoSurface(surface)
-            refreshOutput()
-        }
+        if (applySurface()) refreshOutput()
     }
 
-    /** Where Dart wants the layer; null hides it. */
+    /** Nobody shows the layer any more: the picture goes back to the texture. */
+    fun layerReleased() {
+        layerClaimed = false
+        if (applySurface()) refreshOutput()
+    }
+
+    /** Where Dart wants the layer; null lets it go. */
     fun setLayer(rect: IntArray?) {
-        if (rect == null) VideoLayer.hide(this)
-        else VideoLayer.show(this, rect[0], rect[1], rect[2], rect[3])
+        if (rect == null) {
+            VideoLayer.hide(this)
+            return
+        }
+        layerClaimed = true
+        VideoLayer.show(this, rect[0], rect[1], rect[2], rect[3])
+        if (applySurface()) refreshOutput()
+    }
+
+    // The main player on a TV takes the layer as each stream opens.
+    private fun claimLayerForNewStream(carScreen: Boolean) {
+        if (ownsFocus && !carScreen && VideoLayer.available &&
+            EngineChannels.isTelevision(appContext)) {
+            layerClaimed = true
+            VideoLayer.owner = this
+            layerSurface = layerSurface ?: VideoLayer.currentSurface()
+            applySurface()
+        }
     }
 
     private fun wantedOutput() = OutputModes.wanted(
         isTelevision = EngineChannels.isTelevision(appContext),
         mainPlayer = ownsFocus,
-        onCarScreen = output !== surface && output !== layerSurface,
-        onLayer = output === layerSurface && layerSurface != null,
+        onCarScreen = carSurface != null,
+        onLayer = layerSurface != null && output === layerSurface,
         speedIsNormal = speed == 1f,
         liveStream = liveStream,
     )
@@ -254,6 +285,7 @@ class NativeVideoPlayer(
      * resumes where it was). A short pause, never a manual step.
      */
     fun refreshOutput() {
+        applySurface()
         if (wantedOutput() == builtOutput) return
         val url = currentUrl
         val old = exoPlayer
@@ -554,6 +586,7 @@ class NativeVideoPlayer(
         android.util.Log.i("OTV-http", "[${System.identityHashCode(this)}] user agent: " +
             "${currentUserAgent()}${if (this.liveReconnect) " (seamless)" else ""}")
         speed = 1f
+        claimLayerForNewStream(carScreen)
         applyBufferPreset(bufferPreset)
         // Only what the car started goes to the car screen; a stream opened
         // on the phone shows on the phone.

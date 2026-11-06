@@ -82,8 +82,7 @@ class _VideoSurfaceState extends State<VideoSurface> {
       _layerUsers.remove(this);
       if (wasTop) {
         if (_layerUsers.isNotEmpty) {
-          _layerUsers.last._reportLayer(_layerUsers.last._lastScale,
-              _layerUsers.last._lastAr);
+          _layerUsers.last._sentRect = null;
         } else {
           NativeVideoPlayer.setVideoLayer(widget.textureId, null);
         }
@@ -92,32 +91,71 @@ class _VideoSurfaceState extends State<VideoSurface> {
     super.dispose();
   }
 
-  // Tells the native layer where the picture goes, in pixels.
+  // Tells the native layer where the picture goes, in pixels. The rect is
+  // re-read every frame while this screen owns the layer, so it follows the
+  // picture when the guide's pane moves or resizes (no rebuild needed).
+  List<int>? _sentRect;
+  bool _pumping = false;
+
   void _reportLayer(double scale, double? ar) {
     _lastScale = scale;
     _lastAr = ar;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (_layerUsers.isNotEmpty && _layerUsers.last != this) return;
+    _sentRect = null; // new layout: send even if the numbers match
+    _pump();
+  }
+
+  void _pump() {
+    if (_pumping) return;
+    _pumping = true;
+    void tick(Duration _) {
+      if (!mounted) {
+        _pumping = false;
+        return;
+      }
+      final top = _layerUsers.isEmpty || _layerUsers.last == this;
       final box = context.findRenderObject();
-      if (box is! RenderBox || !box.hasSize) return;
-      final origin = box.localToGlobal(Offset.zero);
-      final size = box.size;
-      final screenAr = size.width / size.height;
-      var w = ar == null || ar > screenAr ? size.width : size.height * ar;
-      var h = ar == null || ar > screenAr ? size.width / (ar ?? screenAr) : size.height;
-      w *= scale;
-      h *= scale;
-      final cx = origin.dx + size.width / 2;
-      final cy = origin.dy + size.height / 2;
-      final dpr = MediaQuery.devicePixelRatioOf(context);
-      NativeVideoPlayer.setVideoLayer(widget.textureId, [
-        ((cx - w / 2) * dpr).round(),
-        ((cy - h / 2) * dpr).round(),
-        (w * dpr).round(),
-        (h * dpr).round(),
-      ]);
-    });
+      if (top && box is RenderBox && box.hasSize && box.attached) {
+        final rect = _rectOf(box);
+        if (_sentRect == null || !_listEq(rect, _sentRect!)) {
+          _sentRect = rect;
+          NativeVideoPlayer.setVideoLayer(widget.textureId, rect);
+        }
+      }
+      WidgetsBinding.instance.addPostFrameCallback(tick);
+      // Frames only run while something changes; ask for one so a pane that
+      // moves with no rebuild is still noticed.
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback(tick);
+  }
+
+  List<int> _rectOf(RenderBox box) {
+    final origin = box.localToGlobal(Offset.zero);
+    final size = box.size;
+    final ar = _lastAr;
+    final screenAr = size.width / size.height;
+    var w = ar == null || ar > screenAr ? size.width : size.height * ar;
+    var h = ar == null || ar > screenAr
+        ? size.width / (ar ?? screenAr)
+        : size.height;
+    w *= _lastScale;
+    h *= _lastScale;
+    final cx = origin.dx + size.width / 2;
+    final cy = origin.dy + size.height / 2;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return [
+      ((cx - w / 2) * dpr).round(),
+      ((cy - h / 2) * dpr).round(),
+      (w * dpr).round(),
+      (h * dpr).round(),
+    ];
+  }
+
+  static bool _listEq(List<int> a, List<int> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   @override

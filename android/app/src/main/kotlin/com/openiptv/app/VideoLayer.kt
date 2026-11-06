@@ -22,8 +22,11 @@ import android.widget.FrameLayout
 object VideoLayer {
     private var view: SurfaceView? = null
     private var activity: Activity? = null
-    private var owner: NativeVideoPlayer? = null
+    var owner: NativeVideoPlayer? = null
     private var surface: android.view.Surface? = null
+
+    val available: Boolean get() = view != null
+    fun currentSurface(): android.view.Surface? = surface
 
     /** Adds the (hidden) layer under Flutter's view. Called once from MainActivity. */
     fun attach(a: Activity) {
@@ -32,7 +35,8 @@ object VideoLayer {
         val content = a.findViewById<ViewGroup>(android.R.id.content)
         val root = content.getChildAt(0) as? FrameLayout ?: return
         val v = SurfaceView(a)
-        v.visibility = View.GONE
+        // Visible but one pixel from the start, so its surface exists before any
+        // stream opens; Dart moves and sizes it when a picture is shown.
         v.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 surface = holder.surface
@@ -52,6 +56,7 @@ object VideoLayer {
     fun show(p: NativeVideoPlayer, l: Int, t: Int, w: Int, h: Int) {
         val v = view ?: return
         main.removeCallbacks(hideLater)
+        android.util.Log.i("OTV-layer", "show $l,$t ${w}x$h")
         owner = p
         val lp = (v.layoutParams as FrameLayout.LayoutParams)
         if (lp.leftMargin != l || lp.topMargin != t || lp.width != w || lp.height != h) {
@@ -61,7 +66,6 @@ object VideoLayer {
             lp.height = h
             v.layoutParams = lp
         }
-        if (v.visibility != View.VISIBLE) v.visibility = View.VISIBLE
         surface?.let { p.layerSurfaceReady(it) }
     }
 
@@ -78,8 +82,11 @@ object VideoLayer {
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
     private val hideLater = Runnable {
         val p = owner ?: return@Runnable
-        p.layerSurfaceGone()
-        owner = null
-        view?.visibility = View.GONE
+        view?.let {
+            val lp = it.layoutParams as FrameLayout.LayoutParams
+            lp.leftMargin = 0; lp.topMargin = 0; lp.width = 1; lp.height = 1
+            it.layoutParams = lp
+        }
+        p.layerReleased()
     }
 }
