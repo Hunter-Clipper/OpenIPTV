@@ -51,6 +51,7 @@ object VideoLayer {
     /** Shows the layer at [l],[t] size [w]x[h] (pixels) for [p]. */
     fun show(p: NativeVideoPlayer, l: Int, t: Int, w: Int, h: Int) {
         val v = view ?: return
+        main.removeCallbacks(hideLater)
         owner = p
         val lp = (v.layoutParams as FrameLayout.LayoutParams)
         if (lp.leftMargin != l || lp.topMargin != t || lp.width != w || lp.height != h) {
@@ -67,6 +68,16 @@ object VideoLayer {
     /** Takes the layer away from [p] (it goes back to the texture first). */
     fun hide(p: NativeVideoPlayer) {
         if (owner !== p) return
+        // Moving between screens (guide pane, full screen) hides and shows
+        // again within a moment: keep the surface so the stream isn't
+        // restarted by a switch to the texture and back.
+        main.removeCallbacks(hideLater)
+        main.postDelayed(hideLater, 500)
+    }
+
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+    private val hideLater = Runnable {
+        val p = owner ?: return@Runnable
         p.layerSurfaceGone()
         owner = null
         view?.visibility = View.GONE

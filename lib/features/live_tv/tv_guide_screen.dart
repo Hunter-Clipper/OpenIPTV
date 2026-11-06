@@ -1003,6 +1003,7 @@ class _TopPane extends ConsumerWidget {
                                 stateStream: service.stateStream,
                                 initialAspectRatio:
                                     service.lastState.aspectRatio,
+                                useLayer: true,
                               )
                             else
                               _PreviewPlaceholder(channel: model.playing),

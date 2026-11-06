@@ -37,6 +37,12 @@ class VideoSurface extends StatefulWidget {
 }
 
 class _VideoSurfaceState extends State<VideoSurface> {
+  // Layer users (the guide's pane, the full-screen player) can both be
+  // mounted at once, one route above the other: the newest one owns the
+  // layer, and the one below takes it back when the top one goes away.
+  static final List<_VideoSurfaceState> _layerUsers = [];
+  double _lastScale = 1;
+  double? _lastAr;
   double? _aspectRatio;
   StreamSubscription<NativeVideoPlayerState>? _sub;
 
@@ -45,6 +51,7 @@ class _VideoSurfaceState extends State<VideoSurface> {
     super.initState();
     _aspectRatio = widget.initialAspectRatio;
     _subscribe();
+    if (widget.useLayer) _layerUsers.add(this);
   }
 
   @override
@@ -70,21 +77,35 @@ class _VideoSurfaceState extends State<VideoSurface> {
   @override
   void dispose() {
     _sub?.cancel();
-    if (widget.useLayer) NativeVideoPlayer.setVideoLayer(widget.textureId, null);
+    if (widget.useLayer) {
+      final wasTop = _layerUsers.isNotEmpty && _layerUsers.last == this;
+      _layerUsers.remove(this);
+      if (wasTop) {
+        if (_layerUsers.isNotEmpty) {
+          _layerUsers.last._reportLayer(_layerUsers.last._lastScale,
+              _layerUsers.last._lastAr);
+        } else {
+          NativeVideoPlayer.setVideoLayer(widget.textureId, null);
+        }
+      }
+    }
     super.dispose();
   }
 
   // Tells the native layer where the picture goes, in pixels.
-  void _reportLayer(double scale, double ar) {
+  void _reportLayer(double scale, double? ar) {
+    _lastScale = scale;
+    _lastAr = ar;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (_layerUsers.isNotEmpty && _layerUsers.last != this) return;
       final box = context.findRenderObject();
       if (box is! RenderBox || !box.hasSize) return;
       final origin = box.localToGlobal(Offset.zero);
       final size = box.size;
       final screenAr = size.width / size.height;
-      var w = ar > screenAr ? size.width : size.height * ar;
-      var h = ar > screenAr ? size.width / ar : size.height;
+      var w = ar == null || ar > screenAr ? size.width : size.height * ar;
+      var h = ar == null || ar > screenAr ? size.width / (ar ?? screenAr) : size.height;
       w *= scale;
       h *= scale;
       final cx = origin.dx + size.width / 2;
@@ -105,9 +126,11 @@ class _VideoSurfaceState extends State<VideoSurface> {
     final ar = _aspectRatio;
     // Size unknown (no frame yet, or a new stream opening): nothing to show.
     if (ar == null) {
-      return widget.useLayer
-          ? const ColoredBox(color: Colors.black, child: SizedBox.expand())
-          : const SizedBox.expand();
+      if (!widget.useLayer) return const SizedBox.expand();
+      // Nothing to show yet, but the layer must exist from the start so the
+      // picture never has to switch surfaces (which restarts the stream).
+      _reportLayer(1, null);
+      return const ColoredBox(color: Colors.black, child: SizedBox.expand());
     }
     if (widget.useLayer) {
       return LayoutBuilder(builder: (context, c) {
@@ -160,12 +183,10 @@ class _HolePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path.combine(
-      PathOperation.difference,
-      Path()..addRect(Offset.zero & size),
-      Path()..addRect(hole),
-    );
-    canvas.drawPath(path, Paint()..color = Colors.black);
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.black);
+    // Clears everything painted so far under the picture (even the guide's
+    // own background), so the video layer behind Flutter shows through.
+    canvas.drawRect(hole, Paint()..blendMode = BlendMode.clear);
   }
 
   @override
