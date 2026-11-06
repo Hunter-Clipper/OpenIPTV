@@ -93,6 +93,7 @@
 - Material 3 design with Google Sans, six accent colours and Android-style grouped Settings.
 - Works with a TV remote: a side navigation rail (Live TV, Movies, Series, Search, Settings), a clear white focus ring, the TV's own on-screen keyboard in a full-width tray for search, logins and PINs, and Android TV launcher support.
 - Background refresh of playlists and guides on a schedule you choose.
+- **Surround sound passthrough and Tunneled playback** (TVs, Settings → Advanced → Power User Tools, Automatic / On / Off): passthrough sends Dolby and DTS sound untouched to a soundbar or receiver that can decode it; tunneled playback is experimental and live-only. Both pause during Multi-view, and if one doesn't work on your TV you are told and it is turned Off.
 - **Match Frame Rate** (Settings → Advanced → Power User Tools, off by default): switches your screen to a refresh rate that suits the video, such as 24 Hz for films, then puts it back.
 - **Accessible:** follows your device's "Remove animations" setting across the whole app, readable text on every accent colour, clear field edges, and screen-reader names on the video area and Multi-view tiles.
 - **In-app updates** for sideloaded installs.
