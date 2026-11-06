@@ -192,7 +192,9 @@ class PlaybackService {
         bufferPreset: bufferPreset.id,
         carScreen: carScreen,
         userAgent: userAgent,
-        liveReconnect: isLiveTs(streamUrl));
+        liveReconnect: isLiveTs(streamUrl),
+        // Tunneled playback is only used for live channels.
+        live: isLiveTs(streamUrl) || streamUrl.contains('/live/'));
     await _player.play();
     debugPrint('[OTV-play] open()/play() done');
   }

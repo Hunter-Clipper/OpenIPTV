@@ -140,5 +140,6 @@ class OpenIptvApplication : Application() {
         GraphicsMode.apply(this)
         EngineChannels.install()
         NativeCrashReporter.install(this)
+        OutputModes.load(this)
     }
 }

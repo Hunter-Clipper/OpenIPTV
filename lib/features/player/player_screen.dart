@@ -111,6 +111,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isBuffering = true;
   StreamSubscription<NativeVideoPlayerState>? _stateSub;
   StreamSubscription<NativePlaybackError>? _errorSub;
+  StreamSubscription<String>? _noticeSub;
   // Set when the provider says a stream doesn't exist / isn't allowed —
   // shown instead of the generic "Stream unavailable".
   String? _errorMessage;
@@ -297,6 +298,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // overlay would hide and leave the last frame on screen with nothing
     // retrying. Permanent HTTP failures show a message right away; anything
     // else reconnects now instead of waiting for the stall timer.
+    _noticeSub = NativeVideoPlayer.outputNotices.listen((feature) {
+      if (!mounted) return;
+      final what = feature == 'passthrough'
+          ? 'Surround sound passthrough'
+          : 'Tunneled playback';
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+          content: Text("$what didn't work on this device, so it was "
+              'switched off. You can try it again in Power User Tools.')));
+    });
     _errorSub = _playbackService.errorStream.listen((e) {
       if (!mounted || _casting) return;
       if (e.isPermanent) {
@@ -816,6 +826,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _watchdogTimer?.cancel();
     _stateSub?.cancel();
     _errorSub?.cancel();
+    _noticeSub?.cancel();
     _cueSub?.cancel();
     _castSub?.cancel();
     if (!PlatformHelper.isTVDevice) unawaited(_cast.stopDiscovery());

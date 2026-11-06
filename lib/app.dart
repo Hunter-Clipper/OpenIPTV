@@ -17,6 +17,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
@@ -54,6 +55,7 @@ class OpenIPTVApp extends ConsumerStatefulWidget {
 class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   late final GoRouter _router;
   final _tooltipController = InfoTooltipController();
+  StreamSubscription<String>? _outputNoticeSub;
   bool _dbReady = false;
   // True while multiple profiles exist and the user hasn't picked one yet
   // this session.
@@ -64,6 +66,16 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     super.initState();
     _router = _buildRouter();
     _openDb();
+    // A tunneling / passthrough failure (#159) turns that setting Off for
+    // good, so it isn't tried again until the user switches it back on.
+    _outputNoticeSub = NativeVideoPlayer.outputNotices.listen((feature) async {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      if (feature == 'tunneling') await prefs.setTunneledPlayback('off');
+      if (feature == 'passthrough') await prefs.setAudioPassthrough('off');
+      await NativeVideoPlayer.setOutputModes(
+          passthrough: prefs.audioPassthrough,
+          tunneling: prefs.tunneledPlayback);
+    });
   }
 
   Future<void> _openDb() async {
@@ -192,6 +204,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 
   @override
   void dispose() {
+    _outputNoticeSub?.cancel();
     _tooltipController.dispose();
     super.dispose();
   }

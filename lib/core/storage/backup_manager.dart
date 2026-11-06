@@ -464,6 +464,20 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'audioPassthrough',
+      encode: (p) => p.audioPassthrough,
+      decode: (p, v) async {
+        if (v is String) await p.setAudioPassthrough(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'tunneledPlayback',
+      encode: (p) => p.tunneledPlayback,
+      decode: (p, v) async {
+        if (v is String) await p.setTunneledPlayback(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'userAgent',
       encode: (p) => p.userAgent,
       decode: (p, v) async {

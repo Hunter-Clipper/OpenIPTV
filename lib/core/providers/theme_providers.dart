@@ -205,6 +205,8 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(pipEnabledProvider.notifier).state = prefs.pipEnabled;
   ref.read(autoFrameRateProvider.notifier).state = prefs.autoFrameRate;
   NativeVideoPlayer.setAutoFrameRate(prefs.autoFrameRate);
+  NativeVideoPlayer.setOutputModes(
+      passthrough: prefs.audioPassthrough, tunneling: prefs.tunneledPlayback);
   ref.read(mediaNotificationEnabledProvider.notifier).state =
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
+import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/graphics_mode.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/network_info.dart';
@@ -483,6 +484,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _speedGroup(),
           _bufferGroup(),
           _graphicsGroup(),
+          _frameRateGroup(),
+          if (isTv) ...[_passthroughGroup(), _tunnelingGroup()],
           _userAgentGroup(),
           _databaseGroup(),
         ],
@@ -887,6 +890,114 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _frameRateGroup() {
+    final on = ref.watch(autoFrameRateProvider);
+    Future<void> change(bool v) async {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await setAutoFrameRate(ref, v, prefs);
+    }
+
+    return SettingsGroup(
+      title: 'Match frame rate',
+      description: 'Switches your screen to a refresh rate that suits the '
+          'video (for example 24 Hz for films), so motion looks smoother. '
+          'Only works if your screen supports it, and some TVs go black for '
+          'a moment when it switches. The screen goes back to normal when '
+          'you stop watching.',
+      children: [
+        TvActivatable(
+          onTap: () => change(!on),
+          builder: (tap) => SwitchListTile(
+            secondary: const IconBadge(icon: Icons.speed_rounded),
+            title: const Text('Match Frame Rate'),
+            value: on,
+            onChanged: tap == null ? null : (_) => tap(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Audio passthrough and tunneled playback (#159): 'auto' | 'on' | 'off'.
+  Widget _outputGroup({
+    required String title,
+    required String description,
+    required String current,
+    required Future<void> Function(String) save,
+    required String autoText,
+    required String onText,
+    required String offText,
+  }) {
+    final theme = Theme.of(context);
+    Widget row(String id, String label, String text) => TvActivatable(
+          onTap: () async {
+            await save(id);
+            final prefs = ref.read(appPreferencesProvider).valueOrNull;
+            if (prefs != null) {
+              await NativeVideoPlayer.setOutputModes(
+                  passthrough: prefs.audioPassthrough,
+                  tunneling: prefs.tunneledPlayback);
+            }
+            if (mounted) setState(() {});
+          },
+          builder: (tap) => ListTile(
+            leading: Icon(
+              id == current
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: id == current ? theme.colorScheme.primary : null,
+            ),
+            title: Text(label),
+            subtitle: Text(text, style: theme.textTheme.bodySmall),
+            onTap: tap,
+          ),
+        );
+    return SettingsGroup(
+      title: title,
+      description: description,
+      children: [
+        row('auto', 'Automatic', autoText),
+        row('on', 'On', onText),
+        row('off', 'Off', offText),
+      ],
+    );
+  }
+
+  Widget _passthroughGroup() {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    return _outputGroup(
+      title: 'Surround sound passthrough',
+      description: 'Sends Dolby and DTS sound untouched to a soundbar, '
+          'receiver or TV that decodes it. It pauses by itself while '
+          'Multi-view is on.',
+      current: prefs?.audioPassthrough ?? 'auto',
+      save: (v) async => prefs?.setAudioPassthrough(v),
+      autoText: 'Uses it when your sound system says it can. Recommended.',
+      onText: 'Always send surround sound as it is. Only if a soundbar or '
+          'receiver can decode it, otherwise you may get no sound.',
+      offText: 'The device always decodes the sound itself. Pick this for '
+          'built-in TV speakers or if the sound cuts out or crackles.',
+    );
+  }
+
+  Widget _tunnelingGroup() {
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    return _outputGroup(
+      title: 'Tunneled playback',
+      description: 'Lets the video and sound chips work together directly, '
+          'which can ease stutter on demanding streams. It pauses by itself '
+          'while Multi-view is on.',
+      current: prefs?.tunneledPlayback ?? 'auto',
+      save: (v) async => prefs?.setTunneledPlayback(v),
+      autoText: 'Used only on devices where it has been checked to work. '
+          'Recommended.',
+      onText: 'Experimental, live channels only. If it stalls or shows a black '
+          'picture, OpenIPTV switches it off by itself; you can also turn it '
+          'off here.',
+      offText: 'Never used.',
     );
   }
 
