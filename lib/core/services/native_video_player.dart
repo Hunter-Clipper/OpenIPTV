@@ -219,6 +219,15 @@ class NativeVideoPlayer {
     } catch (_) {}
   }
 
+  /// Shows the video on the real video layer behind Flutter (#162) at
+  /// [rect] (left, top, width, height in pixels), or hides it with null.
+  static Future<void> setVideoLayer(int textureId, List<int>? rect) async {
+    try {
+      await _control
+          .invokeMethod('setVideoLayer', {'id': textureId, 'rect': rect});
+    } catch (_) {}
+  }
+
   /// Multi-view starting / ending: both features pause while it is on.
   static Future<void> setMultiViewActive(bool active) async {
     try {

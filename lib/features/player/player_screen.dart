@@ -1233,8 +1233,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       stateStream: _playbackService.stateStream,
       initialAspectRatio: _playbackService.lastState.aspectRatio,
       fit: ref.watch(videoFitProvider),
+      useLayer: _useLayer,
     );
   }
+
+  // TVs show the main player's picture on a real video layer (#162).
+  bool get _useLayer => PlatformHelper.isTV(context) && !_casting && !ref.read(pipActiveProvider);
 
   Widget _buildCueOverlay({bool liftForControls = true}) {
     if (_cueText.isEmpty) return const SizedBox.shrink();
@@ -1315,7 +1319,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _hideControls();
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: _useLayer ? Colors.transparent : Colors.black,
         body: Focus(
           focusNode: _rootFocusNode,
           autofocus: true,

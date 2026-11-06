@@ -13,6 +13,8 @@ import android.util.Log
 import android.util.Rational
 import android.view.WindowManager
 import com.ryanheise.audioservice.AudioServiceActivity
+import io.flutter.embedding.android.RenderMode
+import io.flutter.embedding.android.TransparencyMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -44,6 +46,20 @@ class MainActivity : AudioServiceActivity() {
     // key press.
     @Volatile
     private var backBlocked = false
+
+    // TVs draw the main player's video on a real video layer *behind*
+    // Flutter (#162), so Flutter's own surface is see-through: it paints
+    // the app, and the video shows where it paints nothing. Phones keep the
+    // ordinary opaque surface.
+    private val videoLayerDevice by lazy { EngineChannels.isTelevision(this) }
+    override fun getRenderMode(): RenderMode = RenderMode.surface
+    override fun getTransparencyMode(): TransparencyMode =
+        if (videoLayerDevice) TransparencyMode.transparent else TransparencyMode.opaque
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (videoLayerDevice) VideoLayer.attach(this)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         FrameRateMatcher.attach(this)

@@ -124,11 +124,13 @@ object OutputModes {
         onCarScreen: Boolean,
         speedIsNormal: Boolean,
         liveStream: Boolean,
+        onLayer: Boolean = false,
     ): Output {
         if (!mainPlayer || multiViewActive || onCarScreen) return Output.PLAIN
         // Tunneled catch-up / movies froze on the Chromecast (clock stuck
         // with data buffered), live streams were fine: live only.
-        val tunnel = !tunnelingBroken && speedIsNormal && liveStream && when (tunneling) {
+        // Tunneled frames only show on a real video layer (#162).
+        val tunnel = onLayer && !tunnelingBroken && speedIsNormal && liveStream && when (tunneling) {
             ON -> true
             AUTO -> isTelevision && autoTunnelingDevice()
             else -> false

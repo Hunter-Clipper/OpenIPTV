@@ -69,7 +69,7 @@ class NativeVideoPlayer(
 
     /** Sends the picture to [external] (the car screen), or back to the app with null. */
     fun setExternalSurface(external: android.view.Surface?) {
-        output = external ?: surface
+        output = external ?: layerSurface ?: surface
         exoPlayer.setVideoSurface(output)
         // The car screen gets plain output (no tunneling / passthrough).
         refreshOutput()
@@ -105,10 +105,44 @@ class NativeVideoPlayer(
     private var liveStream = false
     private var builtOutput = wantedOutput()
 
+
+    // The real video layer (#162): the picture goes to a SurfaceView behind
+    // Flutter instead of the texture, while Dart asks for it.
+    private var layerSurface: android.view.Surface? = null
+
+    /** The layer's surface exists: send the picture there (rebuilds if tunneling is now possible). */
+    fun layerSurfaceReady(s: android.view.Surface) {
+        if (layerSurface === s && output === s) return
+        layerSurface = s
+        if (output === surface) {
+            output = s
+            exoPlayer.setVideoSurface(s)
+            refreshOutput()
+        }
+    }
+
+    /** The layer is going away: back to the texture, untunneled. */
+    fun layerSurfaceGone() {
+        val had = layerSurface
+        layerSurface = null
+        if (had != null && output === had) {
+            output = surface
+            exoPlayer.setVideoSurface(surface)
+            refreshOutput()
+        }
+    }
+
+    /** Where Dart wants the layer; null hides it. */
+    fun setLayer(rect: IntArray?) {
+        if (rect == null) VideoLayer.hide(this)
+        else VideoLayer.show(this, rect[0], rect[1], rect[2], rect[3])
+    }
+
     private fun wantedOutput() = OutputModes.wanted(
         isTelevision = EngineChannels.isTelevision(appContext),
         mainPlayer = ownsFocus,
-        onCarScreen = output !== surface,
+        onCarScreen = output !== surface && output !== layerSurface,
+        onLayer = output === layerSurface && layerSurface != null,
         speedIsNormal = speed == 1f,
         liveStream = liveStream,
     )
@@ -882,6 +916,12 @@ class NativeVideoPlayerManager(
                     call.argument<String>("passthrough") ?: OutputModes.AUTO,
                     call.argument<String>("tunneling") ?: OutputModes.AUTO,
                 )
+                result.success(null)
+            }
+            "setVideoLayer" -> {
+                // [left, top, width, height] in pixels, or null to hide.
+                val r = call.argument<List<Number>>("rect")?.map { it.toInt() }?.toIntArray()
+                players[idArg(call)]?.setLayer(r)
                 result.success(null)
             }
             "setMultiViewActive" -> {
