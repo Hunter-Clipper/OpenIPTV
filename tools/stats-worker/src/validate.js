@@ -5,7 +5,7 @@
 // fake client can't get extra data stored.
 
 const FIELDS = ['v', 'app', 'platform', 'os', 'device', 'day', 'kind', 'error', 'stack'];
-const KINDS = new Set(['crash', 'native-crash']);
+const KINDS = new Set(['crash', 'native-crash', 'hang']);
 const PLATFORMS = new Set(['android', 'android-tv']);
 
 const URL_RE = /[a-zA-Z][a-zA-Z0-9+.-]*:\/\//;
