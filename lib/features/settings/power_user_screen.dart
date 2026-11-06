@@ -484,6 +484,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _speedGroup(),
           _bufferGroup(),
           _graphicsGroup(),
+          _frameRateGroup(),
           if (isTv) ...[_passthroughGroup(), _tunnelingGroup()],
           _userAgentGroup(),
           _databaseGroup(),
@@ -888,6 +889,34 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
               onTap: tap,
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _frameRateGroup() {
+    final on = ref.watch(autoFrameRateProvider);
+    Future<void> change(bool v) async {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await setAutoFrameRate(ref, v, prefs);
+    }
+
+    return SettingsGroup(
+      title: 'Match frame rate',
+      description: 'Switches your screen to a refresh rate that suits the '
+          'video (for example 24 Hz for films), so motion looks smoother. '
+          'Only works if your screen supports it, and some TVs go black for '
+          'a moment when it switches. The screen goes back to normal when '
+          'you stop watching.',
+      children: [
+        TvActivatable(
+          onTap: () => change(!on),
+          builder: (tap) => SwitchListTile(
+            secondary: const IconBadge(icon: Icons.speed_rounded),
+            title: const Text('Match Frame Rate'),
+            value: on,
+            onChanged: tap == null ? null : (_) => tap(),
+          ),
+        ),
       ],
     );
   }

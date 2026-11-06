@@ -93,7 +93,7 @@
 - Material 3 design with Google Sans, six accent colours and Android-style grouped Settings.
 - Works with a TV remote: a side navigation rail (Live TV, Movies, Series, Search, Settings), a clear white focus ring, the TV's own on-screen keyboard in a full-width tray for search, logins and PINs, and Android TV launcher support.
 - Background refresh of playlists and guides on a schedule you choose.
-- **Match Frame Rate** (Settings → Playback, off by default): switches your screen to a refresh rate that suits the video, such as 24 Hz for films, then puts it back.
+- **Match Frame Rate** (Settings → Advanced → Power User Tools, off by default): switches your screen to a refresh rate that suits the video, such as 24 Hz for films, then puts it back.
 - **Accessible:** follows your device's "Remove animations" setting across the whole app, readable text on every accent colour, clear field edges, and screen-reader names on the video area and Multi-view tiles.
 - **In-app updates** for sideloaded installs.
 
