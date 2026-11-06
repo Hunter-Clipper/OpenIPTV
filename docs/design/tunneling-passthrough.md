@@ -25,7 +25,9 @@ exists.
   buffered for 2.5 s (`checkTunnelFreeze`), or an audio-track / decoder error
   while a feature is on, switches that feature off (remembered for the
   session; for Automatic also across launches until the setting is changed),
-  sends an `outputNotice` event and Dart shows a plain-English snackbar.
+  sends an `outputNotice` event; Dart (app.dart) then saves that setting as
+  **Off** and PlayerScreen shows a plain-English snackbar. Defaults are
+  Automatic for new installs and for existing users (no stored value).
 - `[OTV-audio]` logs the encoding and whether tunneling is really in use;
   `[OTV-video] multiview ...` logs the switch.
 

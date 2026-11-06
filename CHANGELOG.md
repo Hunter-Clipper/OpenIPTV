@@ -9,7 +9,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - Match Frame Rate has moved from Settings → Playback to Settings → Advanced → Power User Tools. Your choice is kept.
 
 **New**
-- On TVs: Settings → Advanced → Power User Tools now has **Surround sound passthrough** and **Tunneled playback**, each Automatic / On / Off. Passthrough sends Dolby and DTS sound untouched to a soundbar or receiver that can decode it; Automatic uses it when your sound system says it can. Tunneled playback is experimental and for live channels only. Both pause by themselves while Multi-view is on, and if either one doesn't work on your TV it is switched off automatically and you are told.
+- On TVs: Settings → Advanced → Power User Tools now has **Surround sound passthrough** and **Tunneled playback**, each Automatic / On / Off. Passthrough sends Dolby and DTS sound untouched to a soundbar or receiver that can decode it; Automatic uses it when your sound system says it can. Tunneled playback is experimental and for live channels only. Both pause by themselves while Multi-view is on, and if either one doesn't work on your TV, you are told and its setting is turned Off. Both start on Automatic for everyone, new installs and updates alike.
 
 **Improved**
 - Anonymous Reports now says plainly that reports are also sent when the app freezes, and how often they are sent.
