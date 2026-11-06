@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
+import 'package:open_iptv/core/services/graphics_mode.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/network_info.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -44,6 +45,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   OpenVpnProfile? _ovpn;
   OpenVpnStatus _ovpnStatus = const OpenVpnStatus();
 
+  GraphicsModeInfo? _graphics;
+
   final _scroll = ScrollController();
 
   /// TV: the page scrolls only as the remote's focus moves. Keep the
@@ -72,6 +75,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     FocusManager.instance.addListener(_followFocus);
     _refresh();
     _loadVpn();
+    _loadGraphics();
     // Live tunnel status (traffic, last handshake) while this screen is up.
     _vpnTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pollVpn());
   }
@@ -478,6 +482,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _vpnGroup(),
           _speedGroup(),
           _bufferGroup(),
+          _graphicsGroup(),
           _userAgentGroup(),
           _databaseGroup(),
         ],
@@ -883,6 +888,80 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> _loadGraphics() async {
+    final info = await graphicsModeInfo();
+    if (!mounted) return;
+    setState(() => _graphics = info);
+  }
+
+  Widget _graphicsGroup() {
+    final info = _graphics;
+    // Only Android has this (the native side is missing in tests and on web).
+    if (info == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return SettingsGroup(
+      title: 'Graphics mode',
+      description: 'How OpenIPTV draws the screen and the video. If the '
+          'picture looks torn (a line across it) or jittery on fast motion, '
+          'try Compatible. Takes effect when the app restarts.'
+          '${info.chip == null ? '' : '\nThis device: ${info.chip}.'}'
+          '\nIn use now: ${info.active == 'compat' ? 'Compatible' : 'Standard'}.',
+      children: [
+        for (final mode in GraphicsModeSetting.values)
+          TvActivatable(
+            onTap: () => _pickGraphics(mode),
+            builder: (tap) => ListTile(
+              leading: Icon(
+                mode == info.setting
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: mode == info.setting ? theme.colorScheme.primary : null,
+              ),
+              title: Text(mode.label),
+              subtitle:
+                  Text(mode.description, style: theme.textTheme.bodySmall),
+              onTap: tap,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickGraphics(GraphicsModeSetting mode) async {
+    final before = _graphics;
+    if (before == null || mode == before.setting) return;
+    final after = await setGraphicsMode(mode);
+    if (!mounted) return;
+    if (after == null) {
+      _say("Couldn't change the graphics mode.");
+      return;
+    }
+    setState(() => _graphics = after);
+    if (!after.needsRestart) return;
+    final restart = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restart to apply?'),
+        content: const Text('OpenIPTV needs to restart to change how it '
+            'draws the screen. Anything playing will stop.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Restart now'),
+          ),
+        ],
+      ),
+    );
+    if (restart == true && !await restartApp() && mounted) {
+      _say("Couldn't restart. Close and open OpenIPTV to apply it.");
+    }
   }
 
   Widget _userAgentGroup() {

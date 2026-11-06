@@ -1,0 +1,129 @@
+import 'package:flutter/services.dart';
+
+const _channel = MethodChannel('openiptv/device');
+
+/// How the app draws itself and the video (Settings → Power User Tools →
+/// Graphics mode, #157).
+///
+/// On some TVs Flutter's default graphics path puts torn frames on screen
+/// (measured on an Amlogic S7D Mi TV; see `GraphicsMode.kt`). The setting is
+/// kept natively — it has to be known before the first screen is drawn — and
+/// applies the next time the app starts.
+enum GraphicsModeSetting {
+  automatic(
+    id: 'auto',
+    label: 'Automatic',
+    description: 'Uses the compatible mode only on TVs known to need it. '
+        'Recommended.',
+  ),
+  standard(
+    id: 'standard',
+    label: 'Standard',
+    description: 'The newest drawing method. Best on most phones and TVs.',
+  ),
+  compatibility(
+    id: 'compat',
+    label: 'Compatible',
+    description: 'An older, steadier drawing method. Try this if the picture '
+        'looks torn (a line across it) or jittery, mostly on fast motion.',
+  );
+
+  const GraphicsModeSetting({
+    required this.id,
+    required this.label,
+    required this.description,
+  });
+
+  /// Stored natively and sent over the channel.
+  final String id;
+  final String label;
+  final String description;
+
+  static GraphicsModeSetting fromId(String? id) => values
+      .firstWhere((m) => m.id == id, orElse: () => GraphicsModeSetting.automatic);
+}
+
+/// What the native side reports about the graphics mode.
+class GraphicsModeInfo {
+  const GraphicsModeInfo({
+    required this.setting,
+    required this.active,
+    required this.autoWouldUse,
+    this.socModel,
+    this.boardPlatform,
+  });
+
+  /// What the user picked.
+  final GraphicsModeSetting setting;
+
+  /// What this run of the app is using (`standard` or `compat`). It differs
+  /// from the setting until the app is restarted.
+  final String active;
+
+  /// What Automatic resolves to on this device.
+  final String autoWouldUse;
+
+  final String? socModel;
+  final String? boardPlatform;
+
+  /// The mode [setting] asks for on this device.
+  String get wanted => switch (setting) {
+        GraphicsModeSetting.automatic => autoWouldUse,
+        GraphicsModeSetting.standard => 'standard',
+        GraphicsModeSetting.compatibility => 'compat',
+      };
+
+  /// The setting changed since the app started: a restart applies it.
+  bool get needsRestart => wanted != active;
+
+  /// "Amlogic S905X5M (s7d)" style line for the screen and bug reports.
+  String? get chip {
+    final parts = <String>[
+      if (socModel != null && socModel!.isNotEmpty) socModel!,
+      if (boardPlatform != null && boardPlatform!.isNotEmpty) boardPlatform!,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
+  static GraphicsModeInfo? fromMap(Object? raw) {
+    if (raw is! Map) return null;
+    return GraphicsModeInfo(
+      setting: GraphicsModeSetting.fromId(raw['setting'] as String?),
+      active: raw['active'] as String? ?? 'standard',
+      autoWouldUse: raw['autoWouldUse'] as String? ?? 'standard',
+      socModel: raw['socModel'] as String?,
+      boardPlatform: raw['boardPlatform'] as String?,
+    );
+  }
+}
+
+/// The current graphics mode, or null where there's no native side (tests,
+/// web, other platforms).
+Future<GraphicsModeInfo?> graphicsModeInfo() async {
+  try {
+    return GraphicsModeInfo.fromMap(
+        await _channel.invokeMethod<Object>('graphicsInfo'));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Saves [mode]; it applies after a restart. Returns the new state.
+Future<GraphicsModeInfo?> setGraphicsMode(GraphicsModeSetting mode) async {
+  try {
+    return GraphicsModeInfo.fromMap(
+        await _channel.invokeMethod<Object>('setGraphicsMode', {'mode': mode.id}));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Restarts the app so a new graphics mode takes effect. False if it
+/// couldn't.
+Future<bool> restartApp() async {
+  try {
+    return await _channel.invokeMethod<bool>('restartApp') ?? false;
+  } catch (_) {
+    return false;
+  }
+}
