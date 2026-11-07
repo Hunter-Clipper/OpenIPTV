@@ -9,6 +9,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - **Full-resolution pictures.** Posters, channel logos and backdrops now show in full resolution by default, for sharper artwork on every screen. If the app ever feels slow or restarts on a TV or phone with little memory, Settings → Advanced → Power User Tools → **Pictures** turns it off, and pictures go back to the lighter size. It takes effect straight away and is included in backups.
 
 **Fixed**
+- In the full-screen player, a favorited channel's star button no longer gets a coloured circle that looked like it had focus. Only the star changes now: filled for a favorite, outline when not.
 - Some movies would never start and kept saying "Reconnecting…", even though other apps played them fine. Certain providers take 10–20 seconds to start a movie, and OpenIPTV gave up after 8 seconds and started over each time. Movies and episodes now get up to 45 seconds to show their first picture; live channels still reconnect quickly.
 
 ## 0.14.96 — 2026-11-06

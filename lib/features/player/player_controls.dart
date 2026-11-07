@@ -645,8 +645,9 @@ List<Widget> _actionButtons({
           // (and the channel lists behind the player) reflect the change.
           if (context.mounted) ref.invalidate(activeProfileProvider);
         },
+        // No tinted disc for the on-state: on TV it read as keyboard focus.
+        // The filled vs outline star alone says whether it's a favorite.
         size: size,
-        selected: isFav,
       ),
     if (onEpg != null)
       PlayerButton(
