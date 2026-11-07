@@ -983,7 +983,13 @@ class _TopPane extends ConsumerWidget {
                         .valueOrNull ??
                     const []));
         final service = model.service;
-        final previewing = model.previewing && service.hasTexture;
+        // While the full-screen player has taken the stream over (it zooms
+        // out of this pane and back), the picture stays mounted here so the
+        // zoom starts and ends on the pane's own rectangle (#162).
+        final handedOver = !model.previewing &&
+            service.hasTexture &&
+            service.nowPlaying.value != null;
+        final previewing = (model.previewing || handedOver) && service.hasTexture;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 24, 8),
           child: Row(
@@ -1009,13 +1015,14 @@ class _TopPane extends ConsumerWidget {
                                   service.lastState.aspectRatio,
                               useLayer: true,
                             ),
-                            if (!model.showPicture)
+                            if (!model.showPicture && !handedOver)
                               ColoredBox(
                                 color: Colors.black,
                                 child:
                                     _PreviewPlaceholder(channel: model.playing),
                               ),
-                            if (model.loading || !model.showPicture)
+                            if (!handedOver &&
+                                (model.loading || !model.showPicture))
                               const Center(
                                 child: SizedBox(
                                   width: 28,
