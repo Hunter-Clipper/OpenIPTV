@@ -799,11 +799,20 @@ class _PaneModel extends ChangeNotifier implements CatchupAware {
   /// The preview is (re)connecting.
   bool get loading => previewing && (_dog?.loading ?? true);
 
+  // The full-screen player has the stream (it zooms out of the pane).
+  bool _wasHandedOver = false;
+
   void _onNowPlaying() {
     final now = previewing;
+    final handedOver = !now && service.nowPlaying.value != null;
     // Started here, or handed back by the full-screen player: watch it
-    // afresh.
-    if (now && !_wasPreviewing) _watch();
+    // afresh. A stream that comes back already playing needs no loading
+    // spinner.
+    if (now && !_wasPreviewing) {
+      _watch();
+      if (_wasHandedOver) _dog?.markPlaying();
+    }
+    _wasHandedOver = handedOver;
     if (!now) {
       _timer?.cancel();
       _timer = null;

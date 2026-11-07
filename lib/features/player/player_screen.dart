@@ -274,6 +274,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!ref.read(castServiceProvider).status.connected) _enterFullscreen();
 
     _playbackService = ref.read(playbackServiceProvider);
+    // Taking over a stream that is already on screen (the guide pane going
+    // full screen): no black loading cover and no spinner, the picture just
+    // grows (#162).
+    if (widget.continuePlaying &&
+        _playbackService.nowPlaying.value?.url == widget.streamUrl &&
+        _playbackService.lastState.hasVideo) {
+      _watchdog.markPlaying();
+      _isBuffering = false;
+    }
     _playbackService.ensureTexture().then((_) {
       if (mounted) setState(() => _textureReady = true);
     });
@@ -1348,6 +1357,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               fit: StackFit.expand,
               children: [
                 _buildVideoSurface(),
+                // Everything but the picture fades in with the zoom out of
+                // the guide's pane (#162).
+                ZoomFade(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
                 _buildCueOverlay(),
                 // Buffering / recovery overlay.
                 AnimatedOpacity(
@@ -1514,6 +1529,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           : null,
                     ),
                   ),
+                    ],
+                  ),
+                ),
               ],
             ),
           )),

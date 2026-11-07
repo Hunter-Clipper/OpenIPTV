@@ -10,6 +10,26 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 ///
 /// Listens to [stateStream] itself and rebuilds only when the aspect ratio
 /// changes, not on every 500ms position tick.
+/// How far the picture's zoom has got (0 = still on the lower screen's
+/// rectangle, 1 = settled). Screens drawn over the picture fade in with it.
+final ValueNotifier<double> videoZoomProgress = ValueNotifier<double>(1);
+
+/// Fades [child] in with the picture's zoom, so controls don't sit over the
+/// guide before the picture has grown.
+class ZoomFade extends StatelessWidget {
+  const ZoomFade({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<double>(
+        valueListenable: videoZoomProgress,
+        builder: (context, t, child) => t >= 1
+            ? child!
+            : Opacity(opacity: ((t - 0.4) / 0.6).clamp(0.0, 1.0), child: child),
+        child: child,
+      );
+}
+
 class VideoSurface extends StatefulWidget {
   const VideoSurface({
     super.key,
@@ -103,6 +123,12 @@ class _VideoSurfaceState extends State<VideoSurface>
 
   @override
   void dispose() {
+    if (widget.useLayer) {
+      // Whatever was fading with this picture is settled (or gone).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (videoZoomProgress.value != 1) videoZoomProgress.value = 1;
+      });
+    }
     _open.dispose();
     _sub?.cancel();
     if (widget.useLayer) {
@@ -263,6 +289,11 @@ class _VideoSurfaceState extends State<VideoSurface>
           builder: (context, _) {
             final low = _lowerRect();
             final t = low == null ? 1.0 : _eased();
+            if (_layerUsers.isNotEmpty && _layerUsers.last == this) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (videoZoomProgress.value != t) videoZoomProgress.value = t;
+              });
+            }
             var hole = to;
             if (low != null && t < 1) {
               final box = context.findRenderObject();
