@@ -287,6 +287,7 @@ class NativeVideoPlayer(
     fun refreshOutput() {
         applySurface()
         if (wantedOutput() == builtOutput) return
+        switchLog("rebuild: want=${wantedOutput()} built=$builtOutput claimed=$layerClaimed layer=${layerSurface != null} onLayer=${output === layerSurface} live=$liveStream speed=$speed\n" + Throwable().stackTrace.drop(1).take(4).joinToString(" < ") { it.methodName })
         val url = currentUrl
         val old = exoPlayer
         val live = old.isCurrentMediaItemLive || old.isCurrentMediaItemDynamic
@@ -390,6 +391,12 @@ class NativeVideoPlayer(
 
     private val playerListener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
+                switchLog("state " + when (playbackState) {
+                    Player.STATE_IDLE -> "idle"
+                    Player.STATE_BUFFERING -> "buffering"
+                    Player.STATE_READY -> "ready"
+                    else -> "ended"
+                })
                 mainHandler.removeCallbacks(noPictureCheck)
                 if (playbackState == Player.STATE_READY && builtOutput.tunneling && !renderedFrame) {
                     mainHandler.postDelayed(noPictureCheck, 4_000)
@@ -458,6 +465,7 @@ class NativeVideoPlayer(
             }
             override fun onRenderedFirstFrame() {
                 renderedFrame = true
+                switchLog("first frame rendered")
             }
             override fun onTracksChanged(tracks: Tracks) {
                 currentTracks = tracks
@@ -585,12 +593,15 @@ class NativeVideoPlayer(
         itemsOpened = 1
         android.util.Log.i("OTV-http", "[${System.identityHashCode(this)}] user agent: " +
             "${currentUserAgent()}${if (this.liveReconnect) " (seamless)" else ""}")
+        switchAt = android.os.SystemClock.elapsedRealtime()
+        switchLog("open() called")
         speed = 1f
         claimLayerForNewStream(carScreen)
         // A tunneled hardware decoder that is reused for the next channel can
         // fail when the size or profile changes (seen on the Chromecast), so
         // a tunneled player starts every stream with a fresh decoder.
         applyBufferPreset(bufferPreset, force = builtOutput.tunneling && currentUrl != null)
+        switchLog("player ready")
         // Only what the car started goes to the car screen; a stream opened
         // on the phone shows on the phone.
         CarVideo.routeToCar(this, carScreen)
@@ -616,7 +627,15 @@ class NativeVideoPlayer(
         startSource(buildMediaSource(url, streamTypeHint), startPositionMs)
     }
 
+    // Where the time goes when a channel is opened (`[OTV-switch]`).
+    private var switchAt = 0L
+    private fun switchLog(what: String) {
+        if (switchAt == 0L) return
+        android.util.Log.i("OTV-switch", "[${if (ownsFocus) "main" else "aux"}] +${android.os.SystemClock.elapsedRealtime() - switchAt}ms $what")
+    }
+
     private fun startSource(mediaSource: MediaSource, startPositionMs: Long) {
+        switchLog("source set")
         // Starting at the resume point directly (rather than seeking once the
         // duration is known) avoids briefly playing from 0 and then jumping.
         if (startPositionMs > 0) {

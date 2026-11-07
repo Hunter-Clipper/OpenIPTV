@@ -997,16 +997,24 @@ class _TopPane extends ConsumerWidget {
                     color: Colors.black,
                     child: previewing
                         ? Stack(fit: StackFit.expand, children: [
-                            if (model.showPicture)
-                              VideoSurface(
-                                textureId: service.textureId,
-                                stateStream: service.stateStream,
-                                initialAspectRatio:
-                                    service.lastState.aspectRatio,
-                                useLayer: true,
-                              )
-                            else
-                              _PreviewPlaceholder(channel: model.playing),
+                            // Always mounted while previewing: unmounting it
+                            // between channels lets go of the video layer,
+                            // which rebuilds the player twice (a flash, a
+                            // black gap, a slow switch). The placeholder is
+                            // drawn over it instead.
+                            VideoSurface(
+                              textureId: service.textureId,
+                              stateStream: service.stateStream,
+                              initialAspectRatio:
+                                  service.lastState.aspectRatio,
+                              useLayer: true,
+                            ),
+                            if (!model.showPicture)
+                              ColoredBox(
+                                color: Colors.black,
+                                child:
+                                    _PreviewPlaceholder(channel: model.playing),
+                              ),
                             if (model.loading || !model.showPicture)
                               const Center(
                                 child: SizedBox(
