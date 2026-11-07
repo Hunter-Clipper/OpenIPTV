@@ -486,6 +486,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _vpnGroup(),
           _speedGroup(),
           _bufferGroup(),
+          _imageQualityGroup(),
           _graphicsGroup(),
           _frameRateGroup(),
           if (isTv) ...[_layerGroup(), _passthroughGroup(), _tunnelingGroup()],
@@ -892,6 +893,35 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
               onTap: tap,
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _imageQualityGroup() {
+    final on = ref.watch(fullResImagesProvider);
+    Future<void> change(bool v) async {
+      final prefs = await ref.read(appPreferencesProvider.future);
+      await setFullResImages(ref, v, prefs);
+    }
+
+    return SettingsGroup(
+      title: 'Pictures',
+      description: 'Posters, channel logos and backdrops are shown in full '
+          'resolution, for the sharpest pictures. Turn this off to show '
+          'them at about the size they are drawn instead, which uses less '
+          'memory. Try that if the app ever feels slow or restarts on a '
+          'TV or phone with little memory. Takes effect straight away; no '
+          're-download needed.',
+      children: [
+        TvActivatable(
+          onTap: () => change(!on),
+          builder: (tap) => SwitchListTile(
+            secondary: const IconBadge(icon: Icons.high_quality_outlined),
+            title: const Text('Full-Resolution Pictures'),
+            value: on,
+            onChanged: tap == null ? null : (_) => tap(),
+          ),
+        ),
       ],
     );
   }

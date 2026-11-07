@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/channel_providers.dart';
@@ -322,7 +323,7 @@ class _ChannelRow extends ConsumerWidget {
                             imageUrl: logo,
                             cacheManager: ImageCacheManager(),
                             fit: BoxFit.contain,
-                            memCacheWidth: 160,
+                            memCacheWidth: context.imageDecodeWidth(160),
                             errorWidget: (_, __, ___) => const Icon(
                                 Icons.tv_rounded,
                                 color: Colors.white54),

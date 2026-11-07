@@ -30,6 +30,7 @@ const _expectedBackupKeys = {
   'videoFit',
   'playerClockAlways',
   'bufferPreset',
+  'fullResImages',
   'vpnRoute',
   'vpnAutoConnect',
   'vpnKind',
@@ -109,6 +110,7 @@ void main() {
       await prefs.setVideoFit('fill');
       await prefs.setPlayerClockAlways(true);
       await prefs.setBufferPreset('large');
+      await prefs.setFullResImages(false);
       await prefs.setVpnRoute('device');
       await prefs.setVpnAutoConnect(true);
       await prefs.setVpnKind('openvpn');
@@ -148,6 +150,7 @@ void main() {
       expect(prefs2.videoFit, 'fill');
       expect(prefs2.playerClockAlways, isTrue);
       expect(prefs2.bufferPreset, 'large');
+      expect(prefs2.fullResImages, isFalse);
       expect(prefs2.vpnRoute, 'device');
       expect(prefs2.vpnAutoConnect, isTrue);
       expect(prefs2.vpnKind, 'openvpn');

@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -197,7 +198,9 @@ class _Backdrop extends StatelessWidget {
     final image = CachedNetworkImage(
       imageUrl: url,
       cacheManager: ImageCacheManager(),
-      memCacheWidth: (mq.size.width * mq.devicePixelRatio).round().clamp(320, 1920),
+      memCacheWidth: context.imageDecodeWidth(
+          (mq.size.width * mq.devicePixelRatio).round().clamp(320, 1920),
+          fullMax: ImageQuality.fullMaxBackdropWidth),
       fit: BoxFit.cover,
       alignment: backdropUrl != null ? Alignment.topCenter : Alignment.center,
       fadeInDuration: const Duration(milliseconds: 250),

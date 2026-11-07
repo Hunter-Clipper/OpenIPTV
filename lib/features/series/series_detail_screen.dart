@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/models/content_details.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/series.dart';
@@ -587,7 +588,7 @@ class _Still extends StatelessWidget {
       imageUrl: url!,
       cacheManager: ImageCacheManager(),
       fit: BoxFit.cover,
-      memCacheWidth: 400,
+      memCacheWidth: context.imageDecodeWidth(400),
       placeholder: (_, __) => ColoredBox(color: fill),
       errorWidget: (_, __, ___) => ColoredBox(color: fill),
     );

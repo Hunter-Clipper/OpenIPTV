@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 
 /// Standardized movie/series poster thumbnail with a consistent placeholder
@@ -41,8 +42,8 @@ class PosterImage extends StatelessWidget {
       fit: BoxFit.cover,
       width: width ?? double.infinity,
       height: height ?? double.infinity,
-      memCacheWidth: width?.toInt() ?? 165,
-      memCacheHeight: height?.toInt() ?? 240,
+      memCacheWidth: context.imageDecodeWidth(width?.toInt() ?? 165),
+      memCacheHeight: context.imageDecodeHeight(height?.toInt() ?? 240),
       maxWidthDiskCache: 330,
       maxHeightDiskCache: 480,
       fadeInDuration: const Duration(milliseconds: 200),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/episode.dart';
@@ -1623,7 +1624,7 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                   child: CachedNetworkImage(
                     imageUrl: still,
                     cacheManager: ImageCacheManager(),
-                    memCacheWidth: 680,
+                    memCacheWidth: context.imageDecodeWidth(680),
                     fit: BoxFit.cover,
                     errorWidget: (_, __, ___) =>
                         ColoredBox(color: scheme.surfaceContainerHighest),

@@ -33,6 +33,7 @@ const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
+const _kFullResImages = 'full_res_images'; // Power User Tools
 const _kAudioPassthrough = 'audio_passthrough'; // auto | on | off (#159)
 const _kTunneledPlayback = 'tunneled_playback'; // auto | on | off (#159)
 const _kUserAgent = 'user_agent'; // custom player user agent (Power User Tools)
@@ -171,6 +172,12 @@ class AppPreferences {
   /// Player buffer size (Power User Tools); null = the default.
   String? get bufferPreset => _prefs.getString(_kBufferPreset);
   Future<void> setBufferPreset(String v) => _prefs.setString(_kBufferPreset, v);
+
+  /// Decode posters, logos and backdrops at full resolution (Power User
+  /// Tools); off = sized to how they are drawn. On by default, for new
+  /// installs and updates alike (no stored value = on).
+  bool get fullResImages => _prefs.getBool(_kFullResImages) ?? true;
+  Future<void> setFullResImages(bool v) => _prefs.setBool(_kFullResImages, v);
 
   /// A custom user agent for streams (Power User Tools); null = the app's own.
   /// 'auto' (default) | 'on' | 'off'. See docs/design/tunneling-passthrough.md.

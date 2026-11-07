@@ -464,6 +464,13 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'fullResImages',
+      encode: (p) => p.fullResImages,
+      decode: (p, v) async {
+        if (v is bool) await p.setFullResImages(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'audioPassthrough',
       encode: (p) => p.audioPassthrough,
       decode: (p, v) async {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/telemetry/reports_screen.dart';
 import 'package:open_iptv/telemetry/consent_dialog.dart';
@@ -411,10 +412,14 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
         shortcuts: appShortcuts,
-        builder: (context, child) => DisplayNames(
-          enabled: ref.watch(cleanNamesProvider),
-          child: TvKeyboardInset(
-            child: TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => ImageQuality(
+          full: ref.watch(fullResImagesProvider),
+          child: DisplayNames(
+            enabled: ref.watch(cleanNamesProvider),
+            child: TvKeyboardInset(
+              child:
+                  TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+            ),
           ),
         ),
       ),

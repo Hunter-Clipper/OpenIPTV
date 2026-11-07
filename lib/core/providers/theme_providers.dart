@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -52,6 +53,9 @@ final mediaNotificationEnabledProvider = StateProvider<bool>((ref) => true);
 // Tidy provider names for display (see display_name.dart).
 final cleanNamesProvider = StateProvider<bool>((ref) => true);
 
+/// Power User Tools → Full-resolution pictures.
+final fullResImagesProvider = StateProvider<bool>((ref) => true);
+
 /// Player picture fit: 'fit' (whole picture, letterboxed — the default),
 /// 'fill' (crop to fill the screen) or 'zoom' (in between).
 final videoFitProvider = StateProvider<String>((ref) => 'fit');
@@ -96,6 +100,13 @@ Future<void> setHomeLayoutSeries(
     WidgetRef ref, String layout, AppPreferences prefs) async {
   ref.read(homeLayoutSeriesProvider.notifier).state = layout;
   await prefs.setHomeLayoutSeries(layout);
+}
+
+Future<void> setFullResImages(
+    WidgetRef ref, bool enabled, AppPreferences prefs) async {
+  ref.read(fullResImagesProvider.notifier).state = enabled;
+  ImageQuality.applyCacheBudget(enabled);
+  await prefs.setFullResImages(enabled);
 }
 
 Future<void> setCleanNames(
@@ -211,6 +222,8 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       prefs.mediaNotificationEnabled;
   nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
+  ref.read(fullResImagesProvider.notifier).state = prefs.fullResImages;
+  ImageQuality.applyCacheBudget(prefs.fullResImages);
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;
   ref.read(askStartOverProvider.notifier).state = prefs.askStartOver;

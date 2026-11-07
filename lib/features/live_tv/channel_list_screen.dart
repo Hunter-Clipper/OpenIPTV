@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
@@ -633,7 +634,7 @@ class LogoTile extends StatelessWidget {
               imageUrl: url!,
               cacheManager: ImageCacheManager(),
               fit: BoxFit.contain,
-              memCacheWidth: (width * 2).toInt(),
+              memCacheWidth: context.imageDecodeWidth((width * 2).toInt()),
               maxWidthDiskCache: (width * 2).toInt(),
               maxHeightDiskCache: (width * 2).toInt(),
               errorWidget: (_, __, ___) => icon,
@@ -901,7 +902,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                                 imageUrl: logo,
                                 cacheManager: ImageCacheManager(),
                                 fit: BoxFit.contain,
-                                memCacheWidth: 300,
+                                memCacheWidth: context.imageDecodeWidth(300),
                                 errorWidget: (_, __, ___) => Icon(Icons.tv,
                                     size: 36,
                                     color: theme.colorScheme.onSurfaceVariant),
