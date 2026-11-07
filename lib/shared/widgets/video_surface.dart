@@ -331,7 +331,7 @@ class _VideoSurfaceState extends State<VideoSurface>
             return CustomPaint(
                 size: Size(c.maxWidth, c.maxHeight),
                 painter: _HolePainter(
-                    hole, t, low == null ? 0 : _paneCornerRadius * (1 - t)));
+                    hole, t, low == null ? 0 : _cornerRadius(t)));
           },
         );
       });
@@ -359,8 +359,15 @@ class _VideoSurfaceState extends State<VideoSurface>
 }
 
 /// Paints black around [hole] and leaves it see-through.
-/// The guide pane's corner radius: the zoom eases from this to square.
+/// The guide pane's corner radius: the zoom keeps it for most of the way and
+/// only squares it off gradually near the end (and back at the start of a
+/// zoom out).
 const double _paneCornerRadius = 12;
+
+double _cornerRadius(double t) {
+  final k = ((t - 0.65) / 0.35).clamp(0.0, 1.0);
+  return _paneCornerRadius * (1 - Curves.easeInOut.transform(k));
+}
 
 class _HolePainter extends CustomPainter {
   _HolePainter(this.hole, [this.blackness = 1, this.radius = 0]);

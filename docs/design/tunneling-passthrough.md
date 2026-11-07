@@ -43,7 +43,7 @@ exists.
 - Not yet tested: Mi TV (S7D), a receiver that really decodes passthrough
   (only the HDMI capability report can be checked on a stereo TV).
 
-## Video layer (issue #162, 0.14.95)
+## Video layer (issue #162, 0.14.96)
 
 Tunneled frames go to the display hardware, not into a Flutter texture, so
 the picture needed a real on-screen layer. On TVs the main player now draws
@@ -61,7 +61,7 @@ surface (`MainActivity.getTransparencyMode`, `RenderMode.surface`).
 - Multi-view, PiP, casting and the car use the old texture; multi-view
   releases the layer at once.
 - Pane <-> full screen zoom: the player route is see-through; the picture's
-  rect and corner radius (12 px -> square) animate from the pane's own;
+  rect animates from the pane's own and the corners stay round (12 px) for most of the zoom, squaring off gradually near the end;
   controls (`ZoomFade`) wait until it settles and hide as a zoom out starts.
 - Setting (Power User Tools -> Video layer, `VideoLayerMode`): Automatic /
   On / Off, TVs only, applies after a restart. Automatic = on for every TV.

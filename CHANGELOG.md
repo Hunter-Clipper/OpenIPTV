@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## 0.14.95 — 2026-11-06
+## 0.14.96 — 2026-11-06
 
 **New**
 - On TVs the main picture now plays on a real video layer, the way TV players do it. Motion is smoother, channel changes are quicker and cleaner (no flash of the old picture, no black gap), and the guide's playing preview now zooms smoothly to full screen and back, corners and all. The controls wait until the picture has finished growing. Settings → Advanced → Power User Tools → **Video layer** (Automatic / On / Off) lets you turn it off if the picture is ever wrong; it takes effect when the app restarts.
