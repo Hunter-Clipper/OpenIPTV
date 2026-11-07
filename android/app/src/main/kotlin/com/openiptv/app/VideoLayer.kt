@@ -90,3 +90,40 @@ object VideoLayer {
         p.layerReleased()
     }
 }
+
+/**
+ * The "Video layer" setting (Power User Tools): Automatic / On / Off. TVs
+ * only. The layer needs a see-through Flutter surface, which is chosen when
+ * the screen is created, so a change applies after a restart.
+ */
+object VideoLayerMode {
+    private const val PREFS = "openiptv_native"
+    private const val KEY = "video_layer"
+
+    const val AUTO = "auto"
+    const val ON = "on"
+    const val OFF = "off"
+
+    /** Whether this run of the app was started with the layer. */
+    @Volatile var activeAtStart = false
+
+    fun setting(context: android.content.Context): String {
+        val v = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(KEY, AUTO)
+        return if (v == ON || v == OFF) v else AUTO
+    }
+
+    fun setSetting(context: android.content.Context, value: String) {
+        val v = if (value == ON || value == OFF) value else AUTO
+        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(KEY, v).apply()
+    }
+
+    /** Automatic uses the layer on every TV (the standard way TV players show video). */
+    fun wanted(context: android.content.Context): Boolean =
+        EngineChannels.isTelevision(context) && setting(context) != OFF
+
+    fun info(context: android.content.Context): Map<String, Any> = mapOf(
+        "setting" to setting(context),
+        "active" to activeAtStart,
+        "wanted" to wanted(context),
+    )
+}

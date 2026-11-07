@@ -51,13 +51,14 @@ class MainActivity : AudioServiceActivity() {
     // Flutter (#162), so Flutter's own surface is see-through: it paints
     // the app, and the video shows where it paints nothing. Phones keep the
     // ordinary opaque surface.
-    private val videoLayerDevice by lazy { EngineChannels.isTelevision(this) }
+    private val videoLayerDevice by lazy { VideoLayerMode.wanted(this) }
     override fun getRenderMode(): RenderMode = RenderMode.surface
     override fun getTransparencyMode(): TransparencyMode =
         if (videoLayerDevice) TransparencyMode.transparent else TransparencyMode.opaque
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        VideoLayerMode.activeAtStart = videoLayerDevice
         if (videoLayerDevice) VideoLayer.attach(this)
     }
 

@@ -330,7 +330,8 @@ class _VideoSurfaceState extends State<VideoSurface>
             }
             return CustomPaint(
                 size: Size(c.maxWidth, c.maxHeight),
-                painter: _HolePainter(hole, t));
+                painter: _HolePainter(
+                    hole, t, low == null ? 0 : _paneCornerRadius * (1 - t)));
           },
         );
       });
@@ -358,10 +359,14 @@ class _VideoSurfaceState extends State<VideoSurface>
 }
 
 /// Paints black around [hole] and leaves it see-through.
+/// The guide pane's corner radius: the zoom eases from this to square.
+const double _paneCornerRadius = 12;
+
 class _HolePainter extends CustomPainter {
-  _HolePainter(this.hole, [this.blackness = 1]);
+  _HolePainter(this.hole, [this.blackness = 1, this.radius = 0]);
   final Rect hole;
   final double blackness;
+  final double radius;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -369,10 +374,11 @@ class _HolePainter extends CustomPainter {
         Paint()..color = Colors.black.withValues(alpha: blackness));
     // Clears everything painted so far under the picture (even the guide's
     // own background), so the video layer behind Flutter shows through.
-    canvas.drawRect(hole, Paint()..blendMode = BlendMode.clear);
+    canvas.drawRRect(RRect.fromRectAndRadius(hole, Radius.circular(radius)),
+        Paint()..blendMode = BlendMode.clear);
   }
 
   @override
   bool shouldRepaint(_HolePainter old) =>
-      old.hole != hole || old.blackness != blackness;
+      old.hole != hole || old.blackness != blackness || old.radius != radius;
 }

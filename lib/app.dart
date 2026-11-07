@@ -43,6 +43,7 @@ import 'package:open_iptv/shared/widgets/brand_splash.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 class OpenIPTVApp extends ConsumerStatefulWidget {
@@ -352,7 +353,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             // pane to full screen and back (#162): the route stays see-
             // through while it opens and closes, and the video follows the
             // route's animation (VideoSurface).
-            if (extra['continuePlaying'] == true && PlatformHelper.isTV(context)) {
+            if (extra['continuePlaying'] == true &&
+                videoLayerActive &&
+                PlatformHelper.isTV(context)) {
               return CustomTransitionPage<void>(
                 key: state.pageKey,
                 child: screen,

@@ -30,6 +30,7 @@ import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -1252,7 +1253,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   // TVs show the main player's picture on a real video layer (#162).
-  bool get _useLayer => PlatformHelper.isTV(context) && !_casting && !ref.read(pipActiveProvider);
+  bool get _useLayer =>
+      videoLayerActive && PlatformHelper.isTV(context) && !_casting && !ref.read(pipActiveProvider);
 
   Widget _buildCueOverlay({bool liftForControls = true}) {
     if (_cueText.isEmpty) return const SizedBox.shrink();

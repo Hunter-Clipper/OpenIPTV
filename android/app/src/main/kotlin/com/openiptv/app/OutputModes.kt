@@ -115,7 +115,11 @@ object OutputModes {
      * video path, so "auto" may turn it on. Everything else stays untunneled
      * until it is tested (see docs/design/tunneling-passthrough.md).
      */
-    fun autoTunnelingDevice(): Boolean = false
+    fun autoTunnelingDevice(): Boolean = VERIFIED_TUNNELING_DEVICES.contains(android.os.Build.DEVICE)
+
+    // Checked on the device, tunneled live TV shows a picture and keeps playing
+    // through channel changes (#162). Add a device only after testing it.
+    private val VERIFIED_TUNNELING_DEVICES = setOf("sabrina") // Chromecast with Google TV
 
     /** What a player should use right now. */
     fun wanted(

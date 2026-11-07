@@ -9,6 +9,7 @@ import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/buffer_preset.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/graphics_mode.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/network_info.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -47,6 +48,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   OpenVpnStatus _ovpnStatus = const OpenVpnStatus();
 
   GraphicsModeInfo? _graphics;
+  VideoLayerInfo? _layer;
 
   final _scroll = ScrollController();
 
@@ -77,6 +79,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     _refresh();
     _loadVpn();
     _loadGraphics();
+    _loadLayer();
     // Live tunnel status (traffic, last handshake) while this screen is up.
     _vpnTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pollVpn());
   }
@@ -485,7 +488,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           _bufferGroup(),
           _graphicsGroup(),
           _frameRateGroup(),
-          if (isTv) ...[_passthroughGroup(), _tunnelingGroup()],
+          if (isTv) ...[_layerGroup(), _passthroughGroup(), _tunnelingGroup()],
           _userAgentGroup(),
           _databaseGroup(),
         ],
@@ -999,6 +1002,78 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           'off here.',
       offText: 'Never used.',
     );
+  }
+
+  Future<void> _loadLayer() async {
+    final info = await videoLayerInfo();
+    if (!mounted) return;
+    setState(() => _layer = info);
+  }
+
+  Widget _layerGroup() {
+    final info = _layer;
+    if (info == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return SettingsGroup(
+      title: 'Video layer',
+      description: 'Shows the main picture the way TV players do: smoother '
+          'motion, quicker channel changes, and what tunneled playback needs. '
+          'Takes effect when the app restarts.\nIn use now: '
+          '${info.active ? 'Yes' : 'No'}.',
+      children: [
+        for (final mode in VideoLayerSetting.values)
+          TvActivatable(
+            onTap: () => _pickLayer(mode),
+            builder: (tap) => ListTile(
+              leading: Icon(
+                mode == info.setting
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: mode == info.setting ? theme.colorScheme.primary : null,
+              ),
+              title: Text(mode.label),
+              subtitle:
+                  Text(mode.description, style: theme.textTheme.bodySmall),
+              onTap: tap,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickLayer(VideoLayerSetting mode) async {
+    final before = _layer;
+    if (before == null || mode == before.setting) return;
+    final after = await setVideoLayerMode(mode);
+    if (!mounted) return;
+    if (after == null) {
+      _say("Couldn't change the video layer setting.");
+      return;
+    }
+    setState(() => _layer = after);
+    if (!after.needsRestart) return;
+    final restart = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restart to apply?'),
+        content: const Text('OpenIPTV needs to restart to change how it '
+            'shows the picture. Anything playing will stop.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Restart now'),
+          ),
+        ],
+      ),
+    );
+    if (restart == true && !await restartApp() && mounted) {
+      _say("Couldn't restart. Close and open OpenIPTV to apply it.");
+    }
   }
 
   Future<void> _loadGraphics() async {

@@ -68,6 +68,12 @@ object EngineChannels {
                     GraphicsMode.setSetting(context, call.argument<String>("mode") ?: GraphicsMode.AUTO)
                     result.success(GraphicsMode.info(context))
                 }
+                // Video layer (#162): applies on the next start.
+                "videoLayerInfo" -> result.success(VideoLayerMode.info(context))
+                "setVideoLayerMode" -> {
+                    VideoLayerMode.setSetting(context, call.argument<String>("mode") ?: VideoLayerMode.AUTO)
+                    result.success(VideoLayerMode.info(context))
+                }
                 "restartApp" -> {
                     result.success(true)
                     RestartActivity.restart(context)

@@ -28,6 +28,7 @@ import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 
 // ---------------------------------------------------------------------------
@@ -390,7 +391,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       // stream, and Back hands it back here.
       // The player's controls wait until the picture has zoomed to full
       // screen (#162).
-      videoZoomProgress.value = 0;
+      if (videoLayerActive) videoZoomProgress.value = 0;
       unawaited(context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
@@ -443,7 +444,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final channel = _pane.playing;
     if (url == null || channel == null) return;
     final cu = _pane.catchup;
-    videoZoomProgress.value = 0;
+    if (videoLayerActive) videoZoomProgress.value = 0;
     unawaited(context.push('/player', extra: {
       'streamUrl': url,
       'title': cu?.programme.title ?? channel.name,
@@ -1026,7 +1027,7 @@ class _TopPane extends ConsumerWidget {
                               stateStream: service.stateStream,
                               initialAspectRatio:
                                   service.lastState.aspectRatio,
-                              useLayer: true,
+                              useLayer: videoLayerActive,
                             ),
                             if (!model.showPicture && !handedOver)
                               ColoredBox(

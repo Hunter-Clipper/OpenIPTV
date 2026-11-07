@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/telemetry/consent.dart';
@@ -30,6 +31,9 @@ void main() async {
   // concept and no portrait mode at all, so requesting one here causes
   // Android to letterbox the whole app into a small portrait compat box.
   await PlatformHelper.initTvDetection();
+  if (PlatformHelper.isTVDevice) {
+    videoLayerActive = (await videoLayerInfo())?.active ?? false;
+  }
   if (!PlatformHelper.isTVDevice) {
     unawaited(
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
