@@ -28,6 +28,7 @@ import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 
 // ---------------------------------------------------------------------------
@@ -388,6 +389,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (_pane.playingId == channel.id) {
       // Already playing in the pane: full screen carries on with the same
       // stream, and Back hands it back here.
+      // The player's controls wait until the picture has zoomed to full
+      // screen (#162).
+      if (videoLayerActive) videoZoomProgress.value = 0;
       unawaited(context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
@@ -440,6 +444,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final channel = _pane.playing;
     if (url == null || channel == null) return;
     final cu = _pane.catchup;
+    if (videoLayerActive) videoZoomProgress.value = 0;
     unawaited(context.push('/player', extra: {
       'streamUrl': url,
       'title': cu?.programme.title ?? channel.name,
@@ -799,11 +804,20 @@ class _PaneModel extends ChangeNotifier implements CatchupAware {
   /// The preview is (re)connecting.
   bool get loading => previewing && (_dog?.loading ?? true);
 
+  // The full-screen player has the stream (it zooms out of the pane).
+  bool _wasHandedOver = false;
+
   void _onNowPlaying() {
     final now = previewing;
+    final handedOver = !now && service.nowPlaying.value != null;
     // Started here, or handed back by the full-screen player: watch it
-    // afresh.
-    if (now && !_wasPreviewing) _watch();
+    // afresh. A stream that comes back already playing needs no loading
+    // spinner.
+    if (now && !_wasPreviewing) {
+      _watch();
+      if (_wasHandedOver) _dog?.markPlaying();
+    }
+    _wasHandedOver = handedOver;
     if (!now) {
       _timer?.cancel();
       _timer = null;
@@ -983,7 +997,13 @@ class _TopPane extends ConsumerWidget {
                         .valueOrNull ??
                     const []));
         final service = model.service;
-        final previewing = model.previewing && service.hasTexture;
+        // While the full-screen player has taken the stream over (it zooms
+        // out of this pane and back), the picture stays mounted here so the
+        // zoom starts and ends on the pane's own rectangle (#162).
+        final handedOver = !model.previewing &&
+            service.hasTexture &&
+            service.nowPlaying.value != null;
+        final previewing = (model.previewing || handedOver) && service.hasTexture;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 24, 8),
           child: Row(
@@ -997,16 +1017,26 @@ class _TopPane extends ConsumerWidget {
                     color: Colors.black,
                     child: previewing
                         ? Stack(fit: StackFit.expand, children: [
-                            if (model.showPicture)
-                              VideoSurface(
-                                textureId: service.textureId,
-                                stateStream: service.stateStream,
-                                initialAspectRatio:
-                                    service.lastState.aspectRatio,
-                              )
-                            else
-                              _PreviewPlaceholder(channel: model.playing),
-                            if (model.loading || !model.showPicture)
+                            // Always mounted while previewing: unmounting it
+                            // between channels lets go of the video layer,
+                            // which rebuilds the player twice (a flash, a
+                            // black gap, a slow switch). The placeholder is
+                            // drawn over it instead.
+                            VideoSurface(
+                              textureId: service.textureId,
+                              stateStream: service.stateStream,
+                              initialAspectRatio:
+                                  service.lastState.aspectRatio,
+                              useLayer: videoLayerActive,
+                            ),
+                            if (!model.showPicture && !handedOver)
+                              ColoredBox(
+                                color: Colors.black,
+                                child:
+                                    _PreviewPlaceholder(channel: model.playing),
+                              ),
+                            if (!handedOver &&
+                                (model.loading || !model.showPicture))
                               const Center(
                                 child: SizedBox(
                                   width: 28,

@@ -30,6 +30,7 @@ import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -274,6 +275,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!ref.read(castServiceProvider).status.connected) _enterFullscreen();
 
     _playbackService = ref.read(playbackServiceProvider);
+    // Safety net for the zoom's "controls wait" rule: never hold them back
+    // (or an error screen) for more than a moment.
+    Future<void>.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && videoZoomProgress.value < 1) videoZoomProgress.value = 1;
+    });
+    // Taking over a stream that is already on screen (the guide pane going
+    // full screen): no black loading cover and no spinner, the picture just
+    // grows (#162).
+    if (widget.continuePlaying &&
+        _playbackService.nowPlaying.value?.url == widget.streamUrl &&
+        _playbackService.lastState.hasVideo) {
+      _watchdog.markPlaying();
+      _isBuffering = false;
+    }
     _playbackService.ensureTexture().then((_) {
       if (mounted) setState(() => _textureReady = true);
     });
@@ -1233,8 +1248,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       stateStream: _playbackService.stateStream,
       initialAspectRatio: _playbackService.lastState.aspectRatio,
       fit: ref.watch(videoFitProvider),
+      useLayer: _useLayer,
     );
   }
+
+  // TVs show the main player's picture on a real video layer (#162).
+  bool get _useLayer =>
+      videoLayerActive && PlatformHelper.isTV(context) && !_casting && !ref.read(pipActiveProvider);
 
   Widget _buildCueOverlay({bool liftForControls = true}) {
     if (_cueText.isEmpty) return const SizedBox.shrink();
@@ -1315,7 +1335,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _hideControls();
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: _useLayer ? Colors.transparent : Colors.black,
         body: Focus(
           focusNode: _rootFocusNode,
           autofocus: true,
@@ -1344,6 +1364,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               fit: StackFit.expand,
               children: [
                 _buildVideoSurface(),
+                // Everything but the picture fades in with the zoom out of
+                // the guide's pane (#162).
+                ZoomFade(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
                 _buildCueOverlay(),
                 // Buffering / recovery overlay.
                 AnimatedOpacity(
@@ -1510,6 +1536,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           : null,
                     ),
                   ),
+                    ],
+                  ),
+                ),
               ],
             ),
           )),

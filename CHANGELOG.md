@@ -3,6 +3,19 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## 0.14.96 — 2026-11-06
+
+**New**
+- On TVs the main picture now plays on a real video layer, the way TV players do it. Motion is smoother, channel changes are quicker and cleaner (no flash of the old picture, no black gap), and the guide's playing preview now zooms smoothly to full screen and back, corners and all. The controls wait until the picture has finished growing. Settings → Advanced → Power User Tools → **Video layer** (Automatic / On / Off) lets you turn it off if the picture is ever wrong; it takes effect when the app restarts.
+- **Tunneled playback** now works on TVs that support it. Automatic uses it on the Chromecast with Google TV (checked there), other TVs can try On. It is for live channels, pauses by itself during Multi-view, and still switches itself off and tells you if it ever fails.
+
+**Improved**
+- Everything defaults to Automatic: Video layer, Tunneled playback, Surround sound passthrough and Graphics mode all choose what suits your TV on their own.
+
+**Fixed**
+- Changing channel in the guide's preview no longer restarts the picture several times.
+- Changing channel while tunneled no longer trips a decoder error when the size or format changes.
+
 ## 0.14.79 — 2026-11-06
 
 **Fixed**

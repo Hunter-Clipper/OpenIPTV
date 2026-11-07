@@ -78,6 +78,13 @@ class StreamWatchdog {
     _movedSinceOpen = false;
   }
 
+  /// The stream is already playing (the TV guide's pane went full screen):
+  /// no loading screen.
+  void markPlaying() {
+    _everPlayed = true;
+    _loading = false;
+  }
+
   /// Checks [s]. [openCount] is the playback service's open counter, so a
   /// reopen restarts the connect window. [live] streams reconnect when they
   /// "end"; VOD ending is a real ending. [active] is false while there's

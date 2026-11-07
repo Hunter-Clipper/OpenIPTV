@@ -43,6 +43,7 @@ import 'package:open_iptv/shared/widgets/brand_splash.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
+import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 class OpenIPTVApp extends ConsumerStatefulWidget {
@@ -335,9 +336,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         ),
         GoRoute(
           path: '/player',
-          builder: (_, state) {
+          pageBuilder: (context, state) {
             final extra = state.extra as Map<String, dynamic>;
-            return PlayerScreen(
+            final screen = PlayerScreen(
               streamUrl: extra['streamUrl'] as String,
               title: extra['title'] as String,
               contentId: extra['contentId'] as String?,
@@ -348,6 +349,26 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               continuePlaying: extra['continuePlaying'] as bool? ?? false,
               handBackTo: extra['handBackTo'],
             );
+            // From the TV guide's playing pane the picture zooms from the
+            // pane to full screen and back (#162): the route stays see-
+            // through while it opens and closes, and the video follows the
+            // route's animation (VideoSurface).
+            if (extra['continuePlaying'] == true &&
+                videoLayerActive &&
+                PlatformHelper.isTV(context)) {
+              return CustomTransitionPage<void>(
+                key: state.pageKey,
+                child: screen,
+                opaque: false,
+                // No opening transition of its own: the picture zooms on its own
+                // timer once the screen has settled (VideoSurface).
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration:
+                    motionDuration(const Duration(milliseconds: 280)),
+                transitionsBuilder: (_, __, ___, child) => child,
+              );
+            }
+            return MaterialPage<void>(key: state.pageKey, child: screen);
           },
         ),
       ],
