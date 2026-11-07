@@ -68,6 +68,29 @@ class _Harness {
 }
 
 void main() {
+  test('a movie that takes 12 s to start is not reconnected', () {
+    final h = _Harness(live: false);
+    // Opened, nothing moving for 12 s (slow provider), then it plays.
+    expect(h.freeze(12), isNull);
+    h.play(5);
+    expect(h.actions.where((a) => a != WatchdogAction.none), isEmpty);
+    expect(h.dog.everPlayed, isTrue);
+  });
+
+  test('a movie that never starts still reconnects after the VOD window', () {
+    final h = _Harness(live: false);
+    final before = h.now;
+    expect(h.freeze(60), WatchdogAction.reconnect);
+    expect(h.now.difference(before), greaterThanOrEqualTo(const Duration(seconds: 45)));
+  });
+
+  test('a live channel that is slow to start still reconnects after 8 s', () {
+    final h = _Harness();
+    final before = h.now;
+    expect(h.freeze(20), WatchdogAction.reconnect);
+    expect(h.now.difference(before), lessThanOrEqualTo(const Duration(seconds: 9)));
+  });
+
   test('smooth playback is left alone and clears loading', () {
     final h = _Harness()..play(5);
     expect(h.actions.where((a) => a != WatchdogAction.none), isEmpty);

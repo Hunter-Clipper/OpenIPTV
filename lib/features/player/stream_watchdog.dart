@@ -31,6 +31,7 @@ class StreamWatchdog {
   StreamWatchdog({
     this.freezeLimit = const Duration(seconds: 4),
     this.connectLimit = const Duration(seconds: 8),
+    this.vodConnectLimit = const Duration(seconds: 45),
     this.showLoadingAfter = const Duration(milliseconds: 1200),
     this.maxAttemptsBeforePlaying = 5,
     this.maxBackoff = const Duration(seconds: 15),
@@ -38,6 +39,11 @@ class StreamWatchdog {
 
   final Duration freezeLimit;
   final Duration connectLimit;
+
+  /// Movies and episodes get longer than live channels to show a first
+  /// picture: some providers take ~8 s to start a file, and reconnecting
+  /// restarts that download from zero, so a short window never succeeds.
+  final Duration vodConnectLimit;
 
   /// A short hiccup isn't worth an overlay; a longer one shows "loading".
   final Duration showLoadingAfter;
@@ -62,6 +68,7 @@ class StreamWatchdog {
   DateTime? _smoothSince;
   DateTime? _reconnectedAt;
   bool _movedSinceOpen = false;
+  bool _live = true;
 
   static const _stableAfter = Duration(seconds: 3);
 
@@ -96,6 +103,7 @@ class StreamWatchdog {
     required bool live,
     bool active = true,
   }) {
+    _live = live;
     if (openCount != _openCount) {
       _openCount = openCount;
       _movedSinceOpen = false;
@@ -183,6 +191,7 @@ class StreamWatchdog {
       final cap = maxBackoff > connectLimit ? maxBackoff : connectLimit;
       return limit > cap ? cap : limit;
     }
+    if (!_live && vodConnectLimit > connectLimit) return vodConnectLimit;
     return connectLimit;
   }
 

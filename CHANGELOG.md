@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.97)
+
+**Fixed**
+- Some movies would never start and kept saying "Reconnecting…", even though other apps played them fine. Certain providers take 10–20 seconds to start a movie, and OpenIPTV gave up after 8 seconds and started over each time. Movies and episodes now get up to 45 seconds to show their first picture; live channels still reconnect quickly.
+
 ## 0.14.96 — 2026-11-06
 
 **New**
