@@ -261,9 +261,9 @@ class NativeVideoPlayer(
     }
 
     /** Rebuilds the player with [preset]'s buffer / the wanted output if either differs. */
-    private fun applyBufferPreset(preset: String) {
+    private fun applyBufferPreset(preset: String, force: Boolean = false) {
         val want = wantedOutput()
-        if (preset == bufferPreset && want == builtOutput) return
+        if (!force && preset == bufferPreset && want == builtOutput) return
         val old = exoPlayer
         old.removeListener(playerListener)
         old.release()
@@ -587,7 +587,10 @@ class NativeVideoPlayer(
             "${currentUserAgent()}${if (this.liveReconnect) " (seamless)" else ""}")
         speed = 1f
         claimLayerForNewStream(carScreen)
-        applyBufferPreset(bufferPreset)
+        // A tunneled hardware decoder that is reused for the next channel can
+        // fail when the size or profile changes (seen on the Chromecast), so
+        // a tunneled player starts every stream with a fresh decoder.
+        applyBufferPreset(bufferPreset, force = builtOutput.tunneling && currentUrl != null)
         // Only what the car started goes to the car screen; a stream opened
         // on the phone shows on the phone.
         CarVideo.routeToCar(this, carScreen)
