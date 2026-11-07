@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.98)
+## 0.14.98 — 2026-11-07
 
 **New**
 - **Full-resolution pictures.** Posters, channel logos and backdrops now show in full resolution by default, for sharper artwork on every screen. If the app ever feels slow or restarts on a TV or phone with little memory, Settings → Advanced → Power User Tools → **Pictures** turns it off, and pictures go back to the lighter size. It takes effect straight away and is included in backups.
