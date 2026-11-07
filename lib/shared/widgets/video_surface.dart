@@ -14,8 +14,9 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 /// rectangle, 1 = settled). Screens drawn over the picture fade in with it.
 final ValueNotifier<double> videoZoomProgress = ValueNotifier<double>(1);
 
-/// Fades [child] in with the picture's zoom, so controls don't sit over the
-/// guide before the picture has grown.
+/// Shows [child] only while the picture is settled: hidden the moment a zoom
+/// starts (in or out) and back, with a short fade, once the picture has
+/// reached its final size, so controls never sit over a growing picture.
 class ZoomFade extends StatelessWidget {
   const ZoomFade({super.key, required this.child});
   final Widget child;
@@ -23,9 +24,19 @@ class ZoomFade extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<double>(
         valueListenable: videoZoomProgress,
-        builder: (context, t, child) => t >= 1
-            ? child!
-            : Opacity(opacity: ((t - 0.4) / 0.6).clamp(0.0, 1.0), child: child),
+        builder: (context, t, child) {
+          final settled = t >= 1;
+          return IgnorePointer(
+            ignoring: !settled,
+            child: AnimatedOpacity(
+              opacity: settled ? 1 : 0,
+              duration: settled
+                  ? motionDuration(const Duration(milliseconds: 180))
+                  : Duration.zero,
+              child: child,
+            ),
+          );
+        },
         child: child,
       );
 }
@@ -98,7 +109,21 @@ class _VideoSurfaceState extends State<VideoSurface>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _routeAnim = widget.useLayer ? ModalRoute.of(context)?.animation : null;
+    final next = widget.useLayer ? ModalRoute.of(context)?.animation : null;
+    if (next != _routeAnim) {
+      _routeAnim?.removeStatusListener(_routeStatus);
+      _routeAnim = next;
+      _routeAnim?.addStatusListener(_routeStatus);
+    }
+  }
+
+  // The route starts closing: the zoom out begins, so whatever is drawn over
+  // the picture goes away at once.
+  void _routeStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse && _layerUsers.isNotEmpty &&
+        _layerUsers.last == this && _lowerRect() != null) {
+      videoZoomProgress.value = 0;
+    }
   }
 
   @override
@@ -123,6 +148,7 @@ class _VideoSurfaceState extends State<VideoSurface>
 
   @override
   void dispose() {
+    _routeAnim?.removeStatusListener(_routeStatus);
     if (widget.useLayer) {
       // Whatever was fading with this picture is settled (or gone).
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -388,6 +388,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (_pane.playingId == channel.id) {
       // Already playing in the pane: full screen carries on with the same
       // stream, and Back hands it back here.
+      // The player's controls wait until the picture has zoomed to full
+      // screen (#162).
+      videoZoomProgress.value = 0;
       unawaited(context.push('/player', extra: {
         'streamUrl': channel.streamUrl,
         'title': channel.name,
@@ -440,6 +443,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final channel = _pane.playing;
     if (url == null || channel == null) return;
     final cu = _pane.catchup;
+    videoZoomProgress.value = 0;
     unawaited(context.push('/player', extra: {
       'streamUrl': url,
       'title': cu?.programme.title ?? channel.name,

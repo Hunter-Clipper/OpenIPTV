@@ -274,6 +274,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!ref.read(castServiceProvider).status.connected) _enterFullscreen();
 
     _playbackService = ref.read(playbackServiceProvider);
+    // Safety net for the zoom's "controls wait" rule: never hold them back
+    // (or an error screen) for more than a moment.
+    Future<void>.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && videoZoomProgress.value < 1) videoZoomProgress.value = 1;
+    });
     // Taking over a stream that is already on screen (the guide pane going
     // full screen): no black loading cover and no spinner, the picture just
     // grows (#162).
