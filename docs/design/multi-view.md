@@ -11,7 +11,7 @@ the way for people who never use it, and feels effortless for those who do.
 |---|---|
 | Starting it | From the live player: one more round button, **Add a channel**, next to the channel list. It opens the existing channel panel; picking a channel splits the screen. Nothing changes anywhere else in the app. |
 | Layout | Automatic by the number of channels — 2 side by side, 3 = one big + two small, 4 = 2×2, then larger grids — plus a **Layout** choice between *equal grid* and *one big + small*. |
-| Sound | Follows the highlighted tile; the others are muted. A small speaker badge marks the tile you hear. |
+| Sound | Follows the highlighted tile; the others are muted. The white focus box marks the tile you hear (no speaker badge, and the other tiles are not dimmed — owner, 2026-11-08). |
 | Which playlists | **Every playlist.** No reading of the provider's connection limit. If a provider refuses another stream, that tile says so in plain English and the others keep playing. |
 | How many | **No fixed cap.** If the device can't decode another stream, that tile says so. |
 | A tile's options | OK / tap on the highlighted tile: **Full screen**, **Swap channel**, **Add a channel**, **Layout**, **Remove**. |
