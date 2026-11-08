@@ -5,6 +5,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased (0.14.99)
 
+**Improved**
+- Multi-view: the tiles you aren't listening to are no longer dimmed, and the little speaker icon is gone. The white box around a tile already shows which channel has the sound.
+
 **Fixed**
 - On some TV starts a channel could play sound with a black picture (the app and the TV's video layer disagreed about whether the layer was on). The app now waits for the TV side to be ready before deciding, and the picture only goes to the layer once both agree. Restarting the app used to be the only cure.
 
