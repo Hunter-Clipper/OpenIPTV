@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.99)
+
+**Fixed**
+- On some TV starts a channel could play sound with a black picture (the app and the TV's video layer disagreed about whether the layer was on). The app now waits for the TV side to be ready before deciding, and the picture only goes to the layer once both agree. Restarting the app used to be the only cure.
+
 ## 0.14.98 — 2026-11-07
 
 **New**

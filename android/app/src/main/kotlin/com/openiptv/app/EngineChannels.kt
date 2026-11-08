@@ -70,6 +70,12 @@ object EngineChannels {
                 }
                 // Video layer (#162): applies on the next start.
                 "videoLayerInfo" -> result.success(VideoLayerMode.info(context))
+                // Dart has decided to draw for the layer: only now may a stream
+                // take it (otherwise the picture would sit in a 1 px layer).
+                "videoLayerConfirm" -> {
+                    VideoLayer.dartConfirmed = true
+                    result.success(true)
+                }
                 "setVideoLayerMode" -> {
                     VideoLayerMode.setSetting(context, call.argument<String>("mode") ?: VideoLayerMode.AUTO)
                     result.success(VideoLayerMode.info(context))

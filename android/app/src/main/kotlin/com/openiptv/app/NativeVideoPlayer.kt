@@ -160,7 +160,7 @@ class NativeVideoPlayer(
 
     // The main player on a TV takes the layer as each stream opens.
     private fun claimLayerForNewStream(carScreen: Boolean) {
-        if (ownsFocus && !carScreen && VideoLayer.available &&
+        if (ownsFocus && !carScreen && VideoLayer.available && VideoLayer.dartConfirmed &&
             EngineChannels.isTelevision(appContext)) {
             layerClaimed = true
             VideoLayer.owner = this

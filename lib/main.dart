@@ -32,7 +32,7 @@ void main() async {
   // Android to letterbox the whole app into a small portrait compat box.
   await PlatformHelper.initTvDetection();
   if (PlatformHelper.isTVDevice) {
-    videoLayerActive = (await videoLayerInfo())?.active ?? false;
+    videoLayerActive = await resolveVideoLayerActive();
   }
   if (!PlatformHelper.isTVDevice) {
     unawaited(

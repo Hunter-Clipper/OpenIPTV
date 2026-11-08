@@ -23,6 +23,9 @@ object VideoLayer {
     private var view: SurfaceView? = null
     private var activity: Activity? = null
     var owner: NativeVideoPlayer? = null
+
+    /** Dart has confirmed it sizes the layer (see `resolveVideoLayerActive`). */
+    @Volatile var dartConfirmed = false
     private var surface: android.view.Surface? = null
 
     val available: Boolean get() = view != null

@@ -82,3 +82,28 @@ Future<VideoLayerInfo?> setVideoLayerMode(VideoLayerSetting mode) async {
     return null;
   }
 }
+
+/// Works out whether this run has the video layer, for [videoLayerActive].
+///
+/// Dart can start before the activity exists (the engine is shared with the
+/// media session), and then native says "not active" or the channel isn't
+/// there yet. A wrong "no" leaves the picture in a one-pixel layer while the
+/// audio plays, so wait (up to 3 s) until native has caught up with what the
+/// setting asks for, then tell native Dart is drawing for the layer.
+Future<bool> resolveVideoLayerActive() async {
+  final deadline = DateTime.now().add(const Duration(seconds: 3));
+  VideoLayerInfo? info;
+  while (true) {
+    info = await videoLayerInfo();
+    if (info != null && (info.active || !info.wanted)) break;
+    if (DateTime.now().isAfter(deadline)) break;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+  final active = info?.active ?? false;
+  if (active) {
+    try {
+      await _channel.invokeMethod<Object>('videoLayerConfirm');
+    } catch (_) {}
+  }
+  return active;
+}
