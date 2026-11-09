@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +31,7 @@ import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
+import 'package:open_iptv/shared/utils/browser_fullscreen.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
@@ -448,7 +450,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _watchdogTimer?.cancel();
     _saveProgressIfNeeded();
     _playbackService.stop();
-    nowPlayingHandler.stop();
+    if (!kIsWeb) nowPlayingHandler.stop();
     if (ModalRoute.of(context)?.isCurrent ?? false) context.pop();
   }
 
@@ -774,6 +776,45 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  bool _muted = false;
+
+  /// The keys a video player has in a browser or desktop window: Space / K
+  /// pause and play, J / L (and Left / Right on a movie or episode with
+  /// nothing focused) skip 10 seconds, M mutes, F toggles full screen.
+  bool _handleWebKey(LogicalKeyboardKey key, FocusNode node) {
+    Future<void> skip(bool forward) async {
+      if (_isPlainLive) {
+        await (forward ? _onLiveForward() : _onLiveRewind());
+      } else {
+        const step = Duration(seconds: 10);
+        await _playbackService.seekRelative(forward ? step : -step);
+      }
+    }
+
+    if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.keyK) {
+      unawaited(_isPlainLive
+          ? _onLivePlayPause()
+          : _playbackService.togglePlayPause());
+    } else if (key == LogicalKeyboardKey.keyJ ||
+        key == LogicalKeyboardKey.keyL ||
+        (!_isChannelPlayback &&
+            node.hasPrimaryFocus &&
+            (key == LogicalKeyboardKey.arrowLeft ||
+                key == LogicalKeyboardKey.arrowRight))) {
+      unawaited(skip(key == LogicalKeyboardKey.keyL ||
+          key == LogicalKeyboardKey.arrowRight));
+    } else if (key == LogicalKeyboardKey.keyM) {
+      _muted = !_muted;
+      unawaited(_playbackService.setAudible(!_muted));
+    } else if (key == LogicalKeyboardKey.keyF) {
+      toggleBrowserFullscreen();
+    } else {
+      return false;
+    }
+    _showControls();
+    return true;
+  }
+
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     // Multi-view handles its own keys.
@@ -792,6 +833,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             key == LogicalKeyboardKey.gameButtonA)) {
       _showControls();
       return KeyEventResult.handled;
+    }
+
+    if (kIsWeb) {
+      final handled = _handleWebKey(key, node);
+      if (handled) return KeyEventResult.handled;
     }
 
     if (!_isChannelPlayback) return KeyEventResult.ignored;
@@ -864,10 +910,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // A TV has no portrait mode at all — restoring one here would
       // letterbox the whole app into a small portrait compat box on every
       // exit from playback.
-      if (!PlatformHelper.isTVDevice) {
+      if (!PlatformHelper.isTVDevice && !kIsWeb) {
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       }
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      if (!kIsWeb) SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     // A failed progress save must never block the stop() below — that
     // regressed catch-up playback into running forever in the background
@@ -892,10 +938,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // Opened from the TV guide's preview: the channel (or the catch-up
         // show) keeps playing there.
         _playbackService.adopt(back);
-        nowPlayingHandler.endSession();
+        if (!kIsWeb) nowPlayingHandler.endSession();
       } else {
         _playbackService.stop();
-        nowPlayingHandler.stop();
+        if (!kIsWeb) nowPlayingHandler.stop();
       }
     }
     super.dispose();
@@ -1020,11 +1066,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _enterFullscreen() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
   }
 
   void _stopCasting({Duration? resumeAt}) {
@@ -1078,7 +1126,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _castSubtitle = artist;
       _castImage = artUri?.toString();
     });
-    nowPlayingHandler.setNowPlaying(_shownTitle,
+    if (!kIsWeb) nowPlayingHandler.setNowPlaying(_shownTitle,
         artist: artist, artUri: artUri);
   }
 

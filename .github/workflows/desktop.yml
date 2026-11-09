@@ -1,0 +1,76 @@
+# Builds the desktop app (an Electron shell around the web client) for
+# Windows and Linux, so it can be downloaded and tried on a real machine.
+# Plan: docs/design/desktop.md. Unsigned test builds, not releases.
+name: Desktop build
+
+on:
+  push:
+    branches: [feature/27-windows-client]
+    paths:
+      - 'desktop/**'
+      - 'lib/**'
+      - 'web/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/desktop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, name: windows, builder: --win }
+          - { os: ubuntu-latest, name: linux, builder: --linux }
+    steps:
+      # This branch sits on top of the web client's branch (PR #45), so one
+      # checkout holds both the web app and the desktop shell.
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.3
+          cache: true
+
+      - name: Build the web app
+        run: |
+          flutter pub get
+          flutter build web --release
+
+      - name: Put the web app, icon and version into the shell
+        shell: bash
+        run: |
+          rm -rf desktop/app && mkdir -p desktop/app desktop/build
+          cp -r build/web/. desktop/app/
+          cp web/icons/Icon-512.png desktop/build/icon.png
+          version=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          echo "App version: $version"
+          cd desktop && npm pkg set version="$version"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Package
+        working-directory: desktop
+        run: |
+          npm ci
+          npx electron-builder ${{ matrix.builder }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenIPTV-${{ matrix.name }}
+          path: |
+            desktop/dist/OpenIPTV-windows.zip
+            desktop/dist/OpenIPTV-windows-setup.exe
+            desktop/dist/OpenIPTV-linux.AppImage
+          if-no-files-found: error
+          retention-days: 14

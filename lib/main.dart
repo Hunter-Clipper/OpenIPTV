@@ -4,12 +4,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:open_iptv/core/services/video_layer_mode.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/telemetry/telemetry.dart';
 import 'package:open_iptv/app.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
+import 'package:open_iptv/core/services/boot_timing.dart';
 import 'package:open_iptv/core/services/car_library.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -20,6 +24,12 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
+  // Browser: /live, not /#/live (a no-op on other platforms).
+  bootMark('otv-main');
+  usePathUrlStrategy();
+  // Pushed screens (a movie, Settings → Profiles …) put their own address in
+  // the browser's bar, so Back / Forward step through them.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
   WidgetsFlutterBinding.ensureInitialized();
   // Optional anonymous crash reports (#150); records nothing unless the user
   // turned them on.
@@ -31,28 +41,28 @@ void main() async {
   // concept and no portrait mode at all, so requesting one here causes
   // Android to letterbox the whole app into a small portrait compat box.
   await PlatformHelper.initTvDetection();
-  if (PlatformHelper.isTVDevice) {
+  if (!kIsWeb && PlatformHelper.isTVDevice) {
     videoLayerActive = await resolveVideoLayerActive();
   }
-  if (!PlatformHelper.isTVDevice) {
+  if (!kIsWeb && !PlatformHelper.isTVDevice) {
     unawaited(
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
   }
-  await initAutoRefresh();
+  if (!kIsWeb) await initAutoRefresh();
 
   // Built here (rather than implicitly by ProviderScope) so the same
   // PlaybackService singleton can be handed to audio_service before runApp —
   // the Now Playing notification must mirror the exact Player instance the
   // rest of the app plays through, not a separate one.
   final container = ProviderContainer();
-  await initNowPlayingService(container.read(playbackServiceProvider));
+  if (!kIsWeb) await initNowPlayingService(container.read(playbackServiceProvider));
   // Android Auto's browse tree reads the same data, profile and playlist
   // as the app (the car may start the app without its screen — see
   // EngineChannels.kt). Phones and tablets only: TVs never connect to a
   // car, so the car library isn't set up there at all.
   debugPrint('[OTV-auto] car library '
       '${PlatformHelper.isTVDevice ? 'off (TV)' : 'on'}');
-  if (!PlatformHelper.isTVDevice) {
+  if (!kIsWeb && !PlatformHelper.isTVDevice) {
     nowPlayingHandler
       ..library = CarLibrary(
         db: container.read(appDatabaseProvider),
@@ -72,6 +82,7 @@ void main() async {
 
   container.read(statsChoiceProvider.notifier).state = await readStatsChoice();
 
+  bootMark('otv-run-app');
   runApp(
     UncontrolledProviderScope(
       container: container,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
@@ -44,6 +45,12 @@ String friendlySourceErrorMessage(Object error) {
   }
   if (msg.contains('http_401') || msg.contains('http_403')) {
     return "Your username or password doesn't seem right. Check with your provider.";
+  } else if (kIsWeb && error is http.ClientException) {
+    // A browser reports a blocked request (the server doesn't allow
+    // websites to read it) the same way as an unreachable server.
+    return "Your browser couldn't load this server. It may be offline, or "
+        "it may not allow web pages to use it. The Android app isn't "
+        'affected.';
   } else if (error is SocketException ||
       // package:http wraps socket failures (e.g. DNS lookup) in a
       // ClientException whose message never mentions SocketException.

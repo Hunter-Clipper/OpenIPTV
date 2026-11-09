@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -28,7 +29,8 @@ Future<PickedDeviceFile?> pickDeviceFile(
   required String title,
   required List<String> extensions,
 }) async {
-  if (await hasDocumentPicker()) {
+  // A browser always has its own file chooser.
+  if (kIsWeb || await hasDocumentPicker()) {
     final result =
         await FilePicker.pickFiles(type: FileType.any, withData: true);
     final file = result?.files.firstOrNull;

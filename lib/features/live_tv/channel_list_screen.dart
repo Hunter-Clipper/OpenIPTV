@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +34,7 @@ import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/shared/widgets/net_image.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -630,7 +630,7 @@ class LogoTile extends StatelessWidget {
       ),
       child: url == null || url!.isEmpty
           ? icon
-          : CachedNetworkImage(
+          : NetImage(
               imageUrl: url!,
               cacheManager: ImageCacheManager(),
               fit: BoxFit.contain,
@@ -898,7 +898,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
                         child: logo != null && logo.isNotEmpty
-                            ? CachedNetworkImage(
+                            ? NetImage(
                                 imageUrl: logo,
                                 cacheManager: ImageCacheManager(),
                                 fit: BoxFit.contain,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -163,7 +164,7 @@ Future<void> setRefreshIntervalHours(
     WidgetRef ref, int hours, AppPreferences prefs) async {
   ref.read(refreshIntervalHoursProvider.notifier).state = hours;
   await prefs.setRefreshIntervalHours(hours);
-  await syncAutoRefreshRegistration(prefs);
+  if (!kIsWeb) await syncAutoRefreshRegistration(prefs);
 }
 
 Future<void> setRefreshNotificationsEnabled(
@@ -192,7 +193,7 @@ Future<void> setMediaNotificationEnabled(
     WidgetRef ref, bool enabled, AppPreferences prefs) async {
   ref.read(mediaNotificationEnabledProvider.notifier).state = enabled;
   await prefs.setMediaNotificationEnabled(enabled);
-  nowPlayingHandler.setEnabled(enabled);
+  if (!kIsWeb) nowPlayingHandler.setEnabled(enabled);
 }
 
 /// Pushes every persisted setting into its runtime StateProvider. These
@@ -220,7 +221,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       passthrough: prefs.audioPassthrough, tunneling: prefs.tunneledPlayback);
   ref.read(mediaNotificationEnabledProvider.notifier).state =
       prefs.mediaNotificationEnabled;
-  nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
+  if (!kIsWeb) nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
   ref.read(fullResImagesProvider.notifier).state = prefs.fullResImages;
   ImageQuality.applyCacheBudget(prefs.fullResImages);

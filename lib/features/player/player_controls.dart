@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -350,6 +351,20 @@ class _ControlsLayout extends StatelessWidget {
             ),
           ),
         ),
+        // A remote has its own Back key; a browser or desktop window doesn't.
+        if (kIsWeb)
+          Positioned(
+            top: m.tvEdge * 0.6,
+            left: m.tvEdge,
+            child: PlayerButton(
+              icon: Icons.arrow_back_rounded,
+              tooltip: 'Back',
+              onTap: onBack,
+              focusNode: backFocusNode,
+              size: m.actionSize,
+              style: PlayerButtonStyle.tonal,
+            ),
+          ),
         Positioned(
           top: m.tvEdge * 0.6,
           right: m.tvEdge,

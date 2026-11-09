@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
@@ -43,7 +44,7 @@ void main() {
   Future<AppPreferences> prefsWith({required bool biometricOn}) async {
     SharedPreferences.setMockInitialValues(
         {'admin_biometric_unlock': biometricOn});
-    return AppPreferences(await SharedPreferences.getInstance());
+    return AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
   }
 
   test('native results map to outcomes; anything unknown is an error', () {
@@ -61,7 +62,7 @@ void main() {
 
   test('off by default: no scan, the PIN is asked for', () async {
     SharedPreferences.setMockInitialValues({});
-    final prefs = AppPreferences(await SharedPreferences.getInstance());
+    final prefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
     final bio = _FakeBiometric(BiometricOutcome.success);
     expect(await unlockAdminWithBiometric(prefs, bio, 'Unlock "Adult"'),
         AdminScanResult.usePin);

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:xml/xml_events.dart';
 
@@ -30,8 +31,15 @@ class XmltvParser {
     bool inCategory = false;
     bool inEpisodeNum = false;
 
+    // A browser has no background isolate, so a guide of 100 MB+ is parsed
+    // on the page's own thread. Giving the event loop a turn every few
+    // thousand events keeps the page drawing and clickable meanwhile.
+    var events = 0;
     await for (final event
         in chunks.toXmlEvents().normalizeEvents().flatten()) {
+      if (kIsWeb && ++events % 4000 == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
       if (event is XmlStartElementEvent) {
         switch (event.name) {
           case 'programme':

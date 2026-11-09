@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
@@ -277,7 +278,13 @@ class _VideoSurfaceState extends State<VideoSurface>
 
   @override
   Widget build(BuildContext context) {
-    final texture = Texture(textureId: widget.textureId);
+    // On web the picture is an HTML <video> element (driven by hls.js /
+    // mpegts.js); the texture id doubles as this engine's view id. On native
+    // it's the usual GPU texture from ExoPlayer.
+    final Widget picture = kIsWeb
+        ? HtmlElementView(
+            viewType: 'openiptv-web-video-${widget.textureId}')
+        : Texture(textureId: widget.textureId);
     final ar = _aspectRatio;
     // Size unknown (no frame yet, or a new stream opening): nothing to show.
     if (ar == null) {
@@ -336,7 +343,7 @@ class _VideoSurfaceState extends State<VideoSurface>
         );
       });
     }
-    final fitted = Center(child: AspectRatio(aspectRatio: ar, child: texture));
+    final fitted = Center(child: AspectRatio(aspectRatio: ar, child: picture));
     return LayoutBuilder(builder: (context, c) {
       final screenAr = c.maxWidth / c.maxHeight;
       // Scale that makes the fitted picture cover the whole screen.

@@ -7,6 +7,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/open.dart';
@@ -85,7 +86,7 @@ void main() {
       xtreamPassword: 'p',
       liveFormat: 'hls',
     ));
-    final prefs = AppPreferences(await SharedPreferences.getInstance());
+    final prefs = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
     final backup = await BackupManager(db: db, prefs: prefs).exportAll();
 
     final other = AppDatabase(NativeDatabase.memory());

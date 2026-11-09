@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_iptv/core/storage/prefs_store.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
@@ -26,7 +27,7 @@ void main() {
   group('isLockedContent', () {
     Future<AppPreferences> prefs({bool on = true}) async {
       SharedPreferences.setMockInitialValues({});
-      final p = AppPreferences(await SharedPreferences.getInstance());
+      final p = AppPreferences(PrefsStore(await SharedPreferences.getInstance()));
       await p.setParentalProtectionEnabled(on);
       await p.setParentalLockedCategories(['Sports']);
       return p;

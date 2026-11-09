@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
@@ -19,6 +18,7 @@ import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/marquee_text.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/net_image.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 const _favorites = '\u0000favorites';
@@ -319,7 +319,7 @@ class _ChannelRow extends ConsumerWidget {
                     ),
                     child: logo == null || logo.isEmpty
                         ? const Icon(Icons.tv_rounded, color: Colors.white54)
-                        : CachedNetworkImage(
+                        : NetImage(
                             imageUrl: logo,
                             cacheManager: ImageCacheManager(),
                             fit: BoxFit.contain,
