@@ -30,6 +30,7 @@ import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/core/services/video_layer_mode.dart';
+import 'package:open_iptv/features/player/player_screen.dart' show PlayerScreen;
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 
 // ---------------------------------------------------------------------------
@@ -514,7 +515,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   @override
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(allChannelsProvider);
-    return Scaffold(
+    final scaffold = Scaffold(
       body: channelsAsync.when(
         loading: () => const SkeletonList(leadingSize: 28),
         error: (e, _) => ErrorStateView(
@@ -524,7 +525,29 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         data: _buildGuide,
       ),
     );
+    if (!(kIsWeb && videoLayerActive)) return scaffold;
+    // In a browser, channel logos can be HTML image elements, and those split
+    // the page's drawing into layers: the full-screen player's see-through
+    // hole then can't clear the guide drawn underneath, and the guide shows
+    // over the video. So the guide steps aside while a player is open; its
+    // state is kept, and it comes back when the player closes.
+    return ValueListenableBuilder<int>(
+      valueListenable: PlayerScreen.openNotifier,
+      builder: (context, open, child) {
+        final hidden = open > 0;
+        if (_wasHidden && !hidden) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) TvGuideScreen.requestGridFocus?.call();
+          });
+        }
+        _wasHidden = hidden;
+        return Visibility(visible: !hidden, maintainState: true, child: child!);
+      },
+      child: scaffold,
+    );
   }
+
+  bool _wasHidden = false;
 
   Widget _buildGuide(List<Channel> all) {
     _pane.channels = all;

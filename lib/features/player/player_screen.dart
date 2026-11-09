@@ -77,6 +77,14 @@ class PlayerScreen extends ConsumerStatefulWidget {
   /// above zero, something is being watched — e.g. the update prompt waits.
   static int openCount = 0;
 
+  /// Mirrors [openCount] for widgets that need to react to a player opening
+  /// or closing (the browser guide hides itself under a full-screen player).
+  static final ValueNotifier<int> openNotifier = ValueNotifier(0);
+  static void _announceOpen() {
+    // Not while the widget tree is locked (dispose runs inside a build).
+    Future.microtask(() => openNotifier.value = openCount);
+  }
+
   @override
   ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
 }
@@ -269,6 +277,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void initState() {
     PlayerScreen.openCount++;
+    PlayerScreen._announceOpen();
     super.initState();
     _profileId = ref.read(activeProfileIdProvider);
     ref.listenManual<int>(homeLeaveProvider, (_, __) => _onHomePressed());
@@ -885,6 +894,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     PlayerScreen.openCount--;
+    PlayerScreen._announceOpen();
     _hideTimer?.cancel();
     _watchdogTimer?.cancel();
     _stateSub?.cancel();
