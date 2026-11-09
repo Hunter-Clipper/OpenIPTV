@@ -310,6 +310,11 @@ class NativeVideoPlayer {
     } catch (_) {}
   }
 
+  /// Browser only: draws the picture over (true) or behind (false) the app.
+  static void setVideoLayerOnTop(int textureId, bool top) {
+    if (kIsWeb) web.WebPlaybackEngine.setLayerOnTop(textureId, top);
+  }
+
   /// Multi-view starting / ending: both features pause while it is on.
   static Future<void> setMultiViewActive(bool active) async {
     try {

@@ -97,6 +97,7 @@ class _VideoSurfaceState extends State<VideoSurface>
     _subscribe();
     if (widget.useLayer) {
       _layerUsers.add(this);
+      if (kIsWeb) videoZoomProgress.addListener(_onZoomForWeb);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // Two settled frames, then zoom.
@@ -105,6 +106,13 @@ class _VideoSurfaceState extends State<VideoSurface>
         });
       });
     }
+  }
+
+  // Browser: the picture rides over the app while it zooms.
+  void _onZoomForWeb() {
+    if (!mounted) return;
+    NativeVideoPlayer.setVideoLayerOnTop(
+        widget.textureId, videoZoomProgress.value < 1);
   }
 
   @override
@@ -150,6 +158,9 @@ class _VideoSurfaceState extends State<VideoSurface>
   @override
   void dispose() {
     _routeAnim?.removeStatusListener(_routeStatus);
+    if (kIsWeb && widget.useLayer) {
+      videoZoomProgress.removeListener(_onZoomForWeb);
+    }
     if (widget.useLayer) {
       // Whatever was fading with this picture is settled (or gone).
       WidgetsBinding.instance.addPostFrameCallback((_) {

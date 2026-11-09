@@ -111,6 +111,16 @@ class WebPlaybackEngine {
   static void setLayer(int id, List<int>? rect) =>
       _engines[id]?._setLayer(rect);
 
+  /// While the picture zooms between the pane and full screen it is drawn
+  /// over the app, so nothing of the guide (which may be drawn in separate
+  /// layers) can hide it. When settled it goes back behind the app, so the
+  /// controls are drawn over it.
+  static void setLayerOnTop(int id, bool top) {
+    final e = _engines[id];
+    if (e == null || !e._inLayer) return;
+    e.video.style.zIndex = top ? '5' : '0';
+  }
+
   bool _inLayer = false;
 
   void _setLayer(List<int>? rect) {

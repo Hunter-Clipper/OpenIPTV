@@ -44,6 +44,7 @@ class WebSnapshot {
 
 class WebPlaybackEngine {
   static void setLayer(int id, List<int>? rect) {}
+  static void setLayerOnTop(int id, bool top) {}
 
   WebPlaybackEngine({required void Function(WebSnapshot) onState}) {
     throw UnsupportedError('WebPlaybackEngine is web-only');
