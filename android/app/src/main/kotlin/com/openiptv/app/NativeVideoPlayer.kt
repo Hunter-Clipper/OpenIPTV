@@ -46,6 +46,10 @@ import io.flutter.view.TextureRegistry
  * with Flutter (including PiP) since it's just a GPU texture, no view
  * hierarchy overlay.
  */
+// Live buffer of an extra multi-view tile (#164), milliseconds.
+private const val TILE_MIN_BUFFER_MS = 8_000
+private const val TILE_MAX_BUFFER_MS = 15_000
+
 class NativeVideoPlayer(
     context: Context,
     private val texture: TextureRegistry.SurfaceTextureEntry,
@@ -225,6 +229,15 @@ class NativeVideoPlayer(
 
     private fun applyAudible(player: ExoPlayer, on: Boolean) {
         player.volume = if (on) 1f else 0f
+        // A muted multi-view tile doesn't decode or play its sound at all
+        // (#164): less CPU and no audio output per tile. The heard tile
+        // switches it back on.
+        if (isMultiViewTile()) {
+            player.trackSelectionParameters = player.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !on)
+                .build()
+        }
         // Declared as media audio and holding audio focus, like any
         // media app: Android Auto only opens the car's media audio
         // channel for the app that holds focus (without it the car
@@ -255,10 +268,21 @@ class NativeVideoPlayer(
                 2_000,
             )
         }
+        // Multi-view tiles (#164): several players at once, so each keeps a
+        // short live buffer (a few seconds is plenty for live TV) instead of
+        // up to 50 s of video apiece on a TV with 2 GB. "Smooth" is the
+        // user's choice of a bigger cushion, so it is left alone.
+        val tile = isMultiViewTile() && preset != "smooth"
         return DefaultLoadControl.Builder()
-            .setBufferDurationsMs(minMs, maxMs, startMs, rebufferMs)
+            .setBufferDurationsMs(
+                if (tile) minOf(minMs, TILE_MIN_BUFFER_MS) else minMs,
+                if (tile) minOf(maxMs, TILE_MAX_BUFFER_MS) else maxMs,
+                startMs, rebufferMs)
             .build()
     }
+
+    // An extra multi-view tile: not the main player (which owns audio focus).
+    private fun isMultiViewTile() = !ownsFocus && OutputModes.multiViewActive
 
     /** Rebuilds the player with [preset]'s buffer / the wanted output if either differs. */
     private fun applyBufferPreset(preset: String, force: Boolean = false) {

@@ -6,6 +6,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased (0.14.99)
 
 **Improved**
+- Multi-view uses less memory on TVs: extra tiles now keep a few seconds of live buffer instead of up to 50, and a tile you aren't listening to no longer decodes its sound at all.
 - Multi-view: the tiles you aren't listening to are no longer dimmed, and the little speaker icon is gone. The white box around a tile already shows which channel has the sound.
 
 **Fixed**
