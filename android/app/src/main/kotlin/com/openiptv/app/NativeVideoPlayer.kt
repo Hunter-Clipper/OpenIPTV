@@ -88,6 +88,9 @@ class NativeVideoPlayer(
     // Multi-view (#52) moves it between tiles; the TV guide preview starts
     // without it.
     private var audible = audioFocus
+    // True while multi-view has this player's audio track switched off.
+    // Declared before the player is built: the first applyAudible runs then.
+    private var audioSwitchedOff = false
     // Only the app's main player ever holds audio focus. Multi-view's other
     // tiles are made audible by volume alone: with several players asking
     // for focus, a late request from one tile took it from the audible one,
@@ -231,8 +234,10 @@ class NativeVideoPlayer(
         player.volume = if (on) 1f else 0f
         // A muted multi-view tile doesn't decode or play its sound at all
         // (#164): less CPU and no audio output per tile. The heard tile
-        // switches it back on.
-        if (isMultiViewTile()) {
+        // switches it back on, and so does leaving multi-view (the flag is
+        // checked first: multi-view is already off by then).
+        if (isMultiViewTile() || OutputModes.multiViewActive || audioSwitchedOff) {
+            audioSwitchedOff = !on
             player.trackSelectionParameters = player.trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !on)
