@@ -768,10 +768,12 @@ class _LiveControls extends ConsumerWidget {
     );
     // LIVE badge is always focusable on TV so D-pad users can reach it
     // and jump back to live at any time.
-    final liveBadge = TvFocusable(
-      onTap: onGoLive ?? () {},
-      borderRadius: BorderRadius.circular(16),
-      child: _LiveChip(isBehindLive: isBehindLive),
+    final liveBadge = PlayerHoverGuard(
+      child: TvFocusable(
+        onTap: onGoLive ?? () {},
+        borderRadius: BorderRadius.circular(16),
+        child: _LiveChip(isBehindLive: isBehindLive),
+      ),
     );
 
     final transport = onPlayPause == null
@@ -1035,7 +1037,8 @@ class _VodControls extends ConsumerWidget {
       bottom: _BottomPanel(
         title: title,
         transport: m.tv ? transport : null,
-        bar: SizedBox(
+        bar: PlayerHoverGuard(
+         child: SizedBox(
           height: m.tv ? 20 : 28 * m.scale,
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
@@ -1058,14 +1061,17 @@ class _VodControls extends ConsumerWidget {
               onChangeEnd: onSeekEnd,
             ),
           ),
+         ),
         ),
         meta: Row(
           children: [
             if (onGoLive != null) ...[
-              TvFocusable(
-                onTap: onGoLive!,
-                borderRadius: BorderRadius.circular(16),
-                child: const _LiveChip(isBehindLive: true),
+              PlayerHoverGuard(
+                child: TvFocusable(
+                  onTap: onGoLive!,
+                  borderRadius: BorderRadius.circular(16),
+                  child: const _LiveChip(isBehindLive: true),
+                ),
               ),
               SizedBox(width: 12 * m.scale),
             ],

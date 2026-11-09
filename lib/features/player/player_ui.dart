@@ -53,6 +53,48 @@ enum PlayerButtonStyle {
 }
 
 /// Round, D-pad-focusable player button with a touch ripple.
+/// How many clickable player controls the mouse is over right now. While it
+/// is above zero the controls stay up (browser and desktop app).
+final ValueNotifier<int> playerControlsHover = ValueNotifier(0);
+
+/// Wraps a clickable control so the player knows the mouse is on it.
+class PlayerHoverGuard extends StatefulWidget {
+  const PlayerHoverGuard({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<PlayerHoverGuard> createState() => _PlayerHoverGuardState();
+}
+
+class _PlayerHoverGuardState extends State<PlayerHoverGuard> {
+  bool _over = false;
+
+  void _set(bool over) {
+    if (over == _over) return;
+    _over = over;
+    playerControlsHover.value += over ? 1 : -1;
+  }
+
+  @override
+  void dispose() {
+    // Defer: a control can go away under the mouse while the tree is locked.
+    if (_over) {
+      _over = false;
+      Future.microtask(() {
+        if (playerControlsHover.value > 0) playerControlsHover.value -= 1;
+      });
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+        onEnter: (_) => _set(true),
+        onExit: (_) => _set(false),
+        child: widget.child,
+      );
+}
+
 class PlayerButton extends StatefulWidget {
   const PlayerButton({
     super.key,
@@ -112,7 +154,8 @@ class _PlayerButtonState extends State<PlayerButton> {
       fg = widget.dimmed ? Colors.white38 : Colors.white;
     }
 
-    return TvFocusable(
+    return PlayerHoverGuard(
+        child: TvFocusable(
       onTap: widget.onTap,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
@@ -143,7 +186,7 @@ class _PlayerButtonState extends State<PlayerButton> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

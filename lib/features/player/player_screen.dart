@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1243,6 +1244,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
+      // The mouse is resting on a button or the seek bar: keep the controls.
+      if (kIsWeb && playerControlsHover.value > 0) {
+        _resetHideTimer();
+        return;
+      }
       // A sheet or the channel list is open on top: hiding now would pull
       // focus out of it (the TV remote would lose its place). Wait.
       if (ModalRoute.of(context)?.isCurrent == false) {
@@ -1281,7 +1287,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!_playbackGaveUp) _rootFocusNode.requestFocus();
   }
 
+  // Browser and desktop app: a mouse moving anywhere in the window brings
+  // the controls up; they stay while it rests on a button or the seek bar
+  // and go after the usual timeout once it is still elsewhere. A mouse click
+  // never hides them (touch still toggles).
+  PointerDeviceKind _lastPointer = PointerDeviceKind.touch;
+
+  Widget _wrapMouse(Widget child) {
+    if (!kIsWeb) return child;
+    return MouseRegion(
+      cursor: _controlsVisible
+          ? MouseCursor.defer
+          : SystemMouseCursors.none,
+      onHover: (_) => _revealForMouse(),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          _lastPointer = e.kind;
+          if (e.kind == PointerDeviceKind.mouse) _revealForMouse();
+        },
+        child: child,
+      ),
+    );
+  }
+
+  void _revealForMouse() {
+    if (!_controlsVisible) setState(() => _controlsVisible = true);
+    // No focus grab here: the mouse has no use for the play button's focus.
+    _resetHideTimer();
+  }
+
   void _onTap() {
+    if (kIsWeb && _lastPointer == PointerDeviceKind.mouse) {
+      _revealForMouse();
+      return;
+    }
     if (_controlsVisible) {
       _hideTimer?.cancel();
       _hideControls();
@@ -1394,7 +1434,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           // which Up/Down change channel.
           skipTraversal: true,
           onKeyEvent: _handleKeyEvent,
-          child: Semantics(
+          child: _wrapMouse(Semantics(
             button: true,
             label: 'Video',
             hint: 'Double tap to show or hide the playback controls',
@@ -1590,7 +1630,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ),
               ],
             ),
-          )),
+          ))),
         ),
       ),
     );
