@@ -541,13 +541,32 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           });
         }
         _wasHidden = hidden;
-        return Visibility(visible: !hidden, maintainState: true, child: child!);
+        // It fades out with the zoom instead of cutting away, and only then
+        // leaves the tree's painting (so no image elements remain under it).
+        if (!hidden) _guideGone = false;
+        if (hidden && reduceMotion) _guideGone = true;
+        return Visibility(
+          visible: !_guideGone,
+          maintainState: true,
+          child: AnimatedOpacity(
+            opacity: hidden ? 0 : 1,
+            duration: motionDuration(TvGuideScreen.shiftDuration * 1.3),
+            curve: Curves.easeInOut,
+            onEnd: () {
+              if (mounted && PlayerScreen.openNotifier.value > 0) {
+                setState(() => _guideGone = true);
+              }
+            },
+            child: child!,
+          ),
+        );
       },
       child: scaffold,
     );
   }
 
   bool _wasHidden = false;
+  bool _guideGone = false;
 
   Widget _buildGuide(List<Channel> all) {
     _pane.channels = all;
