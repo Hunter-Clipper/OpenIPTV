@@ -47,6 +47,9 @@ void main() async {
   if (!kIsWeb && PlatformHelper.isTVDevice) {
     videoLayerActive = await resolveVideoLayerActive();
   }
+  // Computers (the big-screen layout) keep the picture in the page behind
+  // the app, so opening and closing full screen never touches the stream.
+  if (kIsWeb) videoLayerActive = PlatformHelper.isTVDevice;
   if (!kIsWeb && !PlatformHelper.isTVDevice) {
     unawaited(
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));

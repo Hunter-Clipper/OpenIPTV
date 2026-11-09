@@ -86,6 +86,7 @@ class WebPlaybackEngine {
       // Mouse and touch go to the player screen (controls, click, hover),
       // not to the video element.
       ..style.pointerEvents = 'none';
+    _engines[webId] = this;
     _wireEvents();
     // Render this element inside a Flutter HtmlElementView. Each engine gets a
     // unique viewType, which the surface rebuilds from the player's textureId.
@@ -97,6 +98,47 @@ class WebPlaybackEngine {
   /// uses `HtmlElementView(viewType)` to show this engine's <video>.
   late final int webId = _viewCounter++;
   late final String viewType = 'openiptv-web-video-$webId';
+
+  // ---- video layer (computers) --------------------------------------------
+  // On a computer the picture is not drawn inside Flutter's canvas (an HTML
+  // view that is re-parented every time a screen opens or closes, which
+  // pauses and reloads the stream). The <video> stays put in the page, behind
+  // the app, and is moved and sized to the rectangle Flutter leaves see-
+  // through: the same "video layer" the TV version uses, so the guide's pane
+  // can zoom to full screen and back without touching the stream.
+  static final Map<int, WebPlaybackEngine> _engines = {};
+
+  static void setLayer(int id, List<int>? rect) =>
+      _engines[id]?._setLayer(rect);
+
+  bool _inLayer = false;
+
+  void _setLayer(List<int>? rect) {
+    final s = video.style;
+    if (rect == null) {
+      s.visibility = 'hidden';
+      return;
+    }
+    if (!_inLayer) {
+      _inLayer = true;
+      final body = html.document.body!;
+      // First child: painted before Flutter's view, which sits on top.
+      body.insertBefore(video, body.firstChild);
+      s
+        ..position = 'fixed'
+        ..zIndex = '0'
+        ..objectFit = 'fill'
+        ..pointerEvents = 'none'
+        ..background = 'transparent';
+    }
+    final dpr = html.window.devicePixelRatio;
+    s
+      ..left = '${rect[0] / dpr}px'
+      ..top = '${rect[1] / dpr}px'
+      ..width = '${rect[2] / dpr}px'
+      ..height = '${rect[3] / dpr}px'
+      ..visibility = 'visible';
+  }
 
   late final html.VideoElement video;
   final void Function(WebSnapshot) onState;
@@ -414,6 +456,8 @@ class WebPlaybackEngine {
   }
 
   Future<void> dispose() async {
+    _engines.remove(webId);
+    if (_inLayer) video.remove();
     _poll?.cancel();
     _poll = null;
     _removals?.disconnect();

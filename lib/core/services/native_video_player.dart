@@ -300,6 +300,10 @@ class NativeVideoPlayer {
   /// Shows the video on the real video layer behind Flutter (#162) at
   /// [rect] (left, top, width, height in pixels), or hides it with null.
   static Future<void> setVideoLayer(int textureId, List<int>? rect) async {
+    if (kIsWeb) {
+      web.WebPlaybackEngine.setLayer(textureId, rect);
+      return;
+    }
     try {
       await _control
           .invokeMethod('setVideoLayer', {'id': textureId, 'rect': rect});
