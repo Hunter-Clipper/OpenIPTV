@@ -21,6 +21,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/smooth_wheel.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 void main() async {
@@ -34,6 +35,8 @@ void main() async {
   // Optional anonymous crash reports (#150); records nothing unless the user
   // turned them on.
   Telemetry.install();
+  // Mouse-wheel notches ease instead of jumping (browser and desktop app).
+  if (kIsWeb) SmoothWheel.install();
   // Increase image cache to handle large libraries (Movies/Series/Live TV).
   PaintingBinding.instance.imageCache.maximumSize = 2000;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 200 * 1024 * 1024; // 200MB
