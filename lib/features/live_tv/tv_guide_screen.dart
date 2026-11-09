@@ -146,6 +146,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // A mouse over the narrow category column opens it again (no remote to
   // press Left with).
   bool _hoverCategories = false;
+  // The last mouse / trackpad / wheel event anywhere in the guide.
+  DateTime _lastPointerAt = DateTime.fromMillisecondsSinceEpoch(0);
+  void _onPointer(PointerEvent _) => _lastPointerAt = DateTime.now();
   // The category list is lazy: a category scrolled out of sight has no
   // widget, so its focus node isn't attached and requestFocus does nothing.
   final _categoryScroll = ScrollController();
@@ -182,6 +185,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     TvGuideScreen.resumeFullScreen = _resumeFullScreen;
     _pane.onCatchupEnded = _continueAfterCatchup;
     _gridNode.addListener(_syncCollapsed);
+    reduceAnimationsSetting.addListener(_onReduceChanged);
     _columnNode.addListener(_syncCollapsed);
     final now = DateTime.now();
     // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
@@ -198,6 +202,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  void _onReduceChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _syncCollapsed() {
     // A dialog or sheet (start over / live) takes focus off the grid: keep
     // the layout as it is instead of expanding the rail and categories.
@@ -209,13 +217,24 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (FocusManager.instance.primaryFocus == null) return;
     final inGrid = _gridNode.hasFocus;
     TvGuideScreen.railCompact.value = inGrid || _columnNode.hasFocus;
-    final collapsed = kIsWeb ? !_columnNode.hasFocus : inGrid;
+    var collapsed = kIsWeb ? !_columnNode.hasFocus : inGrid;
+    // Scrolling the channels can drop focus from a row that left the screen
+    // and hand it back to the category last clicked. With a mouse or
+    // trackpad that is not a request to open the categories.
+    if (kIsWeb &&
+        !collapsed &&
+        !_hoverCategories &&
+        DateTime.now().difference(_lastPointerAt) <
+            const Duration(milliseconds: 800)) {
+      collapsed = true;
+    }
     if (collapsed != _collapsed && mounted) setState(() => _collapsed = collapsed);
   }
 
   @override
   void dispose() {
     _gridNode.removeListener(_syncCollapsed);
+    reduceAnimationsSetting.removeListener(_onReduceChanged);
     _columnNode.removeListener(_syncCollapsed);
     TvGuideScreen.requestCategoryFocus = null;
     WidgetsBinding.instance.addPostFrameCallback(
@@ -579,12 +598,19 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     // The grid is laid out once at its final width and only revealed by the
     // shrinking column (clip), so the shift never re-lays-out every row on
     // every frame — that was what dropped it below 30 fps on the TV.
-    final collapsed = _collapsed && !_hoverCategories;
+    final collapsed =
+        _collapsed && !_hoverCategories && !reduceAnimationsSetting.value;
     final gridWidth = math.max(
         0.0,
         outer.maxWidth -
             (collapsed ? _categoryWidthCollapsed : _categoryWidth));
-    return Row(
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _onPointer,
+      onPointerMove: _onPointer,
+      onPointerSignal: _onPointer,
+      onPointerPanZoomUpdate: _onPointer,
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ---- Category column ----
@@ -704,6 +730,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
           ),
         ),
       ],
+    ),
     );
     });
   }

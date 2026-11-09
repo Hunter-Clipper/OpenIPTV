@@ -944,7 +944,11 @@ class _TvNavRailState extends State<_TvNavRail> {
        child: ValueListenableBuilder<bool>(
        valueListenable: TvGuideScreen.railCompact,
        builder: (context, narrow, _) {
-        final compact = (narrow || kIsWeb) && !_hover && !_focusIn;
+        return ValueListenableBuilder<bool>(
+        valueListenable: reduceAnimationsSetting,
+        builder: (context, reduced, _) {
+        final compact =
+            (narrow || kIsWeb) && !_hover && !_focusIn && !reduced;
         return AnimatedContainer(
         duration: motionDuration(TvGuideScreen.shiftDuration),
         curve: TvGuideScreen.shiftCurve,
@@ -985,6 +989,8 @@ class _TvNavRailState extends State<_TvNavRail> {
             ],
           ),
         ),
+        );
+        },
         );
        },
        ),

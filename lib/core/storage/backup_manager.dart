@@ -464,6 +464,13 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'reduceAnimations',
+      encode: (p) => p.reduceAnimations,
+      decode: (p, v) async {
+        if (v is bool) await p.setReduceAnimations(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'fullResImages',
       encode: (p) => p.fullResImages,
       decode: (p, v) async {

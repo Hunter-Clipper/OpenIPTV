@@ -10,6 +10,7 @@ import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -375,6 +376,27 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 }),
               ),
+              if (kIsWeb)
+                InfoTooltip(
+                  id: 'settings_reduce_animations',
+                  title: 'Reduce Animations',
+                  body: 'Stops the screens from sliding and fading, and keeps '
+                      'the menu bar and the Live TV categories open instead of '
+                      'folding away and reopening on their own.',
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: reduceAnimationsSetting,
+                    builder: (context, on, _) => _ToggleTile(
+                      icon: Icons.motion_photos_off_outlined,
+                      title: 'Reduce Animations',
+                      value: on,
+                      onChanged: (v) async {
+                        final prefs =
+                            await ref.read(appPreferencesProvider.future);
+                        await setReduceAnimations(v, prefs);
+                      },
+                    ),
+                  ),
+                ),
               if (isAdmin)
                 InfoTooltip(
                   id: 'settings_hidden_cats',

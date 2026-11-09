@@ -3,8 +3,15 @@ import 'package:flutter/widgets.dart';
 
 /// True when the system asks for no animations (Android's "Remove
 /// animations", Settings → Accessibility). Safe to read in `initState`.
-bool get reduceMotion => WidgetsBinding
-    .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+bool get reduceMotion =>
+    reduceAnimationsSetting.value ||
+    WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+
+/// Settings → Reduce Animations (browser and desktop app). On: no motion,
+/// and the navigation bar and the guide's categories stay open instead of
+/// folding away and reopening by themselves.
+final ValueNotifier<bool> reduceAnimationsSetting = ValueNotifier(false);
 
 /// Starts an endless decorative loop, unless motion is reduced — then the
 /// controller stays at its first frame, so the widget shows a still state.

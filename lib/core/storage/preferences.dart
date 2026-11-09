@@ -33,6 +33,7 @@ const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
+const _kReduceAnimations = 'reduce_animations'; // browser / desktop
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kFullResImages = 'full_res_images'; // Power User Tools
 const _kAudioPassthrough = 'audio_passthrough'; // auto | on | off (#159)
@@ -167,6 +168,10 @@ class AppPreferences {
 
   /// Catch-up channels: ask "Start from the beginning or Watch live?" when
   /// opening a show that's already underway.
+  bool get reduceAnimations => _prefs.getBool(_kReduceAnimations) ?? false;
+  Future<void> setReduceAnimations(bool v) =>
+      _prefs.setBool(_kReduceAnimations, v);
+
   bool get askStartOver => _prefs.getBool(_kAskStartOver) ?? true;
   Future<void> setAskStartOver(bool v) => _prefs.setBool(_kAskStartOver, v);
 

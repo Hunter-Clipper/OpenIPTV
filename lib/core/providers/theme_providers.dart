@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
+import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
@@ -108,6 +109,11 @@ Future<void> setFullResImages(
   ref.read(fullResImagesProvider.notifier).state = enabled;
   ImageQuality.applyCacheBudget(enabled);
   await prefs.setFullResImages(enabled);
+}
+
+Future<void> setReduceAnimations(bool enabled, AppPreferences prefs) async {
+  reduceAnimationsSetting.value = enabled;
+  await prefs.setReduceAnimations(enabled);
 }
 
 Future<void> setCleanNames(
@@ -223,6 +229,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       prefs.mediaNotificationEnabled;
   if (!kIsWeb) nowPlayingHandler.setEnabled(prefs.mediaNotificationEnabled);
   ref.read(cleanNamesProvider.notifier).state = prefs.cleanNames;
+  reduceAnimationsSetting.value = prefs.reduceAnimations;
   ref.read(fullResImagesProvider.notifier).state = prefs.fullResImages;
   ImageQuality.applyCacheBudget(prefs.fullResImages);
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
