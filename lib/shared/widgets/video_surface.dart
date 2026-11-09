@@ -77,7 +77,7 @@ class _VideoSurfaceState extends State<VideoSurface>
   double _lastScale = 1;
   double? _lastAr;
   double? _aspectRatio;
-  StreamSubscription<VideoPlayerState>? _sub;
+  StreamSubscription<NativeVideoPlayerState>? _sub;
   // The route's open/close animation, when this picture sits on a route
   // that opens over another layer user (the guide's pane): the picture then
   // grows from the pane's rectangle to full screen, and shrinks back.
