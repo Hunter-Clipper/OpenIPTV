@@ -109,10 +109,27 @@ class _VideoSurfaceState extends State<VideoSurface>
   }
 
   // Browser: the picture rides over the app while it zooms.
+  static Timer? _behindTimer;
+
   void _onZoomForWeb() {
     if (!mounted) return;
-    NativeVideoPlayer.setVideoLayerOnTop(
-        widget.textureId, videoZoomProgress.value < 1);
+    _behindTimer?.cancel();
+    final id = widget.textureId;
+    if (videoZoomProgress.value < 1) {
+      NativeVideoPlayer.setVideoLayerOnTop(id, true);
+    } else if (_layerUsers.length > 1) {
+      // Full screen has settled: behind the app, so the controls draw over it.
+      NativeVideoPlayer.setVideoLayerOnTop(id, false);
+    } else {
+      // Back in the pane: the guide returns (with the pane's see-through
+      // hole) a moment after the player closes. Going behind before that
+      // would show the page's background for a few frames.
+      _behindTimer = Timer(const Duration(milliseconds: 400), () {
+        if (videoZoomProgress.value >= 1) {
+          NativeVideoPlayer.setVideoLayerOnTop(id, false);
+        }
+      });
+    }
   }
 
   @override
