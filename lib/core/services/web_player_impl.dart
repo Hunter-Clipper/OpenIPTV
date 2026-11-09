@@ -82,7 +82,10 @@ class WebPlaybackEngine {
       ..preload = 'auto'
       ..style.objectFit = 'contain'
       ..style.width = '100%'
-      ..style.height = '100%';
+      ..style.height = '100%'
+      // Mouse and touch go to the player screen (controls, click, hover),
+      // not to the video element.
+      ..style.pointerEvents = 'none';
     _wireEvents();
     // Render this element inside a Flutter HtmlElementView. Each engine gets a
     // unique viewType, which the surface rebuilds from the player's textureId.
