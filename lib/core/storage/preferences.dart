@@ -34,6 +34,10 @@ const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
 const _kPanelTimeoutSeconds = 'panel_timeout_seconds'; // player controls
 const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
+const _kSeekKeys = 'seek_keys'; // which remote keys seek in catch-up / movies
+const _kAudioDelayMs = 'audio_delay_ms'; // lip-sync shift
+const _kStreamDetails = 'stream_details'; // resolution/fps/audio badges
+const _kBlackOnSwitch = 'black_on_switch'; // black screen while changing channel
 const _kLastChannelOnStart = 'last_channel_on_start';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kFullResImages = 'full_res_images'; // Power User Tools
@@ -180,6 +184,19 @@ class AppPreferences {
   /// How far the player's skip back / forward buttons jump (5, 10 or 30).
   int get skipSeconds => _prefs.getInt(_kSkipSeconds) ?? 10;
   Future<void> setSkipSeconds(int v) => _prefs.setInt(_kSkipSeconds, v);
+
+  /// 'media' (rewind / fast-forward keys), 'leftRight' or 'upDown'.
+  String get seekKeys => _prefs.getString(_kSeekKeys) ?? 'media';
+  Future<void> setSeekKeys(String v) => _prefs.setString(_kSeekKeys, v);
+
+  int get audioDelayMs => _prefs.getInt(_kAudioDelayMs) ?? 0;
+  Future<void> setAudioDelayMs(int v) => _prefs.setInt(_kAudioDelayMs, v);
+
+  bool get streamDetails => _prefs.getBool(_kStreamDetails) ?? true;
+  Future<void> setStreamDetails(bool v) => _prefs.setBool(_kStreamDetails, v);
+
+  bool get blackOnSwitch => _prefs.getBool(_kBlackOnSwitch) ?? false;
+  Future<void> setBlackOnSwitch(bool v) => _prefs.setBool(_kBlackOnSwitch, v);
 
   /// Start the last watched channel when the app opens.
   bool get lastChannelOnStart => _prefs.getBool(_kLastChannelOnStart) ?? false;

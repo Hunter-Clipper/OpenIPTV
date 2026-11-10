@@ -111,6 +111,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _resumeDialogShown = false;
   // Start true so the overlay covers corrupt decoder warmup frames.
   bool _isBuffering = true;
+  // "Black screen while switching": covers the old picture the moment a
+  // channel change starts.
+  bool _switchCover = false;
   StreamSubscription<NativeVideoPlayerState>? _stateSub;
   StreamSubscription<NativePlaybackError>? _errorSub;
   StreamSubscription<String>? _noticeSub;
@@ -682,6 +685,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _playbackService.markTransitioning();
     _navigatingToNext = true;
     _watchdogTimer?.cancel();
+    if (ref.read(blackOnSwitchProvider)) setState(() => _switchCover = true);
     context.pushReplacement('/player', extra: {
       'streamUrl': next.streamUrl,
       'title': next.name,
@@ -792,6 +796,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             key == LogicalKeyboardKey.gameButtonA)) {
       _showControls();
       return KeyEventResult.handled;
+    }
+
+    // Seeking from the remote while the controls are hidden: the rewind /
+    // fast-forward keys always, plus the arrow pair chosen in Settings →
+    // Playback → Remote Seek Keys (catch-up and movies only: on live TV the
+    // arrows change channel and open the list).
+    if (node.hasPrimaryFocus && !_isPlainLive) {
+      final mode = ref.read(seekKeysProvider);
+      final back = key == LogicalKeyboardKey.mediaRewind ||
+          (mode == 'leftRight' && key == LogicalKeyboardKey.arrowLeft) ||
+          (mode == 'upDown' && key == LogicalKeyboardKey.arrowDown);
+      final forward = key == LogicalKeyboardKey.mediaFastForward ||
+          (mode == 'leftRight' && key == LogicalKeyboardKey.arrowRight) ||
+          (mode == 'upDown' && key == LogicalKeyboardKey.arrowUp);
+      if (back || forward) {
+        final step = Duration(seconds: ref.read(skipSecondsProvider));
+        unawaited(_playbackService.seekRelative(back ? -step : step));
+        return KeyEventResult.handled;
+      }
     }
 
     if (!_isChannelPlayback) return KeyEventResult.ignored;
@@ -1365,6 +1388,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               fit: StackFit.expand,
               children: [
                 _buildVideoSurface(),
+                if (_switchCover) const ColoredBox(color: Colors.black),
                 // Everything but the picture fades in with the zoom out of
                 // the guide's pane (#162).
                 ZoomFade(

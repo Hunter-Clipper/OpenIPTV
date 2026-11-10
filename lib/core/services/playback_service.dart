@@ -70,7 +70,11 @@ class PlaybackService {
   // A failed create is not cached: the next call tries again (the engine
   // may simply not have been ready yet).
   Future<int> ensureTexture() => _createFuture ??= _player.create().then(
-        (id) => id,
+        (id) {
+          // A lip-sync shift set before the player existed.
+          if (audioDelayMs != 0) unawaited(_player.setAudioDelay(audioDelayMs));
+          return id;
+        },
         onError: (Object e, StackTrace s) {
           _createFuture = null;
           Error.throwWithStackTrace(e, s);
@@ -226,6 +230,16 @@ class PlaybackService {
 
   /// Playback speed of the current stream; reset to 1 by every [play].
   double get speed => _speed;
+  /// Lip-sync shift in milliseconds (see Settings → player menu).
+  int audioDelayMs = 0;
+  Future<void> setAudioDelay(int ms) async {
+    audioDelayMs = ms;
+    if (_createFuture != null) {
+      await ensureTexture();
+      await _player.setAudioDelay(ms);
+    }
+  }
+
   double _speed = 1;
   Future<void> setSpeed(double speed) {
     _speed = speed;

@@ -3,6 +3,14 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.100)
+
+**New**
+- **Stream details.** The quality chip in the player now also shows the picture size, frame rate and sound format, for example `HD · 1280×720 · 60 FPS · STEREO`. The player menu has a Stream details switch (Show / Hide).
+- **Audio delay.** If the sound doesn't line up with the picture, the player menu's Audio delay moves it earlier or later, from 0.5 seconds early to 1 second late. The choice is kept and included in backups. While a delay is set, surround sound passthrough and tunneled playback are switched off for that stream, because they can't be shifted; setting it back to None restores them.
+- **Black screen while changing channel.** An optional player menu setting (Changing channel → Black screen) covers the old picture the moment you switch channel, until the new one is ready.
+- **Remote Seek Keys.** Settings → Playback → Remote Seek Keys chooses what skips back and forward in catch-up and movies while the controls are hidden: the rewind / forward keys (always on), the Left / Right arrows, or the Up / Down arrows. It uses the Skip Buttons size.
+
 ## 0.14.99 — 2026-11-10
 
 **New**

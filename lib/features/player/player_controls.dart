@@ -88,6 +88,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   int _videoHeight = 0;
+  int _videoWidth = 0;
+  double _frameRate = 0;
+  int _audioChannels = 0;
+  String? _audioMime;
   List<NativeVideoTrack> _tracks = const [];
   bool _isSeeking = false;
   double _seekValue = 0;
@@ -99,10 +103,25 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   String? get _qualityLabel {
     final h = _videoHeight;
     if (h == 0) return null;
-    if (h >= 2160) return '4K';
-    if (h >= 1080) return 'FHD';
-    if (h >= 720) return 'HD';
-    return 'SD';
+    final String tier;
+    if (h >= 2160) {
+      tier = '4K';
+    } else if (h >= 1080) {
+      tier = 'FHD';
+    } else if (h >= 720) {
+      tier = 'HD';
+    } else {
+      tier = 'SD';
+    }
+    if (!ref.watch(streamDetailsProvider)) return tier;
+    return streamDetailsLabel(
+      tier: tier,
+      width: _videoWidth,
+      height: h,
+      frameRate: _frameRate,
+      audioChannels: _audioChannels,
+      audioMime: _audioMime,
+    );
   }
 
   @override
@@ -113,12 +132,20 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     _position = initial.position;
     _duration = initial.duration;
     _videoHeight = initial.videoHeight;
+    _videoWidth = initial.videoWidth;
+    _frameRate = initial.frameRate;
+    _audioChannels = initial.audioChannels;
+    _audioMime = initial.audioMime;
     _stateSub = service.stateStream.listen((s) {
       if (!mounted) return;
       setState(() {
         if (!_isSeeking) _position = s.position;
         _duration = s.duration;
         _videoHeight = s.videoHeight;
+        _videoWidth = s.videoWidth;
+        _frameRate = s.frameRate;
+        _audioChannels = s.audioChannels;
+        _audioMime = s.audioMime;
       });
     });
     _tracksSub = service.tracksStream.listen((t) {
@@ -1173,6 +1200,34 @@ class _LiveChip extends StatelessWidget {
   }
 }
 
+/// The text of the quality chip: `HD · 1280×720 · 60 FPS · 5.1`. Parts the
+/// stream doesn't report are left out.
+String streamDetailsLabel({
+  required String tier,
+  required int width,
+  required int height,
+  required double frameRate,
+  required int audioChannels,
+  String? audioMime,
+}) {
+  final parts = <String>[tier];
+  if (width > 0 && height > 0) parts.add('$width×$height');
+  if (frameRate >= 1) {
+    final r = frameRate.roundToDouble();
+    parts.add('${(frameRate - r).abs() < 0.05 ? r.toInt() : frameRate.toStringAsFixed(2)} FPS');
+  }
+  final audio = switch (audioChannels) {
+    0 => null,
+    1 => 'MONO',
+    2 => 'STEREO',
+    6 => '5.1',
+    8 => '7.1',
+    final n => '$n CH',
+  };
+  if (audio != null) parts.add(audio);
+  return parts.join(' · ');
+}
+
 class _QualityChip extends StatelessWidget {
   const _QualityChip({required this.label});
 
@@ -1182,7 +1237,7 @@ class _QualityChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
     return Semantics(
-      label: '${label}p resolution',
+      label: 'Stream details: $label',
       button: true,
       child: Container(
       padding: EdgeInsets.symmetric(

@@ -15,6 +15,9 @@ class NativeVideoPlayerState {
     required this.videoWidth,
     required this.videoHeight,
     this.pixelRatio = 1.0,
+    this.frameRate = 0,
+    this.audioChannels = 0,
+    this.audioMime,
   });
 
   final Duration position;
@@ -38,6 +41,15 @@ class NativeVideoPlayerState {
   final int videoHeight;
   // Pixel width/height ratio; 1.0 except for anamorphic content.
   final double pixelRatio;
+
+  /// Frames per second of the video, or 0 when the stream doesn't say.
+  final double frameRate;
+
+  /// Channel count of the playing audio (2 = stereo, 6 = 5.1), 0 if unknown.
+  final int audioChannels;
+
+  /// MIME type of the playing audio, e.g. `audio/ac3`.
+  final String? audioMime;
 
   bool get hasVideo => videoWidth > 0;
 
@@ -164,6 +176,9 @@ class NativeVideoPlayer {
             videoWidth: map['videoWidth'] as int? ?? 0,
             videoHeight: map['videoHeight'] as int? ?? 0,
             pixelRatio: (map['pixelRatio'] as num?)?.toDouble() ?? 1.0,
+            frameRate: (map['frameRate'] as num?)?.toDouble() ?? 0,
+            audioChannels: map['audioChannels'] as int? ?? 0,
+            audioMime: map['audioMime'] as String?,
           ));
       }
     });
@@ -256,6 +271,9 @@ class NativeVideoPlayer {
   /// focus, or muted without focus (multi-view's other tiles).
   Future<void> setAudible(bool on) =>
       _control.invokeMethod('setAudible', {'id': _textureId, 'on': on});
+  /// Moves the sound later (positive) or earlier (negative) than the picture.
+  Future<void> setAudioDelay(int ms) =>
+      _control.invokeMethod('setAudioDelay', {'id': _textureId, 'ms': ms});
   Future<void> setSpeed(double speed) => _control
       .invokeMethod('setSpeed', {'id': _textureId, 'speed': speed});
   Future<void> pause() => _control.invokeMethod('pause', {'id': _textureId});

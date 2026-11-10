@@ -180,6 +180,46 @@ class _PlayerSettingsSheetState extends ConsumerState<PlayerSettingsSheet> {
               await setPlayerClockAlways(ref, v, prefs);
             },
           ),
+          OptionRow<int>(
+            icon: Icons.sync_rounded,
+            label: 'Audio delay',
+            options: [
+              for (final ms in const [-500, -300, -200, -100, 0, 100, 200, 300, 500, 1000])
+                (ms, ms == 0 ? 'None' : '${ms > 0 ? '+' : '−'}${ms.abs()} ms'),
+            ],
+            selected: ref.watch(audioDelayProvider),
+            onSelected: (v) async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setAudioDelay(ref, v, prefs);
+            },
+          ),
+          OptionRow<bool>(
+            icon: Icons.info_outline_rounded,
+            label: 'Stream details',
+            options: const [
+              (true, 'Show'),
+              (false, 'Hide'),
+            ],
+            selected: ref.watch(streamDetailsProvider),
+            onSelected: (v) async {
+              final prefs = await ref.read(appPreferencesProvider.future);
+              await setStreamDetails(ref, v, prefs);
+            },
+          ),
+          if (widget.isLive)
+            OptionRow<bool>(
+              icon: Icons.tv_off_rounded,
+              label: 'Changing channel',
+              options: const [
+                (false, 'Normal'),
+                (true, 'Black screen'),
+              ],
+              selected: ref.watch(blackOnSwitchProvider),
+              onSelected: (v) async {
+                final prefs = await ref.read(appPreferencesProvider.future);
+                await setBlackOnSwitch(ref, v, prefs);
+              },
+            ),
           if (!widget.isLive)
             OptionRow<double>(
               icon: Icons.speed_rounded,

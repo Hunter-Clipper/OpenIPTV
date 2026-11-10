@@ -129,18 +129,21 @@ object OutputModes {
         speedIsNormal: Boolean,
         liveStream: Boolean,
         onLayer: Boolean = false,
+        audioDelayed: Boolean = false,
     ): Output {
         if (!mainPlayer || multiViewActive || onCarScreen) return Output.PLAIN
         // Tunneled catch-up / movies froze on the Chromecast (clock stuck
         // with data buffered), live streams were fine: live only.
         // Tunneled frames only show on a real video layer (#162).
-        val tunnel = onLayer && !tunnelingBroken && speedIsNormal && liveStream && when (tunneling) {
+        // A lip-sync shift needs the sound decoded by the app and not tunneled
+        // (neither a bitstream nor a tunnel passes through audio processors).
+        val tunnel = onLayer && !tunnelingBroken && speedIsNormal && !audioDelayed && liveStream && when (tunneling) {
             ON -> true
             AUTO -> isTelevision && autoTunnelingDevice()
             else -> false
         }
         val pass = when {
-            passthroughBroken || !speedIsNormal -> Pass.PCM
+            passthroughBroken || !speedIsNormal || audioDelayed -> Pass.PCM
             passthrough == ON -> Pass.FORCE
             passthrough == OFF -> Pass.PCM
             else -> Pass.DEVICE
@@ -160,15 +163,28 @@ object OutputModes {
     )
 
     /** ExoPlayer's renderers, with the audio sink set up for [pass]. */
-    class Factory(context: Context, private val pass: Pass) : DefaultRenderersFactory(context) {
+    class Factory(
+        context: Context,
+        private val pass: Pass,
+        private val delay: AudioDelayProcessor? = null,
+    ) : DefaultRenderersFactory(context) {
         override fun buildAudioSink(
             context: Context,
             enableFloatOutput: Boolean,
             enableAudioTrackPlaybackParams: Boolean,
         ): AudioSink? {
             val caps = when (pass) {
-                Pass.DEVICE -> return super.buildAudioSink(
-                    context, enableFloatOutput, enableAudioTrackPlaybackParams)
+                Pass.DEVICE -> {
+                    // Same sink as the stock one; only the lip-sync processor
+                    // is added (main player only).
+                    if (delay == null) return super.buildAudioSink(
+                        context, enableFloatOutput, enableAudioTrackPlaybackParams)
+                    return DefaultAudioSink.Builder(context)
+                        .setEnableFloatOutput(enableFloatOutput)
+                        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                        .setAudioProcessors(arrayOf(delay))
+                        .build()
+                }
                 Pass.PCM -> AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
                 Pass.FORCE -> AudioCapabilities(FORCED_ENCODINGS, 8)
             }
@@ -176,6 +192,7 @@ object OutputModes {
                 .setAudioCapabilities(caps)
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .apply { if (delay != null) setAudioProcessors(arrayOf(delay)) }
                 .build()
         }
     }

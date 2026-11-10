@@ -31,6 +31,10 @@ const _expectedBackupKeys = {
   'playerClockAlways',
   'panelTimeoutSeconds',
   'skipSeconds',
+  'audioDelayMs',
+  'seekKeys',
+  'streamDetails',
+  'blackOnSwitch',
   'lastChannelOnStart',
   'bufferPreset',
   'fullResImages',
@@ -114,6 +118,10 @@ void main() {
       await prefs.setPlayerClockAlways(true);
       await prefs.setPanelTimeoutSeconds(8);
       await prefs.setSkipSeconds(30);
+      await prefs.setAudioDelayMs(-200);
+      await prefs.setSeekKeys('upDown');
+      await prefs.setStreamDetails(false);
+      await prefs.setBlackOnSwitch(true);
       await prefs.setLastChannelOnStart(true);
       await prefs.setBufferPreset('large');
       await prefs.setFullResImages(false);
@@ -157,6 +165,10 @@ void main() {
       expect(prefs2.playerClockAlways, isTrue);
       expect(prefs2.panelTimeoutSeconds, 8);
       expect(prefs2.skipSeconds, 30);
+      expect(prefs2.audioDelayMs, -200);
+      expect(prefs2.seekKeys, 'upDown');
+      expect(prefs2.streamDetails, isFalse);
+      expect(prefs2.blackOnSwitch, isTrue);
       expect(prefs2.lastChannelOnStart, isTrue);
       expect(prefs2.bufferPreset, 'large');
       expect(prefs2.fullResImages, isFalse);

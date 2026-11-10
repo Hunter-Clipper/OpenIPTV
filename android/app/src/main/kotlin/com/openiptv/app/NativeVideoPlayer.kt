@@ -182,8 +182,26 @@ class NativeVideoPlayer(
         onCarScreen = carSurface != null,
         onLayer = layerSurface != null && output === layerSurface,
         speedIsNormal = speed == 1f,
+        audioDelayed = audioDelayMs != 0,
         liveStream = liveStream,
     )
+
+    // Lip-sync shift (Settings → player menu); only the heard player has one.
+    private val audioDelay: AudioDelayProcessor? = if (ownsFocus) AudioDelayProcessor() else null
+
+    private var audioDelayMs = 0
+
+    fun setAudioDelay(ms: Int) {
+        val wasDelayed = audioDelayMs != 0
+        audioDelayMs = ms
+        audioDelay?.setDelayMs(ms)
+        // Passthrough and tunneling skip audio processors: switch to plain
+        // output while a shift is set (and back when it returns to zero).
+        if (wasDelayed != (ms != 0)) refreshOutput()
+    }
+
+    private var cadenceListener: androidx.media3.exoplayer.video.VideoFrameMetadataListener? = null
+    private var frameProbe = FrameRateProbe()
 
     var exoPlayer: ExoPlayer = buildPlayer(context, bufferPreset, builtOutput)
         private set
@@ -193,7 +211,7 @@ class NativeVideoPlayer(
         selector.parameters = selector.buildUponParameters()
             .setTunnelingEnabled(out.tunneling)
             .build()
-        return ExoPlayer.Builder(context, OutputModes.Factory(context, out.passthrough))
+        return ExoPlayer.Builder(context, OutputModes.Factory(context, out.passthrough, audioDelay))
             .setTrackSelector(selector)
             .setLoadControl(loadControlFor(preset))
             .build()
@@ -203,6 +221,10 @@ class NativeVideoPlayer(
                 // Decoder / frame-timing logging (#157): TVs only, so phones
                 // run exactly the player they always did.
                 if (EngineChannels.isTelevision(context)) attachDiagnostics(it)
+                // Frame rate for the stream-details badge (measured, since many
+                // live streams don't announce one); passes on to the cadence log.
+                frameProbe = FrameRateProbe(cadenceListener)
+                it.setVideoFrameMetadataListener(frameProbe)
             }
     }
 
@@ -210,7 +232,7 @@ class NativeVideoPlayer(
         val tag = if (audible) "main" else "aux"
         player.addAnalyticsListener(VideoDiagnostics(tag))
         val cadence = FrameCadence(tag)
-        player.setVideoFrameMetadataListener(cadence)
+        cadenceListener = cadence
         player.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
             override fun onVideoDecoderInitialized(
                 eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
@@ -615,6 +637,7 @@ class NativeVideoPlayer(
         live: Boolean = false,
     ) {
         liveStream = live
+        frameProbe.reset()
         this.userAgentSuffix = userAgentSuffix
         this.customUserAgent = userAgent?.takeIf { it.isNotBlank() }
         this.liveReconnect = liveReconnect && streamTypeHint == "ts"
@@ -849,6 +872,21 @@ class NativeVideoPlayer(
             .build()
     }
 
+    private fun streamFrameRate(): Float {
+        val announced = exoPlayer.videoFormat?.frameRate ?: -1f
+        return if (announced > 0f) announced else frameProbe.fps
+    }
+
+    // The audio the user hears: what the renderer plays, else the selected track.
+    private fun playingAudioFormat(): Format? {
+        exoPlayer.audioFormat?.let { return it }
+        for (g in currentTracks.groups) {
+            if (g.type != C.TRACK_TYPE_AUDIO) continue
+            for (i in 0 until g.length) if (g.isTrackSelected(i)) return g.getTrackFormat(i)
+        }
+        return null
+    }
+
     private fun emitState() {
         val state = mapOf(
             "type" to "state",
@@ -868,6 +906,10 @@ class NativeVideoPlayer(
             "videoWidth" to videoWidth,
             "videoHeight" to videoHeight,
             "pixelRatio" to pixelRatio.toDouble(),
+            // Stream details for the info badges (frame rate, audio format).
+            "frameRate" to streamFrameRate().toDouble(),
+            "audioChannels" to (playingAudioFormat()?.channelCount?.coerceAtLeast(0) ?: 0),
+            "audioMime" to playingAudioFormat()?.sampleMimeType,
         )
         eventSink?.success(state)
     }
@@ -1036,6 +1078,10 @@ class NativeVideoPlayerManager(
             }
             "setAudible" -> {
                 players[idArg(call)]?.setAudible(call.argument<Boolean>("on") ?: true)
+                result.success(null)
+            }
+            "setAudioDelay" -> {
+                players[idArg(call)]?.setAudioDelay(call.argument<Number>("ms")?.toInt() ?: 0)
                 result.success(null)
             }
             "setSpeed" -> {

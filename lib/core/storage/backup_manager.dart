@@ -463,6 +463,36 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'audioDelayMs',
+      encode: (p) => p.audioDelayMs,
+      decode: (p, v) async {
+        if (v is int) await p.setAudioDelayMs(v.clamp(-500, 1000));
+      },
+    ),
+    PreferenceEntry(
+      key: 'seekKeys',
+      encode: (p) => p.seekKeys,
+      decode: (p, v) async {
+        if (v is String && const ['media', 'leftRight', 'upDown'].contains(v)) {
+          await p.setSeekKeys(v);
+        }
+      },
+    ),
+    PreferenceEntry(
+      key: 'streamDetails',
+      encode: (p) => p.streamDetails,
+      decode: (p, v) async {
+        if (v is bool) await p.setStreamDetails(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'blackOnSwitch',
+      encode: (p) => p.blackOnSwitch,
+      decode: (p, v) async {
+        if (v is bool) await p.setBlackOnSwitch(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'skipSeconds',
       encode: (p) => p.skipSeconds,
       decode: (p, v) async {

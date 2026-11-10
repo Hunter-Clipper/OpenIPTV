@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
@@ -5,6 +7,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
+import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
@@ -101,6 +104,45 @@ Future<void> setSkipSeconds(
     WidgetRef ref, int seconds, AppPreferences prefs) async {
   ref.read(skipSecondsProvider.notifier).state = seconds;
   await prefs.setSkipSeconds(seconds);
+}
+
+/// Remote keys that seek in catch-up and movies while the controls are
+/// hidden: 'media' (rewind / fast-forward keys only), 'leftRight', 'upDown'.
+final seekKeysProvider = StateProvider<String>((ref) => 'media');
+
+Future<void> setSeekKeys(WidgetRef ref, String v, AppPreferences prefs) async {
+  ref.read(audioDelayProvider.notifier).state = prefs.audioDelayMs;
+  unawaited(ref.read(playbackServiceProvider).setAudioDelay(prefs.audioDelayMs));
+  ref.read(seekKeysProvider.notifier).state = v;
+  await prefs.setSeekKeys(v);
+}
+
+/// Lip-sync shift in milliseconds: positive plays the sound later.
+final audioDelayProvider = StateProvider<int>((ref) => 0);
+
+Future<void> setAudioDelay(WidgetRef ref, int ms, AppPreferences prefs) async {
+  ref.read(audioDelayProvider.notifier).state = ms;
+  await prefs.setAudioDelayMs(ms);
+  await ref.read(playbackServiceProvider).setAudioDelay(ms);
+}
+
+/// Show resolution, frame rate and audio format next to the quality chip.
+final streamDetailsProvider = StateProvider<bool>((ref) => true);
+
+Future<void> setStreamDetails(
+    WidgetRef ref, bool on, AppPreferences prefs) async {
+  ref.read(seekKeysProvider.notifier).state = prefs.seekKeys;
+  ref.read(streamDetailsProvider.notifier).state = on;
+  await prefs.setStreamDetails(on);
+}
+
+/// Show a black screen instead of the old picture while changing channel.
+final blackOnSwitchProvider = StateProvider<bool>((ref) => false);
+
+Future<void> setBlackOnSwitch(
+    WidgetRef ref, bool on, AppPreferences prefs) async {
+  ref.read(blackOnSwitchProvider.notifier).state = on;
+  await prefs.setBlackOnSwitch(on);
 }
 
 /// Open the last watched channel when the app starts.
@@ -256,6 +298,8 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(askStartOverProvider.notifier).state = prefs.askStartOver;
   ref.read(panelTimeoutProvider.notifier).state = prefs.panelTimeoutSeconds;
   ref.read(skipSecondsProvider.notifier).state = prefs.skipSeconds;
+  ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;
+  ref.read(blackOnSwitchProvider.notifier).state = prefs.blackOnSwitch;
   ref.read(lastChannelOnStartProvider.notifier).state =
       prefs.lastChannelOnStart;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;

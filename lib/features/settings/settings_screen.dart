@@ -302,6 +302,24 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }),
               Consumer(builder: (context, ref, _) {
+                final keys = ref.watch(seekKeysProvider);
+                return _ChoiceTile(
+                  icon: Icons.keyboard_double_arrow_right_rounded,
+                  title: 'Remote Seek Keys',
+                  options: const ['media', 'leftRight', 'upDown'],
+                  current: keys,
+                  label: (v) => switch (v) {
+                    'leftRight' => 'Left / Right arrows',
+                    'upDown' => 'Up / Down arrows',
+                    _ => 'Rewind / Forward keys',
+                  },
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setSeekKeys(ref, v, prefs);
+                  },
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
                 final pipEnabled = ref.watch(pipEnabledProvider);
                 return InfoTooltip(
                   id: 'settings_pip',
@@ -901,7 +919,7 @@ class _NavTile extends StatelessWidget {
 
 /// A settings row that shows its current choice and opens a radio-style
 /// dialog to change it.
-class _ChoiceTile extends StatelessWidget {
+class _ChoiceTile<T> extends StatelessWidget {
   const _ChoiceTile({
     required this.icon,
     required this.title,
@@ -913,10 +931,10 @@ class _ChoiceTile extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final List<int> options;
-  final int current;
-  final String Function(int) label;
-  final Future<void> Function(int) onPicked;
+  final List<T> options;
+  final T current;
+  final String Function(T) label;
+  final Future<void> Function(T) onPicked;
 
   @override
   Widget build(BuildContext context) {
@@ -928,7 +946,7 @@ class _ChoiceTile extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall,
       ),
       onTap: () async {
-        final picked = await showDialog<int>(
+        final picked = await showDialog<T>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text(title),
