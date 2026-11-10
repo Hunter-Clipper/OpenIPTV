@@ -32,6 +32,9 @@ const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
+const _kPanelTimeoutSeconds = 'panel_timeout_seconds'; // player controls
+const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
+const _kLastChannelOnStart = 'last_channel_on_start';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kFullResImages = 'full_res_images'; // Power User Tools
 const _kAudioPassthrough = 'audio_passthrough'; // auto | on | off (#159)
@@ -168,6 +171,20 @@ class AppPreferences {
   /// opening a show that's already underway.
   bool get askStartOver => _prefs.getBool(_kAskStartOver) ?? true;
   Future<void> setAskStartOver(bool v) => _prefs.setBool(_kAskStartOver, v);
+
+  /// How long the player's on-screen controls stay up before hiding.
+  int get panelTimeoutSeconds => _prefs.getInt(_kPanelTimeoutSeconds) ?? 4;
+  Future<void> setPanelTimeoutSeconds(int v) =>
+      _prefs.setInt(_kPanelTimeoutSeconds, v);
+
+  /// How far the player's skip back / forward buttons jump (5, 10 or 30).
+  int get skipSeconds => _prefs.getInt(_kSkipSeconds) ?? 10;
+  Future<void> setSkipSeconds(int v) => _prefs.setInt(_kSkipSeconds, v);
+
+  /// Start the last watched channel when the app opens.
+  bool get lastChannelOnStart => _prefs.getBool(_kLastChannelOnStart) ?? false;
+  Future<void> setLastChannelOnStart(bool v) =>
+      _prefs.setBool(_kLastChannelOnStart, v);
 
   /// Player buffer size (Power User Tools); null = the default.
   String? get bufferPreset => _prefs.getString(_kBufferPreset);

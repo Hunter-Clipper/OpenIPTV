@@ -556,12 +556,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _onLiveRewind() async {
     if (_liveDvrActive) return;
+    final step = Duration(seconds: ref.read(skipSecondsProvider));
     if (_liveHasCatchup) {
-      await _enterLiveDvr(initialRewind: const Duration(seconds: 10));
+      await _enterLiveDvr(initialRewind: step);
       return;
     }
     if (_liveOffset >= _maxLocalBuffer) return;
-    const step = Duration(seconds: 10);
     await _playbackService.seekRelative(-step);
     _liveOffset = (_liveOffset + step) > _maxLocalBuffer
         ? _maxLocalBuffer
@@ -572,7 +572,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _onLiveForward() async {
     if (_liveDvrActive) return;
     if (_liveOffset <= Duration.zero) return;
-    const step = Duration(seconds: 10);
+    final step = Duration(seconds: ref.read(skipSecondsProvider));
     if (_liveOffset <= step) {
       await _goLiveLocal();
       return;
@@ -1193,7 +1193,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _resetHideTimer() {
     _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(seconds: 4), () {
+    _hideTimer = Timer(Duration(seconds: ref.read(panelTimeoutProvider)), () {
       if (!mounted) return;
       // A sheet or the channel list is open on top: hiding now would pull
       // focus out of it (the TV remote would lose its place). Wait.

@@ -22,6 +22,7 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
+import 'package:open_iptv/features/live_tv/resume_last_channel.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
 import 'package:open_iptv/features/movies/movie_detail_screen.dart';
 import 'package:open_iptv/features/movies/movies_screen.dart';
@@ -492,7 +493,11 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // Sideloaded installs have no store to update them — offer new GitHub
     // releases. Runs once the main UI is up (i.e. after setup and the
     // profile picker); throttled and admin-only inside.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUpdate();
+      unawaited(resumeLastChannelOnStart(
+          context, ProviderScope.containerOf(context)));
+    });
     // …and again when the app is brought back from the background (Android
     // usually keeps it running, so that isn't a fresh launch).
     WidgetsBinding.instance.addObserver(this);

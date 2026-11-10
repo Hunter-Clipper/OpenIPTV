@@ -455,6 +455,27 @@ class BackupManager {
         if (v is bool) await p.setAskStartOver(v);
       },
     ),
+    PreferenceEntry(
+      key: 'panelTimeoutSeconds',
+      encode: (p) => p.panelTimeoutSeconds,
+      decode: (p, v) async {
+        if (v is int) await p.setPanelTimeoutSeconds(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'skipSeconds',
+      encode: (p) => p.skipSeconds,
+      decode: (p, v) async {
+        if (v is int) await p.setSkipSeconds(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'lastChannelOnStart',
+      encode: (p) => p.lastChannelOnStart,
+      decode: (p, v) async {
+        if (v is bool) await p.setLastChannelOnStart(v);
+      },
+    ),
     // Player buffer (Power User Tools)
     PreferenceEntry(
       key: 'bufferPreset',

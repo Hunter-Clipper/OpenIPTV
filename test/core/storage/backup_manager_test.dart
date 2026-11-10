@@ -29,6 +29,9 @@ const _expectedBackupKeys = {
   'cleanNames',
   'videoFit',
   'playerClockAlways',
+  'panelTimeoutSeconds',
+  'skipSeconds',
+  'lastChannelOnStart',
   'bufferPreset',
   'fullResImages',
   'vpnRoute',
@@ -109,6 +112,9 @@ void main() {
       await prefs.setCleanNames(false);
       await prefs.setVideoFit('fill');
       await prefs.setPlayerClockAlways(true);
+      await prefs.setPanelTimeoutSeconds(8);
+      await prefs.setSkipSeconds(30);
+      await prefs.setLastChannelOnStart(true);
       await prefs.setBufferPreset('large');
       await prefs.setFullResImages(false);
       await prefs.setVpnRoute('device');
@@ -149,6 +155,9 @@ void main() {
       expect(prefs2.cleanNames, isFalse);
       expect(prefs2.videoFit, 'fill');
       expect(prefs2.playerClockAlways, isTrue);
+      expect(prefs2.panelTimeoutSeconds, 8);
+      expect(prefs2.skipSeconds, 30);
+      expect(prefs2.lastChannelOnStart, isTrue);
       expect(prefs2.bufferPreset, 'large');
       expect(prefs2.fullResImages, isFalse);
       expect(prefs2.vpnRoute, 'device');

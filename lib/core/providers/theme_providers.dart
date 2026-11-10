@@ -85,6 +85,33 @@ Future<void> setAskStartOver(
   await prefs.setAskStartOver(on);
 }
 
+/// Seconds the player's controls stay up (3, 4, 6, 8 or 12).
+final panelTimeoutProvider = StateProvider<int>((ref) => 4);
+
+Future<void> setPanelTimeout(
+    WidgetRef ref, int seconds, AppPreferences prefs) async {
+  ref.read(panelTimeoutProvider.notifier).state = seconds;
+  await prefs.setPanelTimeoutSeconds(seconds);
+}
+
+/// Size of the player's skip back / forward jump in seconds (5, 10 or 30).
+final skipSecondsProvider = StateProvider<int>((ref) => 10);
+
+Future<void> setSkipSeconds(
+    WidgetRef ref, int seconds, AppPreferences prefs) async {
+  ref.read(skipSecondsProvider.notifier).state = seconds;
+  await prefs.setSkipSeconds(seconds);
+}
+
+/// Open the last watched channel when the app starts.
+final lastChannelOnStartProvider = StateProvider<bool>((ref) => false);
+
+Future<void> setLastChannelOnStart(
+    WidgetRef ref, bool on, AppPreferences prefs) async {
+  ref.read(lastChannelOnStartProvider.notifier).state = on;
+  await prefs.setLastChannelOnStart(on);
+}
+
 // Movies / Series home layout: 'posters' (a rail per genre) or 'compact'
 // (the plain genre list).
 final homeLayoutMoviesProvider = StateProvider<String>((ref) => 'posters');
@@ -227,6 +254,10 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;
   ref.read(askStartOverProvider.notifier).state = prefs.askStartOver;
+  ref.read(panelTimeoutProvider.notifier).state = prefs.panelTimeoutSeconds;
+  ref.read(skipSecondsProvider.notifier).state = prefs.skipSeconds;
+  ref.read(lastChannelOnStartProvider.notifier).state =
+      prefs.lastChannelOnStart;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;
   ref.read(homeLayoutSeriesProvider.notifier).state = prefs.homeLayoutSeries;
 }

@@ -254,6 +254,54 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }),
               Consumer(builder: (context, ref, _) {
+                final on = ref.watch(lastChannelOnStartProvider);
+                return InfoTooltip(
+                  id: 'settings_last_channel_on_start',
+                  title: 'Last Channel on Start',
+                  body: 'When the app opens, it goes straight to the live '
+                      'channel you watched last. Turn this off to land on '
+                      'Live TV instead.',
+                  child: _ToggleTile(
+                    icon: Icons.live_tv_outlined,
+                    title: 'Open Last Channel on Start',
+                    value: on,
+                    onChanged: (v) async {
+                      final prefs =
+                          await ref.read(appPreferencesProvider.future);
+                      await setLastChannelOnStart(ref, v, prefs);
+                    },
+                  ),
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final seconds = ref.watch(skipSecondsProvider);
+                return _ChoiceTile(
+                  icon: Icons.forward_10_rounded,
+                  title: 'Skip Buttons',
+                  options: const [5, 10, 30],
+                  current: seconds,
+                  label: (v) => '$v seconds',
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setSkipSeconds(ref, v, prefs);
+                  },
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final seconds = ref.watch(panelTimeoutProvider);
+                return _ChoiceTile(
+                  icon: Icons.timer_outlined,
+                  title: 'Hide Player Controls After',
+                  options: const [3, 4, 6, 8, 12],
+                  current: seconds,
+                  label: (v) => '$v seconds',
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setPanelTimeout(ref, v, prefs);
+                  },
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
                 final pipEnabled = ref.watch(pipEnabledProvider);
                 return InfoTooltip(
                   id: 'settings_pip',
@@ -847,6 +895,64 @@ class _NavTile extends StatelessWidget {
         trailing: showChevron ? const Icon(Icons.chevron_right) : null,
         onTap: onTap,
       ),
+    );
+  }
+}
+
+/// A settings row that shows its current choice and opens a radio-style
+/// dialog to change it.
+class _ChoiceTile extends StatelessWidget {
+  const _ChoiceTile({
+    required this.icon,
+    required this.title,
+    required this.options,
+    required this.current,
+    required this.label,
+    required this.onPicked,
+  });
+
+  final IconData icon;
+  final String title;
+  final List<int> options;
+  final int current;
+  final String Function(int) label;
+  final Future<void> Function(int) onPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    return _NavTile(
+      leading: Icon(icon),
+      title: title,
+      subtitle: Text(
+        label(current),
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      onTap: () async {
+        final picked = await showDialog<int>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: options
+                  .map((v) => _DialogChoice(
+                        label: label(v),
+                        selected: v == current,
+                        onTap: () => Navigator.of(ctx).pop(v),
+                      ))
+                  .toList(),
+            ),
+            actions: [
+              TvActivatable(
+                onTap: () => Navigator.of(ctx).pop(),
+                builder: (onTap) =>
+                    TextButton(onPressed: onTap, child: const Text('Cancel')),
+              ),
+            ],
+          ),
+        );
+        if (picked != null && picked != current) await onPicked(picked);
+      },
     );
   }
 }

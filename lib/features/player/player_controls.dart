@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/programme.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
@@ -217,10 +218,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                   milliseconds: (v * _duration.inMilliseconds).round());
               _seek(target);
             },
-            onSkipBack: () =>
-                _seekRelative(const Duration(seconds: -10)),
+            onSkipBack: () => _seekRelative(
+                Duration(seconds: -ref.read(skipSecondsProvider))),
             onSkipForward: () =>
-                _seekRelative(const Duration(seconds: 10)),
+                _seekRelative(Duration(seconds: ref.read(skipSecondsProvider))),
             onEpg: widget.contentType == 'catchup'
                 ? () => _showEpgPanel(context)
                 : null,
@@ -532,6 +533,7 @@ class _Transport extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final m = PlayerMetrics.of(context);
     final service = ref.read(playbackServiceProvider);
+    final skip = ref.watch(skipSecondsProvider);
     // TV: a compact cluster at the start of the bottom bar, every button the
     // same size; elsewhere a large centred group.
     final skipSize = m.tv ? m.tvButton : m.skipSize;
@@ -542,8 +544,12 @@ class _Transport extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         PlayerButton(
-          icon: Icons.replay_10_rounded,
-          tooltip: 'Back 10 seconds',
+          icon: switch (skip) {
+            5 => Icons.replay_5_rounded,
+            30 => Icons.replay_30_rounded,
+            _ => Icons.replay_10_rounded,
+          },
+          tooltip: 'Back $skip seconds',
           onTap: onRewind,
           size: skipSize,
           style: skipStyle,
@@ -588,8 +594,12 @@ class _Transport extends ConsumerWidget {
         ),
         SizedBox(width: gap),
         PlayerButton(
-          icon: Icons.forward_10_rounded,
-          tooltip: 'Forward 10 seconds',
+          icon: switch (skip) {
+            5 => Icons.forward_5_rounded,
+            30 => Icons.forward_30_rounded,
+            _ => Icons.forward_10_rounded,
+          },
+          tooltip: 'Forward $skip seconds',
           onTap: onForward,
           size: skipSize,
           style: skipStyle,

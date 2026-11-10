@@ -5,6 +5,12 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased (0.14.99)
 
+**New**
+- **Open Last Channel on Start.** Settings → Playback has a new switch. When it is on, the app opens straight on the live channel you watched last instead of Live TV. It skips channels in hidden or locked categories, and does nothing when there is no history.
+- **Skip Buttons.** Settings → Playback → Skip Buttons sets how far the back and forward buttons jump in the player: 5, 10 or 30 seconds. The icons match your choice.
+- **Hide Player Controls After.** Settings → Playback lets you choose how long the player's controls stay on screen: 3, 4, 6, 8 or 12 seconds.
+- All three are included in backups.
+
 **Fixed**
 - On some TV starts a channel could play sound with a black picture (the app and the TV's video layer disagreed about whether the layer was on). The app now waits for the TV side to be ready before deciding, and the picture only goes to the layer once both agree. Restarting the app used to be the only cure.
 
