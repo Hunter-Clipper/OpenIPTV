@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.99)
+## 0.14.99 — 2026-11-10
 
 **New**
 - **Open Last Channel on Start.** Settings → Playback has a new switch. When it is on, the app opens straight on the live channel you watched last instead of Live TV. It skips channels in hidden or locked categories, and does nothing when there is no history.
