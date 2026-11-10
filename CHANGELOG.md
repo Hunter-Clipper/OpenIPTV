@@ -11,6 +11,10 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - **Hide Player Controls After.** Settings → Playback lets you choose how long the player's controls stay on screen: 3, 4, 6, 8 or 12 seconds.
 - All three are included in backups.
 
+**Improved**
+- Multi-view uses less memory on TVs: extra tiles now keep a few seconds of live buffer instead of up to 50, and a tile you aren't listening to no longer decodes its sound at all.
+- Multi-view: the tiles you aren't listening to are no longer dimmed, and the little speaker icon is gone. The white box around a tile already shows which channel has the sound.
+
 **Fixed**
 - On some TV starts a channel could play sound with a black picture (the app and the TV's video layer disagreed about whether the layer was on). The app now waits for the TV side to be ready before deciding, and the picture only goes to the layer once both agree. Restarting the app used to be the only cure.
 

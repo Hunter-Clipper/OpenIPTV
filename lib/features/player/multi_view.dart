@@ -731,29 +731,6 @@ class _TileView extends StatelessWidget {
               ),
             ),
           ),
-          // The tile you hear.
-          if (highlighted)
-            Positioned(
-              top: 10,
-              left: 10,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.volume_up_rounded,
-                    size: 18, color: Colors.white),
-              ),
-            ),
-          // The other tiles are dimmed a little, so the highlighted one
-          // stands out even on a bright, busy picture.
-          IgnorePointer(
-            child: AnimatedContainer(
-              duration: motionDuration(const Duration(milliseconds: 200)),
-              color: highlighted ? Colors.transparent : const Color(0x59000000),
-            ),
-          ),
           // Highlight ring around the picture: white, with a thin dark line
           // just inside it, so it shows on bright pictures too.
           IgnorePointer(
