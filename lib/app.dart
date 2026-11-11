@@ -73,12 +73,16 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     // good, so it isn't tried again until the user switches it back on.
     _outputNoticeSub = NativeVideoPlayer.outputNotices.listen((feature) async {
       final prefs = await ref.read(appPreferencesProvider.future);
+      if (!mounted) return;
       if (feature == 'tunneling') await prefs.setTunneledPlayback('off');
       if (feature == 'passthrough') await prefs.setAudioPassthrough('off');
       if (feature == 'audioDelay') {
         await prefs.setAudioDelayMs(0);
         ref.read(audioDelayProvider.notifier).state = 0;
-        unawaited(ref.read(playbackServiceProvider).setAudioDelay(0));
+        unawaited(ref
+            .read(playbackServiceProvider)
+            .setAudioDelay(0)
+            .catchError((Object _) {}));
       }
       await NativeVideoPlayer.setOutputModes(
           passthrough: prefs.audioPassthrough,

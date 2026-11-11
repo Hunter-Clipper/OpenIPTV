@@ -53,4 +53,17 @@ void main() {
       'HD · 1280×720 · AAC',
     );
   });
+
+  test('shows the usual odd rates and unusual channel counts', () {
+    String label(double fps, int ch, [String? mime]) => streamDetailsLabel(
+        tier: 'HD',
+        width: 1280,
+        height: 720,
+        frameRate: fps,
+        audioChannels: ch,
+        audioMime: mime);
+    expect(label(29.97, 8, 'audio/eac3-joc'), 'HD · 1280×720 · 29.97 FPS · ATMOS 7.1');
+    expect(label(23.976, 3, 'audio/eac3'), 'HD · 1280×720 · 23.98 FPS · E-AC3 3 CH');
+    expect(label(0, 1, 'audio/vnd.dts.hd'), 'HD · 1280×720 · DTS-HD MONO');
+  });
 }

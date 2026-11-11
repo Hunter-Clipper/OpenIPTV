@@ -213,7 +213,8 @@ class PlaybackService {
   Future<void> seek(Duration position) => _player.seekTo(position);
 
   Future<void> seekRelative(Duration delta) async {
-    final target = _lastState.position + delta;
+    var target = _lastState.position + delta;
+    if (target < Duration.zero) target = Duration.zero;
     debugPrint('[OTV-seek] seekRelative: delta=${delta.inSeconds}s '
         'target=${target.inSeconds}s');
     await _player.seekTo(target);

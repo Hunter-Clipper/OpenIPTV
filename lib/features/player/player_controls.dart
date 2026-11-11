@@ -1267,7 +1267,6 @@ class _QualityChip extends StatelessWidget {
     final m = PlayerMetrics.of(context);
     return Semantics(
       label: 'Stream details: $label',
-      button: true,
       child: Container(
       padding: EdgeInsets.symmetric(
           horizontal: 10 * m.scale, vertical: 5 * m.scale),

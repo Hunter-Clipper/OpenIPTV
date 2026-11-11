@@ -803,9 +803,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     // Seeking from the remote while the controls are hidden: the rewind /
     // fast-forward keys always, plus the arrow pair chosen in Settings →
-    // Playback → Remote Seek Keys (catch-up and movies only: on live TV the
+    // Player → Remote Seek Keys (catch-up and movies only: on live TV the
     // arrows change channel and open the list).
-    if (node.hasPrimaryFocus && !_isPlainLive) {
+    if (node.hasPrimaryFocus && !_isPlainLive && !_playbackGaveUp) {
       final mode = ref.read(seekKeysProvider);
       final back = key == LogicalKeyboardKey.mediaRewind ||
           (mode == 'leftRight' && key == LogicalKeyboardKey.arrowLeft) ||
@@ -816,6 +816,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (back || forward) {
         final step = Duration(seconds: ref.read(skipSecondsProvider));
         unawaited(_playbackService.seekRelative(back ? -step : step));
+        // Show the bar so the jump is visible.
+        _showControls();
         return KeyEventResult.handled;
       }
     }

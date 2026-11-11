@@ -111,8 +111,6 @@ Future<void> setSkipSeconds(
 final seekKeysProvider = StateProvider<String>((ref) => 'media');
 
 Future<void> setSeekKeys(WidgetRef ref, String v, AppPreferences prefs) async {
-  ref.read(audioDelayProvider.notifier).state = prefs.audioDelayMs;
-  unawaited(ref.read(playbackServiceProvider).setAudioDelay(prefs.audioDelayMs));
   ref.read(seekKeysProvider.notifier).state = v;
   await prefs.setSeekKeys(v);
 }
@@ -131,7 +129,6 @@ final streamDetailsProvider = StateProvider<bool>((ref) => true);
 
 Future<void> setStreamDetails(
     WidgetRef ref, bool on, AppPreferences prefs) async {
-  ref.read(seekKeysProvider.notifier).state = prefs.seekKeys;
   ref.read(streamDetailsProvider.notifier).state = on;
   await prefs.setStreamDetails(on);
 }
@@ -290,6 +287,12 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(panelTimeoutProvider.notifier).state = prefs.panelTimeoutSeconds;
   ref.read(skipSecondsProvider.notifier).state = prefs.skipSeconds;
   ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;
+  ref.read(seekKeysProvider.notifier).state = prefs.seekKeys;
+  ref.read(audioDelayProvider.notifier).state = prefs.audioDelayMs;
+  unawaited(ref
+      .read(playbackServiceProvider)
+      .setAudioDelay(prefs.audioDelayMs)
+      .catchError((Object _) {}));
   ref.read(lastChannelOnStartProvider.notifier).state =
       prefs.lastChannelOnStart;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;

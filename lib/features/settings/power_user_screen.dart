@@ -483,14 +483,18 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                       ),
                   ],
           ),
+          // Network: VPN, speed, how the player introduces itself.
           _vpnGroup(),
           _speedGroup(),
+          _userAgentGroup(),
+          // Picture and sound.
+          _graphicsGroup(),
+          if (isTv) _layerGroup(),
+          _frameRateGroup(),
+          if (isTv) ...[_passthroughGroup(), _tunnelingGroup()],
+          // Memory and storage.
           _bufferGroup(),
           _imageQualityGroup(),
-          _graphicsGroup(),
-          _frameRateGroup(),
-          if (isTv) ...[_layerGroup(), _passthroughGroup(), _tunnelingGroup()],
-          _userAgentGroup(),
           _databaseGroup(),
         ],
       ),

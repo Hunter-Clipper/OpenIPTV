@@ -219,19 +219,6 @@ class SettingsScreen extends ConsumerWidget {
 
             // --------------- PLAYBACK ---------------
             SettingsGroup(title: 'Playback', children: [
-              InfoTooltip(
-                id: 'settings_continue_watching',
-                title: 'Continue Watching',
-                body: 'When this is on, OpenIPTV remembers where you left off '
-                    'in movies and series. The next time you open them, '
-                    "you'll be offered the option to resume.",
-                child: _ToggleTile(
-                  icon: Icons.play_circle_outline,
-                  title: 'Continue Watching',
-                  value: true,
-                  onChanged: (_) {},
-                ),
-              ),
               Consumer(builder: (context, ref, _) {
                 final ask = ref.watch(askStartOverProvider);
                 return InfoTooltip(
@@ -271,52 +258,6 @@ class SettingsScreen extends ConsumerWidget {
                       await setLastChannelOnStart(ref, v, prefs);
                     },
                   ),
-                );
-              }),
-              Consumer(builder: (context, ref, _) {
-                final seconds = ref.watch(skipSecondsProvider);
-                return _ChoiceTile(
-                  icon: Icons.forward_10_rounded,
-                  title: 'Skip Buttons',
-                  options: const [5, 10, 30],
-                  current: seconds,
-                  label: (v) => '$v seconds',
-                  onPicked: (v) async {
-                    final prefs = await ref.read(appPreferencesProvider.future);
-                    await setSkipSeconds(ref, v, prefs);
-                  },
-                );
-              }),
-              Consumer(builder: (context, ref, _) {
-                final seconds = ref.watch(panelTimeoutProvider);
-                return _ChoiceTile(
-                  icon: Icons.timer_outlined,
-                  title: 'Hide Player Controls After',
-                  options: const [3, 4, 6, 8, 12],
-                  current: seconds,
-                  label: (v) => '$v seconds',
-                  onPicked: (v) async {
-                    final prefs = await ref.read(appPreferencesProvider.future);
-                    await setPanelTimeout(ref, v, prefs);
-                  },
-                );
-              }),
-              Consumer(builder: (context, ref, _) {
-                final keys = ref.watch(seekKeysProvider);
-                return _ChoiceTile(
-                  icon: Icons.keyboard_double_arrow_right_rounded,
-                  title: 'Remote Seek Keys',
-                  options: const ['media', 'leftRight', 'upDown'],
-                  current: keys,
-                  label: (v) => switch (v) {
-                    'leftRight' => 'Left / Right arrows',
-                    'upDown' => 'Up / Down arrows',
-                    _ => 'Rewind / Forward keys',
-                  },
-                  onPicked: (v) async {
-                    final prefs = await ref.read(appPreferencesProvider.future);
-                    await setSeekKeys(ref, v, prefs);
-                  },
                 );
               }),
               Consumer(builder: (context, ref, _) {
@@ -364,23 +305,53 @@ class SettingsScreen extends ConsumerWidget {
               // an admin job).
               if (isAdmin && Platform.isAndroid && !PlatformHelper.isTVDevice)
                 const CarVideoAddonTile(),
+            ]),
+            // --------------- PLAYER ---------------
+            SettingsGroup(title: 'Player', children: [
               Consumer(builder: (context, ref, _) {
-                final sort = ref.watch(contentSortProvider);
-                return InfoTooltip(
-                  id: 'settings_sort_order',
-                  title: 'Content Sort Order',
-                  body: 'Controls how channels, movies, and series are listed. '
-                      'Provider order shows them in the sequence your IPTV '
-                      'provider sends them. A–Z sorts them alphabetically.',
-                  child: _NavTile(
-                    leading: const Icon(Icons.sort),
-                    title: 'Content Sort Order',
-                    subtitle: Text(
-                      sort == 'az' ? 'A–Z' : 'Provider order',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    onTap: () => _showSortOrderDialog(context, ref, sort),
-                  ),
+                final seconds = ref.watch(skipSecondsProvider);
+                return _ChoiceTile(
+                  icon: Icons.forward_10_rounded,
+                  title: 'Skip Buttons',
+                  options: const [5, 10, 30],
+                  current: seconds,
+                  label: (v) => '$v seconds',
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setSkipSeconds(ref, v, prefs);
+                  },
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final seconds = ref.watch(panelTimeoutProvider);
+                return _ChoiceTile(
+                  icon: Icons.timer_outlined,
+                  title: 'Hide Player Controls After',
+                  options: const [3, 4, 6, 8, 12],
+                  current: seconds,
+                  label: (v) => '$v seconds',
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setPanelTimeout(ref, v, prefs);
+                  },
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final keys = ref.watch(seekKeysProvider);
+                return _ChoiceTile(
+                  icon: Icons.keyboard_double_arrow_right_rounded,
+                  title: 'Remote Seek Keys',
+                  options: const ['media', 'leftRight', 'upDown'],
+                  current: keys,
+                  label: (v) => switch (v) {
+                    'leftRight' => 'Left / Right arrows',
+                    'upDown' => 'Up / Down arrows',
+                    _ => 'Rewind / Forward keys',
+                  },
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setSeekKeys(ref, v, prefs);
+                  },
                 );
               }),
             ]),
@@ -433,6 +404,25 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 }),
               ),
+              Consumer(builder: (context, ref, _) {
+                final sort = ref.watch(contentSortProvider);
+                return InfoTooltip(
+                  id: 'settings_sort_order',
+                  title: 'Content Sort Order',
+                  body: 'Controls how channels, movies, and series are listed. '
+                      'Provider order shows them in the sequence your IPTV '
+                      'provider sends them. A–Z sorts them alphabetically.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.sort),
+                    title: 'Content Sort Order',
+                    subtitle: Text(
+                      sort == 'az' ? 'A–Z' : 'Provider order',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () => _showSortOrderDialog(context, ref, sort),
+                  ),
+                );
+              }),
               if (isAdmin)
                 InfoTooltip(
                   id: 'settings_hidden_cats',
