@@ -686,6 +686,8 @@ class NativeVideoPlayer(
     ) {
         liveStream = live
         frameProbe.reset()
+        countedRate = 0f
+        countStartMs = 0L
         this.userAgentSuffix = userAgentSuffix
         this.customUserAgent = userAgent?.takeIf { it.isNotBlank() }
         this.liveReconnect = liveReconnect && streamTypeHint == "ts"
@@ -924,7 +926,41 @@ class NativeVideoPlayer(
 
     private fun streamFrameRate(): Float {
         val announced = exoPlayer.videoFormat?.frameRate ?: -1f
-        return if (announced > 0f) announced else frameProbe.fps
+        if (announced > 0f) return announced
+        if (frameProbe.fps > 0f) return snapRate(frameProbe.fps)
+        return countedFps()
+    }
+
+    // A tunneled picture bypasses the frame callbacks the probe listens to, so
+    // count the frames the decoder reports over a couple of seconds instead.
+    private var countStartMs = 0L
+    private var countStart = 0
+    private var countedRate = 0f
+
+    private fun countedFps(): Float {
+        if (countedRate > 0f) return countedRate
+        val counters = exoPlayer.videoDecoderCounters ?: return 0f
+        if (!exoPlayer.isPlaying) { countStartMs = 0L; return 0f }
+        counters.ensureUpdated()
+        val now = android.os.SystemClock.elapsedRealtime()
+        val n = counters.renderedOutputBufferCount
+        if (countStartMs == 0L || n < countStart) { countStartMs = now; countStart = n; return 0f }
+        val ms = now - countStartMs
+        if (ms < 3_000) return 0f
+        val raw = (n - countStart) * 1000f / ms
+        android.util.Log.i("OTV-video", "counted frame rate: $raw (frames=${n - countStart} in ${ms}ms)")
+        countStartMs = now; countStart = n
+        val snapped = snapRate(raw, 0f)
+        if (snapped > 0f) countedRate = snapped
+        return countedRate
+    }
+
+    // Measured rates wobble (58.8 for 59.94): snap to the usual ones; anything
+    // further than 6% away is a measuring glitch ([otherwise] is returned).
+    private fun snapRate(raw: Float, otherwise: Float = raw): Float {
+        val usual = floatArrayOf(23.976f, 24f, 25f, 29.97f, 30f, 50f, 59.94f, 60f)
+        val near = usual.minByOrNull { kotlin.math.abs(it - raw) } ?: return otherwise
+        return if (kotlin.math.abs(near - raw) / near < 0.06f) near else otherwise
     }
 
     // The audio the user hears: what the renderer plays, else the selected track.
