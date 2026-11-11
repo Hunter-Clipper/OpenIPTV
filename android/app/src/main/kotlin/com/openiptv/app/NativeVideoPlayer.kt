@@ -686,6 +686,7 @@ class NativeVideoPlayer(
     ) {
         liveStream = live
         frameProbe.reset()
+        matchedFps = 0f
         countedRate = 0f
         countStartMs = 0L
         this.userAgentSuffix = userAgentSuffix
@@ -979,6 +980,7 @@ class NativeVideoPlayer(
     }
 
     private fun emitState() {
+        if (FrameRateMatcher.enabled && audible && videoHeight > 0) matchFrameRate()
         val state = mapOf(
             "type" to "state",
             "position" to exoPlayer.currentPosition,
@@ -1014,9 +1016,17 @@ class NativeVideoPlayer(
     // Auto frame rate (#149): the player you hear drives the screen's rate.
     private fun matchFrameRate() {
         if (!audible) return
-        val fps = exoPlayer.videoFormat?.frameRate ?: return
-        if (fps > 0f) FrameRateMatcher.match(fps)
+        // Most live streams don't announce a rate (and a tunneled picture gives
+        // no frame callbacks), so also use the measured one, as soon as it is
+        // known: this runs on every state update until a rate has been matched.
+        val fps = streamFrameRate()
+        if (fps > 0f && fps != matchedFps) {
+            matchedFps = fps
+            FrameRateMatcher.match(fps)
+        }
     }
+
+    private var matchedFps = 0f
 
     fun dispose() {
         OutputModes.unregister(this)
