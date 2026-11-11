@@ -22,6 +22,11 @@ class FrameRateProbe(private val next: VideoFrameMetadataListener? = null) : Vid
         mediaFormat: android.media.MediaFormat?,
     ) {
         next?.onVideoFrameAboutToBeRendered(presentationTimeUs, releaseTimeNs, format, mediaFormat)
+        onPresentationTime(presentationTimeUs)
+    }
+
+    /** One frame's timestamp; also fed by the tunneled renderer, which has no frame callback. */
+    fun onPresentationTime(presentationTimeUs: Long) {
         if (fps > 0f) return // settled for this stream
         val gap = presentationTimeUs - last
         last = presentationTimeUs
@@ -40,5 +45,5 @@ class FrameRateProbe(private val next: VideoFrameMetadataListener? = null) : Vid
         fps = 0f
     }
 
-    private companion object { const val SAMPLES = 30 }
+    private companion object { const val SAMPLES = 20 }
 }

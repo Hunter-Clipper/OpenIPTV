@@ -253,7 +253,7 @@ class NativeVideoPlayer(
         selector.parameters = selector.buildUponParameters()
             .setTunnelingEnabled(out.tunneling)
             .build()
-        return ExoPlayer.Builder(context, OutputModes.Factory(context, out.passthrough, audioDelay))
+        return ExoPlayer.Builder(context, OutputModes.Factory(context, out.passthrough, audioDelay) { frameProbe.onPresentationTime(it) })
             .setTrackSelector(selector)
             .setLoadControl(loadControlFor(preset))
             .build()

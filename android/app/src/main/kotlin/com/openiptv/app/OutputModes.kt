@@ -167,7 +167,45 @@ object OutputModes {
         context: Context,
         private val pass: Pass,
         private val delay: AudioDelayProcessor? = null,
+        // Timestamp of each frame a tunneled decoder shows (the frame-rate probe).
+        private val onTunneledFrame: ((Long) -> Unit)? = null,
     ) : DefaultRenderersFactory(context) {
+        override fun buildVideoRenderers(
+            context: Context,
+            extensionRendererMode: Int,
+            mediaCodecSelector: androidx.media3.exoplayer.mediacodec.MediaCodecSelector,
+            enableDecoderFallback: Boolean,
+            eventHandler: Handler,
+            eventListener: androidx.media3.exoplayer.video.VideoRendererEventListener,
+            allowedVideoJoiningTimeMs: Long,
+            out: java.util.ArrayList<androidx.media3.exoplayer.Renderer>,
+        ) {
+            super.buildVideoRenderers(context, extensionRendererMode, mediaCodecSelector,
+                enableDecoderFallback, eventHandler, eventListener, allowedVideoJoiningTimeMs, out)
+            val report = onTunneledFrame ?: return
+            // A tunneled picture bypasses the frame callbacks, so swap the stock
+            // video renderer for one that reports each frame's timestamp.
+            val i = out.indexOfFirst {
+                it.javaClass == androidx.media3.exoplayer.video.MediaCodecVideoRenderer::class.java
+            }
+            if (i < 0) return
+            out[i] = object : androidx.media3.exoplayer.video.MediaCodecVideoRenderer(
+                androidx.media3.exoplayer.video.MediaCodecVideoRenderer.Builder(context)
+                    .setMediaCodecSelector(mediaCodecSelector)
+                    .setCodecAdapterFactory(codecAdapterFactory)
+                    .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
+                    .setEnableDecoderFallback(enableDecoderFallback)
+                    .setEventHandler(eventHandler)
+                    .setEventListener(eventListener)
+                    .setMaxDroppedFramesToNotify(50)
+            ) {
+                override fun onProcessedTunneledBuffer(presentationTimeUs: Long) {
+                    super.onProcessedTunneledBuffer(presentationTimeUs)
+                    report(presentationTimeUs)
+                }
+            }
+        }
+
         override fun buildAudioSink(
             context: Context,
             enableFloatOutput: Boolean,
