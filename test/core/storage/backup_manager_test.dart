@@ -32,6 +32,14 @@ const _expectedBackupKeys = {
   'panelTimeoutSeconds',
   'skipSeconds',
   'audioDelayMs',
+  'showFavoritesCategory',
+  'showRecentCategory',
+  'showAllCategory',
+  'guideShowNames',
+  'guideTwoLineNames',
+  'guideTwoLineTitles',
+  'guideHighlightPlaying',
+  'channelCustom',
   'fontScale',
   'overlayOpacity',
   'guideDaysAhead',
@@ -124,6 +132,14 @@ void main() {
       await prefs.setAudioDelayMs(-200);
       await prefs.setSeekKeys('upDown');
       await prefs.setFontScale(1.3);
+      await prefs.setShowFavoritesCategory(false);
+      await prefs.setShowRecentCategory(false);
+      await prefs.setShowAllCategory(false);
+      await prefs.setGuideShowNames(false);
+      await prefs.setGuideTwoLineNames(false);
+      await prefs.setGuideTwoLineTitles(true);
+      await prefs.setGuideHighlightPlaying(false);
+      await prefs.setChannelCustomJson('{"p1":{"hidden":["c1"],"names":{"c2":"News"}}}');
       await prefs.setOverlayOpacity('clear');
       await prefs.setGuideDaysAhead(3);
       await prefs.setGuideDescriptions(false);
@@ -174,6 +190,15 @@ void main() {
       expect(prefs2.audioDelayMs, -200);
       expect(prefs2.seekKeys, 'upDown');
       expect(prefs2.fontScale, 1.3);
+      expect(prefs2.showFavoritesCategory, isFalse);
+      expect(prefs2.showRecentCategory, isFalse);
+      expect(prefs2.showAllCategory, isFalse);
+      expect(prefs2.guideShowNames, isFalse);
+      expect(prefs2.guideTwoLineNames, isFalse);
+      expect(prefs2.guideTwoLineTitles, isTrue);
+      expect(prefs2.guideHighlightPlaying, isFalse);
+      expect(prefs2.channelCustomJson,
+          '{"p1":{"hidden":["c1"],"names":{"c2":"News"}}}');
       expect(prefs2.overlayOpacity, 'clear');
       expect(prefs2.guideDaysAhead, 3);
       expect(prefs2.guideDescriptions, isFalse);

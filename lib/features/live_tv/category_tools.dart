@@ -121,11 +121,33 @@ class _CategoryOptionsSheet extends StatelessWidget {
   }
 }
 
+/// Asks for a new display name (blank = go back to the original). Returns
+/// null when cancelled.
+Future<String?> showRenameDialog(
+  BuildContext context, {
+  required String title,
+  required String hint,
+  required String current,
+}) =>
+    showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _RenameCategoryDialog(
+          original: current, current: current, title: title, hint: hint),
+    );
+
 class _RenameCategoryDialog extends StatefulWidget {
-  const _RenameCategoryDialog({required this.original, required this.current});
+  const _RenameCategoryDialog({
+    required this.original,
+    required this.current,
+    this.title = 'Rename Category',
+    this.hint = 'Category name',
+  });
 
   final String original;
   final String current;
+  final String title;
+  final String hint;
 
   @override
   State<_RenameCategoryDialog> createState() => _RenameCategoryDialogState();
@@ -145,7 +167,7 @@ class _RenameCategoryDialogState extends State<_RenameCategoryDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Rename Category'),
+      title: Text(widget.title),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -157,7 +179,7 @@ class _RenameCategoryDialogState extends State<_RenameCategoryDialog> {
                 focusNode: fieldNode,
                 controller: _name,
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(hintText: 'Category name'),
+                decoration: InputDecoration(hintText: widget.hint),
                 onSubmitted: (_) => _save(),
               ),
             ),

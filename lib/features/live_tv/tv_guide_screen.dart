@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
@@ -20,7 +21,6 @@ import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/live_tv/channel_list_screen.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
-import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/marquee_text.dart';
@@ -512,12 +512,19 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         isKid: isKid,
         az: az,
         order: profile?.categoryOrder ?? const []);
+    final showFavorites = ref.watch(showFavoritesCategoryProvider);
+    final showRecent = ref.watch(showRecentCategoryProvider);
+    final showAll = ref.watch(showAllCategoryProvider);
     final categories = [
-      if (favorites.isNotEmpty) _favorites,
-      if (recent.isNotEmpty) _recent,
-      if (!(profile?.hiddenCategories ?? const <String>[]).contains(_all)) _all,
+      if (favorites.isNotEmpty && showFavorites) _favorites,
+      if (recent.isNotEmpty && showRecent) _recent,
+      if (showAll &&
+          !(profile?.hiddenCategories ?? const <String>[]).contains(_all))
+        _all,
       ...realCategories,
     ];
+    // With everything switched off or hidden, still show something.
+    if (categories.isEmpty) categories.add(_all);
     if (_shownCategory == null || !categories.contains(_shownCategory)) {
       _shownCategory = categories.contains(_rememberedCategory)
           ? _rememberedCategory
@@ -1162,7 +1169,7 @@ class _ProgrammeInfoState extends State<_ProgrammeInfo> {
     final channel = widget.channel;
     final programme = widget.programme;
     final p = programme;
-    final name = context.displayName(channel.name);
+    final name = context.channelName(channel);
     final description = p?.description?.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1534,6 +1541,10 @@ class _GuideRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final loaded = ref.watch(_rowProgrammesProvider(rowKey));
+    // Display options (Settings → Live TV).
+    final showNames = ref.watch(guideShowNamesProvider);
+    final twoLineNames = ref.watch(guideTwoLineNamesProvider);
+    final markPlaying = playing && ref.watch(guideHighlightPlayingProvider);
     final programmes = loaded.valueOrNull ?? const <Programme>[];
     final totalMinutes = rowKey.end.difference(rowKey.start).inMinutes;
     double xOf(DateTime t) => (t.difference(rowKey.start).inSeconds / 60 *
@@ -1565,8 +1576,9 @@ class _GuideRow extends ConsumerWidget {
                   width: 3,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color:
-                          playing ? theme.colorScheme.primary : Colors.transparent,
+                      color: markPlaying
+                          ? theme.colorScheme.primary
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -1577,21 +1589,24 @@ class _GuideRow extends ConsumerWidget {
                     children: [
                       LogoTile(url: channel.logoUrl, width: 48),
                       const SizedBox(width: 8),
-                      // Long names get a second line rather than being cut.
+                      // Long names get a second line rather than being cut
+                      // (or no name at all, if that is switched off).
                       Expanded(
-                        child: MarqueeText(
-                          context.displayName(channel.name),
-                          maxLines: 2,
-                          active: rowFocused,
-                          style: theme.textTheme.bodyMedium!.copyWith(
-                              fontSize: 13,
-                              height: 1.15,
-                              fontWeight:
-                                  playing ? FontWeight.w700 : null,
-                              color: playing
-                                  ? theme.colorScheme.primary
-                                  : null),
-                        ),
+                        child: showNames
+                            ? MarqueeText(
+                                context.channelName(channel),
+                                maxLines: twoLineNames ? 2 : 1,
+                                active: rowFocused,
+                                style: theme.textTheme.bodyMedium!.copyWith(
+                                    fontSize: 13,
+                                    height: 1.15,
+                                    fontWeight:
+                                        markPlaying ? FontWeight.w700 : null,
+                                    color: markPlaying
+                                        ? theme.colorScheme.primary
+                                        : null),
+                              )
+                            : const SizedBox.shrink(),
                       ),
                       if (channel.hasCatchup) ...[
                         const SizedBox(width: 4),
@@ -1599,7 +1614,7 @@ class _GuideRow extends ConsumerWidget {
                             size: 15,
                             color: theme.colorScheme.onSurfaceVariant),
                       ],
-                      if (playing)
+                      if (markPlaying)
                         Icon(Icons.graphic_eq_rounded,
                             size: 18, color: theme.colorScheme.primary),
                     ],
@@ -1774,14 +1789,17 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
           child: Row(
             children: [
               Expanded(
-                child: MarqueeText(
-                  title,
-                  active: _focused,
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: muted
-                        ? theme.colorScheme.onSurfaceVariant
-                        : theme.colorScheme.onSurface,
-                    fontWeight: live ? FontWeight.w600 : null,
+                child: Consumer(
+                  builder: (context, ref, _) => MarqueeText(
+                    title,
+                    active: _focused,
+                    maxLines: ref.watch(guideTwoLineTitlesProvider) ? 2 : 1,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: muted
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.onSurface,
+                      fontWeight: live ? FontWeight.w600 : null,
+                    ),
                   ),
                 ),
               ),

@@ -40,6 +40,14 @@ const _kGuideDays = 'guide_days_ahead'; // days of guide to keep ahead
 const _kGuideDescriptions = 'guide_descriptions'; // store programme descriptions
 const _kStartOnBoot = 'start_on_boot'; // TV: open the app when the TV starts
 const _kStartOnWake = 'start_on_wake'; // TV: open the app when the TV wakes
+const _kShowFavoritesCat = 'show_cat_favorites';
+const _kShowRecentCat = 'show_cat_recent';
+const _kShowAllCat = 'show_cat_all';
+const _kGuideNames = 'guide_show_names';
+const _kGuideTwoLineNames = 'guide_two_line_names';
+const _kGuideTwoLineTitles = 'guide_two_line_titles';
+const _kGuideHighlight = 'guide_highlight_playing';
+const _kChannelCustom = 'channel_custom'; // per profile: hidden channels, names
 const _kSeekKeys = 'seek_keys'; // which remote keys seek in catch-up / movies
 const _kAudioDelayMs = 'audio_delay_ms'; // lip-sync shift
 const _kStreamDetails = 'stream_details'; // resolution/fps/audio badges
@@ -191,6 +199,34 @@ class AppPreferences {
   Future<void> setSkipSeconds(int v) => _prefs.setInt(_kSkipSeconds, v);
 
   /// 'media' (rewind / fast-forward keys), 'leftRight' or 'upDown'.
+  /// Live TV categories the user can switch off.
+  bool get showFavoritesCategory => _prefs.getBool(_kShowFavoritesCat) ?? true;
+  Future<void> setShowFavoritesCategory(bool v) =>
+      _prefs.setBool(_kShowFavoritesCat, v);
+  bool get showRecentCategory => _prefs.getBool(_kShowRecentCat) ?? true;
+  Future<void> setShowRecentCategory(bool v) =>
+      _prefs.setBool(_kShowRecentCat, v);
+  bool get showAllCategory => _prefs.getBool(_kShowAllCat) ?? true;
+  Future<void> setShowAllCategory(bool v) => _prefs.setBool(_kShowAllCat, v);
+
+  /// TV guide display options.
+  bool get guideShowNames => _prefs.getBool(_kGuideNames) ?? true;
+  Future<void> setGuideShowNames(bool v) => _prefs.setBool(_kGuideNames, v);
+  bool get guideTwoLineNames => _prefs.getBool(_kGuideTwoLineNames) ?? true;
+  Future<void> setGuideTwoLineNames(bool v) =>
+      _prefs.setBool(_kGuideTwoLineNames, v);
+  bool get guideTwoLineTitles => _prefs.getBool(_kGuideTwoLineTitles) ?? false;
+  Future<void> setGuideTwoLineTitles(bool v) =>
+      _prefs.setBool(_kGuideTwoLineTitles, v);
+  bool get guideHighlightPlaying => _prefs.getBool(_kGuideHighlight) ?? true;
+  Future<void> setGuideHighlightPlaying(bool v) =>
+      _prefs.setBool(_kGuideHighlight, v);
+
+  /// Hidden channels and display names, as JSON keyed by profile id.
+  String? get channelCustomJson => _prefs.getString(_kChannelCustom);
+  Future<void> setChannelCustomJson(String v) =>
+      _prefs.setString(_kChannelCustom, v);
+
   /// Text size multiplier on top of the system's: 0.85, 1.0, 1.15 or 1.3.
   double get fontScale => _prefs.getDouble(_kFontScale) ?? 1.0;
   Future<void> setFontScale(double v) => _prefs.setDouble(_kFontScale, v);

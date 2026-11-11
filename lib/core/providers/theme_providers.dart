@@ -134,6 +134,23 @@ Future<void> setStreamDetails(
   await prefs.setStreamDetails(on);
 }
 
+/// Live TV categories (Favorites, Recently Watched, All Channels) and the TV
+/// guide's display options, all switchable in Settings → Live TV.
+final showFavoritesCategoryProvider = StateProvider<bool>((ref) => true);
+final showRecentCategoryProvider = StateProvider<bool>((ref) => true);
+final showAllCategoryProvider = StateProvider<bool>((ref) => true);
+final guideShowNamesProvider = StateProvider<bool>((ref) => true);
+final guideTwoLineNamesProvider = StateProvider<bool>((ref) => true);
+final guideTwoLineTitlesProvider = StateProvider<bool>((ref) => false);
+final guideHighlightPlayingProvider = StateProvider<bool>((ref) => true);
+
+/// Saves a Live TV option: sets [provider] and runs [save].
+Future<void> setLiveOption(WidgetRef ref, StateProvider<bool> provider,
+    bool v, Future<void> Function(bool) save) async {
+  ref.read(provider.notifier).state = v;
+  await save(v);
+}
+
 /// TV: open the app when the TV starts / wakes from sleep.
 final startOnBootProvider = StateProvider<bool>((ref) => false);
 final startOnWakeProvider = StateProvider<bool>((ref) => false);
@@ -342,6 +359,15 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;
   ref.read(seekKeysProvider.notifier).state = prefs.seekKeys;
   ref.read(fontScaleProvider.notifier).state = prefs.fontScale;
+  ref.read(showFavoritesCategoryProvider.notifier).state =
+      prefs.showFavoritesCategory;
+  ref.read(showRecentCategoryProvider.notifier).state = prefs.showRecentCategory;
+  ref.read(showAllCategoryProvider.notifier).state = prefs.showAllCategory;
+  ref.read(guideShowNamesProvider.notifier).state = prefs.guideShowNames;
+  ref.read(guideTwoLineNamesProvider.notifier).state = prefs.guideTwoLineNames;
+  ref.read(guideTwoLineTitlesProvider.notifier).state = prefs.guideTwoLineTitles;
+  ref.read(guideHighlightPlayingProvider.notifier).state =
+      prefs.guideHighlightPlaying;
   ref.read(startOnBootProvider.notifier).state = prefs.startOnBoot;
   ref.read(startOnWakeProvider.notifier).state = prefs.startOnWake;
   unawaited(setStartupOptions(boot: prefs.startOnBoot, wake: prefs.startOnWake));

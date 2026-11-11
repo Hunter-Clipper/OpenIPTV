@@ -9,6 +9,7 @@ import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/telemetry/reports_screen.dart';
 import 'package:open_iptv/telemetry/consent_dialog.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/pip_service.dart';
@@ -434,6 +435,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                 MediaQuery.textScalerOf(context).scale(1.0) *
                     ref.watch(fontScaleProvider)),
           ),
+          child: ChannelNames(
+          names: ref.watch(channelCustomProvider.select((c) => c.names)),
           child: ImageQuality(
           full: ref.watch(fullResImagesProvider),
           child: DisplayNames(
@@ -443,6 +446,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                   TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
             ),
           ),
+        ),
         ),
         ),
       ),

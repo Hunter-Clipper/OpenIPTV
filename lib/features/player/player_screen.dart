@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -976,9 +977,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // app's own screens through the media session — notification, lock
   // screen, Android Auto — and the cast receiver, which can't apply the
   // setting themselves, so it's cleaned here.
-  String get _shownTitle => ref.read(cleanNamesProvider)
+  String get _shownTitle => _customTitle ?? (ref.read(cleanNamesProvider)
       ? cleanDisplayName(widget.title)
-      : widget.title;
+      : widget.title);
+
+  // A channel's own name, when the user gave it one (hold OK → Rename).
+  String? get _customTitle => widget.contentType == 'live' &&
+          widget.contentId != null
+      ? ref.read(channelCustomProvider).names[widget.contentId]
+      : null;
+
+  // The channel name for the on-screen controls.
+  String get _titleForControls => _customTitle ?? widget.title;
 
   // Opening while a cast device is connected plays straight there.
   Future<void> _playOrCast(Duration? start) async {
@@ -1416,7 +1426,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       child: Center(
                         child: _playbackGaveUp
                             ? _ErrorOverlay(
-                                title: widget.title,
+                                title: _titleForControls,
                                 message: _errorMessage,
                                 onBack: () => context.pop(),
                                 onChannels: _isChannelPlayback &&
@@ -1438,7 +1448,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 // The controls already show the title and a
                                 // spinner on the play button.
                                 visible: !_controlsVisible,
-                                title: widget.title,
+                                title: _titleForControls,
                                 status: _isRecovering
                                     ? _watchdog.everPlayed
                                         ? 'Reconnecting…'
@@ -1555,7 +1565,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 if (_casting)
                   Positioned.fill(
                     child: CastRemoteView(
-                      title: widget.title,
+                      title: _titleForControls,
                       subtitle: _castSubtitle,
                       isLive: _isPlainLive,
                       message: _castMessage,

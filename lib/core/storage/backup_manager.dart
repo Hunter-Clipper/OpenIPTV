@@ -470,6 +470,62 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'showFavoritesCategory',
+      encode: (p) => p.showFavoritesCategory,
+      decode: (p, v) async {
+        if (v is bool) await p.setShowFavoritesCategory(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'showRecentCategory',
+      encode: (p) => p.showRecentCategory,
+      decode: (p, v) async {
+        if (v is bool) await p.setShowRecentCategory(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'showAllCategory',
+      encode: (p) => p.showAllCategory,
+      decode: (p, v) async {
+        if (v is bool) await p.setShowAllCategory(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideShowNames',
+      encode: (p) => p.guideShowNames,
+      decode: (p, v) async {
+        if (v is bool) await p.setGuideShowNames(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideTwoLineNames',
+      encode: (p) => p.guideTwoLineNames,
+      decode: (p, v) async {
+        if (v is bool) await p.setGuideTwoLineNames(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideTwoLineTitles',
+      encode: (p) => p.guideTwoLineTitles,
+      decode: (p, v) async {
+        if (v is bool) await p.setGuideTwoLineTitles(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideHighlightPlaying',
+      encode: (p) => p.guideHighlightPlaying,
+      decode: (p, v) async {
+        if (v is bool) await p.setGuideHighlightPlaying(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'channelCustom',
+      encode: (p) => p.channelCustomJson,
+      decode: (p, v) async {
+        if (v is String && v.length < 2000000) await p.setChannelCustomJson(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'fontScale',
       encode: (p) => p.fontScale,
       decode: (p, v) async {

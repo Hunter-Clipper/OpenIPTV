@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,12 +57,28 @@ final _searchResultsProvider =
     ...await epg.searchProgrammesBetween(
         query, nowT, nowT.add(const Duration(days: 3))),
   ];
-  final results = await search.search(
+  var results = await search.search(
     query: query,
     currentProgrammes: airing,
     guideMatches: guide,
     sourceId: sourceId,
   );
+
+  // Channels this profile hid stay out of search too.
+  final hiddenChannels =
+      ref.watch(channelCustomProvider.select((c) => c.hidden));
+  if (hiddenChannels.isNotEmpty) {
+    results = SearchResults(
+      channels:
+          results.channels.where((c) => !hiddenChannels.contains(c.id)).toList(),
+      movies: results.movies,
+      series: results.series,
+      nowPlaying: results.nowPlaying,
+      programmes: results.programmes
+          .where((m) => !hiddenChannels.contains(m.channel.id))
+          .toList(),
+    );
+  }
 
   // Kid profiles never see adult content in search results at all —
   // mirrors the auto-hide behavior on the Live/Movies/Series browse screens.
@@ -585,7 +602,7 @@ class _ResultsList extends ConsumerWidget {
             RailItem(
               title: m.programme.title,
               subtitle:
-                  '${context.displayName(m.channel.name)} · ${when(m.programme.start)}',
+                  '${context.channelName(m.channel)} · ${when(m.programme.start)}',
               highlightSubtitle: m.programme.isLive,
               imageUrl: channelLocked(m.channel) ? null : m.channel.logoUrl,
               locked: channelLocked(m.channel),
@@ -596,7 +613,7 @@ class _ResultsList extends ConsumerWidget {
               onTap: () => _open(
                 context,
                 ref,
-                context.displayName(m.channel.name),
+                context.channelName(m.channel),
                 channelLocked(m.channel),
                 () => _playMatch(context, ref, m, now),
               ),
@@ -618,7 +635,7 @@ class _ResultsList extends ConsumerWidget {
             items: [
               for (final c in results.channels)
                 RailItem(
-                  title: context.displayName(c.name),
+                  title: context.channelName(c),
                   subtitle: results.nowPlaying[c.id] ?? 'Live',
                   highlightSubtitle: results.nowPlaying.containsKey(c.id),
                   imageUrl: channelLocked(c) ? null : c.logoUrl,
@@ -627,7 +644,7 @@ class _ResultsList extends ConsumerWidget {
                   onTap: () => _open(
                     context,
                     ref,
-                    context.displayName(c.name),
+                    context.channelName(c),
                     channelLocked(c),
                     () => _playLive(context, ref, c),
                   ),
