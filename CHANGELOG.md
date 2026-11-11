@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.103)
+## 0.14.103 — 2026-11-11
 
 **New**
 - **Hide a single channel.** Hold OK (TV) or long-press (phone) a channel → Hide Channel. It disappears from Live TV, the guide, channel switching, search and Android Auto for that profile. Settings → Live TV → Hidden Channels brings channels back, one at a time or all at once.
