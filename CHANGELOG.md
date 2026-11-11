@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.100)
+## 0.14.100 — 2026-11-10
 
 **New**
 - **Stream details.** The quality chip in the player now also shows the picture size, frame rate and sound format, for example `HD · 1280×720 · 60 FPS · STEREO`. Each detail stays on the chip once it is known, instead of dropping in and out. The sound is named too (for example `AC3 5.1`, `AAC STEREO`), and the frame rate is also worked out on TVs that play on the fast tunneled path. The player menu has a Stream details switch (Show / Hide).
