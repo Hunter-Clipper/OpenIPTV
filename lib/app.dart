@@ -35,6 +35,7 @@ import 'package:open_iptv/features/player/cast_ui.dart';
 import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/features/settings/parental_screen.dart';
+import 'package:open_iptv/features/settings/guide_data_screen.dart';
 import 'package:open_iptv/features/settings/power_user_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
@@ -317,6 +318,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                   builder: (_, __) => const ParentalScreen(),
                 ),
                 GoRoute(
+                  path: 'guide-data',
+                  builder: (_, __) => const GuideDataScreen(),
+                ),
+                GoRoute(
                   path: 'power-tools',
                   builder: (_, __) => const PowerUserScreen(),
                 ),
@@ -422,7 +427,14 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
         shortcuts: appShortcuts,
-        builder: (context, child) => ImageQuality(
+        builder: (context, child) => MediaQuery(
+          // Text size from Settings → Appearance, on top of the system's.
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(
+                MediaQuery.textScalerOf(context).scale(1.0) *
+                    ref.watch(fontScaleProvider)),
+          ),
+          child: ImageQuality(
           full: ref.watch(fullResImagesProvider),
           child: DisplayNames(
             enabled: ref.watch(cleanNamesProvider),
@@ -431,6 +443,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                   TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
             ),
           ),
+        ),
         ),
       ),
     );

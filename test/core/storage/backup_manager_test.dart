@@ -32,6 +32,10 @@ const _expectedBackupKeys = {
   'panelTimeoutSeconds',
   'skipSeconds',
   'audioDelayMs',
+  'fontScale',
+  'overlayOpacity',
+  'guideDaysAhead',
+  'guideDescriptions',
   'seekKeys',
   'streamDetails',
   'lastChannelOnStart',
@@ -119,6 +123,10 @@ void main() {
       await prefs.setSkipSeconds(30);
       await prefs.setAudioDelayMs(-200);
       await prefs.setSeekKeys('upDown');
+      await prefs.setFontScale(1.3);
+      await prefs.setOverlayOpacity('clear');
+      await prefs.setGuideDaysAhead(3);
+      await prefs.setGuideDescriptions(false);
       await prefs.setStreamDetails(false);
       await prefs.setLastChannelOnStart(true);
       await prefs.setBufferPreset('large');
@@ -165,6 +173,10 @@ void main() {
       expect(prefs2.skipSeconds, 30);
       expect(prefs2.audioDelayMs, -200);
       expect(prefs2.seekKeys, 'upDown');
+      expect(prefs2.fontScale, 1.3);
+      expect(prefs2.overlayOpacity, 'clear');
+      expect(prefs2.guideDaysAhead, 3);
+      expect(prefs2.guideDescriptions, isFalse);
       expect(prefs2.streamDetails, isFalse);
       expect(prefs2.lastChannelOnStart, isTrue);
       expect(prefs2.bufferPreset, 'large');

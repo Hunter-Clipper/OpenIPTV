@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -202,7 +204,11 @@ Future<T?> showPlayerSheet<T>(BuildContext context, WidgetBuilder builder) {
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: theme.colorScheme.surfaceContainerHigh,
+    backgroundColor: theme.colorScheme.surfaceContainerHigh.withValues(
+        alpha: overlayAlpha(
+            ProviderScope.containerOf(context, listen: false)
+                .read(overlayOpacityProvider),
+            1.0)),
     constraints: BoxConstraints(
       maxWidth: 640,
       maxHeight: MediaQuery.sizeOf(context).height * 0.86,

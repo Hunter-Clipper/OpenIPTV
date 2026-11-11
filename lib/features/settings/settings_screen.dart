@@ -9,6 +9,7 @@ import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -260,6 +261,49 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 );
               }),
+              // TV: open the app by itself (needs "Display over other apps").
+              if (PlatformHelper.isTVDevice) ...[
+                Consumer(builder: (context, ref, _) {
+                  return InfoTooltip(
+                    id: 'settings_start_on_boot',
+                    title: 'Start on Boot',
+                    body: 'Opens OpenIPTV by itself when the TV starts. Android '
+                        'needs "Display over other apps" allowed for '
+                        'OpenIPTV; you will be asked.',
+                    child: _ToggleTile(
+                      icon: Icons.power_settings_new_rounded,
+                      title: 'Start on Boot',
+                      value: ref.watch(startOnBootProvider),
+                      onChanged: (v) async {
+                        final prefs =
+                            await ref.read(appPreferencesProvider.future);
+                        await setStartup(ref, prefs, boot: v);
+                        if (v && context.mounted) await _askOverlay(context);
+                      },
+                    ),
+                  );
+                }),
+                Consumer(builder: (context, ref, _) {
+                  return InfoTooltip(
+                    id: 'settings_start_on_wake',
+                    title: 'Start on Wake',
+                    body: 'Opens OpenIPTV by itself when the TV wakes from '
+                        'sleep. Android needs "Display over other apps" '
+                        'allowed for OpenIPTV; you will be asked.',
+                    child: _ToggleTile(
+                      icon: Icons.bedtime_outlined,
+                      title: 'Start on Wake',
+                      value: ref.watch(startOnWakeProvider),
+                      onChanged: (v) async {
+                        final prefs =
+                            await ref.read(appPreferencesProvider.future);
+                        await setStartup(ref, prefs, wake: v);
+                        if (v && context.mounted) await _askOverlay(context);
+                      },
+                    ),
+                  );
+                }),
+              ],
               Consumer(builder: (context, ref, _) {
                 final pipEnabled = ref.watch(pipEnabledProvider);
                 return InfoTooltip(
@@ -381,6 +425,44 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     onTap: () => _showAccentColorPicker(context, ref, accent),
                   ),
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final scale = ref.watch(fontScaleProvider);
+                return _ChoiceTile(
+                  icon: Icons.text_fields_rounded,
+                  title: 'Text Size',
+                  options: const [0.85, 1.0, 1.15, 1.3],
+                  current: scale,
+                  label: (v) => switch (v) {
+                    0.85 => 'Small',
+                    1.15 => 'Large',
+                    1.3 => 'Extra large',
+                    _ => 'Default',
+                  },
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setFontScale(ref, v, prefs);
+                  },
+                );
+              }),
+              Consumer(builder: (context, ref, _) {
+                final mode = ref.watch(overlayOpacityProvider);
+                return _ChoiceTile(
+                  icon: Icons.opacity_rounded,
+                  title: 'Player Transparency',
+                  options: const ['solid', 'normal', 'clear', 'veryclear'],
+                  current: mode,
+                  label: (v) => switch (v) {
+                    'solid' => 'Solid',
+                    'clear' => 'See-through',
+                    'veryclear' => 'Very see-through',
+                    _ => 'Default',
+                  },
+                  onPicked: (v) async {
+                    final prefs = await ref.read(appPreferencesProvider.future);
+                    await setOverlayOpacity(ref, v, prefs);
+                  },
                 );
               }),
               InfoTooltip(
@@ -506,6 +588,20 @@ class SettingsScreen extends ConsumerWidget {
             // --------------- ADVANCED (admin only, last) ---------------
             if (isAdmin)
               SettingsGroup(title: 'Advanced', children: [
+                InfoTooltip(
+                  id: 'settings_guide_data',
+                  title: 'Guide Data',
+                  body: 'Choose how many days of TV guide are kept, whether '
+                      'programme descriptions are stored, see when each '
+                      "playlist's guide last updated, and clear it.",
+                  child: _NavTile(
+                    leading: const Icon(Icons.event_note_outlined),
+                    title: 'Guide Data',
+                    subtitle: Text('How much TV guide is stored',
+                        style: theme.textTheme.bodySmall),
+                    onTap: () => context.push('/settings/guide-data'),
+                  ),
+                ),
                 InfoTooltip(
                   id: 'settings_power_tools',
                   title: 'Power User Tools',
@@ -779,6 +875,37 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  /// Starting the app by itself needs Android's "Display over other apps"
+  /// permission. If it isn't allowed yet, explain and offer the system screen.
+  Future<void> _askOverlay(BuildContext context) async {
+    if (await canDrawOverOtherApps()) return;
+    if (!context.mounted) return;
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Allow Display Over Other Apps'),
+        content: const Text(
+            'Android only lets OpenIPTV open itself when the TV starts or '
+            'wakes if "Display over other apps" is allowed for it. Open that '
+            'screen now and switch it on for OpenIPTV.'),
+        actions: [
+          TvActivatable(
+            onTap: () => Navigator.of(dialogContext).pop(false),
+            builder: (onTap) =>
+                TextButton(onPressed: onTap, child: const Text('Not now')),
+          ),
+          TvActivatable(
+            autofocus: true,
+            onTap: () => Navigator.of(dialogContext).pop(true),
+            builder: (onTap) => FilledButton(
+                onPressed: onTap, child: const Text('Open Settings')),
+          ),
+        ],
+      ),
+    );
+    if (open == true) await requestOverlayPermission();
+  }
+
   /// Back to the provider's Live TV category names and order, for the
   /// active profile (hold OK / long-press on a category changes them).
   Future<void> _resetCategories(BuildContext context, WidgetRef ref) async {
@@ -793,12 +920,12 @@ class SettingsScreen extends ConsumerWidget {
             'playlist gives them. Hidden categories stay hidden.'),
         actions: [
           TvActivatable(
+            autofocus: true,
             onTap: () => Navigator.of(dialogContext).pop(false),
             builder: (onTap) =>
                 TextButton(onPressed: onTap, child: const Text('Cancel')),
           ),
           TvActivatable(
-            autofocus: true,
             onTap: () => Navigator.of(dialogContext).pop(true),
             builder: (onTap) =>
                 FilledButton(onPressed: onTap, child: const Text('Reset')),
@@ -982,6 +1109,8 @@ class _DialogChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TvActivatable(
+      // The remote starts on the current choice, not on nothing.
+      autofocus: selected,
       onTap: onTap,
       builder: (onTap) => SimpleDialogOption(
         onPressed: onTap,

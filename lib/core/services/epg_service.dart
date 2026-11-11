@@ -10,6 +10,9 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xmltv_parser.dart';
 import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/shared/utils/friendly_error.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -66,6 +69,8 @@ Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
 Future<List<Programme>> _fetchAndParseAll(
   String epgUrl,
   Duration pastWindow,
+  int daysAhead,
+  bool keepDescriptions,
 ) async {
   final client = http.Client();
   final programmes = <Programme>[];
@@ -84,7 +89,10 @@ Future<List<Programme>> _fetchAndParseAll(
     // data arrives within the stall window, the stream errors out — a slow
     // but progressing feed keeps going.
     await for (final prog in _stallTimeout(
-      XmltvParser.parse(bodyStream, pastWindow: pastWindow),
+      XmltvParser.parse(bodyStream,
+          pastWindow: pastWindow,
+          windowDays: daysAhead,
+          keepDescriptions: keepDescriptions),
       const Duration(seconds: 60),
     )) {
       programmes.add(prog);
@@ -189,9 +197,15 @@ class EpgService {
           ? Duration(days: maxCatchupDays)
           : const Duration(hours: 1);
 
+      // Guide data options (Settings → Advanced → Guide Data). Read here,
+      // not passed in: refreshes also run from the background worker.
+      final prefs = AppPreferences(await SharedPreferences.getInstance());
+      final daysAhead = prefs.guideDaysAhead;
+      final keepDescriptions = prefs.guideDescriptions;
+
       onProgress?.call('Downloading TV guide…');
       final programmes = await Isolate.run(
-        () => _fetchAndParseAll(epgUrl, pastWindow),
+        () => _fetchAndParseAll(epgUrl, pastWindow, daysAhead, keepDescriptions),
         debugName: 'epg-parse',
       );
 
@@ -201,6 +215,8 @@ class EpgService {
       // Only delete old programmes after new data is successfully fetched
       // and parsed — a failed refresh keeps the existing guide intact.
       await db.deleteOldProgrammes();
+      await db.deleteProgrammesStartingAfter(
+          DateTime.now().add(Duration(days: daysAhead)));
 
       // Stored straight under the app's own channel ids, so a refresh
       // updates the rows already there. (It used to store every programme
@@ -216,7 +232,7 @@ class EpgService {
               start: p.start,
               end: p.end,
               title: p.title,
-              description: p.description,
+              description: keepDescriptions ? p.description : null,
               category: p.category,
               episodeNum: p.episodeNum,
             ),
@@ -236,6 +252,9 @@ class EpgService {
           '(${programmes.length - mapped.length} for channels not in any '
           'playlist skipped) in ${sw.elapsedMilliseconds}ms');
       await db.compact();
+      await prefs.setGuideStatus(source.id,
+          updatedMs: DateTime.now().millisecondsSinceEpoch,
+          count: totalWritten);
 
       sw.stop();
       debugPrint(
@@ -244,6 +263,10 @@ class EpgService {
       sw.stop();
       debugPrint('[EPG] Error after ${sw.elapsedMilliseconds}ms: '
           '${redactUrl('$e')}\n$st');
+      try {
+        await AppPreferences(await SharedPreferences.getInstance())
+            .setGuideStatus(source.id, error: friendlyEpgErrorMessage(e));
+      } catch (_) {}
       // Callers report it ("TV guide isn't available"); swallowing it here
       // made every failed guide refresh look like a success.
       rethrow;

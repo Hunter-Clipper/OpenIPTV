@@ -56,6 +56,19 @@ object EngineChannels {
                     result.success(handler != null && !handler.contains("frameworkpackagestubs"))
                 }
                 "networkInfo" -> result.success(networkInfo(context))
+                "setStartup" -> {
+                    StartupLauncher.set(
+                        context,
+                        call.argument<Boolean>("boot") ?: false,
+                        call.argument<Boolean>("wake") ?: false,
+                    )
+                    result.success(null)
+                }
+                "canDrawOverlays" -> result.success(StartupLauncher.canDrawOverlays(context))
+                "requestOverlayPermission" -> {
+                    StartupLauncher.requestOverlayPermission(context)
+                    result.success(null)
+                }
                 // Optional anonymous crash reports (#150).
                 "deviceFacts" -> result.success(NativeCrashReporter.deviceFacts())
                 "takeNativeCrash" -> result.success(NativeCrashReporter.take(context))
@@ -153,5 +166,6 @@ class OpenIptvApplication : Application() {
         EngineChannels.install()
         NativeCrashReporter.install(this)
         OutputModes.load(this)
+        StartupLauncher.registerWake(this)
     }
 }

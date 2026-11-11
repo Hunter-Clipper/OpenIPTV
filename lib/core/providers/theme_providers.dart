@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
@@ -132,6 +133,58 @@ Future<void> setStreamDetails(
   ref.read(streamDetailsProvider.notifier).state = on;
   await prefs.setStreamDetails(on);
 }
+
+/// TV: open the app when the TV starts / wakes from sleep.
+final startOnBootProvider = StateProvider<bool>((ref) => false);
+final startOnWakeProvider = StateProvider<bool>((ref) => false);
+
+Future<void> setStartup(WidgetRef ref, AppPreferences prefs,
+    {bool? boot, bool? wake}) async {
+  if (boot != null) {
+    ref.read(startOnBootProvider.notifier).state = boot;
+    await prefs.setStartOnBoot(boot);
+  }
+  if (wake != null) {
+    ref.read(startOnWakeProvider.notifier).state = wake;
+    await prefs.setStartOnWake(wake);
+  }
+  await setStartupOptions(boot: prefs.startOnBoot, wake: prefs.startOnWake);
+}
+
+/// Text size multiplier, on top of the system's (0.85, 1.0, 1.15, 1.3).
+final fontScaleProvider = StateProvider<double>((ref) => 1.0);
+
+Future<void> setFontScale(WidgetRef ref, double v, AppPreferences prefs) async {
+  ref.read(fontScaleProvider.notifier).state = v;
+  await prefs.setFontScale(v);
+}
+
+/// How see-through the player's panels and controls backdrop are:
+/// 'solid' | 'normal' | 'clear' | 'veryclear'.
+final overlayOpacityProvider = StateProvider<String>((ref) => 'normal');
+
+Future<void> setOverlayOpacity(
+    WidgetRef ref, String v, AppPreferences prefs) async {
+  ref.read(overlayOpacityProvider.notifier).state = v;
+  await prefs.setOverlayOpacity(v);
+}
+
+/// The alpha to draw an overlay with, given its normal [base] alpha.
+double overlayAlpha(String mode, double base) => switch (mode) {
+      'solid' => 1.0,
+      'clear' => base * 0.75,
+      'veryclear' => base * 0.55,
+      _ => base,
+    };
+
+/// The same for a dark backdrop behind text, which gets stronger (not
+/// just opaque) when [mode] is solid, so the text stays readable.
+double scrimAlpha(String mode, double base) => switch (mode) {
+      'solid' => (base * 1.4).clamp(0.0, 1.0),
+      'clear' => base * 0.7,
+      'veryclear' => base * 0.45,
+      _ => base,
+    };
 
 /// Open the last watched channel when the app starts.
 final lastChannelOnStartProvider = StateProvider<bool>((ref) => false);
@@ -288,6 +341,11 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(skipSecondsProvider.notifier).state = prefs.skipSeconds;
   ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;
   ref.read(seekKeysProvider.notifier).state = prefs.seekKeys;
+  ref.read(fontScaleProvider.notifier).state = prefs.fontScale;
+  ref.read(startOnBootProvider.notifier).state = prefs.startOnBoot;
+  ref.read(startOnWakeProvider.notifier).state = prefs.startOnWake;
+  unawaited(setStartupOptions(boot: prefs.startOnBoot, wake: prefs.startOnWake));
+  ref.read(overlayOpacityProvider.notifier).state = prefs.overlayOpacity;
   ref.read(audioDelayProvider.notifier).state = prefs.audioDelayMs;
   unawaited(ref
       .read(playbackServiceProvider)

@@ -793,6 +793,29 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Programmes later than [limit] (the "days of guide to keep" setting).
+  Future<void> deleteProgrammesStartingAfter(DateTime limit) =>
+      (delete(programmes)..where((t) => t.start.isBiggerThanValue(limit))).go();
+
+  /// Drops every stored programme description (they are most of the guide's size).
+  Future<void> clearProgrammeDescriptions() async {
+    await customStatement(
+        'UPDATE programmes SET description = NULL WHERE description IS NOT NULL');
+  }
+
+  /// Forgets the whole guide (the playlists keep their channels).
+  Future<void> clearAllProgrammes() => delete(programmes).go();
+
+  /// How many programmes are stored for one playlist's channels.
+  Future<int> countProgrammesForSource(String sourceId) async {
+    final prefix = '${sourceId}_ch_';
+    final rows = await customSelect(
+      'SELECT COUNT(*) AS n FROM programmes WHERE substr(channel_id, 1, ?) = ?',
+      variables: [Variable.withInt(prefix.length), Variable.withString(prefix)],
+    ).get();
+    return rows.first.read<int>('n');
+  }
+
   Future<void> updateSourceRefreshTime(String id, DateTime time) async {
     await (update(sources)..where((t) => t.id.equals(id))).write(
       SourcesCompanion(lastRefreshed: Value(time)),

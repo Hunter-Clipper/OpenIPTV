@@ -14,6 +14,7 @@ class XmltvParser {
     Stream<String> chunks, {
     int windowDays = 5,
     Duration pastWindow = const Duration(hours: 1),
+    bool keepDescriptions = true,
   }) async* {
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
     final cutoffStart = DateTime.now().subtract(pastWindow);
@@ -62,7 +63,7 @@ class XmltvParser {
         }
       } else if (event is XmlTextEvent) {
         if (inTitle) progTitle = (progTitle ?? '') + event.value;
-        if (inDesc) progDesc = (progDesc ?? '') + event.value;
+        if (inDesc && keepDescriptions) progDesc = (progDesc ?? '') + event.value;
         if (inCategory) progCategory = (progCategory ?? '') + event.value;
         if (inEpisodeNum) progEpisodeNum = (progEpisodeNum ?? '') + event.value;
       } else if (event is XmlEndElementEvent) {

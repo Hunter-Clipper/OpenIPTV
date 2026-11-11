@@ -145,7 +145,11 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
     return Align(
       alignment: Alignment.centerRight,
       child: Material(
-        color: theme.colorScheme.surfaceContainer.withValues(alpha: 0.97),
+        color: theme.colorScheme.surfaceContainer.withValues(
+            alpha: overlayAlpha(
+                ProviderScope.containerOf(context, listen: false)
+                    .read(overlayOpacityProvider),
+                0.97)),
         borderRadius: const BorderRadius.horizontal(left: Radius.circular(28)),
         clipBehavior: Clip.antiAlias,
         child: SizedBox(

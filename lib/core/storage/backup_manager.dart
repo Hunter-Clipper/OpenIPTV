@@ -470,6 +470,39 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'fontScale',
+      encode: (p) => p.fontScale,
+      decode: (p, v) async {
+        if (v is num && const [0.85, 1.0, 1.15, 1.3].contains(v.toDouble())) {
+          await p.setFontScale(v.toDouble());
+        }
+      },
+    ),
+    PreferenceEntry(
+      key: 'overlayOpacity',
+      encode: (p) => p.overlayOpacity,
+      decode: (p, v) async {
+        if (v is String &&
+            const ['solid', 'normal', 'clear', 'veryclear'].contains(v)) {
+          await p.setOverlayOpacity(v);
+        }
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideDaysAhead',
+      encode: (p) => p.guideDaysAhead,
+      decode: (p, v) async {
+        if (v is int) await p.setGuideDaysAhead(v.clamp(1, 14));
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideDescriptions',
+      encode: (p) => p.guideDescriptions,
+      decode: (p, v) async {
+        if (v is bool) await p.setGuideDescriptions(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'seekKeys',
       encode: (p) => p.seekKeys,
       decode: (p, v) async {

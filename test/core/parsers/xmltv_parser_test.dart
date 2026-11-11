@@ -31,6 +31,24 @@ void main() {
       expect(programmes, isNotEmpty);
     });
 
+    test('keepDescriptions: false drops descriptions only', () async {
+      final all = await XmltvParser.parse(stream(sampleXml)).toList();
+      final bare = await XmltvParser.parse(stream(sampleXml),
+          keepDescriptions: false).toList();
+      expect(bare.length, all.length);
+      expect(bare.every((p) => p.description == null), isTrue);
+      expect(all.any((p) => p.description != null), isTrue);
+      expect(bare.map((p) => p.title), all.map((p) => p.title));
+    });
+
+    test('windowDays limits how far ahead programmes are kept', () async {
+      final near = await XmltvParser.parse(stream(sampleXml), windowDays: 1)
+          .toList();
+      final far = await XmltvParser.parse(stream(sampleXml), windowDays: 14)
+          .toList();
+      expect(near.length, lessThan(far.length));
+    });
+
     test('parses title correctly', () async {
       final programmes = await XmltvParser.parse(stream(sampleXml)).toList();
       final eastenders =

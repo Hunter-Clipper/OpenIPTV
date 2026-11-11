@@ -48,3 +48,28 @@ Future<bool> hasDocumentPicker() async {
     return true;
   }
 }
+
+/// TV: tells native whether to open the app when the TV starts / wakes. The
+/// choice is kept natively because a boot broadcast arrives before Dart runs.
+Future<void> setStartupOptions({required bool boot, required bool wake}) async {
+  try {
+    await _channel.invokeMethod<void>('setStartup', {'boot': boot, 'wake': wake});
+  } catch (_) {}
+}
+
+/// Whether the user has allowed "Display over other apps", which Android
+/// requires before an app may open itself from the background.
+Future<bool> canDrawOverOtherApps() async {
+  try {
+    return await _channel.invokeMethod<bool>('canDrawOverlays') ?? false;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Opens the system screen for "Display over other apps".
+Future<void> requestOverlayPermission() async {
+  try {
+    await _channel.invokeMethod<void>('requestOverlayPermission');
+  } catch (_) {}
+}

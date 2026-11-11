@@ -148,4 +148,53 @@ void main() {
     expect(ids['CNN.us'], 'other_2');
     expect(ids.containsKey('ITV.uk'), isFalse);
   });
+
+  group('guide data options', () {
+    Future<void> ahead(String channelId, Duration startsIn, {String? desc}) =>
+        db.into(db.programmes).insert(ProgrammesCompanion.insert(
+              channelId: channelId,
+              start: now.add(startsIn),
+              end: now.add(startsIn + const Duration(minutes: 30)),
+              title: '$channelId in ${startsIn.inHours}h',
+              description: Value(desc),
+            ));
+
+    test('deleteProgrammesStartingAfter trims the far future only', () async {
+      await channel('src_ch_1');
+      await ahead('src_ch_1', const Duration(hours: 2));
+      await ahead('src_ch_1', const Duration(hours: 30));
+      await ahead('src_ch_1', const Duration(hours: 80));
+      await db.deleteProgrammesStartingAfter(now.add(const Duration(days: 2)));
+      expect(await remaining(),
+          ['src_ch_1 in 2h', 'src_ch_1 in 30h']);
+    });
+
+    test('clearProgrammeDescriptions keeps titles and times', () async {
+      await channel('src_ch_1');
+      await ahead('src_ch_1', const Duration(hours: 2), desc: 'Long text');
+      await db.clearProgrammeDescriptions();
+      final rows = await db.select(db.programmes).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.description, isNull);
+      expect(rows.single.title, 'src_ch_1 in 2h');
+    });
+
+    test('countProgrammesForSource counts one playlist only', () async {
+      await channel('src_ch_1');
+      await ahead('src_ch_1', const Duration(hours: 1));
+      await ahead('src_ch_1', const Duration(hours: 2));
+      await ahead('other_ch_9', const Duration(hours: 1));
+      expect(await db.countProgrammesForSource('src'), 2);
+      expect(await db.countProgrammesForSource('other'), 1);
+      expect(await db.countProgrammesForSource('none'), 0);
+    });
+
+    test('clearAllProgrammes empties the guide, not the channels', () async {
+      await channel('src_ch_1');
+      await ahead('src_ch_1', const Duration(hours: 1));
+      await db.clearAllProgrammes();
+      expect(await db.select(db.programmes).get(), isEmpty);
+      expect(await db.select(db.channels).get(), hasLength(1));
+    });
+  });
 }

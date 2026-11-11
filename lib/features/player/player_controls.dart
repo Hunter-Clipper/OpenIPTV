@@ -313,22 +313,7 @@ class _ControlsLayout extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xA6000000),
-                Color(0x00000000),
-                Color(0x00000000),
-                Color(0x8C000000),
-                Color(0xE6000000),
-              ],
-              stops: [0.0, 0.24, 0.45, 0.72, 1.0],
-            ),
-          ),
-        ),
+        const _Scrim([0.65, 0.0, 0.0, 0.55, 0.9], [0.0, 0.24, 0.45, 0.72, 1.0]),
         if (background != null) background!,
         if (transport != null) Center(child: transport),
         Positioned(
@@ -372,22 +357,7 @@ class _ControlsLayout extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0x73000000),
-                Color(0x00000000),
-                Color(0x00000000),
-                Color(0xB3000000),
-                Color(0xF2000000),
-              ],
-              stops: [0.0, 0.18, 0.4, 0.68, 1.0],
-            ),
-          ),
-        ),
+        const _Scrim([0.45, 0.0, 0.0, 0.7, 0.95], [0.0, 0.18, 0.4, 0.68, 1.0]),
         Positioned(
           top: m.tvEdge * 0.6,
           right: m.tvEdge,
@@ -1360,4 +1330,31 @@ class _Buffering extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_Buffering old) => buffering != old.buffering;
+}
+
+/// The dark backdrop behind the player's controls, strengthened or thinned by
+/// Settings → Appearance → Player Transparency.
+class _Scrim extends ConsumerWidget {
+  const _Scrim(this.alphas, this.stops);
+
+  final List<double> alphas;
+  final List<double> stops;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(overlayOpacityProvider);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            for (final a in alphas)
+              Colors.black.withValues(alpha: scrimAlpha(mode, a)),
+          ],
+          stops: stops,
+        ),
+      ),
+    );
+  }
 }

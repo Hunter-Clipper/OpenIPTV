@@ -34,6 +34,12 @@ const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
 const _kPanelTimeoutSeconds = 'panel_timeout_seconds'; // player controls
 const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
+const _kFontScale = 'font_scale'; // text size multiplier (Appearance)
+const _kOverlayOpacity = 'overlay_opacity'; // 'solid' | 'normal' | 'clear' | 'veryclear'
+const _kGuideDays = 'guide_days_ahead'; // days of guide to keep ahead
+const _kGuideDescriptions = 'guide_descriptions'; // store programme descriptions
+const _kStartOnBoot = 'start_on_boot'; // TV: open the app when the TV starts
+const _kStartOnWake = 'start_on_wake'; // TV: open the app when the TV wakes
 const _kSeekKeys = 'seek_keys'; // which remote keys seek in catch-up / movies
 const _kAudioDelayMs = 'audio_delay_ms'; // lip-sync shift
 const _kStreamDetails = 'stream_details'; // resolution/fps/audio badges
@@ -185,6 +191,52 @@ class AppPreferences {
   Future<void> setSkipSeconds(int v) => _prefs.setInt(_kSkipSeconds, v);
 
   /// 'media' (rewind / fast-forward keys), 'leftRight' or 'upDown'.
+  /// Text size multiplier on top of the system's: 0.85, 1.0, 1.15 or 1.3.
+  double get fontScale => _prefs.getDouble(_kFontScale) ?? 1.0;
+  Future<void> setFontScale(double v) => _prefs.setDouble(_kFontScale, v);
+
+  /// How see-through the player's panels and controls backdrop are.
+  String get overlayOpacity => _prefs.getString(_kOverlayOpacity) ?? 'normal';
+  Future<void> setOverlayOpacity(String v) =>
+      _prefs.setString(_kOverlayOpacity, v);
+
+  /// Days of TV guide kept ahead of now (1 to 14, default 5).
+  int get guideDaysAhead => _prefs.getInt(_kGuideDays) ?? 5;
+  Future<void> setGuideDaysAhead(int v) => _prefs.setInt(_kGuideDays, v);
+
+  /// Whether programme descriptions are stored (they are most of the guide's size).
+  bool get guideDescriptions => _prefs.getBool(_kGuideDescriptions) ?? true;
+  Future<void> setGuideDescriptions(bool v) =>
+      _prefs.setBool(_kGuideDescriptions, v);
+
+  bool get startOnBoot => _prefs.getBool(_kStartOnBoot) ?? false;
+  Future<void> setStartOnBoot(bool v) => _prefs.setBool(_kStartOnBoot, v);
+  bool get startOnWake => _prefs.getBool(_kStartOnWake) ?? false;
+  Future<void> setStartOnWake(bool v) => _prefs.setBool(_kStartOnWake, v);
+
+  // Per-playlist guide status (Settings → Advanced → Guide Data); not backed up.
+  int? guideUpdatedMs(String sourceId) => _prefs.getInt('epg_ok_$sourceId');
+  int? guideProgrammeCount(String sourceId) => _prefs.getInt('epg_n_$sourceId');
+  String? guideError(String sourceId) => _prefs.getString('epg_err_$sourceId');
+  Future<void> setGuideStatus(String sourceId,
+      {int? updatedMs, int? count, String? error}) async {
+    if (updatedMs != null) {
+      await _prefs.setInt('epg_ok_$sourceId', updatedMs);
+      await _prefs.setInt('epg_n_$sourceId', count ?? 0);
+      await _prefs.remove('epg_err_$sourceId');
+    } else if (error != null) {
+      await _prefs.setString('epg_err_$sourceId', error);
+    }
+  }
+
+  Future<void> clearGuideStatus() async {
+    for (final k in _prefs.getKeys().toList()) {
+      if (k.startsWith('epg_ok_') || k.startsWith('epg_n_') || k.startsWith('epg_err_')) {
+        await _prefs.remove(k);
+      }
+    }
+  }
+
   String get seekKeys => _prefs.getString(_kSeekKeys) ?? 'media';
   Future<void> setSeekKeys(String v) => _prefs.setString(_kSeekKeys, v);
 

@@ -3,6 +3,18 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.101)
+
+**New**
+- **Text Size.** Settings → Appearance → Text Size makes all text in the app Small, Default, Large or Extra large, on top of your device's own text size setting.
+- **Player Transparency.** Settings → Appearance → Player Transparency sets how see-through the player's menus, channel list and controls backdrop are: Solid, Default, See-through or Very see-through.
+- **Guide Data** (Settings → Advanced → Guide Data). Choose how many days of TV guide are kept (1 to 14, default 5), turn off storing programme descriptions to save space, see when each playlist's guide last updated and how many programmes it holds (or what went wrong), and clear the stored guide.
+- **Start on Boot and Start on Wake (TV).** Settings → Playback has two new switches that open OpenIPTV by itself when the TV starts or wakes from sleep. Android needs "Display over other apps" allowed for OpenIPTV first; the app takes you to that screen.
+
+**Improved**
+- The Reset Category Names and Order question now starts on Cancel, so a stray OK press doesn't reset anything.
+- On TV, choice lists (Text Size, Skip Buttons and so on) now start on your current choice.
+
 ## 0.14.100 — 2026-11-10
 
 **New**
