@@ -946,7 +946,7 @@ class NativeVideoPlayer(
         val n = counters.renderedOutputBufferCount
         if (countStartMs == 0L || n < countStart) { countStartMs = now; countStart = n; return 0f }
         val ms = now - countStartMs
-        if (ms < 3_000) return 0f
+        if (ms < 2_000) return 0f
         val raw = (n - countStart) * 1000f / ms
         android.util.Log.i("OTV-video", "counted frame rate: $raw (frames=${n - countStart} in ${ms}ms)")
         countStartMs = now; countStart = n
@@ -969,6 +969,11 @@ class NativeVideoPlayer(
         for (g in currentTracks.groups) {
             if (g.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until g.length) if (g.isTrackSelected(i)) return g.getTrackFormat(i)
+        }
+        // Nothing selected (a sound this device can't decode): still say what
+        // the stream carries.
+        for (g in currentTracks.groups) {
+            if (g.type == C.TRACK_TYPE_AUDIO && g.length > 0) return g.getTrackFormat(0)
         }
         return null
     }

@@ -30,4 +30,27 @@ void main() {
       'SD',
     );
   });
+
+  test('names the sound format, also when the channels are unknown', () {
+    expect(
+      streamDetailsLabel(
+          tier: 'HD',
+          width: 1280,
+          height: 720,
+          frameRate: 25,
+          audioChannels: 6,
+          audioMime: 'audio/ac3'),
+      'HD · 1280×720 · 25 FPS · AC3 5.1',
+    );
+    expect(
+      streamDetailsLabel(
+          tier: 'HD',
+          width: 1280,
+          height: 720,
+          frameRate: 0,
+          audioChannels: 0,
+          audioMime: 'audio/mp4a-latm'),
+      'HD · 1280×720 · AAC',
+    );
+  });
 }

@@ -1226,16 +1226,35 @@ String streamDetailsLabel({
     final r = frameRate.roundToDouble();
     parts.add('${(frameRate - r).abs() < 0.05 ? r.toInt() : frameRate.toStringAsFixed(2)} FPS');
   }
+  final codec = _audioCodecName(audioMime);
   final audio = switch (audioChannels) {
-    0 => null,
+    <= 0 => null,
     1 => 'MONO',
     2 => 'STEREO',
     6 => '5.1',
     8 => '7.1',
     final n => '$n CH',
   };
-  if (audio != null) parts.add(audio);
+  // Sound: codec and layout, e.g. "AC3 5.1"; either alone if only one is known.
+  final sound = [if (codec != null) codec, if (audio != null) audio].join(' ');
+  if (sound.isNotEmpty) parts.add(sound);
   return parts.join(' · ');
+}
+
+String? _audioCodecName(String? mime) {
+  if (mime == null) return null;
+  final m = mime.toLowerCase();
+  if (m.contains('eac3-joc')) return 'ATMOS';
+  if (m.contains('eac3')) return 'E-AC3';
+  if (m.contains('ac3')) return 'AC3';
+  if (m.contains('ac4')) return 'AC4';
+  if (m.contains('true-hd') || m.contains('truehd')) return 'TRUEHD';
+  if (m.contains('vnd.dts.hd')) return 'DTS-HD';
+  if (m.contains('dts')) return 'DTS';
+  if (m.contains('mp4a') || m.contains('aac')) return 'AAC';
+  if (m.contains('mpeg')) return 'MP3';
+  if (m.contains('opus')) return 'OPUS';
+  return null;
 }
 
 class _QualityChip extends StatelessWidget {
