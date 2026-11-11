@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -11,7 +12,6 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/features/player/channel_switcher.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
-import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -160,7 +160,7 @@ class MultiViewState extends State<MultiView> {
     final action = await showPlayerSheet<_TileAction>(
       context,
       (ctx) => PlayerSheet(
-        title: context.displayName(t.channel.name),
+        title: context.channelName(t.channel),
         children: [
           _OptionTile(
             icon: Icons.fullscreen_rounded,
@@ -335,7 +335,7 @@ class MultiViewState extends State<MultiView> {
                   child: Semantics(
                     button: true,
                     selected: i == _highlight,
-                    label: context.displayName(_tiles[i].channel.name),
+                    label: context.channelName(_tiles[i].channel),
                     hint: i == _highlight
                         ? 'Double tap for options'
                         : 'Double tap to hear this channel',
@@ -722,7 +722,7 @@ class _TileView extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  context.displayName(tile.channel.name),
+                  context.channelName(tile.channel),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall!.copyWith(

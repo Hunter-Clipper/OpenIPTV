@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
@@ -21,7 +21,6 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/live_tv/tv_guide_screen.dart';
-import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/app_logo.dart';
 import 'package:open_iptv/shared/widgets/browse_app_bar_actions.dart';
@@ -97,7 +96,6 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   void _showRemoveRecentSheet(Channel ch) {
-    HapticFeedback.mediumImpact();
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
@@ -168,12 +166,15 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               isKid: isKid,
               az: sort == 'az',
               order: profile?.categoryOrder ?? const []);
+          final showFavorites = ref.watch(showFavoritesCategoryProvider);
+          final showRecent = ref.watch(showRecentCategoryProvider);
           final favorites = all
-              .where((c) => favIds.contains(c.id))
+              .where((c) => showFavorites && favIds.contains(c.id))
               .where((c) => !isKid || !c.categories.any(isAdultCategory))
               .toList();
-          final recent =
-              ref.watch(recentChannelsProvider).valueOrNull ?? [];
+          final recent = showRecent
+              ? ref.watch(recentChannelsProvider).valueOrNull ?? []
+              : const <Channel>[];
           final catCounts = <String, int>{};
           for (final c in all) {
             for (final cat in c.categories) {
@@ -423,7 +424,6 @@ void playLiveChannel(BuildContext context, WidgetRef ref, Channel channel) {
 void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
     String profileId, bool isFavorite,
     {bool recent = false}) {
-  HapticFeedback.mediumImpact();
   showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
@@ -440,6 +440,28 @@ void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
               .read(appDatabaseProvider)
               .clearChannelLastWatched(profileId, channel.id)
           : null,
+      isRenamed: ref.read(channelCustomProvider).names.containsKey(channel.id),
+      onRename: () async {
+        final custom = ref.read(channelCustomProvider);
+        final name = await showRenameDialog(
+          context,
+          title: 'Rename Channel',
+          hint: 'Channel name',
+          current: custom.names[channel.id] ?? context.channelName(channel),
+        );
+        if (name == null) return;
+        await ref.read(channelCustomProvider.notifier).rename(channel.id, name);
+      },
+      onResetName: () =>
+          ref.read(channelCustomProvider.notifier).rename(channel.id, null),
+      onHide: () async {
+        await ref.read(channelCustomProvider.notifier).hide(channel.id);
+        if (context.mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+              content: Text(
+                  'Channel hidden. Bring it back in Settings → Live TV → Hidden Channels.')));
+        }
+      },
     ),
   );
 }
@@ -506,7 +528,7 @@ class _ChannelRow extends ConsumerWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            context.displayName(channel.name),
+                            context.channelName(channel),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleSmall,
@@ -657,12 +679,20 @@ class _ChannelOptionsSheet extends StatelessWidget {
   const _ChannelOptionsSheet({
     required this.isFavorite,
     required this.onToggle,
+    required this.onRename,
+    required this.onResetName,
+    required this.onHide,
+    required this.isRenamed,
     this.onRemoveRecent,
   });
 
   final bool isFavorite;
   final Future<void> Function() onToggle;
   final Future<void> Function()? onRemoveRecent;
+  final Future<void> Function() onRename;
+  final Future<void> Function() onResetName;
+  final Future<void> Function() onHide;
+  final bool isRenamed;
 
   @override
   Widget build(BuildContext context) {
@@ -679,6 +709,31 @@ class _ChannelOptionsSheet extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               onToggle();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Rename Channel'),
+            onTap: () {
+              Navigator.of(context).pop();
+              onRename();
+            },
+          ),
+          if (isRenamed)
+            ListTile(
+              leading: const Icon(Icons.restart_alt_rounded),
+              title: const Text('Use the Original Name'),
+              onTap: () {
+                Navigator.of(context).pop();
+                onResetName();
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.visibility_off_outlined),
+            title: const Text('Hide Channel'),
+            onTap: () {
+              Navigator.of(context).pop();
+              onHide();
             },
           ),
           if (onRemoveRecent != null)
@@ -936,7 +991,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
               ),
             const SizedBox(height: 8),
             Text(
-              context.displayName(ch.name),
+              context.channelName(ch),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodyMedium!

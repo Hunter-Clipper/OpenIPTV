@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -43,6 +44,8 @@ Future<void> resumeLastChannelOnStart(
   if (recent.isEmpty) return;
   final channel = recent.first;
 
+  // A channel this profile hid is not reopened at start either.
+  if (container.read(channelCustomProvider).hidden.contains(channel.id)) return;
   final hidden = profile.hiddenCategories.toSet();
   final categories = channel.categories;
   if (categories.any(hidden.contains)) return;
@@ -52,7 +55,7 @@ Future<void> resumeLastChannelOnStart(
   if (!context.mounted || PlayerScreen.openCount > 0) return;
   await context.push('/player', extra: {
     'streamUrl': channel.streamUrl,
-    'title': channel.name,
+    'title': container.read(channelCustomProvider).names[channel.id] ?? channel.name,
     'contentType': 'live',
     'contentId': channel.id,
   });

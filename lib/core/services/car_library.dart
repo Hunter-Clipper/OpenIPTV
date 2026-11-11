@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_iptv/core/models/channel.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:open_iptv/core/models/episode.dart';
 import 'package:open_iptv/core/models/movie.dart';
 import 'package:open_iptv/core/models/profile.dart';
@@ -218,7 +219,7 @@ class CarLibrary {
         if (ch == null || !c.allowChannel(ch)) return null;
         return CarPlayable(
           mediaId: mediaId,
-          title: c.name(ch.name),
+          title: c.channelName(ch),
           subtitle: await nowOn?.call(ch.id),
           streamUrl: ch.streamUrl,
           kind: 'channel',
@@ -311,7 +312,7 @@ class CarLibrary {
         for (final ch in channels.take(maxItems))
           MediaItem(
             id: 'ch|${ch.id}',
-            title: c.name(ch.name),
+            title: c.channelName(ch),
             artUri: _uri(ch.logoUrl),
             playable: true,
             extras: _list,
@@ -367,6 +368,14 @@ class _Ctx {
 
   late final Set<String> _hidden = profile.hiddenCategories.toSet();
 
+  // This profile's hidden channels and channel names (Live TV tweaks).
+  late final ChannelCustom _custom =
+      parseChannelCustom(prefs.channelCustomJson)[profile.id] ??
+          ChannelCustom.empty;
+
+  /// A channel's display name: the profile's own name for it, else tidied.
+  String channelName(Channel ch) => _custom.names[ch.id] ?? name(ch.name);
+
   bool inSource(String id) => sourceId == null || id == sourceId;
 
   /// Tidied for display, per the user's "Clean Up Names" setting.
@@ -379,7 +388,9 @@ class _Ctx {
       !(profile.isKidsProfile && isAdultCategory(name));
 
   bool allowChannel(Channel ch) =>
-      inSource(ch.sourceId) && ch.categories.every(allowCategory);
+      inSource(ch.sourceId) &&
+      !_custom.hidden.contains(ch.id) &&
+      ch.categories.every(allowCategory);
 
   bool allowGenre(String? genre) => splitGenres(genre).every(allowCategory);
 }

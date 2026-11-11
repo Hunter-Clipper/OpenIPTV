@@ -3,15 +3,21 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.101)
+## Unreleased (0.14.103)
 
 **New**
+- **Hide a single channel.** Hold OK (TV) or long-press (phone) a channel → Hide Channel. It disappears from Live TV, the guide, channel switching, search and Android Auto for that profile. Settings → Live TV → Hidden Channels brings channels back, one at a time or all at once.
+- **Rename a channel.** Hold OK or long-press a channel → Rename Channel. The new name shows everywhere the channel is listed, in the player and on the lock screen or car display; the original name is still used for search. "Use the Original Name" undoes it.
+- **Choose which categories are shown.** Settings → Live TV has switches for Favorites, Recently Watched and (TV guide) All Channels.
+- **TV guide display options.** Settings → Live TV can turn channel names off in the guide, switch the two-line channel names off, allow two-line programme titles, and turn off the highlight on the channel that is playing.
 - **Text Size.** Settings → Appearance → Text Size makes all text in the app Small, Default, Large or Extra large, on top of your device's own text size setting.
 - **Player Transparency.** Settings → Appearance → Player Transparency sets how see-through the player's menus, channel list and controls backdrop are: Solid, Default, See-through or Very see-through.
 - **Guide Data** (Settings → Advanced → Guide Data). Choose how many days of TV guide are kept (1 to 14, default 5), turn off storing programme descriptions to save space, see when each playlist's guide last updated and how many programmes it holds (or what went wrong), and clear the stored guide.
 - **Start on Boot and Start on Wake (TV).** Settings → Playback has two new switches that open OpenIPTV by itself when the TV starts or wakes from sleep. Android needs "Display over other apps" allowed for OpenIPTV first; the app takes you to that screen. On boot the app opens about 12 seconds after the TV's home screen appears, so the home screen doesn't cover it.
 
 **Improved**
+- A new **Live TV** group in Settings holds everything about channels: sort order, hidden categories and channels, the category switches, and the guide options. Content Sort Order, Hidden Categories and Reset Category Names and Order moved there from Playback and Appearance.
+- Holding a channel on a phone now buzzes once, not twice.
 - The Reset Category Names and Order question now starts on Cancel, so a stray OK press doesn't reset anything.
 - On TV, choice lists (Text Size, Skip Buttons and so on) now start on your current choice.
 - Guide data: the guide's size is now trimmed to your "days to keep" choice at every refresh, and the Last update numbers refresh when a refresh finishes while the page is open.

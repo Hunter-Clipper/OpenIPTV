@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/programme.dart';
@@ -239,7 +240,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.displayName(widget.channelName),
+                      Text(ChannelNames.of(context)[widget.channelId] ?? context.displayName(widget.channelName),
                           style: theme.textTheme.titleLarge),
                       const SizedBox(height: 4),
                       Row(

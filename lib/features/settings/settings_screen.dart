@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/telemetry/consent.dart';
+import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -399,6 +401,117 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }),
             ]),
+            // --------------- LIVE TV ---------------
+            SettingsGroup(title: 'Live TV', children: [
+              Consumer(builder: (context, ref, _) {
+                final sort = ref.watch(contentSortProvider);
+                return InfoTooltip(
+                  id: 'settings_sort_order',
+                  title: 'Content Sort Order',
+                  body: 'Controls how channels, movies, and series are listed. '
+                      'Provider order shows them in the sequence your IPTV '
+                      'provider sends them. A–Z sorts them alphabetically.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.sort),
+                    title: 'Content Sort Order',
+                    subtitle: Text(
+                      sort == 'az' ? 'A–Z' : 'Provider order',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () => _showSortOrderDialog(context, ref, sort),
+                  ),
+                );
+              }),
+              if (isAdmin)
+                InfoTooltip(
+                  id: 'settings_hidden_cats',
+                  title: 'Hidden Categories',
+                  body: "Categories you've hidden won't appear in your channel "
+                      "list. Your channels are still there — they're just out "
+                      "of the way. You can unhide them here at any time.",
+                  child: _NavTile(
+                    leading: const Icon(Icons.visibility_off_outlined),
+                    title: 'Hidden Categories',
+                    onTap: () => _showHiddenCategoriesPage(context),
+                  ),
+                ),
+              _NavTile(
+                leading: const Icon(Icons.restart_alt_rounded),
+                title: 'Reset Category Names and Order',
+                onTap: () => _resetCategories(context, ref),
+              ),
+              Consumer(builder: (context, ref, _) {
+                final count =
+                    ref.watch(channelCustomProvider.select((c) => c.hidden.length));
+                return InfoTooltip(
+                  id: 'settings_hidden_channels',
+                  title: 'Hidden Channels',
+                  body: 'Channels you hid (hold OK or long-press a channel → '
+                      'Hide Channel) are kept out of Live TV, the guide and '
+                      'search for this profile. Bring them back here.',
+                  child: _NavTile(
+                    leading: const Icon(Icons.block_outlined),
+                    title: 'Hidden Channels',
+                    subtitle: Text(
+                      count == 0 ? 'None' : '$count hidden',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () => _showHiddenChannelsPage(context),
+                  ),
+                );
+              }),
+              Consumer(builder: (context, ref, _) => _liveToggle(
+                    ref,
+                    icon: Icons.star_outline_rounded,
+                    title: 'Show Favorites',
+                    provider: showFavoritesCategoryProvider,
+                    save: (p, v) => p.setShowFavoritesCategory(v),
+                  )),
+              Consumer(builder: (context, ref, _) => _liveToggle(
+                    ref,
+                    icon: Icons.history_rounded,
+                    title: 'Show Recently Watched',
+                    provider: showRecentCategoryProvider,
+                    save: (p, v) => p.setShowRecentCategory(v),
+                  )),
+              if (PlatformHelper.isTVDevice) ...[
+                Consumer(builder: (context, ref, _) => _liveToggle(
+                      ref,
+                      icon: Icons.live_tv_outlined,
+                      title: 'Show All Channels',
+                      provider: showAllCategoryProvider,
+                      save: (p, v) => p.setShowAllCategory(v),
+                    )),
+                Consumer(builder: (context, ref, _) => _liveToggle(
+                      ref,
+                      icon: Icons.badge_outlined,
+                      title: 'Guide: Show Channel Names',
+                      provider: guideShowNamesProvider,
+                      save: (p, v) => p.setGuideShowNames(v),
+                    )),
+                Consumer(builder: (context, ref, _) => _liveToggle(
+                      ref,
+                      icon: Icons.format_line_spacing_rounded,
+                      title: 'Guide: Two-Line Channel Names',
+                      provider: guideTwoLineNamesProvider,
+                      save: (p, v) => p.setGuideTwoLineNames(v),
+                    )),
+                Consumer(builder: (context, ref, _) => _liveToggle(
+                      ref,
+                      icon: Icons.view_agenda_outlined,
+                      title: 'Guide: Two-Line Programme Titles',
+                      provider: guideTwoLineTitlesProvider,
+                      save: (p, v) => p.setGuideTwoLineTitles(v),
+                    )),
+                Consumer(builder: (context, ref, _) => _liveToggle(
+                      ref,
+                      icon: Icons.graphic_eq_rounded,
+                      title: 'Guide: Highlight the Playing Channel',
+                      provider: guideHighlightPlayingProvider,
+                      save: (p, v) => p.setGuideHighlightPlaying(v),
+                    )),
+              ],
+            ]),
             // --------------- APPEARANCE ---------------
             SettingsGroup(title: 'Appearance', children: [
               Consumer(builder: (context, ref, _) {
@@ -485,43 +598,6 @@ class SettingsScreen extends ConsumerWidget {
                     },
                   );
                 }),
-              ),
-              Consumer(builder: (context, ref, _) {
-                final sort = ref.watch(contentSortProvider);
-                return InfoTooltip(
-                  id: 'settings_sort_order',
-                  title: 'Content Sort Order',
-                  body: 'Controls how channels, movies, and series are listed. '
-                      'Provider order shows them in the sequence your IPTV '
-                      'provider sends them. A–Z sorts them alphabetically.',
-                  child: _NavTile(
-                    leading: const Icon(Icons.sort),
-                    title: 'Content Sort Order',
-                    subtitle: Text(
-                      sort == 'az' ? 'A–Z' : 'Provider order',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    onTap: () => _showSortOrderDialog(context, ref, sort),
-                  ),
-                );
-              }),
-              if (isAdmin)
-                InfoTooltip(
-                  id: 'settings_hidden_cats',
-                  title: 'Hidden Categories',
-                  body: "Categories you've hidden won't appear in your channel "
-                      "list. Your channels are still there — they're just out "
-                      "of the way. You can unhide them here at any time.",
-                  child: _NavTile(
-                    leading: const Icon(Icons.visibility_off_outlined),
-                    title: 'Hidden Categories',
-                    onTap: () => _showHiddenCategoriesPage(context),
-                  ),
-                ),
-              _NavTile(
-                leading: const Icon(Icons.restart_alt_rounded),
-                title: 'Reset Category Names and Order',
-                onTap: () => _resetCategories(context, ref),
               ),
             ]),
             // --------------- ABOUT ---------------
@@ -938,6 +1014,33 @@ class SettingsScreen extends ConsumerWidget {
         .read(profileServiceProvider)
         .resetCategoryCustomisation(profile.id);
     ref.invalidate(activeProfileProvider);
+  }
+
+  /// A switch for one Live TV option, saved in preferences.
+  Widget _liveToggle(
+    WidgetRef ref, {
+    required IconData icon,
+    required String title,
+    required StateProvider<bool> provider,
+    required Future<void> Function(AppPreferences, bool) save,
+  }) {
+    return _ToggleTile(
+      icon: icon,
+      title: title,
+      value: ref.watch(provider),
+      onChanged: (v) async {
+        final prefs = await ref.read(appPreferencesProvider.future);
+        await setLiveOption(ref, provider, v, (b) => save(prefs, b));
+      },
+    );
+  }
+
+  void _showHiddenChannelsPage(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _HiddenChannelsSheet(),
+    );
   }
 
   void _showHiddenCategoriesPage(BuildContext context) {
@@ -1820,6 +1923,95 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Settings → Live TV → Hidden Channels: the channels this profile hid, with
+/// a way to bring each (or all) back.
+class _HiddenChannelsSheet extends ConsumerStatefulWidget {
+  const _HiddenChannelsSheet();
+
+  @override
+  ConsumerState<_HiddenChannelsSheet> createState() =>
+      _HiddenChannelsSheetState();
+}
+
+class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
+  // Channel details for the hidden ids (loaded once per change of the list).
+  Map<String, Channel> _known = const {};
+
+  Future<void> _load(Set<String> ids) async {
+    final missing = ids.where((id) => !_known.containsKey(id)).take(500).toList();
+    if (missing.isEmpty) return;
+    final rows = await ref.read(appDatabaseProvider).getChannelsByIds(missing);
+    if (!mounted) return;
+    setState(() => _known = {..._known, for (final c in rows) c.id: c});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hidden = ref.watch(channelCustomProvider.select((c) => c.hidden));
+    final ids = hidden.toList()..sort();
+    _load(hidden);
+    String nameOf(String id) {
+      final c = _known[id];
+      return c == null ? 'Channel from a removed playlist' : context.channelName(c);
+    }
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      builder: (context, controller) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Hidden Channels',
+                style: Theme.of(context).textTheme.titleLarge),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ids.isEmpty
+                ? const Center(child: Text('No channels are hidden.'))
+                : ListView.builder(
+                    controller: controller,
+                    itemCount: ids.length + 1,
+                    itemBuilder: (context, i) {
+                      if (i == ids.length) {
+                        return Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: TvActivatable(
+                            onTap: () => ref
+                                .read(channelCustomProvider.notifier)
+                                .unhideAll(),
+                            builder: (onTap) => OutlinedButton(
+                              onPressed: onTap,
+                              child: const Text('Show All'),
+                            ),
+                          ),
+                        );
+                      }
+                      final id = ids[i];
+                      return ListTile(
+                        title: Text(nameOf(id)),
+                        trailing: TvActivatable(
+                          autofocus: i == 0,
+                          onTap: () => ref
+                              .read(channelCustomProvider.notifier)
+                              .unhide(id),
+                          builder: (onTap) => TextButton(
+                            onPressed: onTap,
+                            child: const Text('Show'),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],

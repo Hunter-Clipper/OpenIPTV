@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -14,7 +15,6 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/category_tools.dart';
 import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
-import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/marquee_text.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
@@ -340,7 +340,7 @@ class _ChannelRow extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          context.displayName(channel.name),
+                          context.channelName(channel),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleSmall!.copyWith(
