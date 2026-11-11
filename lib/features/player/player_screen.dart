@@ -113,7 +113,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isBuffering = true;
   // "Black screen while switching": covers the old picture the moment a
   // channel change starts.
-  bool _switchCover = false;
   StreamSubscription<NativeVideoPlayerState>? _stateSub;
   StreamSubscription<NativePlaybackError>? _errorSub;
   StreamSubscription<String>? _noticeSub;
@@ -319,12 +318,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // else reconnects now instead of waiting for the stall timer.
     _noticeSub = NativeVideoPlayer.outputNotices.listen((feature) {
       if (!mounted) return;
-      final what = feature == 'passthrough'
-          ? 'Surround sound passthrough'
-          : 'Tunneled playback';
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-          content: Text("$what didn't work on this device, so it was "
-              'switched off. You can try it again in Power User Tools.')));
+      final text = switch (feature) {
+        'audioDelay' => "The audio delay didn't work with this stream, so it "
+            'was set back to None. Playback carries on as normal.',
+        'passthrough' => "Surround sound passthrough didn't work on this "
+            'device, so it was switched off and the sound is playing '
+            'normally. You can try it again in Power User Tools.',
+        _ => "Tunneled playback didn't work on this device, so it was "
+            'switched off. You can try it again in Power User Tools.',
+      };
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(text)));
     });
     _errorSub = _playbackService.errorStream.listen((e) {
       if (!mounted || _casting) return;
@@ -685,7 +689,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _playbackService.markTransitioning();
     _navigatingToNext = true;
     _watchdogTimer?.cancel();
-    if (ref.read(blackOnSwitchProvider)) setState(() => _switchCover = true);
     context.pushReplacement('/player', extra: {
       'streamUrl': next.streamUrl,
       'title': next.name,
@@ -1388,7 +1391,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               fit: StackFit.expand,
               children: [
                 _buildVideoSurface(),
-                if (_switchCover) const ColoredBox(color: Colors.black),
                 // Everything but the picture fades in with the zoom out of
                 // the guide's pane (#162).
                 ZoomFade(

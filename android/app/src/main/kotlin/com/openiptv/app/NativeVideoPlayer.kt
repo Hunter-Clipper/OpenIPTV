@@ -200,6 +200,48 @@ class NativeVideoPlayer(
         if (wasDelayed != (ms != 0)) refreshOutput()
     }
 
+    // Safety net for the audio path (passthrough, the lip-sync shift): if the
+    // sound can't start, or the sink reports an error, drop that feature and
+    // carry on with plain sound, with a notice. Silent failures are caught by
+    // checking that the audio clock really starts moving.
+    private var audioAdvanced = false
+
+    private val audioSafety = object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+        override fun onAudioPositionAdvancing(
+            eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+            playoutStartSystemTimeMs: Long,
+        ) { audioAdvanced = true }
+
+        override fun onAudioSinkError(
+            eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+            audioSinkError: Exception,
+        ) {
+            android.util.Log.w("OTV-video", "audio sink error: $audioSinkError")
+            audioPathFailed("sink error")
+        }
+    }
+
+    private val silentAudioCheck = Runnable {
+        val special = builtOutput.passthrough != OutputModes.Pass.PCM || audioDelayMs != 0
+        if (special && !audioAdvanced && playingAudioFormat() != null &&
+            exoPlayer.playbackState == Player.STATE_READY && exoPlayer.playWhenReady) {
+            audioPathFailed("no sound after 6 s")
+        }
+    }
+
+    /** The audio path misbehaved: remove the lip-sync shift first, else passthrough. */
+    private fun audioPathFailed(why: String) {
+        val feature = when {
+            audioDelayMs != 0 -> "audioDelay"
+            builtOutput.passthrough != OutputModes.Pass.PCM -> "passthrough"
+            else -> return
+        }
+        android.util.Log.w("OTV-video", "$feature: $why, switching it off")
+        if (feature == "audioDelay") setAudioDelay(0)
+        else { OutputModes.markPassthroughBroken(); refreshOutput() }
+        eventSink?.success(mapOf("type" to "outputNotice", "feature" to feature))
+    }
+
     private var cadenceListener: androidx.media3.exoplayer.video.VideoFrameMetadataListener? = null
     private var frameProbe = FrameRateProbe()
 
@@ -218,6 +260,7 @@ class NativeVideoPlayer(
             .also {
                 applyAudible(it, audible)
                 it.addAnalyticsListener(AudioPathLog(if (audible) "main" else "aux", out))
+                it.addAnalyticsListener(audioSafety)
                 // Decoder / frame-timing logging (#157): TVs only, so phones
                 // run exactly the player they always did.
                 if (EngineChannels.isTelevision(context)) attachDiagnostics(it)
@@ -348,6 +391,7 @@ class NativeVideoPlayer(
         applyBufferPreset(bufferPreset)
         if (resume && url != null) {
             renderedFrame = false
+            audioAdvanced = false
             startSource(buildMediaSource(url, currentHint), pos)
             exoPlayer.playWhenReady = play
         }
@@ -449,6 +493,10 @@ class NativeVideoPlayer(
                     else -> "ended"
                 })
                 mainHandler.removeCallbacks(noPictureCheck)
+                mainHandler.removeCallbacks(silentAudioCheck)
+                if (playbackState == Player.STATE_READY && ownsFocus && !audioAdvanced) {
+                    mainHandler.postDelayed(silentAudioCheck, 6_000)
+                }
                 if (playbackState == Player.STATE_READY && builtOutput.tunneling && !renderedFrame) {
                     mainHandler.postDelayed(noPictureCheck, 4_000)
                 }
@@ -662,6 +710,7 @@ class NativeVideoPlayer(
         hlsRetried = false
         currentStartMs = startPositionMs
         renderedFrame = false
+        audioAdvanced = false
         // Every stream starts at normal speed (a movie watched at 1.5x must
         // not make the next live channel run fast).
         exoPlayer.setPlaybackSpeed(1f)
@@ -715,6 +764,7 @@ class NativeVideoPlayer(
             error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
         val decodeFail = error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
             error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED
+        if (audioFail && audioDelayMs != 0) { audioPathFailed("${error.errorCodeName}"); return true }
         val feature = when {
             audioFail && builtOutput.passthrough != OutputModes.Pass.PCM -> "passthrough"
             (audioFail || decodeFail) && builtOutput.tunneling -> "tunneling"
@@ -930,6 +980,7 @@ class NativeVideoPlayer(
     fun dispose() {
         OutputModes.unregister(this)
         mainHandler.removeCallbacks(noPictureCheck)
+        mainHandler.removeCallbacks(silentAudioCheck)
         if (audible) FrameRateMatcher.restore()
         CarVideo.playerGone(this)
         mainHandler.removeCallbacks(positionUpdater)

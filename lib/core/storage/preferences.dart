@@ -37,7 +37,6 @@ const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
 const _kSeekKeys = 'seek_keys'; // which remote keys seek in catch-up / movies
 const _kAudioDelayMs = 'audio_delay_ms'; // lip-sync shift
 const _kStreamDetails = 'stream_details'; // resolution/fps/audio badges
-const _kBlackOnSwitch = 'black_on_switch'; // black screen while changing channel
 const _kLastChannelOnStart = 'last_channel_on_start';
 const _kBufferPreset = 'buffer_preset'; // see BufferPreset ids
 const _kFullResImages = 'full_res_images'; // Power User Tools
@@ -194,9 +193,6 @@ class AppPreferences {
 
   bool get streamDetails => _prefs.getBool(_kStreamDetails) ?? true;
   Future<void> setStreamDetails(bool v) => _prefs.setBool(_kStreamDetails, v);
-
-  bool get blackOnSwitch => _prefs.getBool(_kBlackOnSwitch) ?? false;
-  Future<void> setBlackOnSwitch(bool v) => _prefs.setBool(_kBlackOnSwitch, v);
 
   /// Start the last watched channel when the app opens.
   bool get lastChannelOnStart => _prefs.getBool(_kLastChannelOnStart) ?? false;

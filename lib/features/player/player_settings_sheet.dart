@@ -206,20 +206,6 @@ class _PlayerSettingsSheetState extends ConsumerState<PlayerSettingsSheet> {
               await setStreamDetails(ref, v, prefs);
             },
           ),
-          if (widget.isLive)
-            OptionRow<bool>(
-              icon: Icons.tv_off_rounded,
-              label: 'Changing channel',
-              options: const [
-                (false, 'Normal'),
-                (true, 'Black screen'),
-              ],
-              selected: ref.watch(blackOnSwitchProvider),
-              onSelected: (v) async {
-                final prefs = await ref.read(appPreferencesProvider.future);
-                await setBlackOnSwitch(ref, v, prefs);
-              },
-            ),
           if (!widget.isLive)
             OptionRow<double>(
               icon: Icons.speed_rounded,

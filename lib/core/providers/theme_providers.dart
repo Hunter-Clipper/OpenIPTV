@@ -136,15 +136,6 @@ Future<void> setStreamDetails(
   await prefs.setStreamDetails(on);
 }
 
-/// Show a black screen instead of the old picture while changing channel.
-final blackOnSwitchProvider = StateProvider<bool>((ref) => false);
-
-Future<void> setBlackOnSwitch(
-    WidgetRef ref, bool on, AppPreferences prefs) async {
-  ref.read(blackOnSwitchProvider.notifier).state = on;
-  await prefs.setBlackOnSwitch(on);
-}
-
 /// Open the last watched channel when the app starts.
 final lastChannelOnStartProvider = StateProvider<bool>((ref) => false);
 
@@ -299,7 +290,6 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(panelTimeoutProvider.notifier).state = prefs.panelTimeoutSeconds;
   ref.read(skipSecondsProvider.notifier).state = prefs.skipSeconds;
   ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;
-  ref.read(blackOnSwitchProvider.notifier).state = prefs.blackOnSwitch;
   ref.read(lastChannelOnStartProvider.notifier).state =
       prefs.lastChannelOnStart;
   ref.read(homeLayoutMoviesProvider.notifier).state = prefs.homeLayoutMovies;

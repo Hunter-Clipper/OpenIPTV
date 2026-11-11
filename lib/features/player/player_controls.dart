@@ -143,9 +143,19 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         _duration = s.duration;
         _videoHeight = s.videoHeight;
         _videoWidth = s.videoWidth;
-        _frameRate = s.frameRate;
-        _audioChannels = s.audioChannels;
-        _audioMime = s.audioMime;
+        if (s.videoHeight == 0) {
+          // A new stream is opening: forget the last one's details.
+          _frameRate = 0;
+          _audioChannels = 0;
+          _audioMime = null;
+        } else {
+          // Details are reported at different moments (the frame rate after
+          // a few frames, the sound once it starts) and can blink out for an
+          // instant; keep what was learned so the chip shows all of it.
+          if (s.frameRate >= 1) _frameRate = s.frameRate;
+          if (s.audioChannels > 0) _audioChannels = s.audioChannels;
+          if (s.audioMime != null) _audioMime = s.audioMime;
+        }
       });
     });
     _tracksSub = service.tracksStream.listen((t) {

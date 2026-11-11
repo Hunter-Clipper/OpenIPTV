@@ -6,9 +6,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased (0.14.100)
 
 **New**
-- **Stream details.** The quality chip in the player now also shows the picture size, frame rate and sound format, for example `HD · 1280×720 · 60 FPS · STEREO`. The player menu has a Stream details switch (Show / Hide).
+- **Stream details.** The quality chip in the player now also shows the picture size, frame rate and sound format, for example `HD · 1280×720 · 60 FPS · STEREO`. Each detail stays on the chip once it is known, instead of dropping in and out. The player menu has a Stream details switch (Show / Hide).
 - **Audio delay.** If the sound doesn't line up with the picture, the player menu's Audio delay moves it earlier or later, from 0.5 seconds early to 1 second late. The choice is kept and included in backups. While a delay is set, surround sound passthrough and tunneled playback are switched off for that stream, because they can't be shifted; setting it back to None restores them.
-- **Black screen while changing channel.** An optional player menu setting (Changing channel → Black screen) covers the old picture the moment you switch channel, until the new one is ready.
+- **Safer sound.** If surround passthrough or the audio delay ever stops the sound from starting (or the TV rejects it), the player now switches that feature off by itself, keeps playing with normal sound and shows a short message saying so.
 - **Remote Seek Keys.** Settings → Playback → Remote Seek Keys chooses what skips back and forward in catch-up and movies while the controls are hidden: the rewind / forward keys (always on), the Left / Right arrows, or the Up / Down arrows. It uses the Skip Buttons size.
 
 ## 0.14.99 — 2026-11-10

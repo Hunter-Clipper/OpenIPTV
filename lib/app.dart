@@ -75,6 +75,11 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       final prefs = await ref.read(appPreferencesProvider.future);
       if (feature == 'tunneling') await prefs.setTunneledPlayback('off');
       if (feature == 'passthrough') await prefs.setAudioPassthrough('off');
+      if (feature == 'audioDelay') {
+        await prefs.setAudioDelayMs(0);
+        ref.read(audioDelayProvider.notifier).state = 0;
+        unawaited(ref.read(playbackServiceProvider).setAudioDelay(0));
+      }
       await NativeVideoPlayer.setOutputModes(
           passthrough: prefs.audioPassthrough,
           tunneling: prefs.tunneledPlayback);

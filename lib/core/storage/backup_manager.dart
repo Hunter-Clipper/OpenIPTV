@@ -486,13 +486,6 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
-      key: 'blackOnSwitch',
-      encode: (p) => p.blackOnSwitch,
-      decode: (p, v) async {
-        if (v is bool) await p.setBlackOnSwitch(v);
-      },
-    ),
-    PreferenceEntry(
       key: 'skipSeconds',
       encode: (p) => p.skipSeconds,
       decode: (p, v) async {
