@@ -22,16 +22,41 @@ for one channel by hand (hold OK / long-press → Change Guide).
    search the guide channels (all playlists' guides and extra guides), pick
    one, or "No guide" / "Use automatic".
 
-## Rules (decisions to confirm with the owner)
+## Rules (owner decisions, 2026-11-11)
 
-- A channel that already has programmes from its own playlist's guide is never
-  auto-assigned. A manual link always wins over everything.
+- **The provider's guide always has priority.** A channel whose own link
+  (`tvg-id` / `epg_channel_id`) already finds programmes is never touched.
+- Smart links only fill gaps: channels with no guide link, or a link the
+  provider's feed does not contain.
+- **Matching pool, in priority order:** (1) the channel list of the channel's
+  own playlist guide — providers often have the programmes but forgot the
+  link; (2) the extra guides, in the order the user lists them. A tie between
+  the same station in two guides goes to the one listed first.
+- A manual link always wins over everything, including the provider's guide.
 - Auto links are only made above a confidence threshold; a wrong guide is worse
-  than none. Ambiguous matches (two equally good candidates) are skipped.
+  than none. Ambiguous matches (two equally good candidates in one guide) are
+  skipped.
 - Links are per channel and survive playlist refreshes (keyed by the channel's
   stable id, `<sourceId>_ch_<streamId>`).
 - Nothing is sent anywhere except the guide URLs the user typed.
 - Backup includes extra guides and manual links; auto links are recomputed.
+- No guide URLs are built into the app copy (no-content policy); the user
+  types them. Candidates used for testing: iptv-epg.org (`epg-us.xml`,
+  `epg-gb.xml`) and epgshare01.online (small per-country files, e.g.
+  `epg_ripper_UK1.xml.gz` 2.9 MB, `epg_ripper_US2.xml.gz` 6.6 MB).
+
+## What the test feeds taught us
+
+- epgshare01 channels have **no display name**, only an id like
+  `BBC.One.HD.uk`; the matcher reads names out of ids and takes the region
+  from the id suffix (`uk`, `us2`).
+- iptv-epg.org's US file is 522 MB raw (12.8 k channels, 1.1 M programmes):
+  only practical because we read its channel list and keep programmes just
+  for linked channels. epgshare01's per-country files are far lighter for a TV.
+- The same station appears in several guides with different ids
+  (`BBCTwo.uk`, `BBC.Two.HD.uk`): priority order decides.
+- Regional variants (`FX.HD` vs `FX.HD.(Pacific)`) prefer the plain one;
+  `AMC` and `AMC+` are different channels; `BBC 1` is never `BBC 2`.
 
 ## Size and speed (the 522 MB file)
 
@@ -62,7 +87,7 @@ Evaluated against the real iptv-epg files in tests and by a throwaway harness.
 
 ## Phases
 
-1. Matcher + channel-list parser + tests (this PR's first commits).
+1. Matcher + tests (done); channel-list parser (next).
 2. Schema 15, extra-guide store, filtered programme import.
 3. Smart assignment run + Settings → Extra Guides screen.
 4. Change Guide on hold OK / long-press (TV and phone).
