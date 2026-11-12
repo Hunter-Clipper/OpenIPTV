@@ -1,6 +1,6 @@
 # Extra guides, smart and manual guide assignment (#40)
 
-Status: in development (branch `feature/40-epg-assignment`).
+Status: implemented and tested on the Chromecast (branch `feature/40-epg-assignment`, draft PR #174); waiting for the owner's manual check. Not released.
 
 ## The problem
 
@@ -102,10 +102,37 @@ words HD/FHD/4K/SD/RAW, symbols, `+1`-style time shifts kept as a token),
 then score by token overlap with region/country hints from both names.
 Evaluated against the real iptv-epg files in tests and by a throwaway harness.
 
-## Phases
+## How it works (as built)
 
-1. Matcher + tests (done); channel-list parser (next).
-2. Schema 15, extra-guide store, filtered programme import.
-3. Smart assignment run + Settings → Extra Guides screen.
-4. Change Guide on hold OK / long-press (TV and phone).
-5. Backup, changelog, device testing on the Chromecast and phone.
+- `lib/core/epg/guide_matcher.dart` (names), `local_stations.dart` (US locals),
+  `lib/core/services/guide_assignment_service.dart` (sync), `guide_fetch.dart`
+  (plain / gz / zip), schema 16 (`extra_guides`, `guide_channels` with a
+  `has_programmes` flag, `channel_guide_links`).
+- **Automatic links need an exact name** (after removing quality tags, country
+  tags, provider tags like `PRIME|`, plurals and spacing). Anything less is only
+  a *suggestion* in Change Guide. Found by auditing 769 real matches on the TV:
+  near misses linked wrong channels (German Sky Sport for the UK one, every
+  Spectrum News 1 city to the national feed).
+- A guide entry **counts as covering a channel only if it has something airing
+  now or later** (flag set by the playlist's own refresh). A stale or empty
+  entry neither blocks smart matching nor is matched to.
+- The playlist's own refresh records its guide's channel list and flags in the
+  same pass, and fills channels linked to it, so the sync downloads a
+  playlist's guide only for channels that hold nothing yet.
+- Programmes for linked channels are read from big guides by a text scan of the
+  `<programme>` blocks (7 s vs 61 s for a 549 MB file on a desktop).
+- Matching 34,000 channels takes about 14 s on the Chromecast (was 182 s);
+  a full sync with two extra guides takes about two minutes.
+
+## Known limits
+
+- The first extra-guide read of a very large guide still has to download it
+  (the iptv-epg.org US file is ~40 MB gzipped / 522 MB unpacked); not tried on
+  the TV.
+- A playlist's guide that a provider rate-limits (answering an empty 200) keeps
+  its old data (guard from the 0.14.104 fix) but cannot be refreshed or flagged
+  until the provider answers again.
+- US market table: 30 markets, checked against the epgshare01 locals guide on
+  2026-11-11; affiliations change, re-check before extending.
+- Phone not yet tested (long-press menu and the screens are shared with TV).
+
