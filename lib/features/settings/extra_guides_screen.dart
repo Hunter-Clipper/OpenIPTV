@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/live_tv/change_guide_screen.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/snack_bar_utils.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -52,41 +53,42 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     });
   }
 
-  static const _modes = <(String, String, String)>[
-    (
-      'explicit',
-      'Explicit',
-      'Only when the channel\'s guide ID is exactly the same as the guide\'s. '
-          'Safest; channels without an ID are left alone.'
-    ),
-    (
-      'standard',
-      'Standard',
-      'The guide ID, or exactly the same channel name. US local stations '
-          'are matched by call sign.'
-    ),
-    (
-      'optimistic',
-      'Optimistic',
-      'Also channels whose names are only alike. Finds more, but some '
-          'guesses will be wrong; you can fix any in Review Guide Matches.'
-    ),
-  ];
+  static List<(String, String, String)> _modes(AppLocalizations l10n) => [
+        (
+          'explicit',
+          l10n.extraGuidesModeExplicit,
+          l10n.extraGuidesModeExplicitDesc,
+        ),
+        (
+          'standard',
+          l10n.extraGuidesModeStandard,
+          l10n.extraGuidesModeStandardDesc,
+        ),
+        (
+          'optimistic',
+          l10n.extraGuidesModeOptimistic,
+          l10n.extraGuidesModeOptimisticDesc,
+        ),
+      ];
 
-  String _modeTitle(String mode) =>
-      _modes.firstWhere((m) => m.$1 == mode, orElse: () => _modes[1]).$2;
+  String _modeTitle(AppLocalizations l10n, String mode) {
+    final modes = _modes(l10n);
+    return modes.firstWhere((m) => m.$1 == mode, orElse: () => modes[1]).$2;
+  }
 
   Future<void> _pickMode(AppPreferences prefs) async {
     final current = prefs.guideMatchMode;
+    final modes = _modes(AppLocalizations.of(context));
+    final title = AppLocalizations.of(context).extraGuidesMatchingModeTitle;
     final chosen = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Matching Mode'),
+        title: Text(title),
         scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final m in _modes)
+            for (final m in modes)
               TvActivatable(
                 onTap: () => Navigator.of(ctx).pop(m.$1),
                 builder: (tap) => ListTile(
@@ -108,16 +110,17 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   }
 
   Future<void> _update({bool refreshLists = true, bool force = true}) async {
+    final l10n = AppLocalizations.of(context);
     if (_status != null) {
       // An update is on screen: this change is applied by one more run right
       // after it (the service queues it), not dropped.
       unawaited(ref
           .read(guideAssignmentProvider)
           .sync(refreshLists: refreshLists, force: force));
-      showSnackBarMessage(context, 'Will apply this as soon as the current update finishes.');
+      showSnackBarMessage(context, l10n.extraGuidesQueued);
       return;
     }
-    setState(() => _status = 'Starting…');
+    setState(() => _status = l10n.extraGuidesStarting);
     try {
       final r = await ref.read(guideAssignmentProvider).sync(
             refreshLists: refreshLists,
@@ -131,11 +134,11 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
         showSnackBarMessage(
             context,
             r.errors.isEmpty
-                ? 'Guides updated: ${r.linked} channels linked.'
+                ? l10n.extraGuidesUpdated(r.linked)
                 : r.errors.first);
       }
     } catch (_) {
-      if (mounted) showSnackBarMessage(context, "The guides couldn't be updated.");
+      if (mounted) showSnackBarMessage(context, l10n.extraGuidesUpdateFailed);
     } finally {
       if (mounted) setState(() => _status = null);
       unawaited(_load());
@@ -143,20 +146,21 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   }
 
   Future<void> _add() async {
+    final l10n = AppLocalizations.of(context);
     final entry = await showDialog<({String name, String url})>(
       context: context,
       useRootNavigator: true,
       builder: (_) => const _AddGuideDialog(),
     );
     if (entry == null || !mounted) return;
-    setState(() => _status = 'Checking the guide…');
+    setState(() => _status = l10n.extraGuidesChecking);
     final db = ref.read(appDatabaseProvider);
     try {
       final existing = await db.getExtraGuides();
       if (existing.any((g) => g.url.trim() == entry.url.trim())) {
         if (!mounted) return;
         setState(() => _status = null);
-        showSnackBarMessage(context, 'That guide is already in your list.');
+        showSnackBarMessage(context, l10n.extraGuidesAlreadyAdded);
         return;
       }
       final tmp = (await getTemporaryDirectory()).path;
@@ -173,8 +177,8 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           updated: DateTime.now(), count: list.length);
       if (!mounted) return;
       setState(() => _status = null);
-      showSnackBarMessage(context,
-          'Added "${entry.name}" with ${list.length} channels. Matching channels…');
+      showSnackBarMessage(
+          context, l10n.extraGuidesAdded(entry.name, list.length));
       await _update(refreshLists: false, force: false);
     } catch (e) {
       if (!mounted) return;
@@ -211,23 +215,24 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   }
 
   Future<void> _remove(ExtraGuideRow g) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       useRootNavigator: true,
       builder: (c) => AlertDialog(
-        title: Text('Remove "${g.name}"?'),
-        content: const Text(
-            'Channels that were matched to this guide lose its programmes. '
-            'Your playlists are not affected.'),
+        title: Text(l10n.extraGuidesRemoveTitle(g.name)),
+        content: Text(l10n.extraGuidesRemoveBody),
         actions: [
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(c).pop(false),
-            builder: (t) => TextButton(onPressed: t, child: const Text('Cancel')),
+            builder: (t) =>
+                TextButton(onPressed: t, child: Text(l10n.commonCancel)),
           ),
           TvActivatable(
             onTap: () => Navigator.of(c).pop(true),
-            builder: (t) => FilledButton(onPressed: t, child: const Text('Remove')),
+            builder: (t) =>
+                FilledButton(onPressed: t, child: Text(l10n.extraGuidesRemove)),
           ),
         ],
       ),
@@ -239,6 +244,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   }
 
   void _options(ExtraGuideRow g) {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
@@ -249,7 +255,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             ListTile(
               autofocus: true,
               leading: const Icon(Icons.sync_rounded),
-              title: const Text('Update Now'),
+              title: Text(l10n.extraGuidesUpdateNow),
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_update());
@@ -259,7 +265,8 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
               leading: Icon(g.enabled
                   ? Icons.pause_circle_outline
                   : Icons.play_circle_outline),
-              title: Text(g.enabled ? 'Turn Off' : 'Turn On'),
+              title: Text(
+                  g.enabled ? l10n.extraGuidesTurnOff : l10n.extraGuidesTurnOn),
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_toggle(g));
@@ -267,7 +274,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.arrow_upward_rounded),
-              title: const Text('Move Up (Used First)'),
+              title: Text(l10n.extraGuidesMoveUp),
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_move(g, -1));
@@ -275,7 +282,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.arrow_downward_rounded),
-              title: const Text('Move Down'),
+              title: Text(l10n.extraGuidesMoveDown),
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_move(g, 1));
@@ -284,7 +291,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             ListTile(
               leading: Icon(Icons.delete_outline,
                   color: Theme.of(context).colorScheme.error),
-              title: const Text('Remove'),
+              title: Text(l10n.extraGuidesRemove),
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_remove(g));
@@ -296,154 +303,152 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     );
   }
 
-  static String _ago(DateTime t) {
+  static String _ago(AppLocalizations l10n, DateTime t) {
     final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return 'just now';
-    if (d.inMinutes < 60) return '${d.inMinutes} min ago';
-    if (d.inHours < 24) return '${d.inHours} h ago';
-    return '${d.inDays} d ago';
+    if (d.inMinutes < 1) return l10n.guideDataAgoJustNow;
+    if (d.inMinutes < 60) return l10n.guideDataAgoMinutes(d.inMinutes);
+    if (d.inHours < 24) return l10n.guideDataAgoHours(d.inHours);
+    return l10n.guideDataAgoDays(d.inDays);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final prefs = _prefs;
     final guides = ref.watch(_extraGuidesProvider).valueOrNull ?? const [];
     return Scaffold(
-      appBar: AppBar(title: const Text('Extra Guides')),
+      appBar: AppBar(title: Text(l10n.extraGuidesTitle)),
       body: prefs == null
           ? const Center(child: CircularProgressIndicator())
-          : TvFollowFocus(focusFirst: true, child: SingleChildScrollView(
-              padding: EdgeInsets.only(
-                  bottom: 32 + MediaQuery.paddingOf(context).bottom),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_status != null)
-                    ListTile(
-                      leading: const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 3)),
-                      title: Text(_status!),
+          : TvFollowFocus(
+              focusFirst: true,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                    bottom: 32 + MediaQuery.paddingOf(context).bottom),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_status != null)
+                      ListTile(
+                        leading: const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 3)),
+                        title: Text(_status!),
+                      ),
+                    SettingsGroup(
+                      title: l10n.extraGuidesFillTitle,
+                      description: l10n.extraGuidesFillDescription,
+                      children: const [],
                     ),
-                  SettingsGroup(
-                    title: 'Fill in missing guides',
-                    description:
-                        "Your playlist's own TV guide is always used first. "
-                        'A channel it does not cover is matched by name to the '
-                        'guides you add here. You can also pick a guide for any '
-                        'channel yourself: hold OK (or long-press) a channel → '
-                        'Change Guide.\n\n'
-                        'Works with .xml, .xml.gz and zipped guides, as long as '
-                        'they unpack to XML. OpenIPTV does not provide guides, '
-                        'but community sites publish them: a web search for '
-                        '"XMLTV EPG" is a good place to start. 😉',
-                    children: const [],
-                  ),
-                  SettingsGroup(
-                    title: 'Your Guides',
-                    description: guides.isEmpty
-                        ? 'None yet. Guides higher in the list are used first.'
-                        : 'Guides higher in the list are used first.',
-                    children: [
-                      for (final g in guides) _guideTile(g, theme),
-                      TvActivatable(
-                        onTap: _status == null ? _add : null,
-                        builder: (tap) => ListTile(
-                          leading: const IconBadge(icon: Icons.add_rounded),
-                          title: const Text('Add a Guide'),
-                          subtitle: Text('A web address ending in .xml, .xml.gz or .zip',
-                              style: theme.textTheme.bodySmall),
-                          onTap: tap,
+                    SettingsGroup(
+                      title: l10n.extraGuidesYourGuides,
+                      description: guides.isEmpty
+                          ? l10n.extraGuidesListHintEmpty
+                          : l10n.extraGuidesListHint,
+                      children: [
+                        for (final g in guides) _guideTile(g, theme),
+                        TvActivatable(
+                          onTap: _status == null ? _add : null,
+                          builder: (tap) => ListTile(
+                            leading: const IconBadge(icon: Icons.add_rounded),
+                            title: Text(l10n.extraGuidesAddTitle),
+                            subtitle: Text(l10n.extraGuidesAddSubtitle,
+                                style: theme.textTheme.bodySmall),
+                            onTap: tap,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SettingsGroup(
-                    title: 'Matching',
-                    children: [
-                      TvActivatable(
-                        onTap: () async {
-                          await prefs.setSmartGuideAssign(!prefs.smartGuideAssign);
-                          await _update(refreshLists: false, force: false);
-                        },
-                        builder: (tap) => SwitchListTile(
-                          secondary: const IconBadge(icon: Icons.auto_fix_high_rounded),
-                          title: const Text('Match Channels Automatically'),
-                          subtitle: Text(
-                              'Channels without a guide are matched to the '
-                              'guides above. Never changes a channel that '
-                              'already has a guide.',
-                              style: theme.textTheme.bodySmall),
-                          value: prefs.smartGuideAssign,
-                          onChanged: tap == null ? null : (_) => tap(),
+                      ],
+                    ),
+                    SettingsGroup(
+                      title: l10n.extraGuidesMatchingGroup,
+                      children: [
+                        TvActivatable(
+                          onTap: () async {
+                            await prefs
+                                .setSmartGuideAssign(!prefs.smartGuideAssign);
+                            await _update(refreshLists: false, force: false);
+                          },
+                          builder: (tap) => SwitchListTile(
+                            secondary: const IconBadge(
+                                icon: Icons.auto_fix_high_rounded),
+                            title: Text(l10n.extraGuidesAutoMatchTitle),
+                            subtitle: Text(l10n.extraGuidesAutoMatchSubtitle,
+                                style: theme.textTheme.bodySmall),
+                            value: prefs.smartGuideAssign,
+                            onChanged: tap == null ? null : (_) => tap(),
+                          ),
                         ),
-                      ),
-                      TvActivatable(
-                        onTap: () => _pickMode(prefs),
-                        builder: (tap) => ListTile(
-                          leading: const IconBadge(icon: Icons.tune_rounded),
-                          title: const Text('Matching Mode'),
-                          subtitle: Text(_modeTitle(prefs.guideMatchMode),
-                              style: theme.textTheme.bodySmall),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: tap,
+                        TvActivatable(
+                          onTap: () => _pickMode(prefs),
+                          builder: (tap) => ListTile(
+                            leading: const IconBadge(icon: Icons.tune_rounded),
+                            title: Text(l10n.extraGuidesMatchingModeTitle),
+                            subtitle: Text(
+                                _modeTitle(l10n, prefs.guideMatchMode),
+                                style: theme.textTheme.bodySmall),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: tap,
+                          ),
                         ),
-                      ),
-                      TvActivatable(
-                        onTap: _status == null ? () => _update() : null,
-                        builder: (tap) => ListTile(
-                          leading: const IconBadge(icon: Icons.sync_rounded),
-                          title: const Text('Match and Update Now'),
-                          onTap: tap,
+                        TvActivatable(
+                          onTap: _status == null ? () => _update() : null,
+                          builder: (tap) => ListTile(
+                            leading: const IconBadge(icon: Icons.sync_rounded),
+                            title: Text(l10n.extraGuidesMatchAndUpdate),
+                            onTap: tap,
+                          ),
                         ),
-                      ),
-                      TvActivatable(
-                        onTap: () async {
-                          await Navigator.of(context).push(MaterialPageRoute<void>(
-                              builder: (_) => const _GuideLinksScreen()));
-                          unawaited(_load());
-                        },
-                        builder: (tap) => ListTile(
-                          leading: const IconBadge(icon: Icons.link_rounded),
-                          title: const Text('Review Guide Matches'),
-                          subtitle: Text(_linkSummary(),
-                              style: theme.textTheme.bodySmall),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: tap,
+                        TvActivatable(
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                    builder: (_) => const _GuideLinksScreen()));
+                            unawaited(_load());
+                          },
+                          builder: (tap) => ListTile(
+                            leading: const IconBadge(icon: Icons.link_rounded),
+                            title: Text(l10n.extraGuidesReviewMatchesTitle),
+                            subtitle: Text(_linkSummary(l10n),
+                                style: theme.textTheme.bodySmall),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: tap,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            )),
+                      ],
+                    ),
+                  ],
+                ),
+              )),
     );
   }
 
-  String _linkSummary() {
+  String _linkSummary(AppLocalizations l10n) {
     var auto = 0, manual = 0;
     for (final (a, m) in _links.values) {
       auto += a;
       manual += m;
     }
-    if (auto == 0 && manual == 0) return 'No channels matched yet';
-    return '$auto matched automatically · $manual chosen by you';
+    if (auto == 0 && manual == 0) return l10n.extraGuidesNoMatchesYet;
+    return l10n.extraGuidesMatchSummary(auto, manual);
   }
 
   Widget _guideTile(ExtraGuideRow g, ThemeData theme) {
+    final l10n = AppLocalizations.of(context);
     final (auto, manual) = _links['ext:${g.id}'] ?? (0, 0);
     final String line;
     if (g.lastError != null) {
       line = g.lastUpdated == null
           ? g.lastError!
-          : '${g.lastError}\nLast read ${_ago(g.lastUpdated!)}.';
+          : l10n.extraGuidesLastError(g.lastError!, _ago(l10n, g.lastUpdated!));
     } else if (g.lastUpdated == null) {
-      line = 'Not read yet';
+      line = l10n.extraGuidesNotRead;
     } else {
-      line = '${g.channelCount} channels · ${auto + manual} used · '
-          'read ${_ago(g.lastUpdated!)}${g.enabled ? '' : ' · off'}';
+      final when = _ago(l10n, g.lastUpdated!);
+      line = g.enabled
+          ? l10n.extraGuidesTileLine(g.channelCount, auto + manual, when)
+          : l10n.extraGuidesTileLineOff(g.channelCount, auto + manual, when);
     }
     return TvActivatable(
       onTap: () => _options(g),
@@ -451,7 +456,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
         leading: g.lastError != null
             ? Icon(Icons.error_outline, color: theme.colorScheme.error)
             : IconBadge(
-                icon: g.enabled ? Icons.event_note_outlined : Icons.pause_rounded),
+                icon: g.enabled
+                    ? Icons.event_note_outlined
+                    : Icons.pause_rounded),
         title: Text(g.name),
         subtitle: Text(line, style: theme.textTheme.bodySmall),
         onTap: tap,
@@ -485,8 +492,11 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
   void _add() {
     final url = _url.text.trim();
     final uri = Uri.tryParse(url);
-    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https')) || uri.host.isEmpty) {
-      setState(() => _problem = 'Enter the guide address, starting with http:// or https://');
+    if (uri == null ||
+        !(uri.isScheme('http') || uri.isScheme('https')) ||
+        uri.host.isEmpty) {
+      setState(() =>
+          _problem = AppLocalizations.of(context).extraGuidesAddressInvalid);
       return;
     }
     final name = _name.text.trim().isEmpty ? uri.host : _name.text.trim();
@@ -495,8 +505,9 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Add a Guide'),
+      title: Text(l10n.extraGuidesAddTitle),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -508,7 +519,7 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
               focusNode: node,
               controller: _name,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'Name (optional)'),
+              decoration: InputDecoration(labelText: l10n.extraGuidesNameLabel),
             ),
           ),
           const SizedBox(height: 12),
@@ -519,7 +530,7 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
-                  labelText: 'Guide address', errorText: _problem),
+                  labelText: l10n.extraGuidesAddressLabel, errorText: _problem),
               onSubmitted: (_) => _add(),
             ),
           ),
@@ -528,11 +539,13 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
       actions: [
         TvActivatable(
           onTap: () => Navigator.of(context).pop(),
-          builder: (t) => TextButton(onPressed: t, child: const Text('Cancel')),
+          builder: (t) =>
+              TextButton(onPressed: t, child: Text(l10n.commonCancel)),
         ),
         TvActivatable(
           onTap: _add,
-          builder: (t) => FilledButton(onPressed: t, child: const Text('Add')),
+          builder: (t) => FilledButton(
+              onPressed: t, child: Text(l10n.extraGuidesAddButton)),
         ),
       ],
     );
@@ -563,9 +576,8 @@ class _GuideLinksScreenState extends ConsumerState<_GuideLinksScreen> {
     final db = ref.read(appDatabaseProvider);
     final links = await db.getGuideLinks();
     final names = {for (final c in await db.channelBriefs()) c.id: c.name};
-    final picker = await ref
-        .read(guideAssignmentProvider)
-        .loadPicker(withMatcher: false);
+    final picker =
+        await ref.read(guideAssignmentProvider).loadPicker(withMatcher: false);
     links.sort((a, b) => (names[a.channelId] ?? '')
         .toLowerCase()
         .compareTo((names[b.channelId] ?? '').toLowerCase()));
@@ -580,52 +592,59 @@ class _GuideLinksScreenState extends ConsumerState<_GuideLinksScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final links = _links;
     return Scaffold(
-      appBar: AppBar(title: const Text('Guide Matches')),
+      appBar: AppBar(title: Text(l10n.extraGuidesLinksTitle)),
       body: links == null
           ? const Center(child: CircularProgressIndicator())
           : links.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text(
-                      'No channels are matched to an extra guide yet. Pick one '
-                      'for a channel with hold OK → Change Guide, or add a '
-                      'guide and let OpenIPTV match channels for you.',
+                  padding: const EdgeInsets.all(32),
+                  child: Text(l10n.extraGuidesLinksEmpty,
                       textAlign: TextAlign.center),
                 ))
-              : TvFollowFocus(focusFirst: true, child: ListView.builder(
-                  padding: EdgeInsets.only(
-                      bottom: 32 + MediaQuery.paddingOf(context).bottom),
-                  itemCount: links.length,
-                  itemBuilder: (context, i) {
-                    final l = links[i];
-                    final name = _names[l.channelId] ?? l.channelId;
-                    final what = l.xmltvId == null
-                        ? 'No guide (your choice)'
-                        : '${l.xmltvId} · ${_guideNames[l.guideRef] ?? 'guide'}'
-                            ' · ${l.kind == 'manual' ? 'your choice' : 'automatic'}';
-                    return TvActivatable(
-                      onTap: () async {
-                        await Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) => ChangeGuideScreen(
-                                channelId: l.channelId, channelName: name)));
-                        unawaited(_load());
-                      },
-                      builder: (tap) => ListTile(
-                        leading: Icon(
-                            l.kind == 'manual'
-                                ? Icons.person_outline
-                                : Icons.auto_fix_high_rounded,
-                            color: theme.colorScheme.primary),
-                        title: Text(name),
-                        subtitle: Text(what, style: theme.textTheme.bodySmall),
-                        onTap: tap,
-                      ),
-                    );
-                  },
-                )),
+              : TvFollowFocus(
+                  focusFirst: true,
+                  child: ListView.builder(
+                    padding: EdgeInsets.only(
+                        bottom: 32 + MediaQuery.paddingOf(context).bottom),
+                    itemCount: links.length,
+                    itemBuilder: (context, i) {
+                      final l = links[i];
+                      final name = _names[l.channelId] ?? l.channelId;
+                      final guideName = _guideNames[l.guideRef] ??
+                          l10n.extraGuidesGuideFallback;
+                      final what = l.xmltvId == null
+                          ? l10n.extraGuidesLinkNone
+                          : l.kind == 'manual'
+                              ? l10n.extraGuidesLinkManual(
+                                  l.xmltvId!, guideName)
+                              : l10n.extraGuidesLinkAuto(l.xmltvId!, guideName);
+                      return TvActivatable(
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                  builder: (_) => ChangeGuideScreen(
+                                      channelId: l.channelId,
+                                      channelName: name)));
+                          unawaited(_load());
+                        },
+                        builder: (tap) => ListTile(
+                          leading: Icon(
+                              l.kind == 'manual'
+                                  ? Icons.person_outline
+                                  : Icons.auto_fix_high_rounded,
+                              color: theme.colorScheme.primary),
+                          title: Text(name),
+                          subtitle:
+                              Text(what, style: theme.textTheme.bodySmall),
+                          onTap: tap,
+                        ),
+                      );
+                    },
+                  )),
     );
   }
 }

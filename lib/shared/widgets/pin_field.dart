@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -112,7 +113,7 @@ Future<String?> showPinEntryDialog(
   BuildContext context, {
   required String title,
   String? message,
-  String confirmLabel = 'Unlock',
+  String? confirmLabel,
 }) {
   return showDialog<String>(
     context: context,
@@ -131,7 +132,7 @@ class _PinDialog extends StatefulWidget {
 
   final String title;
   final String? message;
-  final String confirmLabel;
+  final String? confirmLabel;
 
   @override
   State<_PinDialog> createState() => _PinDialogState();
@@ -205,7 +206,7 @@ class _PinDialogState extends State<_PinDialog> {
                   TvActivatable(
                     onTap: () => Navigator.of(context).pop(),
                     builder: (onTap) => TextButton(
-                        onPressed: onTap, child: const Text('Cancel')),
+                        onPressed: onTap, child: Text(AppLocalizations.of(context).commonCancel)),
                   ),
                   const SizedBox(width: 8),
                   TvActivatable(
@@ -214,7 +215,8 @@ class _PinDialogState extends State<_PinDialog> {
                       style:
                           FilledButton.styleFrom(shape: const StadiumBorder()),
                       onPressed: onTap,
-                      child: Text(widget.confirmLabel),
+                      child: Text(
+                          widget.confirmLabel ?? AppLocalizations.of(context).pinUnlock),
                     ),
                   ),
                 ],

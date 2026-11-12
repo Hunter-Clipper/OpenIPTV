@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -16,6 +17,7 @@ Future<void> refreshBrowsedPlaylists(
   Future<void> Function(SourceManager manager, Source source) refresh,
 ) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  final l10n = AppLocalizations.of(context);
   final sources = await ref.read(allSourcesProvider.future);
   final activeId = ref.read(activeSourceIdProvider);
   final manager = ref.read(sourceManagerProvider);
@@ -31,9 +33,8 @@ Future<void> refreshBrowsedPlaylists(
   }
   if (failed.isEmpty) return;
   final message = failed.length == 1
-      ? "Couldn't refresh ${failed.single.$1.nickname}. "
-          '${friendlySourceErrorMessage(failed.single.$2)}'
-      : "Couldn't refresh ${failed.map((f) => f.$1.nickname).join(', ')}. "
-          'Try again later.';
+      ? l10n.pullRefreshOne(failed.single.$1.nickname,
+          friendlySourceErrorMessage(failed.single.$2, l10n))
+      : l10n.pullRefreshMany(failed.map((f) => f.$1.nickname).join(', '));
   messenger?.showSnackBar(SnackBar(content: Text(message)));
 }

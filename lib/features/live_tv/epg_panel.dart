@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
+import 'package:intl/intl.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -10,6 +12,7 @@ import 'package:open_iptv/features/live_tv/catchup_launcher.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// Slide-up panel widget showing the EPG schedule for a single channel.
 ///
@@ -171,8 +174,9 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
 
   void _showCatchupUnavailable() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Catch-up is not available for this programme.')),
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context).epgPanelCatchupUnavailable)),
     );
   }
 
@@ -246,7 +250,9 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                       Row(
                         children: [
                           Text(
-                            _isToday ? 'Today' : _formatDate(_selectedDate),
+                            _isToday
+                                ? AppLocalizations.of(context).epgPanelToday
+                                : _formatDate(context, _selectedDate),
                             style: theme.textTheme.bodySmall,
                           ),
                           if (showDaySwitcher) ...[
@@ -291,8 +297,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                 return Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    "Couldn't load the TV guide. Your channels still work — "
-                    'guide info will retry automatically.',
+                    AppLocalizations.of(context).epgPanelLoadError,
                     style: theme.textTheme.bodySmall,
                   ),
                 );
@@ -302,7 +307,7 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
                 return Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'No guide information available for this day.',
+                    AppLocalizations.of(context).epgPanelNoInfo,
                     style: theme.textTheme.bodySmall,
                   ),
                 );
@@ -346,32 +351,8 @@ class _EpgPanelState extends ConsumerState<EpgPanel> {
     );
   }
 
-  String _formatDate(DateTime dt) {
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
-  }
+  String _formatDate(BuildContext context, DateTime dt) =>
+      DateFormat.MMMEd(Localizations.localeOf(context).toString()).format(dt);
 }
 
 // ---------------------------------------------------------------------------
@@ -435,7 +416,7 @@ class _ProgrammeCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'LIVE',
+                        AppLocalizations.of(context).epgPanelLiveBadge,
                         style: theme.textTheme.bodySmall!.copyWith(
                           color: theme.colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
@@ -507,8 +488,5 @@ class _ProgrammeCard extends StatelessWidget {
 
   // Follows the device's 12/24-hour setting, matching the player overlay.
   String _formatTime(BuildContext context, DateTime dt) =>
-      MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(dt),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
+      formatSystemTime(context, dt);
 }

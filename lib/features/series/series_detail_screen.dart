@@ -20,6 +20,7 @@ import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -180,10 +181,11 @@ class _SeriesBody extends ConsumerWidget {
     final seasonEpisodes = episodes.where((e) => e.season == season).toList()
       ..sort((a, b) => a.episode.compareTo(b.episode));
 
+    final l10n = AppLocalizations.of(context);
     final year = _year(series.year ?? extras?.releaseDate);
     final meta = [
       if (year != null) year,
-      if (seasons.length > 1) '${seasons.length} Seasons',
+      if (seasons.length > 1) l10n.seriesSeasonCount(seasons.length),
       if (extras?.rating != null) '★ ${extras!.rating}',
       if (series.genre != null) context.displayName(genre),
     ];
@@ -201,16 +203,18 @@ class _SeriesBody extends ConsumerWidget {
         SliverToBoxAdapter(
           child: DetailActions(
             primaryLabel: next == null
-                ? (loading ? 'Loading episodes…' : 'No episodes yet')
+                ? (loading
+                    ? l10n.seriesLoadingEpisodes
+                    : l10n.seriesNoEpisodesYet)
                 : next.isInProgress
-                    ? 'Resume ${_shortLabel(next)}'
-                    : 'Play ${_shortLabel(next)}',
+                    ? l10n.seriesResumeEpisode(_shortLabel(context, next))
+                    : l10n.seriesPlayEpisode(_shortLabel(context, next)),
             progress: next?.isInProgress == true ? next!.watchProgress : null,
             onPrimary: next == null ? null : () => _playEpisode(context, next),
             secondary: [
               RoundAction(
                 icon: isFav ? Icons.star_rounded : Icons.star_border_rounded,
-                label: isFav ? 'Favorited' : 'Favorite',
+                label: isFav ? l10n.detailFavorited : l10n.detailFavorite,
                 active: isFav,
                 onTap: profileId == null
                     ? null
@@ -230,7 +234,7 @@ class _SeriesBody extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: Text('Up Next',
+              child: Text(l10n.seriesUpNext,
                   style: theme.textTheme.titleMedium!
                       .copyWith(fontWeight: FontWeight.w600, fontSize: 17)),
             ),
@@ -261,7 +265,7 @@ class _SeriesBody extends ConsumerWidget {
                 )
               : Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
-                  child: Text('Episodes',
+                  child: Text(l10n.seriesEpisodes,
                       style: theme.textTheme.titleMedium!
                           .copyWith(fontWeight: FontWeight.w600, fontSize: 17)),
                 ),
@@ -277,7 +281,7 @@ class _SeriesBody extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('No episodes available yet.',
+              child: Text(l10n.seriesNoEpisodesAvailable,
                   style: theme.textTheme.bodySmall),
             ),
           )
@@ -299,7 +303,7 @@ class _SeriesBody extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
               child: MediaRail(
-                title: 'More Like This',
+                title: l10n.detailMoreLikeThis,
                 fallbackIcon: Icons.video_library_outlined,
                 items: [
                   for (final s in more)
@@ -348,7 +352,8 @@ Episode? _nextPlayEpisode(List<Episode> episodes) {
       sorted.first;
 }
 
-String _shortLabel(Episode e) => 'S${e.season} E${e.episode}';
+String _shortLabel(BuildContext context, Episode e) =>
+    AppLocalizations.of(context).seriesShortEpisode(e.season, e.episode);
 
 void _playEpisode(BuildContext context, Episode episode) {
   context.push('/player', extra: {
@@ -399,7 +404,7 @@ class _SeasonChips extends StatelessWidget {
             return TvActivatable(
               onTap: () => onChanged(s),
               builder: (onTap) => ChoiceChip(
-                label: Text('Season $s'),
+                label: Text(AppLocalizations.of(context).seriesSeason(s)),
                 selected: s == selected,
                 showCheckmark: false,
                 shape: const StadiumBorder(),
@@ -443,7 +448,7 @@ class _EpisodeCard extends ConsumerWidget {
               autofocus: true,
               leading: Icon(Icons.delete_outline,
                   color: Theme.of(sheetContext).colorScheme.error),
-              title: const Text('Clear Progress'),
+              title: Text(AppLocalizations.of(sheetContext).detailClearProgress),
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final profileId =
@@ -549,7 +554,7 @@ class _EpisodeCard extends ConsumerWidget {
                     if (runtime != null && runtime > Duration.zero) ...[
                       const SizedBox(height: 2),
                       Text(
-                        formatRuntime(runtime),
+                        formatRuntimeL10n(AppLocalizations.of(context), runtime),
                         style: theme.textTheme.bodySmall!.copyWith(
                             color: theme.colorScheme.onSurfaceVariant),
                       ),
@@ -605,9 +610,9 @@ class _ErrorScaffold extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(),
       body: ErrorStateView(
-        message: "Couldn't load this series. Try again.",
+        message: AppLocalizations.of(context).detailSeriesLoadError,
         onRetry: onBack,
-        retryLabel: 'Go Back',
+        retryLabel: AppLocalizations.of(context).detailGoBack,
         retryIcon: Icons.arrow_back_rounded,
       ),
     );

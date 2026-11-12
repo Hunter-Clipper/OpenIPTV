@@ -10,6 +10,7 @@ import 'package:open_iptv/core/parsers/xtream_client.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// Builds a catch-up stream URL for [programme] on [channel] and navigates
 /// into the player, replacing the current route. Shared by [EpgPanel]
@@ -137,22 +138,29 @@ Future<bool> openChannelWithStartChoice({
     return false;
   }
   if (!context.mounted) return false;
+  final l10n = AppLocalizations.of(context);
+  final ago = now.difference(p.start);
+  final agoHours = ago.inHours;
+  final agoMinutes = ago.inMinutes % 60;
+  final message = ago.inMinutes < 60
+      ? l10n.catchupStartedMinutesAgo(ago.inMinutes)
+      : agoMinutes == 0
+          ? l10n.catchupStartedHoursAgo(agoHours)
+          : l10n.catchupStartedHoursMinutesAgo(agoHours, agoMinutes);
   final startOver = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      content: Text(
-          "This show started ${_ago(now.difference(p.start))} ago. "
-          'Where would you like to start?'),
+      content: Text(message),
       actions: [
         TextButton(
           autofocus: true,
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: const Text('Start from the beginning'),
+          child: Text(l10n.catchupStartFromBeginning),
         ),
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('Watch live'),
+          child: Text(l10n.catchupWatchLive),
         ),
       ],
     ),
@@ -179,11 +187,4 @@ Future<bool> openChannelWithStartChoice({
     replace: false,
   );
   return true;
-}
-
-String _ago(Duration d) {
-  if (d.inMinutes < 60) return '${d.inMinutes} minutes';
-  final h = d.inHours;
-  final m = d.inMinutes % 60;
-  return m == 0 ? '$h hour${h == 1 ? '' : 's'}' : '${h}h ${m}m';
 }

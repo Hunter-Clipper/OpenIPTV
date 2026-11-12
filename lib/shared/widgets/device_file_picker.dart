@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -88,9 +90,7 @@ class _FileListDialog extends StatelessWidget {
         width: 480,
         child: files.isEmpty
             ? Text(
-                'No files found on this device. Copy the file to the '
-                'Download folder, or to Android/data/com.openiptv.app/files, '
-                'then try again.',
+                AppLocalizations.of(context).filePickerNoFiles,
                 style: theme.textTheme.bodyMedium!.copyWith(color: muted),
               )
             : ListView(
@@ -104,7 +104,7 @@ class _FileListDialog extends StatelessWidget {
                         leading: Icon(Icons.description_outlined, color: muted),
                         title: Text(f.uri.pathSegments.last,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_describe(f),
+                        subtitle: Text(_describe(context, f),
                             style: theme.textTheme.bodySmall),
                         onTap: onTap,
                       ),
@@ -117,19 +117,20 @@ class _FileListDialog extends StatelessWidget {
           autofocus: files.isEmpty,
           onTap: () => Navigator.of(context).pop(),
           builder: (onTap) =>
-              TextButton(onPressed: onTap, child: const Text('Cancel')),
+              TextButton(
+                  onPressed: onTap,
+                  child: Text(AppLocalizations.of(context).commonCancel)),
         ),
       ],
     );
   }
 
-  static String _describe(File f) {
+  static String _describe(BuildContext context, File f) {
     final kb = f.lengthSync() / 1024;
     final size = kb < 1024
         ? '${kb.toStringAsFixed(0)} KB'
         : '${(kb / 1024).toStringAsFixed(1)} MB';
     final m = f.statSync().modified;
-    return '$size · ${m.year}-${m.month.toString().padLeft(2, '0')}-'
-        '${m.day.toString().padLeft(2, '0')}';
+    return '$size · ${formatDate(m, Localizations.localeOf(context))}';
   }
 }

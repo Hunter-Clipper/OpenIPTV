@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/features/settings/refresh_all.dart';
+import 'package:open_iptv/l10n/gen/app_localizations_en.dart';
 import 'package:sqlite3/open.dart';
 
 SourceRefreshResult _result(String name,
@@ -30,11 +31,11 @@ void main() {
   group('refreshSummary', () {
     test('all good', () {
       final ok = [_result('A'), _result('B')];
-      expect(refreshSummary(RefreshScope.everything, ok),
+      expect(refreshSummary(AppLocalizationsEn(), RefreshScope.everything, ok),
           'Everything is up to date.');
-      expect(refreshSummary(RefreshScope.playlists, ok),
+      expect(refreshSummary(AppLocalizationsEn(), RefreshScope.playlists, ok),
           'All playlists are up to date.');
-      expect(refreshSummary(RefreshScope.guides, ok),
+      expect(refreshSummary(AppLocalizationsEn(), RefreshScope.guides, ok),
           'All TV guides are up to date.');
     });
 
@@ -46,7 +47,7 @@ void main() {
         _result('Gone', playlistError: 'x', epgError: 'y'),
       ];
       expect(
-        refreshSummary(RefreshScope.everything, results),
+        refreshSummary(AppLocalizationsEn(), RefreshScope.everything, results),
         "1 of 4 updated. Main: This TV guide link doesn't look valid. Check the URL with your provider.; "
         "Old: That didn't work. Check your details and try again.; "
         "Gone: That didn't work. Check your details and try again..",
@@ -55,7 +56,7 @@ void main() {
 
     test('a single playlist skips the count', () {
       expect(
-        refreshSummary(
+        refreshSummary(AppLocalizationsEn(),
             RefreshScope.guides, [_result('Main', epgError: 'http_404')]),
         "Main: This TV guide link doesn't look valid. Check the URL with your provider..",
       );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -37,8 +38,10 @@ class StarButton extends StatelessWidget {
             : Colors.white70,
       ),
     );
+    final l10n = AppLocalizations.of(context);
+    final label = isFavorite ? l10n.starRemoveFavorite : l10n.starAddFavorite;
     if (onTap == null || tv) return Semantics(
-      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      label: label,
       button: true,
       child: content,
     );
@@ -46,7 +49,7 @@ class StarButton extends StatelessWidget {
       onTap: onTap!,
       borderRadius: BorderRadius.circular(16),
       child: Semantics(
-        label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+        label: label,
         button: true,
         child: content,
       ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,7 @@ class RefreshAllState {
     this.done = 0,
     this.total = 0,
     this.current,
+    this.currentIsExtraGuides = false,
     this.last,
     this.lastResults = const [],
     this.finishedAt,
@@ -38,6 +41,9 @@ class RefreshAllState {
 
   /// Playlist being refreshed right now.
   final String? current;
+
+  /// The run is on the extra guides step (no playlist name then).
+  final bool currentIsExtraGuides;
 
   /// The most recent finished run, kept for the summary line.
   final RefreshScope? last;
@@ -88,7 +94,7 @@ class RefreshAllNotifier extends Notifier<RefreshAllState> {
         running: scope,
         done: sources.length,
         total: sources.length,
-        current: 'Extra guides',
+        currentIsExtraGuides: true,
         last: state.last,
         lastResults: state.lastResults,
         finishedAt: state.finishedAt,
@@ -108,29 +114,42 @@ class RefreshAllNotifier extends Notifier<RefreshAllState> {
   }
 }
 
-/// One plain-English line about a finished run.
-String refreshSummary(RefreshScope scope, List<SourceRefreshResult> results) {
+/// One plain-language line about a finished run.
+String refreshSummary(AppLocalizations l10n, RefreshScope scope,
+    List<SourceRefreshResult> results) {
   final failed = results.where((r) => !r.succeeded).toList();
   if (failed.isEmpty) {
     return switch (scope) {
-      RefreshScope.everything => 'Everything is up to date.',
-      RefreshScope.playlists => 'All playlists are up to date.',
-      RefreshScope.guides => 'All TV guides are up to date.',
+      RefreshScope.everything => l10n.refreshAllSummaryEverything,
+      RefreshScope.playlists => l10n.refreshAllSummaryPlaylists,
+      RefreshScope.guides => l10n.refreshAllSummaryGuides,
     };
   }
   String problem(SourceRefreshResult r) {
-    if (r.playlistError != null && r.epgError != null) {
-      return '${r.nickname}: ${friendlySourceErrorMessage(r.playlistError!)}';
-    }
     if (r.playlistError != null) {
-      return '${r.nickname}: ${friendlySourceErrorMessage(r.playlistError!)}';
+      return l10n.refreshAllProblem(
+          r.nickname, friendlySourceErrorMessage(r.playlistError!, l10n));
     }
-    return '${r.nickname}: ${friendlyEpgErrorMessage(r.epgError!)}';
+    return l10n.refreshAllProblem(
+        r.nickname, friendlyEpgErrorMessage(r.epgError!, l10n));
   }
 
-  final ok = results.length - failed.length;
-  final lead = results.length == 1 ? '' : '$ok of ${results.length} updated. ';
-  return '$lead${failed.map(problem).join('; ')}.';
+  final problems = failed.map(problem).join('; ');
+  if (results.length == 1) return l10n.refreshAllSummaryFailedOne(problems);
+  return l10n.refreshAllSummaryFailedMany(
+      results.length - failed.length, results.length, problems);
+}
+
+/// "Updating Home… (1 of 3)" for the refresh in progress.
+String _runningLine(AppLocalizations l10n, RefreshAllState state) {
+  final n = state.done + 1;
+  if (state.currentIsExtraGuides) {
+    return l10n.refreshAllUpdatingExtraGuides(n, state.total);
+  }
+  final name = state.current ?? '';
+  return state.running == RefreshScope.guides
+      ? l10n.refreshAllUpdatingGuide(name, n, state.total)
+      : l10n.refreshAllUpdating(name, n, state.total);
 }
 
 /// The three Settings rows: Refresh Everything, Refresh Playlists, Refresh
@@ -140,11 +159,13 @@ class RefreshAllTiles extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(refreshAllProvider);
     ref.listen(refreshAllProvider, (prev, next) {
       if (prev?.isRunning == true && !next.isRunning && next.last != null) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-          content: Text(refreshSummary(next.last!, next.lastResults)),
+          content: Text(
+              refreshSummary(l10n, next.last!, next.lastResults)),
         ));
       }
     });
@@ -154,22 +175,22 @@ class RefreshAllTiles extends ConsumerWidget {
         _RefreshTile(
           scope: RefreshScope.everything,
           icon: Icons.sync_rounded,
-          title: 'Refresh Everything',
-          hint: 'Channels, movies, series and TV guides for every playlist',
+          title: l10n.refreshAllEverythingTitle,
+          hint: l10n.refreshAllEverythingHint,
           state: state,
         ),
         _RefreshTile(
           scope: RefreshScope.playlists,
           icon: Icons.playlist_add_check_rounded,
-          title: 'Refresh Playlists',
-          hint: 'Channels, movies and series only',
+          title: l10n.refreshAllPlaylistsTitle,
+          hint: l10n.refreshAllPlaylistsHint,
           state: state,
         ),
         _RefreshTile(
           scope: RefreshScope.guides,
           icon: Icons.event_note_outlined,
-          title: 'Refresh TV Guides',
-          hint: "What's on now and next, for every playlist",
+          title: l10n.refreshAllGuidesTitle,
+          hint: l10n.refreshAllGuidesHint,
           state: state,
         ),
       ],
@@ -182,51 +203,51 @@ class RefreshAllTiles extends ConsumerWidget {
 class RefreshNowTile extends ConsumerWidget {
   const RefreshNowTile({super.key});
 
-  static const _choices = <(RefreshScope, IconData, String, String)>[
-    (
-      RefreshScope.everything,
-      Icons.sync_rounded,
-      'Everything',
-      'Channels, movies, series and TV guides for every playlist'
-    ),
-    (
-      RefreshScope.playlists,
-      Icons.playlist_add_check_rounded,
-      'Playlists only',
-      'Channels, movies and series'
-    ),
-    (
-      RefreshScope.guides,
-      Icons.event_note_outlined,
-      'TV guides only',
-      "What's on now and next, for every playlist"
-    ),
-  ];
+  static List<(RefreshScope, IconData, String, String)> _choices(
+          AppLocalizations l10n) =>
+      [
+        (
+          RefreshScope.everything,
+          Icons.sync_rounded,
+          l10n.refreshAllChoiceEverything,
+          l10n.refreshAllEverythingHint
+        ),
+        (
+          RefreshScope.playlists,
+          Icons.playlist_add_check_rounded,
+          l10n.refreshAllChoicePlaylists,
+          l10n.refreshAllChoicePlaylistsHint
+        ),
+        (
+          RefreshScope.guides,
+          Icons.event_note_outlined,
+          l10n.refreshAllChoiceGuides,
+          l10n.refreshAllGuidesHint
+        ),
+      ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(refreshAllProvider);
     final theme = Theme.of(context);
     ref.listen(refreshAllProvider, (prev, next) {
       if (prev?.isRunning == true && !next.isRunning && next.last != null) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-          content: Text(refreshSummary(next.last!, next.lastResults)),
+          content: Text(
+              refreshSummary(l10n, next.last!, next.lastResults)),
         ));
       }
     });
     final String subtitle;
     if (state.isRunning) {
-      final what = state.running == RefreshScope.guides ? "'s TV guide" : '';
-      subtitle =
-          'Updating ${state.current}$what… (${state.done + 1} of ${state.total})';
+      subtitle = _runningLine(l10n, state);
     } else if (state.last != null && state.finishedAt != null) {
-      final time = MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(state.finishedAt!),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
-      subtitle = '$time · ${refreshSummary(state.last!, state.lastResults)}';
+      final time = formatSystemTime(context, state.finishedAt!);
+      subtitle = l10n.refreshAllLastRun(
+          time, refreshSummary(l10n, state.last!, state.lastResults));
     } else {
-      subtitle = 'Update your playlists and TV guides now';
+      subtitle = l10n.refreshAllNowIdle;
     }
     // While one runs the row stays focusable (a no-op) so a TV remote keeps
     // its place.
@@ -238,12 +259,12 @@ class RefreshNowTile extends ConsumerWidget {
                 final scope = await showDialog<RefreshScope>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Refresh'),
+                    title: Text(l10n.refreshAllDialogTitle),
                     scrollable: true,
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final (i, c) in _choices.indexed)
+                        for (final (i, c) in _choices(l10n).indexed)
                           TvActivatable(
                             autofocus: i == 0,
                             onTap: () => Navigator.of(ctx).pop(c.$1),
@@ -264,7 +285,7 @@ class RefreshNowTile extends ConsumerWidget {
               },
         builder: (onTap) => ListTile(
           leading: const IconBadge(icon: Icons.sync_rounded),
-          title: const Text('Refresh Now'),
+          title: Text(l10n.refreshAllNowTitle),
           subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
           trailing: state.isRunning
               ? const SizedBox(
@@ -298,18 +319,15 @@ class _RefreshTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final runningThis = state.running == scope;
     final String subtitle;
     if (runningThis) {
-      final what = scope == RefreshScope.guides ? "'s TV guide" : '';
-      subtitle =
-          'Updating ${state.current}$what… (${state.done + 1} of ${state.total})';
+      subtitle = _runningLine(l10n, state);
     } else if (state.last == scope && state.finishedAt != null) {
-      final time = MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(state.finishedAt!),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
-      subtitle = '$time · ${refreshSummary(scope, state.lastResults)}';
+      final time = formatSystemTime(context, state.finishedAt!);
+      subtitle = l10n.refreshAllLastRun(
+          time, refreshSummary(l10n, scope, state.lastResults));
     } else {
       subtitle = hint;
     }

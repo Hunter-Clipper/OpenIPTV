@@ -13,6 +13,7 @@ import 'package:open_iptv/shared/widgets/detail_header.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -87,9 +88,9 @@ class MovieDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(),
       body: ErrorStateView(
-        message: "Couldn't load this movie. Try again.",
+        message: AppLocalizations.of(context).detailMovieLoadError,
         onRetry: () => context.pop(),
-        retryLabel: 'Go Back',
+        retryLabel: AppLocalizations.of(context).detailGoBack,
         retryIcon: Icons.arrow_back_rounded,
       ),
     );
@@ -148,11 +149,12 @@ class _MovieDetailBody extends ConsumerWidget {
     final year = movie.year?.trim();
     final meta = [
       if (year != null && year.isNotEmpty) year,
-      if (runtime != null && runtime > Duration.zero) formatRuntime(runtime),
+      if (runtime != null && runtime > Duration.zero) formatRuntimeL10n(AppLocalizations.of(context), runtime),
       if (rating != null && rating != '0.0') '★ $rating',
       if (movie.genre != null) context.displayName(genre),
     ];
 
+    final l10n = AppLocalizations.of(context);
     final inProgress = movie.isInProgress;
     final watched = movie.watchedDuration;
     return CustomScrollView(
@@ -167,8 +169,8 @@ class _MovieDetailBody extends ConsumerWidget {
         SliverToBoxAdapter(
           child: DetailActions(
             primaryLabel: inProgress
-                ? 'Resume from ${formatClock(watched ?? Duration.zero)}'
-                : 'Play',
+                ? l10n.detailResumeFrom(formatClock(watched ?? Duration.zero))
+                : l10n.detailPlay,
             progress: inProgress ? movie.watchProgress : null,
             onPrimary: () => inProgress
                 ? _play(context, from: watched, confirm: false)
@@ -177,19 +179,19 @@ class _MovieDetailBody extends ConsumerWidget {
               if (inProgress)
                 RoundAction(
                   icon: Icons.replay_rounded,
-                  label: 'Start Over',
+                  label: l10n.detailStartOver,
                   onTap: () => _play(context, from: Duration.zero),
                 ),
               RoundAction(
                 icon: isFavourite ? Icons.star_rounded : Icons.star_border_rounded,
-                label: isFavourite ? 'Favorited' : 'Favorite',
+                label: isFavourite ? l10n.detailFavorited : l10n.detailFavorite,
                 active: isFavourite,
                 onTap: profileId == null ? null : () => _toggleFavourite(ref),
               ),
               if (inProgress)
                 RoundAction(
                   icon: Icons.remove_done_rounded,
-                  label: 'Clear Progress',
+                  label: l10n.detailClearProgress,
                   onTap: profileId == null
                       ? null
                       : () => ref
@@ -211,7 +213,7 @@ class _MovieDetailBody extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
               child: MediaRail(
-                title: 'More Like This',
+                title: l10n.detailMoreLikeThis,
                 items: [
                   for (final m in more)
                     RailItem(

@@ -7,12 +7,21 @@ import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// What a Live TV category is called for [profile]: the profile's own name
 /// if it gave one, otherwise the (optionally cleaned-up) provider name.
 /// Display-only — search, locks and icons keep using the original name.
-String categoryLabel(BuildContext context, Profile? profile, String category) =>
-    profile?.categoryNames[category] ?? context.displayName(category);
+String categoryLabel(BuildContext context, Profile? profile, String category) {
+  final l10n = AppLocalizations.of(context);
+  return profile?.categoryNames[category] ??
+      switch (category) {
+        'All' => l10n.liveTvAllChannels,
+        'Favorites' => l10n.liveTvFavorites,
+        'Recently Watched' => l10n.liveTvRecentlyWatched,
+        _ => context.displayName(category),
+      };
+}
 
 enum _CategoryAction { hide, rename, moveUp, moveDown, resetName }
 
@@ -87,15 +96,21 @@ class _CategoryOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final small = Theme.of(context).textTheme.bodySmall;
+    final l10n = AppLocalizations.of(context);
     final entries = <(IconData, String, _CategoryAction)>[
-      if (canRename) (Icons.edit_outlined, 'Rename Category', _CategoryAction.rename),
+      if (canRename)
+        (Icons.edit_outlined, l10n.categoryToolsRename, _CategoryAction.rename),
       if (canMoveUp)
-        (Icons.arrow_upward_rounded, 'Move Up', _CategoryAction.moveUp),
+        (Icons.arrow_upward_rounded, l10n.categoryToolsMoveUp,
+            _CategoryAction.moveUp),
       if (canMoveDown)
-        (Icons.arrow_downward_rounded, 'Move Down', _CategoryAction.moveDown),
+        (Icons.arrow_downward_rounded, l10n.categoryToolsMoveDown,
+            _CategoryAction.moveDown),
       if (canResetName)
-        (Icons.restart_alt_rounded, 'Reset Name', _CategoryAction.resetName),
-      (Icons.visibility_off_outlined, 'Hide Category', _CategoryAction.hide),
+        (Icons.restart_alt_rounded, l10n.categoryToolsResetName,
+            _CategoryAction.resetName),
+      (Icons.visibility_off_outlined, l10n.categoryToolsHide,
+          _CategoryAction.hide),
     ];
     return SafeArea(
       child: SingleChildScrollView(
@@ -140,14 +155,14 @@ class _RenameCategoryDialog extends StatefulWidget {
   const _RenameCategoryDialog({
     required this.original,
     required this.current,
-    this.title = 'Rename Category',
-    this.hint = 'Category name',
+    this.title,
+    this.hint,
   });
 
   final String original;
   final String current;
-  final String title;
-  final String hint;
+  final String? title;
+  final String? hint;
 
   @override
   State<_RenameCategoryDialog> createState() => _RenameCategoryDialogState();
@@ -166,8 +181,9 @@ class _RenameCategoryDialogState extends State<_RenameCategoryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text(widget.title),
+      title: Text(widget.title ?? l10n.categoryToolsRename),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -179,14 +195,14 @@ class _RenameCategoryDialogState extends State<_RenameCategoryDialog> {
                 focusNode: fieldNode,
                 controller: _name,
                 textInputAction: TextInputAction.done,
-                decoration: InputDecoration(hintText: widget.hint),
+                decoration: InputDecoration(
+                    hintText: widget.hint ?? l10n.categoryToolsNameHint),
                 onSubmitted: (_) => _save(),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Only changes how it looks here. Leave it empty to go back to '
-              'the original name.',
+              l10n.categoryToolsRenameNote,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -196,7 +212,7 @@ class _RenameCategoryDialogState extends State<_RenameCategoryDialog> {
         TvActivatable(
           onTap: () => Navigator.of(context).pop(),
           builder: (onTap) =>
-              TextButton(onPressed: onTap, child: const Text('Cancel')),
+              TextButton(onPressed: onTap, child: Text(l10n.commonCancel)),
         ),
         TvActivatable(
           // Same as the other typing dialogs: the field must not hold the
@@ -204,7 +220,7 @@ class _RenameCategoryDialogState extends State<_RenameCategoryDialog> {
           autofocus: true,
           onTap: _save,
           builder: (onTap) =>
-              FilledButton(onPressed: onTap, child: const Text('Save')),
+              FilledButton(onPressed: onTap, child: Text(l10n.categoryToolsSave)),
         ),
       ],
     );

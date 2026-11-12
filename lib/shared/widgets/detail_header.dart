@@ -8,6 +8,7 @@ import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// Building blocks of the movie and series detail pages (Google TV style):
 /// a full-width backdrop that collapses into a plain app bar, the poster
@@ -276,7 +277,7 @@ class _RoundBackButton extends StatelessWidget {
         builder: (onTap) => IconButton(
           style: IconButton.styleFrom(backgroundColor: Colors.black38),
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context).commonBack,
           onPressed: onTap,
         ),
       ),
@@ -501,7 +502,9 @@ class _DetailSynopsisState extends State<DetailSynopsis> {
                           minimumSize: const Size(0, 36),
                         ),
                         onPressed: onTap,
-                        child: Text(_expanded ? 'Less' : 'More'),
+                        child: Text(_expanded
+                            ? AppLocalizations.of(context).detailLess
+                            : AppLocalizations.of(context).detailMore),
                       ),
                     ),
                 ],
@@ -509,12 +512,12 @@ class _DetailSynopsisState extends State<DetailSynopsis> {
             }),
           if (widget.cast != null) ...[
             const SizedBox(height: 10),
-            Text('Starring  ${widget.cast}',
+            Text(AppLocalizations.of(context).detailStarring(widget.cast!),
                 maxLines: 2, overflow: TextOverflow.ellipsis, style: muted),
           ],
           if (widget.director != null) ...[
             const SizedBox(height: 4),
-            Text('Director  ${widget.director}',
+            Text(AppLocalizations.of(context).detailDirector(widget.director!),
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: muted),
           ],
         ],

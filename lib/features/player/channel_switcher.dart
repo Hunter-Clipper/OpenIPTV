@@ -17,6 +17,7 @@ import 'package:open_iptv/features/live_tv/live_categories.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/shared/utils/genre_icons.dart';
 import 'package:open_iptv/shared/widgets/marquee_text.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -29,7 +30,7 @@ Future<Channel?> showChannelSwitcher(BuildContext context, String currentId) {
   return showGeneralDialog<Channel>(
     context: context,
     barrierDismissible: true,
-    barrierLabel: 'Close channels',
+    barrierLabel: AppLocalizations.of(context).channelSwitcherBarrier,
     barrierColor: Colors.black38,
     transitionDuration: const Duration(milliseconds: 260),
     pageBuilder: (_, __, ___) => _ChannelSwitcher(currentId: currentId),
@@ -101,7 +102,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
   }
 
   String _label(BuildContext context, String cat) => cat == _favorites
-      ? 'Favorites'
+      ? AppLocalizations.of(context).channelSwitcherFavorites
       : categoryLabel(
           context, ref.read(activeProfileProvider).valueOrNull, cat);
 
@@ -165,13 +166,13 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text('Channels',
+                        child: Text(AppLocalizations.of(context).channelSwitcherTitle,
                             style: theme.textTheme.titleLarge!
                                 .copyWith(fontWeight: FontWeight.w600)),
                       ),
                       PlayerButton(
                         icon: Icons.close_rounded,
-                        tooltip: 'Close',
+                        tooltip: AppLocalizations.of(context).playerClose,
                         size: 44 * m.scale,
                         onTap: () => Navigator.of(context).pop(),
                       ),
@@ -185,7 +186,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
                       children: [
                         PlayerButton(
                           icon: Icons.chevron_left_rounded,
-                          tooltip: 'Previous category',
+                          tooltip: AppLocalizations.of(context).channelSwitcherPrevCategory,
                           size: 40 * m.scale,
                           onTap: () => _step(cats, -1),
                         ),
@@ -227,7 +228,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
                         ),
                         PlayerButton(
                           icon: Icons.chevron_right_rounded,
-                          tooltip: 'Next category',
+                          tooltip: AppLocalizations.of(context).channelSwitcherNextCategory,
                           size: 40 * m.scale,
                           onTap: () => _step(cats, 1),
                         ),
@@ -349,8 +350,10 @@ class _ChannelRow extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           current
-                              ? 'Now watching'
-                              : prog?.title ?? 'Live',
+                              ? AppLocalizations.of(context).channelSwitcherNowWatching
+                              : prog?.title ??
+                                  AppLocalizations.of(context)
+                                      .channelSwitcherLive,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall!.copyWith(

@@ -30,6 +30,7 @@ import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -131,7 +132,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const AppLogo(),
-        title: const Text('Series'),
+        title: Text(AppLocalizations.of(context).seriesTitle),
         actions: [
           HomeLayoutToggleAction(
             provider: homeLayoutSeriesProvider,
@@ -144,7 +145,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
       body: allAsync.when(
         loading: () => const SkeletonList(leadingSize: 28),
         error: (_, __) => ErrorStateView(
-          message: "Couldn't load series. Try again.",
+          message: AppLocalizations.of(context).seriesLoadError,
           onRetry: () => _refreshSeries(context, ref),
         ),
         data: (all) {
@@ -198,7 +199,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                 if (favorites.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
-                      title: 'Favorites',
+                      title: AppLocalizations.of(context).detailFavorites,
                       items: favorites,
                       profileId: profileId,
                       isFavoritesRow: true,
@@ -244,7 +245,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
       return [
         SliverToBoxAdapter(
           child: _HorizontalPosterRow(
-            title: 'All Series',
+            title: AppLocalizations.of(context).seriesAll,
             items: all.take(_railLength).toList(),
             profileId: profileId,
             onSeeAll: () => _tapGenre('All'),
@@ -296,7 +297,8 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
   }) {
     final genreCounts = buildGenreCounts(all, (s) => s.genre);
     return [
-      const SliverToBoxAdapter(child: RailHeader(title: 'Browse by Genre')),
+      SliverToBoxAdapter(
+          child: RailHeader(title: AppLocalizations.of(context).detailBrowseByGenre)),
       SliverToBoxAdapter(
         child: _GenreTileList(
           genres: genres.isEmpty ? ['All'] : genres,
@@ -347,7 +349,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.genre == 'All'
-            ? 'All Series'
+            ? AppLocalizations.of(context).seriesAll
             : context.displayName(widget.genre)),
         actions: [
           ViewModeToggleAction(
@@ -361,7 +363,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
       body: allAsync.when(
         loading: () => const SkeletonList(leadingSize: 48),
         error: (_, __) => ErrorStateView(
-          message: "Couldn't load series. Try again.",
+          message: AppLocalizations.of(context).seriesLoadError,
           onRetry: () => _refreshSeries(context, ref),
         ),
         data: (all) {
@@ -375,10 +377,10 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     child: EmptyStateView(
                       icon: Icons.video_library_outlined,
-                      message: 'No series found.',
+                      message: AppLocalizations.of(context).seriesNoneFound,
                     ),
                   )
                 else if (viewMode == 'list')
@@ -455,7 +457,7 @@ class _GenreTileList extends StatelessWidget {
       children: [
         for (var i = 0; i < genres.length; i++)
           CategoryTile(
-            label: genres[i],
+            label: genres[i] == 'All' ? AppLocalizations.of(context).detailAllGenre : genres[i],
             count: seriesCounts[genres[i]] ?? 0,
             icon: genres[i] == 'All'
                 ? Icons.video_library_outlined
@@ -546,7 +548,9 @@ void _showSeriesOptions(
           ListTile(
             autofocus: true,
             leading: Icon(isFav ? Icons.star_border : Icons.star),
-            title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+            title: Text(isFav
+                ? AppLocalizations.of(context).detailRemoveFromFavorites
+                : AppLocalizations.of(context).detailAddToFavorites),
             onTap: () async {
               Navigator.pop(sheetContext);
               await ref
@@ -607,7 +611,9 @@ class _SeriesListTile extends ConsumerWidget {
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             size: 20,
           ),
-          tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+          tooltip: isFav
+              ? AppLocalizations.of(context).detailRemoveFromFavorites
+              : AppLocalizations.of(context).detailAddToFavorites,
           onPressed: profileId == null
               ? null
               : () async {
@@ -709,7 +715,8 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
               autofocus: true,
               leading: Icon(Icons.remove_circle_outline,
                   color: Theme.of(context).colorScheme.error),
-              title: const Text('Remove from Continue Watching'),
+              title: Text(
+                  AppLocalizations.of(sheetContext).detailRemoveFromContinueWatching),
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final profileId =
@@ -736,7 +743,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
         s.id: s,
     };
     return MediaRail(
-      title: 'Continue Watching',
+      title: AppLocalizations.of(context).detailContinueWatching,
       autofocusFirst: autofocusFirst,
       fallbackIcon: Icons.video_library_outlined,
       items: [

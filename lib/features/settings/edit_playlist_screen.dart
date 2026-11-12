@@ -5,8 +5,11 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/features/settings/refresh_all.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+
+enum _SaveStage { checking, updating }
 
 /// Edit a playlist: its name, and — when a provider moves server or changes
 /// your login — the server address, username, password or playlist link.
@@ -36,12 +39,12 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
 
   bool _showPassword = false;
   late String _liveFormat = widget.source.liveFormat;
-  String? _status;
+  _SaveStage? _stage;
   String? _error;
 
   bool get _isXtream => widget.source.type == SourceType.xtream;
   bool get _isFile => LocalPlaylists.isLocal(widget.source.m3uUrl);
-  bool get _saving => _status != null;
+  bool get _saving => _stage != null;
 
   // The automatic Xtream guide link has the login inside it — show it as
   // "automatic" (empty) rather than as a link.
@@ -64,9 +67,10 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
     FocusScope.of(context).unfocus();
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _error = null;
-      _status = 'Checking your details…';
+      _stage = _SaveStage.checking;
     });
     final manager = ref.read(sourceManagerProvider);
     try {
@@ -83,7 +87,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
       // Validation is quick; once it passes the refresh can take a while.
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted && _saving) {
-          setState(() => _status = 'Saved. Updating channels and movies…');
+          setState(() => _stage = _SaveStage.updating);
         }
       });
       final result = await save;
@@ -91,47 +95,49 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
       final name = _name.text.trim().isEmpty
           ? widget.source.nickname
           : _name.text.trim();
+      final summary = result == null
+          ? null
+          : refreshSummary(l10n, RefreshScope.everything, [result]);
       messenger.showSnackBar(SnackBar(
-        content: Text(result == null
-            ? '"$name" saved.'
-            : refreshSummary(RefreshScope.everything, [result]) ==
-                    'Everything is up to date.'
-                ? '"$name" saved and updated.'
-                : '"$name" saved. '
-                    '${refreshSummary(RefreshScope.everything, [result])}'),
+        content: Text(summary == null
+            ? l10n.editPlaylistSaved(name)
+            : summary == l10n.refreshAllSummaryEverything
+                ? l10n.editPlaylistSavedUpdated(name)
+                : l10n.editPlaylistSavedWithSummary(name, summary)),
       ));
       if (mounted) navigator.pop();
     } catch (e) {
       if (mounted) {
         setState(() {
-          _status = null;
-          _error = friendlySourceErrorMessage(e);
+          _stage = null;
+          _error = friendlySourceErrorMessage(e, AppLocalizations.of(context));
         });
       }
     }
   }
 
-  static const _liveFormats = [
-    ('auto', 'Automatic', 'Follows what your provider allows, usually TS'),
-    ('ts', 'TS', 'Transport stream: fast to start, works with most providers'),
-    ('hls', 'HLS', 'Adaptive playlist: for providers whose TS streams drop'),
-  ];
+  static List<(String, String, String)> _liveFormats(AppLocalizations l10n) => [
+        ('auto', l10n.editPlaylistFormatAutoLabel,
+            l10n.editPlaylistFormatAutoDescription),
+        ('ts', 'TS', l10n.editPlaylistFormatTsDescription),
+        ('hls', 'HLS', l10n.editPlaylistFormatHlsDescription),
+      ];
 
   /// Which kind of link live channels use. Movies and series are unaffected.
-  Widget _liveFormatPicker(ThemeData theme) {
+  Widget _liveFormatPicker(ThemeData theme, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Live stream format', style: theme.textTheme.labelLarge),
+          Text(l10n.editPlaylistLiveFormat, style: theme.textTheme.labelLarge),
           const SizedBox(height: 2),
           Text(
-            'Changing this updates the playlist\'s channels.',
+            l10n.editPlaylistLiveFormatNote,
             style: theme.textTheme.bodySmall!
                 .copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          for (final (id, label, description) in _liveFormats)
+          for (final (id, label, description) in _liveFormats(l10n))
             TvActivatable(
               onTap: _saving ? null : () => setState(() => _liveFormat = id),
               borderRadius: BorderRadius.circular(12),
@@ -156,17 +162,18 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return PopScope(
       // Leaving mid-save is fine — it finishes in the background — but
       // not while the details are still being checked (nothing saved yet).
-      canPop: _status != 'Checking your details…',
+      canPop: _stage != _SaveStage.checking,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Edit Playlist')),
+        appBar: AppBar(title: Text(l10n.editPlaylistTitle)),
         body: TvFollowFocus(child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           children: [
             _Field(
-              label: 'Name',
+              label: l10n.editPlaylistName,
               ctrl: _name,
               hint: widget.source.nickname,
               enabled: !_saving,
@@ -175,26 +182,28 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
             ),
             if (_isXtream) ...[
               _Field(
-                label: 'Server address',
+                label: l10n.editPlaylistServerAddress,
                 ctrl: _host,
                 hint: 'http://example.com:8080',
                 type: TextInputType.url,
                 enabled: !_saving,
               ),
               _Field(
-                label: 'Username',
+                label: l10n.editPlaylistUsername,
                 ctrl: _user,
-                hint: 'Username',
+                hint: l10n.editPlaylistUsername,
                 enabled: !_saving,
               ),
               _Field(
-                label: 'Password',
+                label: l10n.editPlaylistPassword,
                 ctrl: _pass,
-                hint: 'Leave empty to keep the current password',
+                hint: l10n.editPlaylistPasswordHint,
                 obscure: !_showPassword,
                 enabled: !_saving,
                 suffix: IconButton(
-                  tooltip: _showPassword ? 'Hide password' : 'Show password',
+                  tooltip: _showPassword
+                      ? l10n.editPlaylistHidePassword
+                      : l10n.editPlaylistShowPassword,
                   icon: Icon(_showPassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined),
@@ -202,21 +211,21 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
                       setState(() => _showPassword = !_showPassword),
                 ),
               ),
-              _liveFormatPicker(theme),
+              _liveFormatPicker(theme, l10n),
             ] else if (!_isFile)
               _Field(
-                label: 'Playlist link',
+                label: l10n.editPlaylistLink,
                 ctrl: _url,
                 hint: 'https://example.com/playlist.m3u',
                 type: TextInputType.url,
                 enabled: !_saving,
               ),
             _Field(
-              label: 'TV guide address (optional)',
+              label: l10n.editPlaylistGuideAddress,
               ctrl: _guide,
               hint: _isXtream
-                  ? 'Automatic — from your provider'
-                  : 'Automatic — from the playlist',
+                  ? l10n.editPlaylistGuideAutoProvider
+                  : l10n.editPlaylistGuideAutoPlaylist,
               type: TextInputType.url,
               enabled: !_saving,
             ),
@@ -224,8 +233,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  'This playlist is a file on your device. To use a '
-                  'different file, add it as a new playlist.',
+                  l10n.editPlaylistFileNote,
                   style: theme.textTheme.bodySmall!.copyWith(
                       color: theme.colorScheme.onSurfaceVariant),
                 ),
@@ -240,7 +248,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Your login is stored encrypted on this device.',
+                      l10n.editPlaylistLoginStored,
                       style: theme.textTheme.bodySmall!.copyWith(
                           color: theme.colorScheme.onSurfaceVariant),
                     ),
@@ -266,7 +274,11 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                      child: Text(_status!, style: theme.textTheme.bodyLarge)),
+                      child: Text(
+                          _stage == _SaveStage.checking
+                              ? l10n.editPlaylistChecking
+                              : l10n.editPlaylistUpdating,
+                          style: theme.textTheme.bodyLarge)),
                 ],
               )
             else
@@ -279,7 +291,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
                     minimumSize: const Size.fromHeight(52),
                     shape: const StadiumBorder(),
                   ),
-                  child: const Text('Save'),
+                  child: Text(l10n.editPlaylistSave),
                 ),
               ),
           ],

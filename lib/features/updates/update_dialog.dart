@@ -9,6 +9,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/update_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/updates/release_notes.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -69,6 +70,7 @@ Future<void> checkForUpdateManually(BuildContext context) async {
   final container = ProviderScope.containerOf(context, listen: false);
   final service = container.read(updateServiceProvider);
   final messenger = ScaffoldMessenger.of(context);
+  final l10n = AppLocalizations.of(context);
   void say(String text) {
     messenger
       ..hideCurrentSnackBar()
@@ -76,20 +78,20 @@ Future<void> checkForUpdateManually(BuildContext context) async {
   }
 
   if (!await service.isSelfUpdatable()) {
-    say('Updates for this install are managed by Google Play.');
+    say(l10n.updateManagedByPlay);
     return;
   }
-  say('Checking for updates…');
+  say(l10n.updateChecking);
   final (latest, installed) =
       await (service.fetchLatest(), service.installedVersion()).wait;
   final prefs = await container.read(appPreferencesProvider.future);
   await prefs.setLastUpdateCheck(DateTime.now());
   if (latest == null || installed == null) {
-    say("Couldn't check for updates. Check your internet connection.");
+    say(l10n.updateCheckFailed);
     return;
   }
   if (!(latest.version > installed)) {
-    say("You're up to date (version $installed).");
+    say(l10n.updateUpToDate('$installed'));
     return;
   }
   messenger.hideCurrentSnackBar();
@@ -195,6 +197,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
     final size = MediaQuery.sizeOf(context);
     final update = widget.update;
     final from = _installedVersion;
+    final l10n = AppLocalizations.of(context);
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -226,14 +229,15 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Update available',
+                        Text(l10n.updateAvailableTitle,
                             style: theme.textTheme.titleLarge!
                                 .copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(
                           from == null
-                              ? 'Version ${update.version}'
-                              : 'Version $from → ${update.version}',
+                              ? l10n.updateVersion('${update.version}')
+                              : l10n.updateVersionFromTo(
+                                  from, '${update.version}'),
                           style: theme.textTheme.bodyMedium!.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),
                         ),
@@ -254,6 +258,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
   }
 
   Widget _body(ThemeData theme) {
+    final l10n = AppLocalizations.of(context);
     switch (_phase) {
       case _Phase.offer:
         return _NotesBox(
@@ -262,9 +267,7 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
         );
       case _Phase.needsPermission:
         return Text(
-          'To install updates, OpenIPTV needs permission to install apps.\n\n'
-          'Select Open Settings, turn on "Allow from this source", then come '
-          'back here — the update will continue automatically.',
+          l10n.updatePermissionBody,
           style: theme.textTheme.bodyMedium,
         );
       case _Phase.downloading:
@@ -273,7 +276,10 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(pct == null ? 'Downloading…' : 'Downloading… $pct%',
+            Text(
+                pct == null
+                    ? l10n.updateDownloading
+                    : l10n.updateDownloadingPercent(pct),
                 style: theme.textTheme.bodyMedium),
             const SizedBox(height: 10),
             ClipRRect(
@@ -284,21 +290,19 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
         );
       case _Phase.handedOff:
         return Text(
-          'Follow the prompts on screen to finish installing. OpenIPTV will '
-          'restart on the new version.\n\n'
-          "If nothing appeared, or you cancelled, select Install again.",
+          l10n.updateHandedOffBody,
           style: theme.textTheme.bodyMedium,
         );
       case _Phase.failed:
         return Text(
-          "The update couldn't be downloaded. Check your internet "
-          'connection and try again.',
+          l10n.updateFailedBody,
           style: theme.textTheme.bodyMedium,
         );
     }
   }
 
   Widget _actions() {
+    final l10n = AppLocalizations.of(context);
     Widget button(String label, VoidCallback onTap,
         {bool primary = false, bool autofocus = false}) {
       return TvActivatable(
@@ -313,23 +317,23 @@ class _UpdateDialogState extends ConsumerState<_UpdateDialog>
     void close() => Navigator.of(context).pop();
     final buttons = switch (_phase) {
       _Phase.offer => [
-          if (!widget.manual) button('Skip this version', _skip),
-          button('Later', close),
-          button('Update now', _start, primary: true, autofocus: true),
+          if (!widget.manual) button(l10n.updateSkipVersion, _skip),
+          button(l10n.updateLater, close),
+          button(l10n.updateNow, _start, primary: true, autofocus: true),
         ],
       _Phase.needsPermission => [
-          button('Cancel', close),
-          button('Open Settings', _service.openInstallPermissionSettings,
+          button(l10n.commonCancel, close),
+          button(l10n.updateOpenSettings, _service.openInstallPermissionSettings,
               primary: true, autofocus: true),
         ],
       _Phase.downloading => <Widget>[],
       _Phase.handedOff => [
-          button('Close', close),
-          button('Install again', _start, primary: true, autofocus: true),
+          button(l10n.updateClose, close),
+          button(l10n.updateInstallAgain, _start, primary: true, autofocus: true),
         ],
       _Phase.failed => [
-          button('Close', close),
-          button('Try again', _start, primary: true, autofocus: true),
+          button(l10n.updateClose, close),
+          button(l10n.updateTryAgain, _start, primary: true, autofocus: true),
         ],
     };
     // Full width so the buttons sit right-aligned, however narrow the body.
@@ -416,7 +420,7 @@ class _NotesBoxState extends State<_NotesBox> {
                       .copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               if (widget.notes.isEmpty)
-                Text('No release notes provided.',
+                Text(AppLocalizations.of(context).updateNoNotes,
                     style: theme.textTheme.bodyMedium)
               else
                 ReleaseNotes(widget.notes),

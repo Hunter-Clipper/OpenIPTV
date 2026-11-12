@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/services/vpn_service.dart';
+import 'package:open_iptv/l10n/gen/app_localizations_en.dart';
 
 // A made-up profile: keys are random base64, not anyone's real keys.
 const _conf = '''
@@ -51,9 +52,9 @@ void main() {
   });
 
   test('connect results in plain English', () {
-    expect(vpnConnectMessage('ok'), 'VPN connected');
-    expect(vpnConnectMessage('denied'), contains('permission'));
-    expect(vpnConnectMessage('anything'), contains("Couldn't connect"));
+    expect(vpnConnectMessage(AppLocalizationsEn(), 'ok'), 'VPN connected');
+    expect(vpnConnectMessage(AppLocalizationsEn(), 'denied'), contains('permission'));
+    expect(vpnConnectMessage(AppLocalizationsEn(), 'anything'), contains("Couldn't connect"));
   });
 
   group('OpenVPN', () {

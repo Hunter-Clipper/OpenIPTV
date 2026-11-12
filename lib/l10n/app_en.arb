@@ -1,0 +1,4780 @@
+{
+  "@@locale": "en",
+  "commonBack": "Back",
+  "@commonBack": {
+    "description": "Tooltip of the round back arrow button (icon only)"
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Dialog button that closes the dialog without changing anything"
+  },
+  "commonNotNow": "Not now",
+  "@commonNotNow": {
+    "description": "Dialog button that declines for the moment"
+  },
+  "wizardConnecting": "Connecting…",
+  "@wizardConnecting": {
+    "description": "Progress text shown while the app contacts the playlist server"
+  },
+  "wizardPickFileTitle": "Choose a playlist file",
+  "@wizardPickFileTitle": {
+    "description": "Title of the file picker used to choose a playlist file saved on the device"
+  },
+  "wizardFilePickerFailed": "Couldn't open the file picker on this device.",
+  "@wizardFilePickerFailed": {
+    "description": "Error shown when the system file picker is unavailable"
+  },
+  "wizardChooseFileFirst": "Choose a playlist file first.",
+  "@wizardChooseFileFirst": {
+    "description": "Error shown when the user taps Load My Playlist without having picked a file"
+  },
+  "wizardFieldServerAddress": "the server address",
+  "@wizardFieldServerAddress": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article so the sentence reads naturally"
+  },
+  "wizardFieldUsername": "the username",
+  "@wizardFieldUsername": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article"
+  },
+  "wizardFieldPassword": "the password",
+  "@wizardFieldPassword": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article"
+  },
+  "wizardFieldM3uUrl": "the M3U link",
+  "@wizardFieldM3uUrl": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article"
+  },
+  "wizardListAnd": "{rest} and {last}",
+  "@wizardListAnd": {
+    "description": "Joins a comma-separated list with the final item, e.g. 'the server address, the username and the password'",
+    "placeholders": {
+      "rest": {
+        "type": "String"
+      },
+      "last": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardEnterMissing": "Enter {fields} from your provider.",
+  "@wizardEnterMissing": {
+    "description": "Error listing which required fields are empty. {fields} is built from wizardFieldServerAddress, wizardFieldUsername, wizardFieldPassword, wizardFieldM3uUrl joined with commas and wizardListAnd",
+    "placeholders": {
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardRestoreEmpty": "That backup doesn't include a profile and a playlist, so there's nothing to restore yet. Tap Get Started instead.",
+  "@wizardRestoreEmpty": {
+    "description": "Snackbar after restoring an empty backup. 'Get Started' refers to the button wizardGetStarted; keep them matching"
+  },
+  "wizardRestoreProgressItem": "{nickname} ({index} of {total})",
+  "@wizardRestoreProgressItem": {
+    "description": "Playlist label during a multi-playlist restore. {nickname} is the playlist name chosen by the user",
+    "placeholders": {
+      "nickname": {
+        "type": "String"
+      },
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "wizardRestoreProgressLine": "{label} — {message}",
+  "@wizardRestoreProgressLine": {
+    "description": "Progress line while restoring: playlist label, then a status message coming from the app",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardLoadingRestoring": "Restoring your playlists…",
+  "@wizardLoadingRestoring": {
+    "description": "Headline of the loading page while restoring from a backup"
+  },
+  "wizardLoadingSettingUp": "Setting up your playlist…",
+  "@wizardLoadingSettingUp": {
+    "description": "Headline of the loading page while a new playlist is downloaded"
+  },
+  "wizardAllSetAdded": "Playlist added!",
+  "@wizardAllSetAdded": {
+    "description": "Headline of the final page when a playlist was added from Settings"
+  },
+  "wizardAllSetHeadline": "You're all set, {name}!",
+  "@wizardAllSetHeadline": {
+    "description": "Headline of the final page of the setup wizard. {name} is the user's first name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardAllSetHeadlineNoName": "You're all set!",
+  "@wizardAllSetHeadlineNoName": {
+    "description": "Headline of the final page when the user gave no name (used instead of wizardAllSetHeadline)"
+  },
+  "wizardAllSetBody": "Your playlist is ready.\nEnjoy the show.",
+  "@wizardAllSetBody": {
+    "description": "Two-line message under the final headline. \\n = line break"
+  },
+  "wizardWelcomeTitle": "Welcome to\nOpenIPTV",
+  "@wizardWelcomeTitle": {
+    "description": "Large welcome headline. \\n = line break. Keep OpenIPTV on its own line"
+  },
+  "wizardWelcomeSubtitle": "Let's get you set up.\nIt only takes a minute.",
+  "@wizardWelcomeSubtitle": {
+    "description": "Welcome subtitle. \\n = line break"
+  },
+  "wizardGetStarted": "Get Started",
+  "@wizardGetStarted": {
+    "description": "Primary button on the welcome page"
+  },
+  "wizardRestoreFromBackup": "Restore from a backup",
+  "@wizardRestoreFromBackup": {
+    "description": "Text button on the welcome page that restores profiles and playlists from a backup file"
+  },
+  "wizardNameTitle": "What's your name?",
+  "@wizardNameTitle": {
+    "description": "Heading of the profile name page"
+  },
+  "wizardPrivacyNote": "All information stays on your device.\nOpenIPTV never collects personal data.",
+  "@wizardPrivacyNote": {
+    "description": "Reassurance under the name heading. \\n = line break"
+  },
+  "wizardNameHint": "Your name",
+  "@wizardNameHint": {
+    "description": "Hint text inside the empty name field"
+  },
+  "wizardPickAvatar": "Pick an avatar",
+  "@wizardPickAvatar": {
+    "description": "Label above the emoji avatar choices"
+  },
+  "settingsAccentColorTitle": "Accent Color",
+  "@settingsAccentColorTitle": {
+    "description": "Name of the app highlight colour setting; also the heading of the colour picker and of the wizard's colour choice"
+  },
+  "wizardContinue": "Continue",
+  "@wizardContinue": {
+    "description": "Button that moves to the next wizard page"
+  },
+  "wizardPinTitle": "Secure your account",
+  "@wizardPinTitle": {
+    "description": "Heading of the optional PIN page"
+  },
+  "wizardPinBody": "Set a PIN of 4 to 8 digits to protect this admin account.\nYou can skip this and add one later in Settings.",
+  "@wizardPinBody": {
+    "description": "Explanation on the PIN page. \\n = line break. 'Settings' must match settingsTitle"
+  },
+  "wizardSetPin": "Set PIN",
+  "@wizardSetPin": {
+    "description": "Button that saves the PIN"
+  },
+  "wizardSkipForNow": "Skip for now",
+  "@wizardSkipForNow": {
+    "description": "Text button that skips the PIN page"
+  },
+  "wizardTypeTitleAdd": "What kind of playlist\nare you adding?",
+  "@wizardTypeTitleAdd": {
+    "description": "Heading of the playlist-type page when opened from Settings (Add Playlist). \\n = line break"
+  },
+  "wizardTypeTitleHave": "What kind of playlist\ndo you have?",
+  "@wizardTypeTitleHave": {
+    "description": "Heading of the playlist-type page during first setup. \\n = line break"
+  },
+  "wizardTypeHelp": "Not sure? Ask your IPTV provider — they'll know!",
+  "@wizardTypeHelp": {
+    "description": "Hint under the playlist-type heading"
+  },
+  "wizardTypeXtreamTitle": "Xtream Codes",
+  "@wizardTypeXtreamTitle": {
+    "description": "Card title. Product name, do not translate"
+  },
+  "wizardTypeXtreamDesc": "Login with a server address, username, and password.",
+  "@wizardTypeXtreamDesc": {
+    "description": "Card description for the Xtream Codes option"
+  },
+  "wizardTypeM3uTitle": "M3U Playlist",
+  "@wizardTypeM3uTitle": {
+    "description": "Card title for a playlist loaded from a web link"
+  },
+  "wizardTypeM3uDesc": "Load from a direct playlist URL (ending in .m3u or .m3u8).",
+  "@wizardTypeM3uDesc": {
+    "description": "Card description for the M3U link option"
+  },
+  "wizardTypeFileTitle": "Playlist File",
+  "@wizardTypeFileTitle": {
+    "description": "Card title for a playlist file saved on the device; also the page title when a file is chosen"
+  },
+  "wizardTypeFileDesc": "Choose an .m3u file saved on this device.",
+  "@wizardTypeFileDesc": {
+    "description": "Card description for the playlist file option"
+  },
+  "wizardCredsTitleXtream": "Xtream Credentials",
+  "@wizardCredsTitleXtream": {
+    "description": "Page title for entering Xtream login details"
+  },
+  "wizardCredsSubXtream": "Enter the login details from your provider.",
+  "@wizardCredsSubXtream": {
+    "description": "Subtitle under the Xtream page title"
+  },
+  "wizardCredsSubFile": "Choose the playlist file saved on this device.",
+  "@wizardCredsSubFile": {
+    "description": "Subtitle under the playlist file page title"
+  },
+  "wizardCredsSubM3u": "Paste the playlist link your provider gave you.",
+  "@wizardCredsSubM3u": {
+    "description": "Subtitle under the M3U page title"
+  },
+  "wizardNicknameOptional": "Nickname (optional)",
+  "@wizardNicknameOptional": {
+    "description": "Field label. The nickname is just a friendly name for the playlist"
+  },
+  "wizardNickname": "Nickname",
+  "@wizardNickname": {
+    "description": "Field label for the playlist's friendly name"
+  },
+  "wizardNicknameHintFile": "Uses the file name if left blank",
+  "@wizardNicknameHintFile": {
+    "description": "Hint inside the empty nickname field"
+  },
+  "wizardNicknameHintExample": "e.g. Home Server",
+  "@wizardNicknameHintExample": {
+    "description": "Example hint inside the nickname field"
+  },
+  "wizardServerAddressLabel": "Server Address",
+  "@wizardServerAddressLabel": {
+    "description": "Field label"
+  },
+  "wizardServerAddressHint": "http://your-provider.com:8080",
+  "@wizardServerAddressHint": {
+    "description": "Example address hint. Keep the URL format, only translate the host word"
+  },
+  "wizardUsernameLabel": "Username",
+  "@wizardUsernameLabel": {
+    "description": "Field label"
+  },
+  "wizardUsernameHint": "your_username",
+  "@wizardUsernameHint": {
+    "description": "Example hint, written like an identifier (underscores)"
+  },
+  "wizardPasswordLabel": "Password",
+  "@wizardPasswordLabel": {
+    "description": "Field label"
+  },
+  "wizardPasswordHint": "your_password",
+  "@wizardPasswordHint": {
+    "description": "Example hint, written like an identifier (underscores)"
+  },
+  "wizardPasswordHide": "Hide password",
+  "@wizardPasswordHide": {
+    "description": "Tooltip of the eye button while the password is visible"
+  },
+  "wizardPasswordShow": "Show password",
+  "@wizardPasswordShow": {
+    "description": "Tooltip of the eye button while the password is hidden"
+  },
+  "wizardGuideUrlLabel": "TV Guide URL (optional)",
+  "@wizardGuideUrlLabel": {
+    "description": "Field label for the optional programme guide address"
+  },
+  "wizardGuideUrlHint": "https://example.com/epg.xml",
+  "@wizardGuideUrlHint": {
+    "description": "Example guide address hint"
+  },
+  "wizardM3uUrlLabel": "M3U URL",
+  "@wizardM3uUrlLabel": {
+    "description": "Field label for the playlist web address"
+  },
+  "wizardM3uUrlHint": "https://example.com/playlist.m3u",
+  "@wizardM3uUrlHint": {
+    "description": "Example playlist address hint"
+  },
+  "wizardLoadMyPlaylist": "Load My Playlist",
+  "@wizardLoadMyPlaylist": {
+    "description": "Primary button that downloads the playlist"
+  },
+  "wizardFileFieldLabel": "Playlist file",
+  "@wizardFileFieldLabel": {
+    "description": "Label above the file chooser control"
+  },
+  "wizardFileChoose": "Choose a file…",
+  "@wizardFileChoose": {
+    "description": "Placeholder inside the file chooser control before a file is picked"
+  },
+  "wizardFileChange": "Change",
+  "@wizardFileChange": {
+    "description": "Small action label on the file chooser once a file is picked"
+  },
+  "wizardFileBrowse": "Browse",
+  "@wizardFileBrowse": {
+    "description": "Small action label on the file chooser before a file is picked"
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "App bar title and navigation label of the Settings tab"
+  },
+  "settingsGroupWatching": "Watching",
+  "@settingsGroupWatching": {
+    "description": "Group heading in Settings for everything about watching (playback, channel lists, guide layout)"
+  },
+  "settingsGroupAppearance": "Appearance",
+  "@settingsGroupAppearance": {
+    "description": "Group heading in Settings for look and feel"
+  },
+  "settingsGroupPlayerControls": "Player controls",
+  "@settingsGroupPlayerControls": {
+    "description": "Sub-group heading inside the Playback page"
+  },
+  "settingsPlaybackTitle": "Playback",
+  "@settingsPlaybackTitle": {
+    "description": "Settings row that opens the Playback page"
+  },
+  "settingsPlaybackSubtitle": "Start over, picture-in-picture, player controls",
+  "@settingsPlaybackSubtitle": {
+    "description": "Second line of the Playback row, summarising what's inside"
+  },
+  "settingsStartupTitle": "Start-up",
+  "@settingsStartupTitle": {
+    "description": "TV only: Settings row that opens the page about what happens when the app starts"
+  },
+  "settingsStartupSubtitle": "Open the last channel, start on boot or wake",
+  "@settingsStartupSubtitle": {
+    "description": "Second line of the Start-up row (TV only)"
+  },
+  "settingsChannelListsTitle": "Channel Lists",
+  "@settingsChannelListsTitle": {
+    "description": "Settings row that opens channel list options"
+  },
+  "settingsChannelListsSubtitle": "Sorting, hidden channels, which rows to show",
+  "@settingsChannelListsSubtitle": {
+    "description": "Second line of the Channel Lists row"
+  },
+  "settingsGuideLayoutTitle": "TV Guide Layout",
+  "@settingsGuideLayoutTitle": {
+    "description": "TV only: Settings row for the TV guide layout options"
+  },
+  "settingsGuideLayoutSubtitle": "Names, two-line titles, highlight",
+  "@settingsGuideLayoutSubtitle": {
+    "description": "Second line of the TV Guide Layout row"
+  },
+  "settingsAskStartOverTitle": "Ask to Start Over",
+  "@settingsAskStartOverTitle": {
+    "description": "Toggle: when opening a show that already began, ask whether to watch from the start. Also the tooltip title"
+  },
+  "settingsAskStartOverBody": "On channels that keep recordings (catch-up), asks whether to start the show from the beginning or watch it live when you open a show that is already underway. Turn this off to always go straight to live.",
+  "@settingsAskStartOverBody": {
+    "description": "Info tooltip body for the Ask to Start Over toggle"
+  },
+  "settingsPipTitle": "Picture-in-Picture",
+  "@settingsPipTitle": {
+    "description": "Toggle for Android's small floating video window. Also the tooltip title"
+  },
+  "settingsPipBody": "When enabled, pressing Home while a video is playing shrinks it into a small floating window so you can keep watching while using other apps.",
+  "@settingsPipBody": {
+    "description": "Info tooltip body. 'Home' is the Android Home button"
+  },
+  "settingsMediaNotificationTitle": "Media Notification",
+  "@settingsMediaNotificationTitle": {
+    "description": "Toggle for the Now Playing notification. Also the tooltip title"
+  },
+  "settingsMediaNotificationBody": "Shows a \"Now Playing\" notification with play/pause controls while content is playing, so you can control playback from the notification shade or lock screen.",
+  "@settingsMediaNotificationBody": {
+    "description": "Info tooltip body"
+  },
+  "settingsSkipButtonsTitle": "Skip Buttons",
+  "@settingsSkipButtonsTitle": {
+    "description": "Choice: how many seconds the skip forward/back buttons jump. Also the dialog title"
+  },
+  "settingsSecondsChoice": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "@settingsSecondsChoice": {
+    "description": "Option label in a choice list, e.g. '10 seconds'",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHideControlsTitle": "Hide Player Controls After",
+  "@settingsHideControlsTitle": {
+    "description": "Choice: seconds of inactivity before the player's on-screen controls hide. Value shown below is e.g. '4 seconds'"
+  },
+  "settingsSeekKeysTitle": "Remote Seek Keys",
+  "@settingsSeekKeysTitle": {
+    "description": "TV remote: which remote keys jump forward/back while watching"
+  },
+  "settingsSeekKeysLeftRight": "Left / Right arrows",
+  "@settingsSeekKeysLeftRight": {
+    "description": "Option label for the seek keys choice"
+  },
+  "settingsSeekKeysUpDown": "Up / Down arrows",
+  "@settingsSeekKeysUpDown": {
+    "description": "Option label for the seek keys choice"
+  },
+  "settingsSeekKeysMedia": "Rewind / Forward keys",
+  "@settingsSeekKeysMedia": {
+    "description": "Option label: the dedicated media keys on a remote"
+  },
+  "settingsLastChannelTitle": "Open Last Channel on Start",
+  "@settingsLastChannelTitle": {
+    "description": "Toggle row title"
+  },
+  "settingsLastChannelTooltipTitle": "Last Channel on Start",
+  "@settingsLastChannelTooltipTitle": {
+    "description": "Info tooltip title for the toggle above"
+  },
+  "settingsLastChannelBody": "When the app opens, it goes straight to the live channel you watched last. Turn this off to land on Live TV instead.",
+  "@settingsLastChannelBody": {
+    "description": "Info tooltip body. 'Live TV' is the name of the Live TV tab; keep it matching"
+  },
+  "settingsStartOnBootTitle": "Start on Boot",
+  "@settingsStartOnBootTitle": {
+    "description": "TV only toggle: open the app when the TV starts. Also the tooltip title"
+  },
+  "settingsStartOnBootBody": "Opens OpenIPTV by itself when the TV starts. Android needs \"Display over other apps\" allowed for OpenIPTV; you will be asked.",
+  "@settingsStartOnBootBody": {
+    "description": "Info tooltip body. \"Display over other apps\" is an Android system permission name: use the wording Android shows in Spanish"
+  },
+  "settingsStartOnWakeTitle": "Start on Wake",
+  "@settingsStartOnWakeTitle": {
+    "description": "TV only toggle: open the app when the TV wakes from sleep. Also the tooltip title"
+  },
+  "settingsStartOnWakeBody": "Opens OpenIPTV by itself when the TV wakes from sleep. Android needs \"Display over other apps\" allowed for OpenIPTV; you will be asked.",
+  "@settingsStartOnWakeBody": {
+    "description": "Info tooltip body"
+  },
+  "settingsOverlayDialogTitle": "Allow Display Over Other Apps",
+  "@settingsOverlayDialogTitle": {
+    "description": "Dialog title. Matches the Android permission name"
+  },
+  "settingsOverlayDialogBody": "Android only lets OpenIPTV open itself when the TV starts or wakes if \"Display over other apps\" is allowed for it. Open that screen now and switch it on for OpenIPTV.",
+  "@settingsOverlayDialogBody": {
+    "description": "Dialog body explaining the Android permission"
+  },
+  "settingsOverlayOpenSettings": "Open Settings",
+  "@settingsOverlayOpenSettings": {
+    "description": "Dialog button that opens the Android system settings screen"
+  },
+  "settingsAccentColorBody": "Changes the highlight color used throughout the app — active buttons, selected items, progress bars, and other indicators. Pick whichever color you like best.",
+  "@settingsAccentColorBody": {
+    "description": "Info tooltip body for the accent colour setting"
+  },
+  "settingsAccentBlue": "Blue",
+  "@settingsAccentBlue": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentPurple": "Purple",
+  "@settingsAccentPurple": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentPink": "Pink",
+  "@settingsAccentPink": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentOrange": "Orange",
+  "@settingsAccentOrange": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentGreen": "Green",
+  "@settingsAccentGreen": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentTeal": "Teal",
+  "@settingsAccentTeal": {
+    "description": "Accent colour name (blue-green)"
+  },
+  "settingsAccentCustom": "Custom",
+  "@settingsAccentCustom": {
+    "description": "Shown when the colour is not one of the presets (e.g. restored from a backup)"
+  },
+  "settingsTextSizeTitle": "Text Size",
+  "@settingsTextSizeTitle": {
+    "description": "Choice setting for app text size. Also the dialog title"
+  },
+  "settingsTextSizeSmall": "Small",
+  "@settingsTextSizeSmall": {
+    "description": "Text size option"
+  },
+  "settingsTextSizeDefault": "Default",
+  "@settingsTextSizeDefault": {
+    "description": "Text size option (the normal size)"
+  },
+  "settingsTextSizeLarge": "Large",
+  "@settingsTextSizeLarge": {
+    "description": "Text size option"
+  },
+  "settingsTextSizeExtraLarge": "Extra large",
+  "@settingsTextSizeExtraLarge": {
+    "description": "Text size option"
+  },
+  "settingsPlayerTransparencyTitle": "Player Transparency",
+  "@settingsPlayerTransparencyTitle": {
+    "description": "Choice setting: how see-through the player's control panels are"
+  },
+  "settingsPlayerTransparencySolid": "Solid",
+  "@settingsPlayerTransparencySolid": {
+    "description": "Transparency option: not see-through"
+  },
+  "settingsPlayerTransparencyDefault": "Default",
+  "@settingsPlayerTransparencyDefault": {
+    "description": "Transparency option (the normal amount; feminine because it agrees with 'transparencia')"
+  },
+  "settingsPlayerTransparencyClear": "See-through",
+  "@settingsPlayerTransparencyClear": {
+    "description": "Transparency option"
+  },
+  "settingsPlayerTransparencyVeryClear": "Very see-through",
+  "@settingsPlayerTransparencyVeryClear": {
+    "description": "Transparency option"
+  },
+  "settingsCleanNamesTitle": "Clean Up Names",
+  "@settingsCleanNamesTitle": {
+    "description": "Toggle: tidy channel/movie names sent by the provider. Also the tooltip title"
+  },
+  "settingsCleanNamesBody": "Tidies the names your provider sends — removes tags like \"|EN|\", \"US|\" or \"A+ -\" and turns ALL-CAPS names into normal capitalization. Turn off to see names exactly as your provider sends them.",
+  "@settingsCleanNamesBody": {
+    "description": "Info tooltip body. The quoted tags are literal examples of provider tags; do not translate them"
+  },
+  "errorPlaylistNotM3u": "This file isn't a playlist. Choose an .m3u or .m3u8 file from your provider.",
+  "@errorPlaylistNotM3u": {
+    "description": "Error when the chosen file is not a playlist"
+  },
+  "errorPlaylistEmpty": "This playlist file doesn't have any channels in it.",
+  "@errorPlaylistEmpty": {
+    "description": "Error when the playlist file has no channels"
+  },
+  "errorPlaylistFileMissing": "The playlist file is no longer on this device. Remove this playlist and add the file again.",
+  "@errorPlaylistFileMissing": {
+    "description": "Error when a stored playlist file has disappeared"
+  },
+  "errorXtreamLogin": "Couldn't sign in with these details. Check the server address, username and password with your provider.",
+  "@errorXtreamLogin": {
+    "description": "Error when Xtream login fails while editing a playlist"
+  },
+  "errorM3uMissing": "Enter the playlist link from your provider.",
+  "@errorM3uMissing": {
+    "description": "Error when the M3U link field is empty while editing a playlist"
+  },
+  "errorLinkOpenFailed": "Couldn't open this playlist link. Check it with your provider.",
+  "@errorLinkOpenFailed": {
+    "description": "Error when the new playlist link cannot be opened"
+  },
+  "errorPlaylistTimeout": "This playlist is taking too long to load. Check your internet connection and try again.",
+  "@errorPlaylistTimeout": {
+    "description": "Error on timeout while loading a playlist"
+  },
+  "errorBadCredentials": "Your username or password doesn't seem right. Check with your provider.",
+  "@errorBadCredentials": {
+    "description": "Error for HTTP 401/403 while loading a playlist"
+  },
+  "errorUnreachable": "Couldn't reach this server. Check your internet connection and try again.",
+  "@errorUnreachable": {
+    "description": "Error when the server cannot be reached (network or DNS failure)"
+  },
+  "errorProviderServer": "The provider's server is having trouble right now. Try again later.",
+  "@errorProviderServer": {
+    "description": "Error for HTTP 5xx from the provider"
+  },
+  "errorInvalidLink": "This link doesn't look like a valid channel list. Check the URL with your provider.",
+  "@errorInvalidLink": {
+    "description": "Error for other HTTP failures, usually a wrong link"
+  },
+  "errorGeneric": "That didn't work. Check your details and try again.",
+  "@errorGeneric": {
+    "description": "Catch-all error for playlist problems"
+  },
+  "errorGuideTimeout": "The TV guide is taking too long to load. Check your internet connection and try again.",
+  "@errorGuideTimeout": {
+    "description": "Error on timeout while loading a TV guide"
+  },
+  "errorGuideEmpty": "The provider sent an empty TV guide. Your current guide was kept — try again in a few minutes.",
+  "@errorGuideEmpty": {
+    "description": "Error when the guide file contains no programmes"
+  },
+  "errorGuideLogin": "The TV guide link needs a login. Check the guide URL with your provider.",
+  "@errorGuideLogin": {
+    "description": "Error for HTTP 401/403 while loading a guide"
+  },
+  "errorGuideUnreachable": "Couldn't reach the TV guide server for this playlist. It may not have a guide — check the guide URL with your provider.",
+  "@errorGuideUnreachable": {
+    "description": "Error when the guide server cannot be reached"
+  },
+  "errorGuideServer": "The TV guide server is having trouble right now. Try again later.",
+  "@errorGuideServer": {
+    "description": "Error for HTTP 5xx from the guide server"
+  },
+  "errorGuideInvalidLink": "This TV guide link doesn't look valid. Check the URL with your provider.",
+  "@errorGuideInvalidLink": {
+    "description": "Error for other HTTP failures while loading a guide"
+  },
+  "errorGuideGeneric": "The TV guide couldn't be loaded. Check your details and try again.",
+  "@errorGuideGeneric": {
+    "description": "Catch-all error for guide problems"
+  },
+  "languageTitle": "Language",
+  "@languageTitle": {
+    "description": "Title of the app language setting, its picker and the button on the welcome page"
+  },
+  "languageAuto": "Auto-detect from system",
+  "@languageAuto": {
+    "description": "Picker choice: use the device language and follow it if it changes"
+  },
+  "languageAutoNow": "Auto — {language}",
+  "@languageAutoNow": {
+    "description": "Value shown while the language is on automatic; {language} is the language it resolved to, written in that language",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardAccentColor": "Accent Color",
+  "@wizardAccentColor": {
+    "description": "Label above the accent color swatches on the wizard's name page"
+  },
+  "consentTitle": "Help improve OpenIPTV?",
+  "@consentTitle": {
+    "description": "Title of the one-time dialog asking permission to send anonymous crash reports"
+  },
+  "consentBody": "OpenIPTV can send an anonymous report when the app crashes or freezes. A report holds the app version, your device model and where in the code the problem happened. It never holds your playlists, logins, links, channel names or what you watch, and it can't be tied to you.\n\nThis is off unless you turn it on. You can change your mind any time in Settings, where you can also see exactly what is sent. The code that does this is small and open on GitHub if you want to check it.",
+  "@consentBody": {
+    "description": "Body of the anonymous crash report consent dialog. Privacy wording is deliberate: keep every promise (never sends playlists, logins, links, channel names or viewing). 'Settings' is the app's Settings tab"
+  },
+  "consentNoThanks": "No Thanks",
+  "@consentNoThanks": {
+    "description": "Dialog button that declines anonymous crash reports; focused first on TV so a stray OK press never opts in"
+  },
+  "consentTurnOn": "Turn On",
+  "@consentTurnOn": {
+    "description": "Dialog button that turns on anonymous crash reports"
+  },
+  "errorStateTitle": "Couldn't load this",
+  "@errorStateTitle": {
+    "description": "Default title of the load-failure placeholder shown with a retry button"
+  },
+  "errorStateTryAgain": "Try Again",
+  "@errorStateTryAgain": {
+    "description": "Default label of the retry button on the load-failure placeholder"
+  },
+  "pinUnlock": "Unlock",
+  "@pinUnlock": {
+    "description": "Default confirm button of the PIN entry dialog"
+  },
+  "pinIncorrect": "Incorrect PIN",
+  "@pinIncorrect": {
+    "description": "Snackbar after a wrong PIN was typed"
+  },
+  "pinEnterAdminToUnlock": "Enter admin PIN to unlock \"{name}\"",
+  "@pinEnterAdminToUnlock": {
+    "description": "PIN dialog title for a parental-locked category. {name} is the category name as shown to the user",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pinUnlockAction": "Unlock \"{name}\"",
+  "@pinUnlockAction": {
+    "description": "Short line under the fingerprint / face prompt when unlocking a locked category. {name} is the category name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pinSwitchToProfile": "Switch to {name}",
+  "@pinSwitchToProfile": {
+    "description": "Line under the fingerprint / face prompt when switching into the admin profile. {name} is the profile name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pinEnterForProfile": "Enter PIN for {name}",
+  "@pinEnterForProfile": {
+    "description": "PIN dialog title when choosing a profile that has a PIN. {name} is the profile name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profilePickerLoadFailed": "Could not load profiles.",
+  "@profilePickerLoadFailed": {
+    "description": "Error text on the profile picker when profiles fail to load"
+  },
+  "profilePickerWhoIsWatching": "Who's watching?",
+  "@profilePickerWhoIsWatching": {
+    "description": "Heading of the profile picker screen"
+  },
+  "profilePickerKids": "Kids",
+  "@profilePickerKids": {
+    "description": "Small label under a profile that is a kids profile"
+  },
+  "settingsGroupAccount": "Account",
+  "@settingsGroupAccount": {
+    "description": "Settings group heading: profile and parental controls"
+  },
+  "settingsGroupPlaylistsGuides": "Playlists & Guides",
+  "@settingsGroupPlaylistsGuides": {
+    "description": "Settings group heading: playlists, auto-refresh, TV guides, backup"
+  },
+  "settingsGroupAboutAdvanced": "About & Advanced",
+  "@settingsGroupAboutAdvanced": {
+    "description": "Settings group heading: app info, updates, power tools"
+  },
+  "settingsUpdatesTitle": "Updates",
+  "@settingsUpdatesTitle": {
+    "description": "Settings row, dialog title and info tooltip title for app updates"
+  },
+  "settingsUpdatesBody": "Looks for a newer version of OpenIPTV on GitHub and, if there is one, shows what changed and installs it. Only the public release page is contacted — nothing about you or your device is sent. Choose whether this also happens every time the app starts.",
+  "@settingsUpdatesBody": {
+    "description": "Info tooltip body for the updates row"
+  },
+  "settingsUpdatesAutoOn": "Checks automatically",
+  "@settingsUpdatesAutoOn": {
+    "description": "Updates row subtitle when the app checks for updates by itself"
+  },
+  "settingsUpdatesManual": "Manual only",
+  "@settingsUpdatesManual": {
+    "description": "Updates row subtitle when updates are only checked on request"
+  },
+  "settingsUpdatesCheckAuto": "Check Automatically",
+  "@settingsUpdatesCheckAuto": {
+    "description": "Switch in the updates dialog"
+  },
+  "settingsUpdatesClose": "Close",
+  "@settingsUpdatesClose": {
+    "description": "Button that closes the updates dialog"
+  },
+  "settingsUpdatesCheckNow": "Check Now",
+  "@settingsUpdatesCheckNow": {
+    "description": "Button that checks for an app update immediately"
+  },
+  "settingsProfileTitle": "Profile",
+  "@settingsProfileTitle": {
+    "description": "Settings row and tooltip title for the profile (fallback when no profile name is available)"
+  },
+  "settingsProfileBody": "OpenIPTV supports multiple profiles on one device. Each profile has its own watch history, favorites, hidden categories, and PIN lock. Select to manage profiles.",
+  "@settingsProfileBody": {
+    "description": "Info tooltip body for the profile row"
+  },
+  "settingsProfileNone": "No profile selected",
+  "@settingsProfileNone": {
+    "description": "Profile row subtitle when no profile is active"
+  },
+  "settingsProfileSubtitle": "{kind, select, admin{Admin} kids{Kids profile} other{Standard profile}} · Manage profiles",
+  "@settingsProfileSubtitle": {
+    "description": "Profile row subtitle: the kind of the active profile (admin, kids or standard), then a hint that tapping manages profiles",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSwitchProfileTitle": "Switch Profile",
+  "@settingsSwitchProfileTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsSwitchProfileBody": "Quickly change the active profile without going into profile management. Useful when sharing a device with family or roommates.",
+  "@settingsSwitchProfileBody": {
+    "description": "Info tooltip body for the switch-profile row"
+  },
+  "settingsProfilesAvailable": "{count, plural, =1{1 profile available} other{{count} profiles available}}",
+  "@settingsProfilesAvailable": {
+    "description": "Subtitle of the switch-profile row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsParentalTitle": "Parental Controls",
+  "@settingsParentalTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsParentalBody": "Hide adult categories and lock any category you choose behind an admin PIN. Locked categories stay unlocked until the app is restarted.",
+  "@settingsParentalBody": {
+    "description": "Info tooltip body for parental controls"
+  },
+  "settingsParentalSubtitle": "PIN-protect adult and locked categories",
+  "@settingsParentalSubtitle": {
+    "description": "Parental controls row subtitle"
+  },
+  "settingsPlaylistsTitle": "Playlists",
+  "@settingsPlaylistsTitle": {
+    "description": "Settings row, tooltip title and sheet title for the user's playlists"
+  },
+  "settingsPlaylistsBody": "A playlist is your provider connection — either an M3U playlist URL or Xtream Codes credentials. Playlists supply your channels, movies, and series. You can add multiple playlists and refresh them here.",
+  "@settingsPlaylistsBody": {
+    "description": "Info tooltip body for the playlists row"
+  },
+  "settingsPlaylistsNone": "No playlists added",
+  "@settingsPlaylistsNone": {
+    "description": "Playlists row subtitle when there are none"
+  },
+  "settingsPlaylistsCount": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "@settingsPlaylistsCount": {
+    "description": "Playlists row subtitle with the number of playlists",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBackupTitle": "Backup & Restore",
+  "@settingsBackupTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsBackupBody": "Export your profiles and playlists to a single .zip file you can store anywhere. Restore it later to move to a new device or recover from a reset. Stream credentials are included — keep the file safe.",
+  "@settingsBackupBody": {
+    "description": "Info tooltip body for backup"
+  },
+  "settingsBackupSubtitle": "Export or import your profile and playlists",
+  "@settingsBackupSubtitle": {
+    "description": "Backup row subtitle"
+  },
+  "settingsAutoRefreshTitle": "Auto-Refresh",
+  "@settingsAutoRefreshTitle": {
+    "description": "Settings row, tooltip title and dialog title"
+  },
+  "settingsAutoRefreshBody": "Automatically refreshes your playlists and TV guide in the background so channels and schedules stay current without manual refreshing.",
+  "@settingsAutoRefreshBody": {
+    "description": "Info tooltip body for auto-refresh"
+  },
+  "settingsAutoRefreshEvery": "Every {hours} hours",
+  "@settingsAutoRefreshEvery": {
+    "description": "Auto-refresh interval option, e.g. Every 6 hours (always 2, 6, 12 or 24)",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAutoRefreshOff": "Off",
+  "@settingsAutoRefreshOff": {
+    "description": "Auto-refresh option meaning no automatic refresh"
+  },
+  "settingsAutoRefreshNotifies": "{interval} · notifies when done",
+  "@settingsAutoRefreshNotifies": {
+    "description": "Auto-refresh row subtitle: the interval text, then a note that a notification is sent",
+    "placeholders": {
+      "interval": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAutoRefreshNotifyTitle": "Notify when done",
+  "@settingsAutoRefreshNotifyTitle": {
+    "description": "Switch in the auto-refresh dialog"
+  },
+  "settingsStayInformedTitle": "Stay Informed",
+  "@settingsStayInformedTitle": {
+    "description": "Title of a dialog asking for notification permission"
+  },
+  "settingsStayInformedBody": "Allow notifications so OpenIPTV can let you know when a background refresh finishes or runs into a problem?",
+  "@settingsStayInformedBody": {
+    "description": "Body of the notification permission rationale dialog"
+  },
+  "settingsAllow": "Allow",
+  "@settingsAllow": {
+    "description": "Confirm button of the notification permission dialog"
+  },
+  "settingsReliableRefreshTitle": "Reliable Background Refresh",
+  "@settingsReliableRefreshTitle": {
+    "description": "Title of the battery optimisation rationale dialog"
+  },
+  "settingsReliableRefreshBody": "Some phones aggressively limit background apps to save battery, which can delay auto-refresh. Exempting OpenIPTV from battery optimization makes refreshes more reliable.",
+  "@settingsReliableRefreshBody": {
+    "description": "Body of the battery optimisation rationale dialog"
+  },
+  "settingsContinue": "Continue",
+  "@settingsContinue": {
+    "description": "Confirm button of the battery optimisation dialog"
+  },
+  "settingsGuideDataTitle": "Guide Data",
+  "@settingsGuideDataTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsGuideDataBody": "Choose how many days of TV guide are kept, whether programme descriptions are stored, see when each playlist's guide last updated, and clear it.",
+  "@settingsGuideDataBody": {
+    "description": "Info tooltip body for guide data"
+  },
+  "settingsGuideDataSubtitle": "How much TV guide is stored",
+  "@settingsGuideDataSubtitle": {
+    "description": "Guide data row subtitle"
+  },
+  "settingsExtraGuidesTitle": "Extra Guides",
+  "@settingsExtraGuidesTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsExtraGuidesBody": "Add TV guide files for channels your playlist has no guide for. OpenIPTV matches them by name, and you can pick a guide for any channel yourself.",
+  "@settingsExtraGuidesBody": {
+    "description": "Info tooltip body for extra guides"
+  },
+  "settingsExtraGuidesSubtitle": "Fill in channels that have no guide",
+  "@settingsExtraGuidesSubtitle": {
+    "description": "Extra guides row subtitle"
+  },
+  "settingsSortOrderTitle": "Content Sort Order",
+  "@settingsSortOrderTitle": {
+    "description": "Settings row, tooltip and dialog title"
+  },
+  "settingsSortOrderBody": "Controls how channels, movies, and series are listed. Provider order shows them in the sequence your IPTV provider sends them. A–Z sorts them alphabetically.",
+  "@settingsSortOrderBody": {
+    "description": "Info tooltip body for the sort order setting. The option names it mentions must match settingsSortProvider and settingsSortAz"
+  },
+  "settingsSortProvider": "Provider order",
+  "@settingsSortProvider": {
+    "description": "Sort option: keep the order the provider sends"
+  },
+  "settingsSortAz": "A–Z",
+  "@settingsSortAz": {
+    "description": "Sort option: alphabetical"
+  },
+  "settingsHiddenCategoriesTitle": "Hidden Categories",
+  "@settingsHiddenCategoriesTitle": {
+    "description": "Settings row, tooltip and sheet title"
+  },
+  "settingsHiddenCategoriesBody": "Categories you've hidden won't appear in your channel list. Your channels are still there — they're just out of the way. You can unhide them here at any time.",
+  "@settingsHiddenCategoriesBody": {
+    "description": "Info tooltip body for hidden categories"
+  },
+  "settingsHiddenCategoriesNone": "No categories are hidden.",
+  "@settingsHiddenCategoriesNone": {
+    "description": "Empty state of the hidden categories sheet"
+  },
+  "settingsResetCategoriesTitle": "Reset Category Names and Order",
+  "@settingsResetCategoriesTitle": {
+    "description": "Settings row"
+  },
+  "settingsResetCategoriesDialogTitle": "Reset Category Names and Order?",
+  "@settingsResetCategoriesDialogTitle": {
+    "description": "Confirmation dialog title"
+  },
+  "settingsResetCategoriesDialogBody": "Live TV categories go back to the names and order your playlist gives them. Hidden categories stay hidden.",
+  "@settingsResetCategoriesDialogBody": {
+    "description": "Confirmation dialog body"
+  },
+  "settingsReset": "Reset",
+  "@settingsReset": {
+    "description": "Confirm button of the reset dialog"
+  },
+  "settingsHiddenChannelsTitle": "Hidden Channels",
+  "@settingsHiddenChannelsTitle": {
+    "description": "Settings row, tooltip and sheet title"
+  },
+  "settingsHiddenChannelsBody": "Channels you hid (hold OK or long-press a channel → Hide Channel) are kept out of Live TV, the guide and search for this profile. Bring them back here.",
+  "@settingsHiddenChannelsBody": {
+    "description": "Info tooltip body for hidden channels"
+  },
+  "settingsHiddenChannelsNone": "None",
+  "@settingsHiddenChannelsNone": {
+    "description": "Hidden channels row subtitle when no channel is hidden"
+  },
+  "settingsHiddenChannelsCount": "{count, plural, =1{1 hidden} other{{count} hidden}}",
+  "@settingsHiddenChannelsCount": {
+    "description": "Hidden channels row subtitle with a count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHiddenChannelsEmpty": "No channels are hidden.",
+  "@settingsHiddenChannelsEmpty": {
+    "description": "Empty state of the hidden channels sheet"
+  },
+  "settingsChannelFromRemovedPlaylist": "Channel from a removed playlist",
+  "@settingsChannelFromRemovedPlaylist": {
+    "description": "Name shown for a hidden channel whose playlist no longer exists"
+  },
+  "settingsShow": "Show",
+  "@settingsShow": {
+    "description": "Button that unhides one category or channel"
+  },
+  "settingsShowAll": "Show All",
+  "@settingsShowAll": {
+    "description": "Button that unhides all hidden channels"
+  },
+  "settingsAllChannels": "All Channels",
+  "@settingsAllChannels": {
+    "description": "Name of the built-in all-channels category"
+  },
+  "settingsShowFavorites": "Show Favorites",
+  "@settingsShowFavorites": {
+    "description": "Switch: show the Favorites category in Live TV"
+  },
+  "settingsShowRecent": "Show Recently Watched",
+  "@settingsShowRecent": {
+    "description": "Switch: show the Recently Watched category in Live TV"
+  },
+  "settingsShowAllChannels": "Show All Channels",
+  "@settingsShowAllChannels": {
+    "description": "Switch: show the All Channels category in Live TV"
+  },
+  "settingsGuideShowNames": "Guide: Show Channel Names",
+  "@settingsGuideShowNames": {
+    "description": "Switch in TV guide layout"
+  },
+  "settingsGuideTwoLineNames": "Guide: Two-Line Channel Names",
+  "@settingsGuideTwoLineNames": {
+    "description": "Switch in TV guide layout"
+  },
+  "settingsGuideTwoLineTitles": "Guide: Two-Line Programme Titles",
+  "@settingsGuideTwoLineTitles": {
+    "description": "Switch in TV guide layout"
+  },
+  "settingsGuideHighlightPlaying": "Guide: Highlight the Playing Channel",
+  "@settingsGuideHighlightPlaying": {
+    "description": "Switch in TV guide layout"
+  },
+  "settingsAboutTitle": "About OpenIPTV",
+  "@settingsAboutTitle": {
+    "description": "Settings row, tooltip and dialog title"
+  },
+  "settingsAboutBody": "Shows the current app version and license information. OpenIPTV is open-source under the GPL-3.0 license — no ads, no telemetry, no accounts. Ever.",
+  "@settingsAboutBody": {
+    "description": "Info tooltip body for About"
+  },
+  "settingsAboutVersion": "Version {version}",
+  "@settingsAboutVersion": {
+    "description": "About row subtitle with the version number",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutLegalese": "© 2026 OpenIPTV contributors. Licensed under GPL-3.0.",
+  "@settingsAboutLegalese": {
+    "description": "Copyright line in the About dialog"
+  },
+  "settingsAboutDescription": "An open-source, ad-free, cross-platform IPTV client. No accounts required. No telemetry. No ads. Ever.",
+  "@settingsAboutDescription": {
+    "description": "Description paragraph in the About dialog"
+  },
+  "settingsPowerToolsTitle": "Power User Tools",
+  "@settingsPowerToolsTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsPowerToolsBody": "Tools for checking and tuning your connection: your device and public IP addresses, connection type, VPN and DNS — handy when a provider has trouble reaching you.",
+  "@settingsPowerToolsBody": {
+    "description": "Info tooltip body for power user tools"
+  },
+  "settingsPowerToolsSubtitle": "Network info for troubleshooting",
+  "@settingsPowerToolsSubtitle": {
+    "description": "Power user tools row subtitle"
+  },
+  "settingsAnonReportsTitle": "Anonymous Reports",
+  "@settingsAnonReportsTitle": {
+    "description": "Settings row and tooltip title"
+  },
+  "settingsAnonReportsBody": "Optionally send an anonymous report when the app crashes or freezes, so problems get fixed faster. Off unless you turn it on, and you can see exactly what is sent.",
+  "@settingsAnonReportsBody": {
+    "description": "Info tooltip body for anonymous reports"
+  },
+  "settingsOn": "On",
+  "@settingsOn": {
+    "description": "Value shown for a setting that is on"
+  },
+  "settingsOff": "Off",
+  "@settingsOff": {
+    "description": "Value shown for a setting that is off"
+  },
+  "settingsPlaylistRefreshed": "\"{name}\" playlist refreshed.",
+  "@settingsPlaylistRefreshed": {
+    "description": "Snackbar after a playlist refresh; name is the user's playlist name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPlaylistRefreshFailed": "Playlist refresh failed: {error}",
+  "@settingsPlaylistRefreshFailed": {
+    "description": "Snackbar; error is an already-translated friendly message",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsGuideRefreshed": "\"{name}\" TV guide refreshed.",
+  "@settingsGuideRefreshed": {
+    "description": "Snackbar after a TV guide refresh",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSwitchPlaylistTitle": "Switch Playlist?",
+  "@settingsSwitchPlaylistTitle": {
+    "description": "Confirmation dialog title"
+  },
+  "settingsSwitchToAllBody": "Show all playlists together?\n\nThe channel list, movies, and series will include every playlist.",
+  "@settingsSwitchToAllBody": {
+    "description": "Confirmation dialog body for browsing all playlists"
+  },
+  "settingsSwitchToOneBody": "Switch to \"{name}\"?\n\nThe channel list, movies, and series will update to show only this playlist.",
+  "@settingsSwitchToOneBody": {
+    "description": "Confirmation dialog body for browsing one playlist",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSwitch": "Switch",
+  "@settingsSwitch": {
+    "description": "Confirm button of the switch playlist dialog"
+  },
+  "settingsRemovePlaylistTitle": "Remove Playlist?",
+  "@settingsRemovePlaylistTitle": {
+    "description": "Confirmation dialog title"
+  },
+  "settingsRemovePlaylistBody": "This will remove \"{name}\" and all its channels, movies, and series. This cannot be undone.",
+  "@settingsRemovePlaylistBody": {
+    "description": "Confirmation dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRemove": "Remove",
+  "@settingsRemove": {
+    "description": "Destructive confirm button"
+  },
+  "settingsRemovingPlaylist": "Removing \"{name}\"...",
+  "@settingsRemovingPlaylist": {
+    "description": "Progress text while a playlist is being removed",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAddPlaylist": "Add Playlist",
+  "@settingsAddPlaylist": {
+    "description": "Button at the top of the playlists sheet"
+  },
+  "settingsChoosePlaylistHint": "Choose which playlist to browse, or show them all together.",
+  "@settingsChoosePlaylistHint": {
+    "description": "Hint under the playlists sheet title when there are several playlists"
+  },
+  "settingsPlaylistsLoadError": "Couldn't load playlists.",
+  "@settingsPlaylistsLoadError": {
+    "description": "Error state of the playlists sheet"
+  },
+  "settingsPlaylistsEmpty": "No playlists yet.",
+  "@settingsPlaylistsEmpty": {
+    "description": "Empty state of the playlists sheet"
+  },
+  "settingsAllPlaylists": "All playlists",
+  "@settingsAllPlaylists": {
+    "description": "Row that browses every playlist together"
+  },
+  "settingsPlaylistsCombined": "{count, plural, =1{1 playlist combined} other{{count} playlists combined}}",
+  "@settingsPlaylistsCombined": {
+    "description": "Subtitle of the All playlists row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSourceFile": "Playlist file",
+  "@settingsSourceFile": {
+    "description": "Playlist type: a file stored on the device"
+  },
+  "settingsSourceM3u": "M3U playlist",
+  "@settingsSourceM3u": {
+    "description": "Playlist type: an M3U link"
+  },
+  "settingsBrowsing": "Browsing",
+  "@settingsBrowsing": {
+    "description": "Marks the playlist currently being browsed; appears after the playlist type in a subtitle"
+  },
+  "settingsRefreshPlaylistTooltip": "Refresh Playlist",
+  "@settingsRefreshPlaylistTooltip": {
+    "description": "Tooltip of the refresh button on a playlist row"
+  },
+  "settingsMoreTooltip": "More",
+  "@settingsMoreTooltip": {
+    "description": "Tooltip of the three-dot menu button"
+  },
+  "settingsEditPlaylist": "Edit Playlist",
+  "@settingsEditPlaylist": {
+    "description": "Menu item"
+  },
+  "settingsPlaylistInfo": "Playlist Info",
+  "@settingsPlaylistInfo": {
+    "description": "Menu item"
+  },
+  "settingsRefreshTvGuide": "Refresh TV Guide",
+  "@settingsRefreshTvGuide": {
+    "description": "Menu item"
+  },
+  "settingsInfoFetchError": "Could not fetch server info.",
+  "@settingsInfoFetchError": {
+    "description": "Error in the playlist info sheet"
+  },
+  "settingsInfoSource": "Source",
+  "@settingsInfoSource": {
+    "description": "Label in the playlist info sheet"
+  },
+  "settingsInfoFileSaved": "File saved on this device",
+  "@settingsInfoFileSaved": {
+    "description": "Value in the playlist info sheet"
+  },
+  "settingsInfoGuideUrl": "EPG URL",
+  "@settingsInfoGuideUrl": {
+    "description": "Label in the playlist info sheet: link of the TV guide (EPG) file"
+  },
+  "settingsInfoLastRefreshed": "Last refreshed",
+  "@settingsInfoLastRefreshed": {
+    "description": "Label in the playlist info sheet"
+  },
+  "settingsInfoNever": "Never",
+  "@settingsInfoNever": {
+    "description": "Value for a playlist that was never refreshed"
+  },
+  "settingsInfoStatus": "Status",
+  "@settingsInfoStatus": {
+    "description": "Label in the playlist info sheet (account status)"
+  },
+  "settingsInfoExpires": "Expires",
+  "@settingsInfoExpires": {
+    "description": "Label in the playlist info sheet (account expiry date)"
+  },
+  "settingsInfoActiveConnections": "Active connections",
+  "@settingsInfoActiveConnections": {
+    "description": "Label in the playlist info sheet"
+  },
+  "settingsInfoMaxConnections": "Max connections",
+  "@settingsInfoMaxConnections": {
+    "description": "Label in the playlist info sheet"
+  },
+  "settingsInfoTrial": "Trial",
+  "@settingsInfoTrial": {
+    "description": "Label in the playlist info sheet: whether the account is a trial"
+  },
+  "settingsInfoYes": "Yes",
+  "@settingsInfoYes": {
+    "description": "Value in the playlist info sheet"
+  },
+  "settingsInfoNo": "No",
+  "@settingsInfoNo": {
+    "description": "Value in the playlist info sheet"
+  },
+  "settingsInfoServer": "Server",
+  "@settingsInfoServer": {
+    "description": "Label in the playlist info sheet"
+  },
+  "settingsInfoTimezone": "Timezone",
+  "@settingsInfoTimezone": {
+    "description": "Label in the playlist info sheet"
+  },
+  "browseActionsSortedAz": "Sorted A–Z",
+  "@browseActionsSortedAz": {
+    "description": "Tooltip of the sort button when sorted alphabetically"
+  },
+  "browseActionsProviderOrder": "Provider order",
+  "@browseActionsProviderOrder": {
+    "description": "Tooltip of the sort button when in the provider's order"
+  },
+  "browseActionsSwitchToList": "Switch to list view",
+  "@browseActionsSwitchToList": {
+    "description": "Tooltip of the view toggle"
+  },
+  "browseActionsSwitchToGrid": "Switch to grid view",
+  "@browseActionsSwitchToGrid": {
+    "description": "Tooltip of the view toggle"
+  },
+  "browseActionsSwitchToCompact": "Switch to compact view",
+  "@browseActionsSwitchToCompact": {
+    "description": "Tooltip of the Movies/Series layout toggle"
+  },
+  "browseActionsSwitchToPosters": "Switch to poster view",
+  "@browseActionsSwitchToPosters": {
+    "description": "Tooltip of the Movies/Series layout toggle"
+  },
+  "bufferPresetFastLabel": "Fast start",
+  "@bufferPresetFastLabel": {
+    "description": "Name of the playback buffer preset that starts quickly (Power User Tools)"
+  },
+  "bufferPresetFastDescription": "Starts quickly and resumes right after a short hiccup. Best on a good connection.",
+  "@bufferPresetFastDescription": {
+    "description": "Explains the Fast start buffer preset"
+  },
+  "bufferPresetBalancedLabel": "Balanced",
+  "@bufferPresetBalancedLabel": {
+    "description": "Name of the middle playback buffer preset"
+  },
+  "bufferPresetBalancedDescription": "Waits a little longer before starting, for fewer interruptions on an average connection.",
+  "@bufferPresetBalancedDescription": {
+    "description": "Explains the Balanced buffer preset"
+  },
+  "bufferPresetSmoothLabel": "Smooth",
+  "@bufferPresetSmoothLabel": {
+    "description": "Name of the playback buffer preset with the biggest reserve"
+  },
+  "bufferPresetSmoothDescription": "Keeps a bigger reserve so playback rides out an unsteady connection. Slower to start and to change channels.",
+  "@bufferPresetSmoothDescription": {
+    "description": "Explains the Smooth buffer preset"
+  },
+  "graphicsModeAutomaticLabel": "Automatic",
+  "@graphicsModeAutomaticLabel": {
+    "description": "Graphics mode option: the app decides"
+  },
+  "graphicsModeAutomaticDescription": "Uses the compatible mode only on TVs known to need it. Recommended.",
+  "@graphicsModeAutomaticDescription": {
+    "description": "Explains the Automatic graphics mode"
+  },
+  "graphicsModeStandardLabel": "Standard",
+  "@graphicsModeStandardLabel": {
+    "description": "Graphics mode option: the newest drawing method"
+  },
+  "graphicsModeStandardDescription": "The newest drawing method. Best on most phones and TVs.",
+  "@graphicsModeStandardDescription": {
+    "description": "Explains the Standard graphics mode"
+  },
+  "graphicsModeCompatibleLabel": "Compatible",
+  "@graphicsModeCompatibleLabel": {
+    "description": "Graphics mode option: an older, steadier drawing method"
+  },
+  "graphicsModeCompatibleDescription": "An older, steadier drawing method. Try this if the picture looks torn (a line across it) or jittery, mostly on fast motion.",
+  "@graphicsModeCompatibleDescription": {
+    "description": "Explains the Compatible graphics mode; \"torn\" means a horizontal tear line across the picture"
+  },
+  "videoLayerAutomaticLabel": "Automatic",
+  "@videoLayerAutomaticLabel": {
+    "description": "Video layer option: the app decides"
+  },
+  "videoLayerAutomaticDescription": "Shows the picture the way TV players do, for smoother video and faster, cleaner switching. Recommended.",
+  "@videoLayerAutomaticDescription": {
+    "description": "Explains the Automatic video layer option"
+  },
+  "videoLayerOnLabel": "On",
+  "@videoLayerOnLabel": {
+    "description": "Video layer option: always on"
+  },
+  "videoLayerOnDescription": "Always use it on this TV.",
+  "@videoLayerOnDescription": {
+    "description": "Explains the On video layer option. \"it\" is the video layer (feminine in Spanish)"
+  },
+  "videoLayerOffLabel": "Off",
+  "@videoLayerOffLabel": {
+    "description": "Video layer option: off"
+  },
+  "videoLayerOffDescription": "Draw the picture inside the app, as before. Try this if the picture is ever missing or wrong.",
+  "@videoLayerOffDescription": {
+    "description": "Explains the Off video layer option"
+  },
+  "speedTestVerdictPlenty": "Plenty, even for 4K.",
+  "@speedTestVerdictPlenty": {
+    "description": "Verdict after a speed test of 25 Mbit/s or more. Follows \"{speed} Mbit/s — \""
+  },
+  "speedTestVerdictGood": "Good for HD and most 4K.",
+  "@speedTestVerdictGood": {
+    "description": "Speed test verdict, 10 Mbit/s or more"
+  },
+  "speedTestVerdictFineHd": "Fine for HD; 4K may buffer.",
+  "@speedTestVerdictFineHd": {
+    "description": "Speed test verdict, 5 Mbit/s or more"
+  },
+  "speedTestVerdictEnoughSd": "Enough for SD; HD may buffer.",
+  "@speedTestVerdictEnoughSd": {
+    "description": "Speed test verdict, 2.5 Mbit/s or more"
+  },
+  "speedTestVerdictTooSlow": "Too slow for smooth playback.",
+  "@speedTestVerdictTooSlow": {
+    "description": "Speed test verdict for a slow connection"
+  },
+  "vpnNotWireGuardProfile": "This isn't a WireGuard profile.",
+  "@vpnNotWireGuardProfile": {
+    "description": "Error when the chosen file is not a WireGuard profile"
+  },
+  "vpnProfileProblem": "This profile has a problem ({detail}).",
+  "@vpnProfileProblem": {
+    "description": "Error when a VPN profile is invalid. {detail} is a short technical reason in English, not translated",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "vpnNotAvailable": "VPN is not available on this device.",
+  "@vpnNotAvailable": {
+    "description": "Error when the device cannot run a VPN"
+  },
+  "vpnNotOpenVpnProfile": "This isn't an OpenVPN profile.",
+  "@vpnNotOpenVpnProfile": {
+    "description": "Error when the chosen file is not an OpenVPN profile"
+  },
+  "vpnNeedsDeviceCertificate": "This profile needs a certificate stored on the device, which OpenIPTV doesn't support.",
+  "@vpnNeedsDeviceCertificate": {
+    "description": "Error for an OpenVPN profile that relies on a certificate in the Android keystore"
+  },
+  "vpnCouldntReadProfile": "Couldn't read this profile.",
+  "@vpnCouldntReadProfile": {
+    "description": "Error when a VPN profile file cannot be read"
+  },
+  "vpnConnected": "VPN connected",
+  "@vpnConnected": {
+    "description": "Snackbar when the VPN is up"
+  },
+  "vpnConnecting": "Connecting the VPN…",
+  "@vpnConnecting": {
+    "description": "Snackbar while the VPN is starting"
+  },
+  "vpnNeedsPermission": "OpenIPTV needs your permission to set up a VPN. Select Connect and allow it.",
+  "@vpnNeedsPermission": {
+    "description": "Snackbar when Android refused the VPN permission prompt. \"Connect\" is the button label powerUserConnect"
+  },
+  "vpnBadConfig": "This profile has a problem. Import it again.",
+  "@vpnBadConfig": {
+    "description": "Snackbar when the VPN profile is invalid"
+  },
+  "vpnConnectFailed": "Couldn't connect the VPN. Check the profile and try again.",
+  "@vpnConnectFailed": {
+    "description": "Snackbar when connecting the VPN failed"
+  },
+  "refreshAllSummaryEverything": "Everything is up to date.",
+  "@refreshAllSummaryEverything": {
+    "description": "Summary after refreshing everything with no failures"
+  },
+  "refreshAllSummaryPlaylists": "All playlists are up to date.",
+  "@refreshAllSummaryPlaylists": {
+    "description": "Summary after refreshing playlists with no failures"
+  },
+  "refreshAllSummaryGuides": "All TV guides are up to date.",
+  "@refreshAllSummaryGuides": {
+    "description": "Summary after refreshing TV guides with no failures"
+  },
+  "refreshAllProblem": "{name}: {message}",
+  "@refreshAllProblem": {
+    "description": "One failed playlist in the summary. {name} is the playlist name, {message} a plain-language error",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "refreshAllSummaryFailedOne": "{problems}.",
+  "@refreshAllSummaryFailedOne": {
+    "description": "Summary when the only playlist failed. {problems} is the error text",
+    "placeholders": {
+      "problems": {
+        "type": "String"
+      }
+    }
+  },
+  "refreshAllSummaryFailedMany": "{ok} of {total} updated. {problems}.",
+  "@refreshAllSummaryFailedMany": {
+    "description": "Summary when some of several playlists failed. {problems} lists each failure separated by semicolons",
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "problems": {
+        "type": "String"
+      }
+    }
+  },
+  "refreshAllUpdating": "Updating {name}… ({done} of {total})",
+  "@refreshAllUpdating": {
+    "description": "Progress line while a playlist is refreshing. {name} is the playlist name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "refreshAllUpdatingGuide": "Updating {name}'s TV guide… ({done} of {total})",
+  "@refreshAllUpdatingGuide": {
+    "description": "Progress line while a playlist's TV guide is refreshing",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "refreshAllUpdatingExtraGuides": "Updating extra guides… ({done} of {total})",
+  "@refreshAllUpdatingExtraGuides": {
+    "description": "Progress line while the extra TV guides added by the user are refreshing",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "refreshAllEverythingTitle": "Refresh Everything",
+  "@refreshAllEverythingTitle": {
+    "description": "Settings row title"
+  },
+  "refreshAllEverythingHint": "Channels, movies, series and TV guides for every playlist",
+  "@refreshAllEverythingHint": {
+    "description": "Settings row subtitle"
+  },
+  "refreshAllPlaylistsTitle": "Refresh Playlists",
+  "@refreshAllPlaylistsTitle": {
+    "description": "Settings row title"
+  },
+  "refreshAllPlaylistsHint": "Channels, movies and series only",
+  "@refreshAllPlaylistsHint": {
+    "description": "Settings row subtitle"
+  },
+  "refreshAllGuidesTitle": "Refresh TV Guides",
+  "@refreshAllGuidesTitle": {
+    "description": "Settings row title"
+  },
+  "refreshAllGuidesHint": "What's on now and next, for every playlist",
+  "@refreshAllGuidesHint": {
+    "description": "Settings row subtitle"
+  },
+  "refreshAllChoiceEverything": "Everything",
+  "@refreshAllChoiceEverything": {
+    "description": "Option in the Refresh dialog"
+  },
+  "refreshAllChoicePlaylists": "Playlists only",
+  "@refreshAllChoicePlaylists": {
+    "description": "Option in the Refresh dialog"
+  },
+  "refreshAllChoicePlaylistsHint": "Channels, movies and series",
+  "@refreshAllChoicePlaylistsHint": {
+    "description": "Subtitle of the playlists-only option in the Refresh dialog"
+  },
+  "refreshAllChoiceGuides": "TV guides only",
+  "@refreshAllChoiceGuides": {
+    "description": "Option in the Refresh dialog"
+  },
+  "refreshAllDialogTitle": "Refresh",
+  "@refreshAllDialogTitle": {
+    "description": "Title of the dialog that asks what to refresh"
+  },
+  "refreshAllNowTitle": "Refresh Now",
+  "@refreshAllNowTitle": {
+    "description": "Settings row title"
+  },
+  "refreshAllNowIdle": "Update your playlists and TV guides now",
+  "@refreshAllNowIdle": {
+    "description": "Settings row subtitle when idle"
+  },
+  "refreshAllLastRun": "{time} · {summary}",
+  "@refreshAllLastRun": {
+    "description": "Subtitle after a refresh: clock time of the run, then its summary",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "editPlaylistTitle": "Edit Playlist",
+  "@editPlaylistTitle": {
+    "description": "Screen title"
+  },
+  "editPlaylistName": "Name",
+  "@editPlaylistName": {
+    "description": "Field label: the playlist's friendly name"
+  },
+  "editPlaylistServerAddress": "Server address",
+  "@editPlaylistServerAddress": {
+    "description": "Field label for the Xtream server address"
+  },
+  "editPlaylistUsername": "Username",
+  "@editPlaylistUsername": {
+    "description": "Field label and hint for the playlist login username"
+  },
+  "editPlaylistPassword": "Password",
+  "@editPlaylistPassword": {
+    "description": "Field label for the playlist login password"
+  },
+  "editPlaylistPasswordHint": "Leave empty to keep the current password",
+  "@editPlaylistPasswordHint": {
+    "description": "Hint inside the password field"
+  },
+  "editPlaylistShowPassword": "Show password",
+  "@editPlaylistShowPassword": {
+    "description": "Tooltip of the eye button"
+  },
+  "editPlaylistHidePassword": "Hide password",
+  "@editPlaylistHidePassword": {
+    "description": "Tooltip of the eye button"
+  },
+  "editPlaylistLink": "Playlist link",
+  "@editPlaylistLink": {
+    "description": "Field label for an M3U playlist URL"
+  },
+  "editPlaylistGuideAddress": "TV guide address (optional)",
+  "@editPlaylistGuideAddress": {
+    "description": "Field label for the XMLTV guide URL"
+  },
+  "editPlaylistGuideAutoProvider": "Automatic — from your provider",
+  "@editPlaylistGuideAutoProvider": {
+    "description": "Hint in the guide field for Xtream playlists"
+  },
+  "editPlaylistGuideAutoPlaylist": "Automatic — from the playlist",
+  "@editPlaylistGuideAutoPlaylist": {
+    "description": "Hint in the guide field for M3U playlists"
+  },
+  "editPlaylistFileNote": "This playlist is a file on your device. To use a different file, add it as a new playlist.",
+  "@editPlaylistFileNote": {
+    "description": "Note shown for playlists loaded from a device file"
+  },
+  "editPlaylistLoginStored": "Your login is stored encrypted on this device.",
+  "@editPlaylistLoginStored": {
+    "description": "Reassurance under the form"
+  },
+  "editPlaylistSave": "Save",
+  "@editPlaylistSave": {
+    "description": "Save button"
+  },
+  "editPlaylistChecking": "Checking your details…",
+  "@editPlaylistChecking": {
+    "description": "Progress text while the new details are validated"
+  },
+  "editPlaylistUpdating": "Saved. Updating channels and movies…",
+  "@editPlaylistUpdating": {
+    "description": "Progress text while the playlist refreshes after saving"
+  },
+  "editPlaylistSaved": "\"{name}\" saved.",
+  "@editPlaylistSaved": {
+    "description": "Snackbar after saving. {name} is the playlist name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editPlaylistSavedUpdated": "\"{name}\" saved and updated.",
+  "@editPlaylistSavedUpdated": {
+    "description": "Snackbar after saving and a successful refresh",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editPlaylistSavedWithSummary": "\"{name}\" saved. {summary}",
+  "@editPlaylistSavedWithSummary": {
+    "description": "Snackbar after saving when the refresh had problems. {summary} is a plain-language sentence",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "editPlaylistLiveFormat": "Live stream format",
+  "@editPlaylistLiveFormat": {
+    "description": "Heading of the live stream format choice"
+  },
+  "editPlaylistLiveFormatNote": "Changing this updates the playlist's channels.",
+  "@editPlaylistLiveFormatNote": {
+    "description": "Note under the live stream format heading"
+  },
+  "editPlaylistFormatAutoLabel": "Automatic",
+  "@editPlaylistFormatAutoLabel": {
+    "description": "Live stream format option"
+  },
+  "editPlaylistFormatAutoDescription": "Follows what your provider allows, usually TS",
+  "@editPlaylistFormatAutoDescription": {
+    "description": "Explains the Automatic live format. TS is a technical term"
+  },
+  "editPlaylistFormatTsDescription": "Transport stream: fast to start, works with most providers",
+  "@editPlaylistFormatTsDescription": {
+    "description": "Explains the TS live format"
+  },
+  "editPlaylistFormatHlsDescription": "Adaptive playlist: for providers whose TS streams drop",
+  "@editPlaylistFormatHlsDescription": {
+    "description": "Explains the HLS live format"
+  },
+  "parentalTitle": "Parental Controls",
+  "@parentalTitle": {
+    "description": "Screen title"
+  },
+  "parentalAdminsOnly": "Admins only.",
+  "@parentalAdminsOnly": {
+    "description": "Shown to non-admin profiles"
+  },
+  "parentalProtectionGroup": "Protection",
+  "@parentalProtectionGroup": {
+    "description": "Settings group heading"
+  },
+  "parentalProtectionTitle": "Parental Protection",
+  "@parentalProtectionTitle": {
+    "description": "Switch title"
+  },
+  "parentalProtectionOn": "Adult and locked categories require an admin PIN",
+  "@parentalProtectionOn": {
+    "description": "Switch subtitle when on"
+  },
+  "parentalProtectionOff": "Off — all content is visible",
+  "@parentalProtectionOff": {
+    "description": "Switch subtitle when off"
+  },
+  "parentalLockedGroup": "Locked Categories",
+  "@parentalLockedGroup": {
+    "description": "Settings group heading"
+  },
+  "parentalLockedDescription": "Adult content is locked automatically. Categories below were added by the playlist scan.",
+  "@parentalLockedDescription": {
+    "description": "Description under the Locked Categories heading"
+  },
+  "parentalNoLocked": "No other locked categories",
+  "@parentalNoLocked": {
+    "description": "Empty state"
+  },
+  "parentalRemoveTooltip": "Remove from locked list",
+  "@parentalRemoveTooltip": {
+    "description": "Tooltip of the delete button on a locked category"
+  },
+  "carVideoTitle": "Video in the Car",
+  "@carVideoTitle": {
+    "description": "Settings row title and dialog title for the Android Auto video add-on"
+  },
+  "carVideoSubtitleMissing": "Watch on the car screen while parked",
+  "@carVideoSubtitleMissing": {
+    "description": "Row subtitle when the add-on is not installed"
+  },
+  "carVideoSubtitleOutdated": "Update available for the add-on",
+  "@carVideoSubtitleOutdated": {
+    "description": "Row subtitle when the add-on can be updated"
+  },
+  "carVideoSubtitleInstalled": "Add-on installed",
+  "@carVideoSubtitleInstalled": {
+    "description": "Row subtitle when the add-on is installed"
+  },
+  "carVideoInfoMissing": "This needs a small add-on app, OpenIPTV Video (about 1 MB).",
+  "@carVideoInfoMissing": {
+    "description": "Line inside the info dialog when the add-on is missing"
+  },
+  "carVideoInfoInstalled": "The add-on is installed.",
+  "@carVideoInfoInstalled": {
+    "description": "Line inside the info dialog when the add-on is installed"
+  },
+  "carVideoInfoOutdated": "A newer version of the add-on is available.",
+  "@carVideoInfoOutdated": {
+    "description": "Line inside the info dialog when the add-on is outdated"
+  },
+  "carVideoInfo": "Watch on your car's screen with Android Auto while parked. Android Auto closes the picture when you start driving; the sound keeps playing.\n\nHow to watch: pick a channel, movie or episode in OpenIPTV on the car screen, then open Video — the second OpenIPTV icon.\n\n{addonLine}\n\nIf it doesn't show up in the car: in the Android Auto app on your phone, turn on developer settings and \"Unknown sources\".",
+  "@carVideoInfo": {
+    "description": "Body of the car video info dialog. {addonLine} is one of carVideoInfoMissing / carVideoInfoInstalled / carVideoInfoOutdated. \"Video\" is the label of the second app icon in the car; \"Unknown sources\" is an Android Auto developer setting name",
+    "placeholders": {
+      "addonLine": {
+        "type": "String"
+      }
+    }
+  },
+  "carVideoNeedsPermission": "To install the add-on, OpenIPTV needs permission to install apps.\n\nSelect Open Settings, turn on \"Allow from this source\", then come back here — the install will continue automatically.",
+  "@carVideoNeedsPermission": {
+    "description": "Dialog body asking for the install-apps permission. \"Allow from this source\" is an Android system switch"
+  },
+  "carVideoDownloading": "Downloading…",
+  "@carVideoDownloading": {
+    "description": "Download progress before the percentage is known"
+  },
+  "carVideoDownloadingPercent": "Downloading… {percent}%",
+  "@carVideoDownloadingPercent": {
+    "description": "Download progress with a percentage",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "carVideoHandedOff": "Follow the prompts on screen to finish installing.\n\nIf nothing appeared, or you cancelled, select Install again.",
+  "@carVideoHandedOff": {
+    "description": "Dialog body after handing the APK to the system installer"
+  },
+  "carVideoUnavailable": "The add-on isn't available to download yet. It comes with the next OpenIPTV release.",
+  "@carVideoUnavailable": {
+    "description": "Dialog body when no add-on file exists"
+  },
+  "carVideoFailed": "The add-on couldn't be downloaded. Check your internet connection and try again.",
+  "@carVideoFailed": {
+    "description": "Dialog body when the download failed"
+  },
+  "carVideoDone": "Done",
+  "@carVideoDone": {
+    "description": "Dialog button"
+  },
+  "carVideoUpdate": "Update",
+  "@carVideoUpdate": {
+    "description": "Dialog button to update the add-on"
+  },
+  "carVideoInstall": "Install",
+  "@carVideoInstall": {
+    "description": "Dialog button to install the add-on"
+  },
+  "carVideoOpenSettings": "Open Settings",
+  "@carVideoOpenSettings": {
+    "description": "Dialog button that opens the Android install-permission screen"
+  },
+  "carVideoClose": "Close",
+  "@carVideoClose": {
+    "description": "Dialog button"
+  },
+  "carVideoInstallAgain": "Install again",
+  "@carVideoInstallAgain": {
+    "description": "Dialog button"
+  },
+  "carVideoTryAgain": "Try again",
+  "@carVideoTryAgain": {
+    "description": "Dialog button"
+  },
+  "profileTitle": "Profile",
+  "@profileTitle": {
+    "description": "Screen title"
+  },
+  "profileLoadFailed": "Couldn't load profile.",
+  "@profileLoadFailed": {
+    "description": "Error state"
+  },
+  "profileNoActive": "No active profile.",
+  "@profileNoActive": {
+    "description": "Empty state"
+  },
+  "profileKidsAdminBlocked": "Admin accounts can't be marked as kid accounts",
+  "@profileKidsAdminBlocked": {
+    "description": "Subtitle of the Kids Profile switch for an admin"
+  },
+  "profileAdultHidden": "Adult content will be hidden",
+  "@profileAdultHidden": {
+    "description": "Subtitle of the Kids Profile switch when on"
+  },
+  "profileAllVisible": "All content is visible",
+  "@profileAllVisible": {
+    "description": "Subtitle of the Kids Profile switch when off"
+  },
+  "profileAccountGroup": "Account",
+  "@profileAccountGroup": {
+    "description": "Settings group heading"
+  },
+  "profileKidsProfile": "Kids Profile",
+  "@profileKidsProfile": {
+    "description": "Switch title and tooltip title"
+  },
+  "profileKidsTooltipBody": "When turned on, this profile is marked as a Kids profile and adult content is automatically hidden from Live, Movies, and Series. Requires Parental Protection to be enabled.",
+  "@profileKidsTooltipBody": {
+    "description": "Info tooltip body. Live, Movies and Series are the app tab names"
+  },
+  "profileSecurityGroup": "Security",
+  "@profileSecurityGroup": {
+    "description": "Settings group heading"
+  },
+  "profilePinLock": "PIN Lock",
+  "@profilePinLock": {
+    "description": "Row title"
+  },
+  "profilePinIsSet": "PIN is set — select to change or remove",
+  "@profilePinIsSet": {
+    "description": "Row subtitle when a PIN exists"
+  },
+  "profilePinNotSet": "No PIN — select to set one",
+  "@profilePinNotSet": {
+    "description": "Row subtitle when no PIN exists"
+  },
+  "profileAllProfilesGroup": "All Profiles",
+  "@profileAllProfilesGroup": {
+    "description": "Settings group heading (admin only)"
+  },
+  "profileAddProfile": "Add Profile",
+  "@profileAddProfile": {
+    "description": "Row title"
+  },
+  "profileEnterPinToDisableKids": "Enter admin PIN to disable Kids Profile",
+  "@profileEnterPinToDisableKids": {
+    "description": "Prompt of the admin PIN dialog"
+  },
+  "profileDeleteTitle": "Delete Profile?",
+  "@profileDeleteTitle": {
+    "description": "Dialog title"
+  },
+  "profileDeleteBody": "Deleting \"{name}\" will remove all its favourites and settings. Your sources and channels are not affected.",
+  "@profileDeleteBody": {
+    "description": "Dialog body. {name} is the profile name. \"sources\" means playlists",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileDelete": "Delete",
+  "@profileDelete": {
+    "description": "Delete button / menu item"
+  },
+  "profileProtectionRequiredTitle": "Parental Protection Required",
+  "@profileProtectionRequiredTitle": {
+    "description": "Dialog title"
+  },
+  "profileProtectionRequiredBody": "Kid profiles require Parental Protection to be turned on, so adult content can be hidden automatically. Enable it now?",
+  "@profileProtectionRequiredBody": {
+    "description": "Dialog body"
+  },
+  "profileEnableProtection": "Enable Protection",
+  "@profileEnableProtection": {
+    "description": "Dialog button"
+  },
+  "profileActive": "Active",
+  "@profileActive": {
+    "description": "Badge on the current profile"
+  },
+  "profileKidsBadge": "Kids",
+  "@profileKidsBadge": {
+    "description": "Small badge on a kids profile"
+  },
+  "profilePinBadge": "PIN",
+  "@profilePinBadge": {
+    "description": "Small badge on a profile that has a PIN"
+  },
+  "profileMenuEdit": "Edit",
+  "@profileMenuEdit": {
+    "description": "Popup menu item"
+  },
+  "profileEditTitle": "Edit Profile",
+  "@profileEditTitle": {
+    "description": "Dialog title"
+  },
+  "profileNameLabel": "Name",
+  "@profileNameLabel": {
+    "description": "Label above the name field"
+  },
+  "profileAvatarLabel": "Avatar",
+  "@profileAvatarLabel": {
+    "description": "Label above the avatar picker"
+  },
+  "profileEnterName": "Enter a name.",
+  "@profileEnterName": {
+    "description": "Validation error"
+  },
+  "profileSaveFailed": "Couldn't save changes.",
+  "@profileSaveFailed": {
+    "description": "Error in the edit dialog"
+  },
+  "profileSave": "Save",
+  "@profileSave": {
+    "description": "Dialog button"
+  },
+  "profileNewTitle": "New Profile",
+  "@profileNewTitle": {
+    "description": "Dialog title"
+  },
+  "profileNameHint": "e.g. Kids, Living Room",
+  "@profileNameHint": {
+    "description": "Hint in the new profile name field"
+  },
+  "profileIsKidAccount": "Is Kid Account",
+  "@profileIsKidAccount": {
+    "description": "Switch title in the new profile dialog"
+  },
+  "profileCreate": "Create",
+  "@profileCreate": {
+    "description": "Dialog button"
+  },
+  "profileCreateFailed": "Couldn't create profile.",
+  "@profileCreateFailed": {
+    "description": "Error in the new profile dialog"
+  },
+  "profilePinsDontMatch": "PINs don't match.",
+  "@profilePinsDontMatch": {
+    "description": "PIN dialog error"
+  },
+  "profilePinTooShort": "PIN must be at least 4 digits.",
+  "@profilePinTooShort": {
+    "description": "PIN dialog error"
+  },
+  "profileCurrentPinIncorrect": "Current PIN is incorrect.",
+  "@profileCurrentPinIncorrect": {
+    "description": "PIN dialog error"
+  },
+  "profileChangePinTitle": "Change PIN",
+  "@profileChangePinTitle": {
+    "description": "PIN dialog title when a PIN exists"
+  },
+  "profileSetPinTitle": "Set PIN",
+  "@profileSetPinTitle": {
+    "description": "PIN dialog title when no PIN exists"
+  },
+  "profileCurrentPin": "Current PIN",
+  "@profileCurrentPin": {
+    "description": "Label and hint of the current PIN field"
+  },
+  "profileNewPin": "New PIN",
+  "@profileNewPin": {
+    "description": "Label above the new PIN field"
+  },
+  "profilePinDigitsHint": "4–8 digits",
+  "@profilePinDigitsHint": {
+    "description": "Hint inside the new PIN field"
+  },
+  "profileConfirmPin": "Confirm PIN",
+  "@profileConfirmPin": {
+    "description": "Label above the confirm PIN field"
+  },
+  "profileRepeatNewPin": "Repeat new PIN",
+  "@profileRepeatNewPin": {
+    "description": "Hint inside the confirm PIN field"
+  },
+  "profileRemovePin": "Remove PIN",
+  "@profileRemovePin": {
+    "description": "Destructive dialog button"
+  },
+  "profileEnterAdminPin": "Enter admin PIN",
+  "@profileEnterAdminPin": {
+    "description": "Title of the admin PIN prompt"
+  },
+  "profileBiometricPinMessage": "To turn on fingerprint and face unlock",
+  "@profileBiometricPinMessage": {
+    "description": "Message under the admin PIN prompt"
+  },
+  "profileContinue": "Continue",
+  "@profileContinue": {
+    "description": "Confirm button of the admin PIN prompt"
+  },
+  "profileIncorrectPin": "Incorrect PIN",
+  "@profileIncorrectPin": {
+    "description": "Snackbar"
+  },
+  "profileBiometricOn": "Fingerprint and face unlock is on",
+  "@profileBiometricOn": {
+    "description": "Snackbar"
+  },
+  "profileBiometricFailed": "Couldn't turn on fingerprint and face unlock on this device.",
+  "@profileBiometricFailed": {
+    "description": "Snackbar"
+  },
+  "profileBiometricTitle": "Unlock with Fingerprint or Face",
+  "@profileBiometricTitle": {
+    "description": "Switch title and tooltip title"
+  },
+  "profileBiometricBody": "Use your fingerprint or face wherever the admin PIN is asked for on this device. Anyone whose fingerprint or face is set up on this device can use it, so only turn it on if that is just you. Adding a new fingerprint or face turns it off until you turn it on again. Other profiles still use their own PINs.",
+  "@profileBiometricBody": {
+    "description": "Info tooltip body"
+  },
+  "profileBiometricSubtitleOn": "Use it instead of typing the admin PIN",
+  "@profileBiometricSubtitleOn": {
+    "description": "Switch subtitle when a PIN exists"
+  },
+  "profileBiometricSubtitleNeedsPin": "Set a PIN first",
+  "@profileBiometricSubtitleNeedsPin": {
+    "description": "Switch subtitle when no PIN exists"
+  },
+  "powerUserTitle": "Power User Tools",
+  "@powerUserTitle": {
+    "description": "Screen title"
+  },
+  "powerUserRefreshTooltip": "Refresh",
+  "@powerUserRefreshTooltip": {
+    "description": "Tooltip of the refresh button"
+  },
+  "powerUserOn": "On",
+  "@powerUserOn": {
+    "description": "Value of a state or an option"
+  },
+  "powerUserOff": "Off",
+  "@powerUserOff": {
+    "description": "Value of a state or an option"
+  },
+  "powerUserYes": "Yes",
+  "@powerUserYes": {
+    "description": "Used in \"In use now: Yes.\""
+  },
+  "powerUserNo": "No",
+  "@powerUserNo": {
+    "description": "Used in \"In use now: No.\""
+  },
+  "powerUserAutomatic": "Automatic",
+  "@powerUserAutomatic": {
+    "description": "Option label"
+  },
+  "powerUserInUseNow": "In use now: {mode}.",
+  "@powerUserInUseNow": {
+    "description": "Line in a description. {mode} is the active mode name or Yes/No",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserNetworkTitle": "Network",
+  "@powerUserNetworkTitle": {
+    "description": "Group heading"
+  },
+  "powerUserNetworkDescription": "How this device is connected right now. Useful when a provider has trouble reaching you — for example to check which address it sees, or that your VPN is on.",
+  "@powerUserNetworkDescription": {
+    "description": "Description of the Network group on TV"
+  },
+  "powerUserNetworkDescriptionCopy": "How this device is connected right now. Useful when a provider has trouble reaching you — for example to check which address it sees, or that your VPN is on. Tap an address to copy it.",
+  "@powerUserNetworkDescriptionCopy": {
+    "description": "Description of the Network group on phones (adds the copy hint)"
+  },
+  "powerUserCheckingConnection": "Checking your connection…",
+  "@powerUserCheckingConnection": {
+    "description": "Placeholder while network info loads"
+  },
+  "powerUserConnection": "Connection",
+  "@powerUserConnection": {
+    "description": "Row label"
+  },
+  "powerUserDeviceIp": "Device IP address",
+  "@powerUserDeviceIp": {
+    "description": "Row label"
+  },
+  "powerUserNotAvailable": "Not available",
+  "@powerUserNotAvailable": {
+    "description": "Row value"
+  },
+  "powerUserVpnAddress": "VPN address",
+  "@powerUserVpnAddress": {
+    "description": "Row label for the address on the VPN tunnel"
+  },
+  "powerUserDnsServers": "DNS servers",
+  "@powerUserDnsServers": {
+    "description": "Row label"
+  },
+  "powerUserCopied": "{label} copied",
+  "@powerUserCopied": {
+    "description": "Snackbar after copying a value. {label} is the row label such as \"Device IP address\"",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserPublicIp": "Public IP address",
+  "@powerUserPublicIp": {
+    "description": "Row label"
+  },
+  "powerUserChecking": "Checking…",
+  "@powerUserChecking": {
+    "description": "Row value while the public address is being looked up"
+  },
+  "powerUserCheckFailed": "Couldn't check right now. Try again.",
+  "@powerUserCheckFailed": {
+    "description": "Row value when the lookup failed"
+  },
+  "powerUserPublicIpIdle": "The address your provider sees. Checking asks {service}.",
+  "@powerUserPublicIpIdle": {
+    "description": "Row value before checking. {service} is a web address of an outside service",
+    "placeholders": {
+      "service": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserCheck": "Check",
+  "@powerUserCheck": {
+    "description": "Button"
+  },
+  "powerUserCheckAgain": "Check again",
+  "@powerUserCheckAgain": {
+    "description": "Button"
+  },
+  "powerUserVpnDescription": "A built-in VPN — WireGuard or OpenVPN. Handy when your internet provider blocks or slows down your IPTV provider. One connects at a time.",
+  "@powerUserVpnDescription": {
+    "description": "Description of the VPN group"
+  },
+  "powerUserWgImportHint": "Import a WireGuard profile (.conf file) from your VPN provider.",
+  "@powerUserWgImportHint": {
+    "description": "Row value when no WireGuard profile exists"
+  },
+  "powerUserOvpnImportHint": "Import an OpenVPN profile (.ovpn file) from your VPN provider.",
+  "@powerUserOvpnImportHint": {
+    "description": "Row value when no OpenVPN profile exists"
+  },
+  "powerUserVpnStateOff": "Off — {name}{where}",
+  "@powerUserVpnStateOff": {
+    "description": "Row value for a disconnected profile. {name} is the profile name, {where} is \" · server:port\" or empty",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserWgConnected": "Connected — {name}{where}\n↓ {rx}  ↑ {tx} · {ago}",
+  "@powerUserWgConnected": {
+    "description": "Row value for a connected WireGuard profile. {rx}/{tx} are data amounts such as 1.5 MB, {ago} is handshakeWaiting or handshakeAnswered",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      },
+      "rx": {
+        "type": "String"
+      },
+      "tx": {
+        "type": "String"
+      },
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserHandshakeWaiting": "waiting for the server to answer",
+  "@powerUserHandshakeWaiting": {
+    "description": "Fragment of the WireGuard status line"
+  },
+  "powerUserHandshakeAnswered": "server answered {when}",
+  "@powerUserHandshakeAnswered": {
+    "description": "Fragment of the WireGuard status line. {when} is justNow / secondsAgo / minutesAgo",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserJustNow": "just now",
+  "@powerUserJustNow": {
+    "description": "Fragment: time since the VPN server answered"
+  },
+  "powerUserSecondsAgo": "{seconds}s ago",
+  "@powerUserSecondsAgo": {
+    "description": "Fragment: time since the VPN server answered",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "powerUserMinutesAgo": "{minutes} min ago",
+  "@powerUserMinutesAgo": {
+    "description": "Fragment: time since the VPN server answered",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "powerUserOvpnConnected": "Connected — {name}{where}\n↓ {rx}  ↑ {tx}",
+  "@powerUserOvpnConnected": {
+    "description": "Row value for a connected OpenVPN profile",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      },
+      "rx": {
+        "type": "String"
+      },
+      "tx": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserOvpnConnecting": "Connecting — {name}{where}",
+  "@powerUserOvpnConnecting": {
+    "description": "Row value while OpenVPN connects",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserOvpnError": "Couldn't connect — {name}{where}",
+  "@powerUserOvpnError": {
+    "description": "Row value when OpenVPN failed",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserImport": "Import",
+  "@powerUserImport": {
+    "description": "Button"
+  },
+  "powerUserDisconnect": "Disconnect",
+  "@powerUserDisconnect": {
+    "description": "Button"
+  },
+  "powerUserConnect": "Connect",
+  "@powerUserConnect": {
+    "description": "Button"
+  },
+  "powerUserRouteApp": "Only OpenIPTV",
+  "@powerUserRouteApp": {
+    "description": "VPN route option"
+  },
+  "powerUserRouteAppHint": "Other apps keep your normal connection",
+  "@powerUserRouteAppHint": {
+    "description": "Explains the Only OpenIPTV route"
+  },
+  "powerUserRouteDevice": "Whole device",
+  "@powerUserRouteDevice": {
+    "description": "VPN route option"
+  },
+  "powerUserRouteDeviceHint": "Every app uses the VPN, except Android Auto's car link",
+  "@powerUserRouteDeviceHint": {
+    "description": "Explains the Whole device route"
+  },
+  "powerUserReconnectToApply": "Reconnect the VPN to apply this.",
+  "@powerUserReconnectToApply": {
+    "description": "Snackbar after changing the route while connected"
+  },
+  "powerUserAutoConnect": "Connect when OpenIPTV opens",
+  "@powerUserAutoConnect": {
+    "description": "Switch title"
+  },
+  "powerUserAutoConnectHint": "Uses the VPN you connected last",
+  "@powerUserAutoConnectHint": {
+    "description": "Switch subtitle"
+  },
+  "powerUserRemoveWireGuard": "Remove WireGuard profile",
+  "@powerUserRemoveWireGuard": {
+    "description": "Row title"
+  },
+  "powerUserChangeOvpnLogin": "Change OpenVPN login",
+  "@powerUserChangeOvpnLogin": {
+    "description": "Row title"
+  },
+  "powerUserSignedInAs": "Signed in as {user}",
+  "@powerUserSignedInAs": {
+    "description": "Row subtitle. {user} is the VPN username",
+    "placeholders": {
+      "user": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserRemoveOpenVpn": "Remove OpenVPN profile",
+  "@powerUserRemoveOpenVpn": {
+    "description": "Row title"
+  },
+  "powerUserPickOvpn": "Choose an OpenVPN profile",
+  "@powerUserPickOvpn": {
+    "description": "Title of the file picker"
+  },
+  "powerUserPickWireGuard": "Choose a WireGuard profile",
+  "@powerUserPickWireGuard": {
+    "description": "Title of the file picker"
+  },
+  "powerUserProfileAdded": "Profile \"{name}\" added",
+  "@powerUserProfileAdded": {
+    "description": "Snackbar after importing a VPN profile",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserVpnLoginTitle": "VPN login",
+  "@powerUserVpnLoginTitle": {
+    "description": "Dialog title"
+  },
+  "powerUserVpnLoginBody": "This profile needs the username and password from your VPN provider. They are stored encrypted on this device.",
+  "@powerUserVpnLoginBody": {
+    "description": "Dialog body"
+  },
+  "powerUserUsername": "Username",
+  "@powerUserUsername": {
+    "description": "Field label"
+  },
+  "powerUserPassword": "Password",
+  "@powerUserPassword": {
+    "description": "Field label"
+  },
+  "powerUserSave": "Save",
+  "@powerUserSave": {
+    "description": "Dialog button"
+  },
+  "powerUserVpnLoginSaved": "VPN login saved",
+  "@powerUserVpnLoginSaved": {
+    "description": "Snackbar"
+  },
+  "powerUserRemoveTitle": "Remove VPN profile?",
+  "@powerUserRemoveTitle": {
+    "description": "Dialog title"
+  },
+  "powerUserRemoveBody": "The VPN disconnects and the profile is deleted from this device. You can import it again later.",
+  "@powerUserRemoveBody": {
+    "description": "Dialog body"
+  },
+  "powerUserRemove": "Remove",
+  "@powerUserRemove": {
+    "description": "Dialog button"
+  },
+  "powerUserOvpnAuthFailed": "The VPN server rejected the username or password. Use \"Change OpenVPN login\" to fix it.",
+  "@powerUserOvpnAuthFailed": {
+    "description": "Snackbar. The quoted name is the row title powerUserChangeOvpnLogin"
+  },
+  "powerUserOvpnUnreachable": "Couldn't reach the VPN server. Check the profile and your connection.",
+  "@powerUserOvpnUnreachable": {
+    "description": "Snackbar"
+  },
+  "powerUserOvpnConnectFailed": "The VPN couldn't connect. Check the profile and try again.",
+  "@powerUserOvpnConnectFailed": {
+    "description": "Snackbar"
+  },
+  "powerUserSpeedTitle": "Speed test",
+  "@powerUserSpeedTitle": {
+    "description": "Group heading"
+  },
+  "powerUserSpeedDescription": "Measures how fast video arrives. The provider test uses one connection to your provider — if your plan allows only one at a time, stop watching on other devices first.",
+  "@powerUserSpeedDescription": {
+    "description": "Group description"
+  },
+  "powerUserSpeedProviderLabel": "Speed to your provider",
+  "@powerUserSpeedProviderLabel": {
+    "description": "Row label"
+  },
+  "powerUserSpeedProviderIdle": "Downloads from the playlist you are browsing for a few seconds.",
+  "@powerUserSpeedProviderIdle": {
+    "description": "Row value before running"
+  },
+  "powerUserSpeedInternetLabel": "General internet speed",
+  "@powerUserSpeedInternetLabel": {
+    "description": "Row label"
+  },
+  "powerUserSpeedInternetIdle": "Downloads a test file from {host}.",
+  "@powerUserSpeedInternetIdle": {
+    "description": "Row value before running. {host} is a web host name",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserSpeedConnecting": "Connecting…",
+  "@powerUserSpeedConnecting": {
+    "description": "Row value while the test is starting"
+  },
+  "powerUserSpeedTesting": "Testing… {mbps} Mbit/s",
+  "@powerUserSpeedTesting": {
+    "description": "Row value while the test runs. {mbps} is a number such as 12.3",
+    "placeholders": {
+      "mbps": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserSpeedResult": "{mbps} Mbit/s — {verdict}\nResponse time {ms} ms",
+  "@powerUserSpeedResult": {
+    "description": "Row value with the result. {verdict} is a speedTestVerdict sentence",
+    "placeholders": {
+      "mbps": {
+        "type": "String"
+      },
+      "verdict": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "powerUserSpeedPacedNote": "Measured on a live channel, which arrives at playback speed — this shows it keeps up, not your top speed.",
+  "@powerUserSpeedPacedNote": {
+    "description": "Extra note under a speed result measured on a live channel"
+  },
+  "powerUserSpeedNothingToTest": "This playlist has nothing to test with yet.",
+  "@powerUserSpeedNothingToTest": {
+    "description": "Row value (error)"
+  },
+  "powerUserSpeedProviderFailed": "Couldn't download from your provider. It may be busy, or your plan may allow only one connection at a time.",
+  "@powerUserSpeedProviderFailed": {
+    "description": "Row value (error)"
+  },
+  "powerUserSpeedInternetFailed": "Couldn't run the test. Check your connection and try again.",
+  "@powerUserSpeedInternetFailed": {
+    "description": "Row value (error)"
+  },
+  "powerUserRun": "Run",
+  "@powerUserRun": {
+    "description": "Button that starts a speed test"
+  },
+  "powerUserRunAgain": "Run again",
+  "@powerUserRunAgain": {
+    "description": "Button that repeats a speed test"
+  },
+  "powerUserDbTitle": "Database",
+  "@powerUserDbTitle": {
+    "description": "Group heading"
+  },
+  "powerUserDbDescription": "The database holds your playlists, logins and watch history, and is encrypted on the device. Turning encryption off can make very slow TVs faster.",
+  "@powerUserDbDescription": {
+    "description": "Group description"
+  },
+  "powerUserDbSkipTitle": "Skip Database Encryption",
+  "@powerUserDbSkipTitle": {
+    "description": "Switch title"
+  },
+  "powerUserDbSkipQuestion": "Skip Database Encryption?",
+  "@powerUserDbSkipQuestion": {
+    "description": "Dialog title"
+  },
+  "powerUserDbTurnOnQuestion": "Turn Database Encryption back on?",
+  "@powerUserDbTurnOnQuestion": {
+    "description": "Dialog title"
+  },
+  "powerUserDbSkipBody": "This will store your database (including playlist credentials and stream links) unencrypted on disk. Anyone with access to the device can read it. The app must be restarted for the change to take effect.",
+  "@powerUserDbSkipBody": {
+    "description": "Dialog body"
+  },
+  "powerUserDbTurnOnBody": "Your database will be encrypted again, which is safer but can be slower on older TVs. The app will restart to apply it.",
+  "@powerUserDbTurnOnBody": {
+    "description": "Dialog body"
+  },
+  "powerUserDbEnable": "Enable",
+  "@powerUserDbEnable": {
+    "description": "Dialog button that confirms skipping encryption (the English label is ambiguous; it enables the skip)"
+  },
+  "powerUserDbTurnOn": "Turn On",
+  "@powerUserDbTurnOn": {
+    "description": "Dialog button that turns encryption back on"
+  },
+  "powerUserDbReopenTitle": "Reopen OpenIPTV to finish",
+  "@powerUserDbReopenTitle": {
+    "description": "Dialog title"
+  },
+  "powerUserDbReopenBody": "The database encryption mode has changed. OpenIPTV will close now. Open it again to apply the change.",
+  "@powerUserDbReopenBody": {
+    "description": "Dialog body"
+  },
+  "powerUserDbClose": "Close OpenIPTV",
+  "@powerUserDbClose": {
+    "description": "Dialog button"
+  },
+  "powerUserBufferTitle": "Playback buffer",
+  "@powerUserBufferTitle": {
+    "description": "Group heading"
+  },
+  "powerUserBufferDescription": "How much video the player keeps in reserve. A bigger reserve rides out a shaky connection but takes longer to start. Applies from the next channel or video you open.",
+  "@powerUserBufferDescription": {
+    "description": "Group description"
+  },
+  "powerUserPicturesTitle": "Pictures",
+  "@powerUserPicturesTitle": {
+    "description": "Group heading"
+  },
+  "powerUserPicturesDescription": "Posters, channel logos and backdrops are shown in full resolution, for the sharpest pictures. Turn this off to show them at about the size they are drawn instead, which uses less memory. Try that if the app ever feels slow or restarts on a TV or phone with little memory. Takes effect straight away; no re-download needed.",
+  "@powerUserPicturesDescription": {
+    "description": "Group description"
+  },
+  "powerUserFullResTitle": "Full-Resolution Pictures",
+  "@powerUserFullResTitle": {
+    "description": "Switch title"
+  },
+  "powerUserFrameRateTitle": "Match frame rate",
+  "@powerUserFrameRateTitle": {
+    "description": "Group heading"
+  },
+  "powerUserFrameRateDescription": "Switches your screen to a refresh rate that suits the video (for example 24 Hz for films), so motion looks smoother. Only works if your screen supports it, and some TVs go black for a moment when it switches. The screen goes back to normal when you stop watching.",
+  "@powerUserFrameRateDescription": {
+    "description": "Group description"
+  },
+  "powerUserFrameRateSwitch": "Match Frame Rate",
+  "@powerUserFrameRateSwitch": {
+    "description": "Switch title"
+  },
+  "powerUserPassthroughTitle": "Surround sound passthrough",
+  "@powerUserPassthroughTitle": {
+    "description": "Group heading"
+  },
+  "powerUserPassthroughDescription": "Sends Dolby and DTS sound untouched to a soundbar, receiver or TV that decodes it. It pauses by itself while Multi-view is on.",
+  "@powerUserPassthroughDescription": {
+    "description": "Group description. Multi-view is a feature name (several channels on one screen)"
+  },
+  "powerUserPassthroughAuto": "Uses it when your sound system says it can. Recommended.",
+  "@powerUserPassthroughAuto": {
+    "description": "Option description"
+  },
+  "powerUserPassthroughOn": "Always send surround sound as it is. Only if a soundbar or receiver can decode it, otherwise you may get no sound.",
+  "@powerUserPassthroughOn": {
+    "description": "Option description"
+  },
+  "powerUserPassthroughOff": "The device always decodes the sound itself. Pick this for built-in TV speakers or if the sound cuts out or crackles.",
+  "@powerUserPassthroughOff": {
+    "description": "Option description"
+  },
+  "powerUserTunnelingTitle": "Tunneled playback",
+  "@powerUserTunnelingTitle": {
+    "description": "Group heading"
+  },
+  "powerUserTunnelingDescription": "Lets the video and sound chips work together directly, which can ease stutter on demanding streams. It pauses by itself while Multi-view is on.",
+  "@powerUserTunnelingDescription": {
+    "description": "Group description"
+  },
+  "powerUserTunnelingAuto": "Used only on devices where it has been checked to work. Recommended.",
+  "@powerUserTunnelingAuto": {
+    "description": "Option description"
+  },
+  "powerUserTunnelingOn": "Experimental, live channels only. If it stalls or shows a black picture, OpenIPTV switches it off by itself; you can also turn it off here.",
+  "@powerUserTunnelingOn": {
+    "description": "Option description"
+  },
+  "powerUserTunnelingOff": "Never used.",
+  "@powerUserTunnelingOff": {
+    "description": "Option description"
+  },
+  "powerUserLayerTitle": "Video layer",
+  "@powerUserLayerTitle": {
+    "description": "Group heading"
+  },
+  "powerUserLayerDescription": "Shows the main picture the way TV players do: smoother motion, quicker channel changes, and what tunneled playback needs. Takes effect when the app restarts.",
+  "@powerUserLayerDescription": {
+    "description": "Group description"
+  },
+  "powerUserLayerChangeFailed": "Couldn't change the video layer setting.",
+  "@powerUserLayerChangeFailed": {
+    "description": "Snackbar"
+  },
+  "powerUserRestartTitle": "Restart to apply?",
+  "@powerUserRestartTitle": {
+    "description": "Dialog title"
+  },
+  "powerUserRestartLayerBody": "OpenIPTV needs to restart to change how it shows the picture. Anything playing will stop.",
+  "@powerUserRestartLayerBody": {
+    "description": "Dialog body"
+  },
+  "powerUserRestartGraphicsBody": "OpenIPTV needs to restart to change how it draws the screen. Anything playing will stop.",
+  "@powerUserRestartGraphicsBody": {
+    "description": "Dialog body"
+  },
+  "powerUserLater": "Later",
+  "@powerUserLater": {
+    "description": "Dialog button"
+  },
+  "powerUserRestartNow": "Restart now",
+  "@powerUserRestartNow": {
+    "description": "Dialog button"
+  },
+  "powerUserRestartFailed": "Couldn't restart. Close and open OpenIPTV to apply it.",
+  "@powerUserRestartFailed": {
+    "description": "Snackbar"
+  },
+  "powerUserGraphicsTitle": "Graphics mode",
+  "@powerUserGraphicsTitle": {
+    "description": "Group heading"
+  },
+  "powerUserGraphicsDescription": "How OpenIPTV draws the screen and the video. If the picture looks torn (a line across it) or jittery on fast motion, try Compatible. Takes effect when the app restarts.",
+  "@powerUserGraphicsDescription": {
+    "description": "Group description. \"Compatible\" is the option graphicsModeCompatibleLabel"
+  },
+  "powerUserGraphicsThisDevice": "This device: {chip}.",
+  "@powerUserGraphicsThisDevice": {
+    "description": "Line in the description. {chip} is the chip model name, not translated",
+    "placeholders": {
+      "chip": {
+        "type": "String"
+      }
+    }
+  },
+  "powerUserGraphicsChangeFailed": "Couldn't change the graphics mode.",
+  "@powerUserGraphicsChangeFailed": {
+    "description": "Snackbar"
+  },
+  "powerUserUaTitle": "User agent",
+  "@powerUserUaTitle": {
+    "description": "Group heading, dialog title and field label. A user agent is the name a program sends to a server to identify itself"
+  },
+  "powerUserUaDescription": "How the player introduces itself to your provider. OpenIPTV sends its own name, version and device. Change it only if your provider asks for a particular one. Each extra channel in multi-view adds its own tag on the end, so your provider can tell them apart. Applies from the next channel you open.",
+  "@powerUserUaDescription": {
+    "description": "Group description"
+  },
+  "powerUserUaRow": "Player user agent",
+  "@powerUserUaRow": {
+    "description": "Row title"
+  },
+  "powerUserUaDefault": "OpenIPTV (default)",
+  "@powerUserUaDefault": {
+    "description": "Row value when no custom user agent is set"
+  },
+  "powerUserUaEmptyNote": "Leave it empty to use OpenIPTV's own.",
+  "@powerUserUaEmptyNote": {
+    "description": "Note in the user agent dialog"
+  },
+  "powerUserUaHint": "e.g. VLC/3.0.20 LibVLC/3.0.20",
+  "@powerUserUaHint": {
+    "description": "Example value in the user agent field"
+  },
+  "powerUserUseDefault": "Use default",
+  "@powerUserUseDefault": {
+    "description": "Dialog button that clears the custom user agent"
+  },
+  "extraGuidesTitle": "Extra Guides",
+  "@extraGuidesTitle": {
+    "description": "App bar title of the Extra Guides settings page (TV guide files the user adds)"
+  },
+  "extraGuidesModeExplicit": "Explicit",
+  "@extraGuidesModeExplicit": {
+    "description": "Matching mode name (strictest)"
+  },
+  "extraGuidesModeExplicitDesc": "Only when the channel's guide ID is exactly the same as the guide's. Safest; channels without an ID are left alone.",
+  "@extraGuidesModeExplicitDesc": {
+    "description": "Description of the Explicit matching mode"
+  },
+  "extraGuidesModeStandard": "Standard",
+  "@extraGuidesModeStandard": {
+    "description": "Matching mode name (default)"
+  },
+  "extraGuidesModeStandardDesc": "The guide ID, or exactly the same channel name. US local stations are matched by call sign.",
+  "@extraGuidesModeStandardDesc": {
+    "description": "Description of the Standard matching mode. Call sign = US station code such as WABC"
+  },
+  "extraGuidesModeOptimistic": "Optimistic",
+  "@extraGuidesModeOptimistic": {
+    "description": "Matching mode name (loosest)"
+  },
+  "extraGuidesModeOptimisticDesc": "Also channels whose names are only alike. Finds more, but some guesses will be wrong; you can fix any in Review Guide Matches.",
+  "@extraGuidesModeOptimisticDesc": {
+    "description": "Description of the Optimistic matching mode. Review Guide Matches is the row extraGuidesReviewMatchesTitle"
+  },
+  "extraGuidesMatchingModeTitle": "Matching Mode",
+  "@extraGuidesMatchingModeTitle": {
+    "description": "Row title and dialog title for choosing how strictly channels are matched to guides"
+  },
+  "extraGuidesQueued": "Will apply this as soon as the current update finishes.",
+  "@extraGuidesQueued": {
+    "description": "Snackbar when the user changes a setting while a guide update is already running"
+  },
+  "extraGuidesStarting": "Starting…",
+  "@extraGuidesStarting": {
+    "description": "Status line shown when a guide update begins"
+  },
+  "extraGuidesUpdated": "{count, plural, =1{Guides updated: 1 channel linked.} other{Guides updated: {count} channels linked.}}",
+  "@extraGuidesUpdated": {
+    "description": "Snackbar after the guides were read and channels matched",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extraGuidesUpdateFailed": "The guides couldn't be updated.",
+  "@extraGuidesUpdateFailed": {
+    "description": "Snackbar when updating the guides failed"
+  },
+  "extraGuidesChecking": "Checking the guide…",
+  "@extraGuidesChecking": {
+    "description": "Status line while a newly added guide is being downloaded and checked"
+  },
+  "extraGuidesAlreadyAdded": "That guide is already in your list.",
+  "@extraGuidesAlreadyAdded": {
+    "description": "Snackbar when the user adds a guide address that is already added"
+  },
+  "extraGuidesAdded": "{count, plural, =1{Added \"{name}\" with 1 channel. Matching channels…} other{Added \"{name}\" with {count} channels. Matching channels…}}",
+  "@extraGuidesAdded": {
+    "description": "Snackbar after a guide was added. name is the guide name; count the number of channels it lists",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extraGuidesRemoveTitle": "Remove \"{name}\"?",
+  "@extraGuidesRemoveTitle": {
+    "description": "Confirmation dialog title for removing an extra guide",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extraGuidesRemoveBody": "Channels that were matched to this guide lose its programmes. Your playlists are not affected.",
+  "@extraGuidesRemoveBody": {
+    "description": "Body of the remove-guide confirmation dialog"
+  },
+  "extraGuidesRemove": "Remove",
+  "@extraGuidesRemove": {
+    "description": "Button / menu item that removes an extra guide"
+  },
+  "extraGuidesUpdateNow": "Update Now",
+  "@extraGuidesUpdateNow": {
+    "description": "Menu item: update this guide now"
+  },
+  "extraGuidesTurnOff": "Turn Off",
+  "@extraGuidesTurnOff": {
+    "description": "Menu item: stop using this guide"
+  },
+  "extraGuidesTurnOn": "Turn On",
+  "@extraGuidesTurnOn": {
+    "description": "Menu item: use this guide again"
+  },
+  "extraGuidesMoveUp": "Move Up (Used First)",
+  "@extraGuidesMoveUp": {
+    "description": "Menu item: move the guide up the list; guides higher up are used first"
+  },
+  "extraGuidesMoveDown": "Move Down",
+  "@extraGuidesMoveDown": {
+    "description": "Menu item: move the guide down the list"
+  },
+  "extraGuidesFillTitle": "Fill in missing guides",
+  "@extraGuidesFillTitle": {
+    "description": "Group heading on the Extra Guides page"
+  },
+  "extraGuidesFillDescription": "Your playlist's own TV guide is always used first. A channel it does not cover is matched by name to the guides you add here. You can also pick a guide for any channel yourself: hold OK (or long-press) a channel → Change Guide.\n\nWorks with .xml, .xml.gz and zipped guides, as long as they unpack to XML. OpenIPTV does not provide guides, but community sites publish them: a web search for \"XMLTV EPG\" is a good place to start. 😉",
+  "@extraGuidesFillDescription": {
+    "description": "Explanatory paragraph at the top of Extra Guides. \"Change Guide\" is the menu item changeGuideTitle. The wink emoji is intentional (hint, not a recommendation); keep the search phrase \"XMLTV EPG\" untranslated"
+  },
+  "extraGuidesYourGuides": "Your Guides",
+  "@extraGuidesYourGuides": {
+    "description": "Group heading listing the guides the user added"
+  },
+  "extraGuidesListHint": "Guides higher in the list are used first.",
+  "@extraGuidesListHint": {
+    "description": "Hint under the Your Guides heading"
+  },
+  "extraGuidesListHintEmpty": "None yet. Guides higher in the list are used first.",
+  "@extraGuidesListHintEmpty": {
+    "description": "Hint under the Your Guides heading when no guide was added yet"
+  },
+  "extraGuidesAddTitle": "Add a Guide",
+  "@extraGuidesAddTitle": {
+    "description": "Row title and dialog title for adding a guide"
+  },
+  "extraGuidesAddSubtitle": "A web address ending in .xml, .xml.gz or .zip",
+  "@extraGuidesAddSubtitle": {
+    "description": "Subtitle of the Add a Guide row"
+  },
+  "extraGuidesMatchingGroup": "Matching",
+  "@extraGuidesMatchingGroup": {
+    "description": "Group heading for the matching options"
+  },
+  "extraGuidesAutoMatchTitle": "Match Channels Automatically",
+  "@extraGuidesAutoMatchTitle": {
+    "description": "Switch title"
+  },
+  "extraGuidesAutoMatchSubtitle": "Channels without a guide are matched to the guides above. Never changes a channel that already has a guide.",
+  "@extraGuidesAutoMatchSubtitle": {
+    "description": "Switch subtitle"
+  },
+  "extraGuidesMatchAndUpdate": "Match and Update Now",
+  "@extraGuidesMatchAndUpdate": {
+    "description": "Row title: run matching and update the guides immediately"
+  },
+  "extraGuidesReviewMatchesTitle": "Review Guide Matches",
+  "@extraGuidesReviewMatchesTitle": {
+    "description": "Row title opening the list of channels that were matched to a guide"
+  },
+  "extraGuidesNoMatchesYet": "No channels matched yet",
+  "@extraGuidesNoMatchesYet": {
+    "description": "Subtitle when no channel is linked to an extra guide"
+  },
+  "extraGuidesMatchSummary": "{auto} matched automatically · {manual} chosen by you",
+  "@extraGuidesMatchSummary": {
+    "description": "Subtitle with the numbers of channels matched automatically and by hand",
+    "placeholders": {
+      "auto": {
+        "type": "int"
+      },
+      "manual": {
+        "type": "int"
+      }
+    }
+  },
+  "extraGuidesLastError": "{error}\nLast read {when}.",
+  "@extraGuidesLastError": {
+    "description": "Guide row subtitle: error message, then when the guide was last read successfully. when is a phrase such as \"5 min ago\"",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "extraGuidesNotRead": "Not read yet",
+  "@extraGuidesNotRead": {
+    "description": "Guide row subtitle before the first successful read"
+  },
+  "extraGuidesTileLine": "{channels, plural, =1{1 channel} other{{channels} channels}} · {used} used · read {when}",
+  "@extraGuidesTileLine": {
+    "description": "Guide row subtitle: how many channels the guide lists, how many are used, and when it was read. when is a phrase such as \"5 min ago\"",
+    "placeholders": {
+      "channels": {
+        "type": "int"
+      },
+      "used": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "extraGuidesTileLineOff": "{channels, plural, =1{1 channel} other{{channels} channels}} · {used} used · read {when} · off",
+  "@extraGuidesTileLineOff": {
+    "description": "Same as extraGuidesTileLine for a guide that is turned off",
+    "placeholders": {
+      "channels": {
+        "type": "int"
+      },
+      "used": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "extraGuidesNameLabel": "Name (optional)",
+  "@extraGuidesNameLabel": {
+    "description": "Text field label in the Add a Guide dialog"
+  },
+  "extraGuidesAddressLabel": "Guide address",
+  "@extraGuidesAddressLabel": {
+    "description": "Text field label for the guide web address"
+  },
+  "extraGuidesAddressInvalid": "Enter the guide address, starting with http:// or https://",
+  "@extraGuidesAddressInvalid": {
+    "description": "Error under the address field when it is not a web address"
+  },
+  "extraGuidesAddButton": "Add",
+  "@extraGuidesAddButton": {
+    "description": "Confirm button of the Add a Guide dialog"
+  },
+  "extraGuidesLinksTitle": "Guide Matches",
+  "@extraGuidesLinksTitle": {
+    "description": "App bar title of the list of channels matched to guides"
+  },
+  "extraGuidesLinksEmpty": "No channels are matched to an extra guide yet. Pick one for a channel with hold OK → Change Guide, or add a guide and let OpenIPTV match channels for you.",
+  "@extraGuidesLinksEmpty": {
+    "description": "Empty state of the Guide Matches list. Change Guide = changeGuideTitle"
+  },
+  "extraGuidesLinkNone": "No guide (your choice)",
+  "@extraGuidesLinkNone": {
+    "description": "Row subtitle: the user chose that this channel has no guide"
+  },
+  "extraGuidesLinkManual": "{id} · {guide} · your choice",
+  "@extraGuidesLinkManual": {
+    "description": "Row subtitle: guide channel id, guide name, chosen by the user",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      }
+    }
+  },
+  "extraGuidesLinkAuto": "{id} · {guide} · automatic",
+  "@extraGuidesLinkAuto": {
+    "description": "Row subtitle: guide channel id, guide name, matched automatically",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      }
+    }
+  },
+  "extraGuidesGuideFallback": "guide",
+  "@extraGuidesGuideFallback": {
+    "description": "Lowercase fallback word used where a guide name is unknown"
+  },
+  "guideDataAgoJustNow": "just now",
+  "@guideDataAgoJustNow": {
+    "description": "Relative time: less than a minute ago. Used inside sentences"
+  },
+  "guideDataAgoMinutes": "{count} min ago",
+  "@guideDataAgoMinutes": {
+    "description": "Relative time in minutes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideDataAgoHours": "{count} h ago",
+  "@guideDataAgoHours": {
+    "description": "Relative time in hours",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideDataAgoDays": "{count} d ago",
+  "@guideDataAgoDays": {
+    "description": "Relative time in days",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideDataTitle": "Guide Data",
+  "@guideDataTitle": {
+    "description": "App bar title of the Guide Data settings page"
+  },
+  "guideDataDaysTitle": "Days of guide to keep",
+  "@guideDataDaysTitle": {
+    "description": "Group heading"
+  },
+  "guideDataDaysDescription": "How far ahead the TV guide is stored. Fewer days makes the guide smaller and quicker to refresh. Catch-up history is kept as your provider offers it.",
+  "@guideDataDaysDescription": {
+    "description": "Group description. Catch-up = watching past programmes"
+  },
+  "guideDataDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@guideDataDays": {
+    "description": "Option label for a number of days",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideDataDaysDefault": "{count} days (default)",
+  "@guideDataDaysDefault": {
+    "description": "Option label for the default number of days",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideDataDetailsTitle": "Programme details",
+  "@guideDataDetailsTitle": {
+    "description": "Group heading"
+  },
+  "guideDataDetailsDescription": "Descriptions are most of the guide's size. Turn them off to save space; titles and times stay. Turning them off removes the stored ones now.",
+  "@guideDataDetailsDescription": {
+    "description": "Group description"
+  },
+  "guideDataStoreDescriptions": "Store Programme Descriptions",
+  "@guideDataStoreDescriptions": {
+    "description": "Switch title"
+  },
+  "guideDataDescriptionsBack": "Descriptions come back the next time the TV guide refreshes.",
+  "@guideDataDescriptionsBack": {
+    "description": "Snackbar after turning descriptions back on"
+  },
+  "guideDataLastUpdate": "Last update",
+  "@guideDataLastUpdate": {
+    "description": "Group heading showing when each playlist guide was last updated"
+  },
+  "guideDataNoGuides": "None of your playlists has a TV guide.",
+  "@guideDataNoGuides": {
+    "description": "Group description when no playlist has a guide"
+  },
+  "guideDataClearGroup": "Clear",
+  "@guideDataClearGroup": {
+    "description": "Group heading"
+  },
+  "guideDataClearTitle": "Clear Guide Data?",
+  "@guideDataClearTitle": {
+    "description": "Confirmation dialog title"
+  },
+  "guideDataClearBody": "This removes the stored TV guide for every playlist. Your playlists and channels stay. Refresh the TV guides to load it again.",
+  "@guideDataClearBody": {
+    "description": "Confirmation dialog body"
+  },
+  "guideDataClearButton": "Clear",
+  "@guideDataClearButton": {
+    "description": "Confirm button of the clear dialog"
+  },
+  "guideDataClearRowTitle": "Clear Guide Data",
+  "@guideDataClearRowTitle": {
+    "description": "Row title"
+  },
+  "guideDataClearRowSubtitle": "Removes the stored guide for every playlist",
+  "@guideDataClearRowSubtitle": {
+    "description": "Row subtitle"
+  },
+  "guideDataClearing": "Clearing…",
+  "@guideDataClearing": {
+    "description": "Row subtitle while clearing"
+  },
+  "guideDataCleared": "Guide data cleared.",
+  "@guideDataCleared": {
+    "description": "Snackbar after clearing"
+  },
+  "guideDataLastLoaded": "{error}\nLast loaded {when}, {count, plural, =1{1 programme} other{{count} programmes}} kept.",
+  "@guideDataLastLoaded": {
+    "description": "Playlist row subtitle after a failed update: error message, when it last loaded, how many programmes remain. when is a phrase such as \"5 min ago\"",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "guideDataUpdated": "Updated {when} · {count, plural, =1{1 programme} other{{count} programmes}}",
+  "@guideDataUpdated": {
+    "description": "Playlist row subtitle: when the guide was updated and how many programmes it holds. when is a phrase such as \"5 min ago\"",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "guideDataStored": "{count, plural, =1{1 programme stored} other{{count} programmes stored}}",
+  "@guideDataStored": {
+    "description": "Playlist row subtitle when the guide has data but no recorded update time",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "guideDataNotLoaded": "Not loaded yet",
+  "@guideDataNotLoaded": {
+    "description": "Playlist row subtitle when no guide data exists"
+  },
+  "changeGuideTitle": "Change Guide",
+  "@changeGuideTitle": {
+    "description": "Menu item and app bar title for picking which guide supplies a channel's programmes"
+  },
+  "changeGuideDescribeDefault": "Using the playlist's own guide (or a smart match, if it has none)",
+  "@changeGuideDescribeDefault": {
+    "description": "Subtitle: the channel has no manual choice"
+  },
+  "changeGuideDescribeNone": "No guide, as you chose",
+  "@changeGuideDescribeNone": {
+    "description": "Subtitle: the user chose no guide for this channel"
+  },
+  "changeGuideDescribeManual": "You chose {id} in {guide}",
+  "@changeGuideDescribeManual": {
+    "description": "Subtitle: manual choice. id = guide channel id; guide = guide name or changeGuideGuideFallback",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      }
+    }
+  },
+  "changeGuideDescribeAuto": "Matched automatically to {id} in {guide}",
+  "@changeGuideDescribeAuto": {
+    "description": "Subtitle: automatic match. id = guide channel id; guide = guide name or changeGuideGuideFallback",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      }
+    }
+  },
+  "changeGuideGuideFallback": "a guide",
+  "@changeGuideGuideFallback": {
+    "description": "Used in place of a guide name when unknown: \"… in a guide\""
+  },
+  "changeGuideLoading": "Loading the guide, this can take a minute…",
+  "@changeGuideLoading": {
+    "description": "Snackbar while a chosen guide is being downloaded"
+  },
+  "changeGuideLoaded": "Guide changed and loaded.",
+  "@changeGuideLoaded": {
+    "description": "Snackbar when the chosen guide loaded"
+  },
+  "changeGuideRemoved": "Guide removed.",
+  "@changeGuideRemoved": {
+    "description": "Snackbar after choosing no guide"
+  },
+  "changeGuideBackToAuto": "Back to automatic.",
+  "@changeGuideBackToAuto": {
+    "description": "Snackbar after resetting the channel guide to automatic"
+  },
+  "changeGuideNoGuidesTitle": "No guides to pick from yet",
+  "@changeGuideNoGuidesTitle": {
+    "description": "Empty state title"
+  },
+  "changeGuideNoGuidesBody": "Add one in Settings → Playlists & Guides → Extra Guides, or refresh your TV guides.",
+  "@changeGuideNoGuidesBody": {
+    "description": "Empty state body. Names must match the Settings labels"
+  },
+  "changeGuideSearchHint": "Search the guides",
+  "@changeGuideSearchHint": {
+    "description": "Search field hint"
+  },
+  "changeGuideSuggested": "Suggested",
+  "@changeGuideSuggested": {
+    "description": "Section heading above suggested guide channels"
+  },
+  "changeGuideResults": "Results",
+  "@changeGuideResults": {
+    "description": "Section heading above search results"
+  },
+  "changeGuideNothingFound": "Nothing found",
+  "@changeGuideNothingFound": {
+    "description": "Shown when search has no results"
+  },
+  "changeGuideGuideLabel": "Guide",
+  "@changeGuideGuideLabel": {
+    "description": "Fallback guide name shown before the guide channel id in a result row"
+  },
+  "changeGuideNoGuideTitle": "No Guide for This Channel",
+  "@changeGuideNoGuideTitle": {
+    "description": "Row title"
+  },
+  "changeGuideNoGuideSubtitle": "Clears its programmes and keeps it that way",
+  "@changeGuideNoGuideSubtitle": {
+    "description": "Row subtitle"
+  },
+  "changeGuideUseAutomatic": "Use Automatic",
+  "@changeGuideUseAutomatic": {
+    "description": "Row title: go back to automatic guide assignment"
+  },
+  "changeGuideUseAutomaticSubtitle": "The playlist's own guide, or a smart match",
+  "@changeGuideUseAutomaticSubtitle": {
+    "description": "Row subtitle"
+  },
+  "backupTitle": "Backup & Restore",
+  "@backupTitle": {
+    "description": "App bar title"
+  },
+  "backupExportGroup": "Export",
+  "@backupExportGroup": {
+    "description": "Group heading"
+  },
+  "backupExportInfoTitle": "Export Backup",
+  "@backupExportInfoTitle": {
+    "description": "Info tooltip title"
+  },
+  "backupExportInfoBody": "Exporting saves every profile, every source, and your app settings into a single .zip file. You can optionally protect it with a password.",
+  "@backupExportInfoBody": {
+    "description": "Info tooltip body"
+  },
+  "backupExportInfoTip": "Save this file somewhere safe — you'll need it to restore everything on a new device.",
+  "@backupExportInfoTip": {
+    "description": "Info tooltip tip"
+  },
+  "backupExportTitle": "Export Backup",
+  "@backupExportTitle": {
+    "description": "Row title"
+  },
+  "backupExportSubtitle": "Save all profiles, sources, and settings as a .zip file",
+  "@backupExportSubtitle": {
+    "description": "Row subtitle"
+  },
+  "backupRestoreGroup": "Restore",
+  "@backupRestoreGroup": {
+    "description": "Group heading"
+  },
+  "backupImportInfoTitle": "Restore Backup",
+  "@backupImportInfoTitle": {
+    "description": "Info tooltip title"
+  },
+  "backupImportInfoBody": "Importing reads a .zip backup file and adds its profiles and sources to this device. If the backup was password-protected, you'll be asked for the password used when it was exported.",
+  "@backupImportInfoBody": {
+    "description": "Info tooltip body"
+  },
+  "backupImportInfoTip": "Importing does not delete anything — your existing profiles are kept.",
+  "@backupImportInfoTip": {
+    "description": "Info tooltip tip"
+  },
+  "backupImportTitle": "Import Backup",
+  "@backupImportTitle": {
+    "description": "Row title"
+  },
+  "backupImportSubtitle": "Open a .zip backup file",
+  "@backupImportSubtitle": {
+    "description": "Row subtitle"
+  },
+  "backupPreparing": "Preparing backup…",
+  "@backupPreparing": {
+    "description": "Snackbar while the backup is being created"
+  },
+  "backupSavedTo": "Backup saved to {location}",
+  "@backupSavedTo": {
+    "description": "Snackbar after saving. location is a folder or file path",
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "backupShareSubject": "OpenIPTV backup",
+  "@backupShareSubject": {
+    "description": "Subject line of the share sheet / email when sharing the backup file"
+  },
+  "backupCreateFailed": "Couldn't create the backup file. Make sure you have storage permission and try again.",
+  "@backupCreateFailed": {
+    "description": "Error snackbar"
+  },
+  "backupSaveTitle": "Save Backup",
+  "@backupSaveTitle": {
+    "description": "Dialog title: where to put the backup file"
+  },
+  "backupSaveBody": "Save the backup file to this device, or share it to another app (email, cloud storage, …).",
+  "@backupSaveBody": {
+    "description": "Dialog body"
+  },
+  "backupShareButton": "Share…",
+  "@backupShareButton": {
+    "description": "Dialog button opening the system share sheet"
+  },
+  "backupSaveToDownloads": "Save to Downloads",
+  "@backupSaveToDownloads": {
+    "description": "Dialog button saving to the Downloads folder"
+  },
+  "backupRestoredProfiles": "{count, plural, =1{1 profile} other{{count} profiles}}",
+  "@backupRestoredProfiles": {
+    "description": "Part of the restore summary: number of profiles",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupRestoredSources": "{count, plural, =1{1 source} other{{count} sources}}",
+  "@backupRestoredSources": {
+    "description": "Part of the restore summary: number of sources (playlists)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupRestored": "Restored {profiles} and {sources}.",
+  "@backupRestored": {
+    "description": "Snackbar after restoring. profiles and sources are phrases from backupRestoredProfiles / backupRestoredSources",
+    "placeholders": {
+      "profiles": {
+        "type": "String"
+      },
+      "sources": {
+        "type": "String"
+      }
+    }
+  },
+  "backupPickTitle": "Choose a backup",
+  "@backupPickTitle": {
+    "description": "Title of the file picker"
+  },
+  "backupPickerFailed": "Couldn't open the file picker. Check that the app has file access permission and try again.",
+  "@backupPickerFailed": {
+    "description": "Error snackbar"
+  },
+  "backupOpenFailed": "Couldn't open this backup file. Make sure it's a valid OpenIPTV backup.",
+  "@backupOpenFailed": {
+    "description": "Error snackbar"
+  },
+  "backupProtectTitle": "Protect This Backup?",
+  "@backupProtectTitle": {
+    "description": "Dialog title"
+  },
+  "backupProtectBody": "Source credentials are stored in plain text inside the backup file. Optionally set a password to encrypt it — you'll need the same password to restore it.",
+  "@backupProtectBody": {
+    "description": "Dialog body"
+  },
+  "backupPasswordOptionalHint": "Password (optional)",
+  "@backupPasswordOptionalHint": {
+    "description": "Password field hint"
+  },
+  "backupSkip": "Skip",
+  "@backupSkip": {
+    "description": "Dialog button: export without a password"
+  },
+  "backupExportButton": "Export",
+  "@backupExportButton": {
+    "description": "Dialog button"
+  },
+  "backupProtectedTitle": "Backup is Protected",
+  "@backupProtectedTitle": {
+    "description": "Dialog title"
+  },
+  "backupProtectedBody": "This backup was protected with a password. Enter the password that was set when it was exported.",
+  "@backupProtectedBody": {
+    "description": "Dialog body"
+  },
+  "backupEnterPasswordHint": "Enter password",
+  "@backupEnterPasswordHint": {
+    "description": "Password field hint"
+  },
+  "backupRestoreButton": "Restore",
+  "@backupRestoreButton": {
+    "description": "Dialog button"
+  },
+  "updateManagedByPlay": "Updates for this install are managed by Google Play.",
+  "@updateManagedByPlay": {
+    "description": "Snackbar on Check for Updates when the app came from the Play Store"
+  },
+  "updateChecking": "Checking for updates…",
+  "@updateChecking": {
+    "description": "Snackbar while checking"
+  },
+  "updateCheckFailed": "Couldn't check for updates. Check your internet connection.",
+  "@updateCheckFailed": {
+    "description": "Snackbar"
+  },
+  "updateUpToDate": "You're up to date (version {version}).",
+  "@updateUpToDate": {
+    "description": "Snackbar when no newer version exists",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateAvailableTitle": "Update available",
+  "@updateAvailableTitle": {
+    "description": "Update dialog title"
+  },
+  "updateVersion": "Version {version}",
+  "@updateVersion": {
+    "description": "Dialog subtitle with the new version number",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateVersionFromTo": "Version {installed} → {latest}",
+  "@updateVersionFromTo": {
+    "description": "Dialog subtitle: installed version → new version",
+    "placeholders": {
+      "installed": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "updatePermissionBody": "To install updates, OpenIPTV needs permission to install apps.\n\nSelect Open Settings, turn on \"Allow from this source\", then come back here — the update will continue automatically.",
+  "@updatePermissionBody": {
+    "description": "Dialog body. Open Settings = updateOpenSettings; \"Allow from this source\" is Android's own switch label (use the Spanish Android wording)"
+  },
+  "updateDownloading": "Downloading…",
+  "@updateDownloading": {
+    "description": "Progress text without a percentage"
+  },
+  "updateDownloadingPercent": "Downloading… {percent}%",
+  "@updateDownloadingPercent": {
+    "description": "Progress text with a percentage",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "updateHandedOffBody": "Follow the prompts on screen to finish installing. OpenIPTV will restart on the new version.\n\nIf nothing appeared, or you cancelled, select Install again.",
+  "@updateHandedOffBody": {
+    "description": "Dialog body. Install again = updateInstallAgain"
+  },
+  "updateFailedBody": "The update couldn't be downloaded. Check your internet connection and try again.",
+  "@updateFailedBody": {
+    "description": "Dialog body"
+  },
+  "updateSkipVersion": "Skip this version",
+  "@updateSkipVersion": {
+    "description": "Dialog button"
+  },
+  "updateLater": "Later",
+  "@updateLater": {
+    "description": "Dialog button"
+  },
+  "updateNow": "Update now",
+  "@updateNow": {
+    "description": "Dialog button"
+  },
+  "updateOpenSettings": "Open Settings",
+  "@updateOpenSettings": {
+    "description": "Dialog button opening Android settings"
+  },
+  "updateClose": "Close",
+  "@updateClose": {
+    "description": "Dialog button"
+  },
+  "updateInstallAgain": "Install again",
+  "@updateInstallAgain": {
+    "description": "Dialog button"
+  },
+  "updateTryAgain": "Try again",
+  "@updateTryAgain": {
+    "description": "Dialog button"
+  },
+  "updateNoNotes": "No release notes provided.",
+  "@updateNoNotes": {
+    "description": "Shown when a release has no notes"
+  },
+  "reportsTitle": "Anonymous Reports",
+  "@reportsTitle": {
+    "description": "App bar title"
+  },
+  "reportsSwitchTitle": "Send anonymous crash reports",
+  "@reportsSwitchTitle": {
+    "description": "Switch title"
+  },
+  "reportsSwitchSubtitle": "Off unless you turn it on. Helps fix crashes faster.",
+  "@reportsSwitchSubtitle": {
+    "description": "Switch subtitle"
+  },
+  "reportsIntro": "When the app crashes or freezes, a short report is saved on this device and sent in the background soon after, never more than once every 10 minutes. It cannot be tied to you or to anything you watch.",
+  "@reportsIntro": {
+    "description": "Intro paragraph"
+  },
+  "reportsContainsHeading": "A report contains only this",
+  "@reportsContainsHeading": {
+    "description": "Heading"
+  },
+  "reportsContainsList": "• App version\n• Android version\n• Device maker and model\n• The date (no time)\n• What kind of problem (crash or freeze) and its name only\n• Where in the code it happened (up to 30 lines)",
+  "@reportsContainsList": {
+    "description": "Bullet list; keep the \"• \" bullets and line breaks"
+  },
+  "reportsNeverHeading": "Never included",
+  "@reportsNeverHeading": {
+    "description": "Heading"
+  },
+  "reportsNeverList": "• Playlists, logins, passwords or links\n• Channel, movie or series names, or what you watch\n• Search text, profile names or settings\n• IP addresses, device IDs, or any ID that could tie reports together\n• Error messages (they can contain links or names)",
+  "@reportsNeverList": {
+    "description": "Bullet list; keep the \"• \" bullets and line breaks"
+  },
+  "reportsWaitingHeading": "Waiting to be sent from this device",
+  "@reportsWaitingHeading": {
+    "description": "Heading"
+  },
+  "reportsNothingWaiting": "Nothing is waiting.",
+  "@reportsNothingWaiting": {
+    "description": "Shown when no report is queued"
+  },
+  "reportsDeleteWaiting": "Delete waiting reports",
+  "@reportsDeleteWaiting": {
+    "description": "Button"
+  },
+  "reportsCheckCodeHeading": "Check the code",
+  "@reportsCheckCodeHeading": {
+    "description": "Heading"
+  },
+  "reportsCheckCodeBody": "All of it lives in lib/telemetry/ in the OpenIPTV GitHub repository, with a short design note in docs/design/anonymous-stats.md.",
+  "@reportsCheckCodeBody": {
+    "description": "Body; keep file paths as is"
+  },
+  "playerPlay": "Play",
+  "@playerPlay": {
+    "description": "Tooltip of the play button in the player and cast remote (icon only)"
+  },
+  "playerPause": "Pause",
+  "@playerPause": {
+    "description": "Tooltip of the pause button in the player and cast remote (icon only)"
+  },
+  "playerChannels": "Channels",
+  "@playerChannels": {
+    "description": "Tooltip / label of the button that opens the channel list inside the player"
+  },
+  "castTitleCasting": "Casting",
+  "@castTitleCasting": {
+    "description": "Title of the sheet shown while connected to a cast device; also the fallback title of what is being cast"
+  },
+  "castDeviceFallback": "Cast device",
+  "@castDeviceFallback": {
+    "description": "Name shown when the connected cast device has no name"
+  },
+  "castConnected": "Connected",
+  "@castConnected": {
+    "description": "Status line under the connected cast device name"
+  },
+  "castStop": "Stop casting",
+  "@castStop": {
+    "description": "Button and tooltip that disconnects from the cast device"
+  },
+  "castPickerTitle": "Cast to",
+  "@castPickerTitle": {
+    "description": "Title of the sheet that lists TVs and speakers to cast to"
+  },
+  "castSearching": "Looking for TVs and speakers on your Wi-Fi…",
+  "@castSearching": {
+    "description": "Shown while the app searches the local network for cast devices"
+  },
+  "castConnecting": "Connecting…",
+  "@castConnecting": {
+    "description": "Shown under the cast device the user picked while connecting"
+  },
+  "castSameWifi": "Your phone and the TV need to be on the same Wi-Fi network.",
+  "@castSameWifi": {
+    "description": "Hint at the bottom of the cast device list"
+  },
+  "castCastTooltip": "Cast",
+  "@castCastTooltip": {
+    "description": "Tooltip of the cast button (icon only)"
+  },
+  "castYourTv": "your TV",
+  "@castYourTv": {
+    "description": "Fallback device name inserted into castPlayingOn / castOn when the cast device name is unknown"
+  },
+  "castPlayingOn": "Playing on {device}",
+  "@castPlayingOn": {
+    "description": "Heading of the cast remote screen. {device} is the cast device name or castYourTv",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "castCastingTo": "Casting to {device}",
+  "@castCastingTo": {
+    "description": "Tooltip of the cast button while connected",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "castOnDevice": "On {device}",
+  "@castOnDevice": {
+    "description": "Second line of the now-casting bar. {device} is the cast device name or castYourTv",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "castBack10": "Back 10 seconds",
+  "@castBack10": {
+    "description": "Tooltip of the rewind 10 seconds button on the cast remote"
+  },
+  "castForward10": "Forward 10 seconds",
+  "@castForward10": {
+    "description": "Tooltip of the forward 10 seconds button on the cast remote"
+  },
+  "castVolumeDown": "Volume down",
+  "@castVolumeDown": {
+    "description": "Tooltip of the volume down button on the cast remote"
+  },
+  "castVolumeUp": "Volume up",
+  "@castVolumeUp": {
+    "description": "Tooltip of the volume up button on the cast remote"
+  },
+  "catchupStartedMinutesAgo": "This show started {minutes, plural, =1{1 minute} other{{minutes} minutes}} ago. Where would you like to start?",
+  "@catchupStartedMinutesAgo": {
+    "description": "Body of the dialog asked when opening a channel whose current show already started and can be watched from the start. {minutes} is how long ago it began (under an hour)",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "catchupStartedHoursAgo": "This show started {hours, plural, =1{1 hour} other{{hours} hours}} ago. Where would you like to start?",
+  "@catchupStartedHoursAgo": {
+    "description": "Body of the dialog asked when opening a channel whose current show already started and can be watched from the start. Whole hours ago",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "catchupStartedHoursMinutesAgo": "This show started {hours}h {minutes}m ago. Where would you like to start?",
+  "@catchupStartedHoursMinutesAgo": {
+    "description": "Body of the dialog asked when opening a channel whose current show already started and can be watched from the start. Hours and minutes ago, compact",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "catchupStartFromBeginning": "Start from the beginning",
+  "@catchupStartFromBeginning": {
+    "description": "Dialog button: play the show from its start (catch-up)"
+  },
+  "catchupWatchLive": "Watch live",
+  "@catchupWatchLive": {
+    "description": "Dialog button: watch the live broadcast"
+  },
+  "playerClose": "Close",
+  "@playerClose": {
+    "description": "Tooltip of a round close (X) button in the player and its panels (icon only)"
+  },
+  "channelSwitcherBarrier": "Close channels",
+  "@channelSwitcherBarrier": {
+    "description": "Accessibility label of the area outside the channel panel that closes it"
+  },
+  "channelSwitcherFavorites": "Favorites",
+  "@channelSwitcherFavorites": {
+    "description": "Name of the favourite channels category in the in-player channel panel"
+  },
+  "channelSwitcherTitle": "Channels",
+  "@channelSwitcherTitle": {
+    "description": "Title of the channel panel that slides in over the video"
+  },
+  "channelSwitcherPrevCategory": "Previous category",
+  "@channelSwitcherPrevCategory": {
+    "description": "Tooltip of the arrow that goes to the previous channel category"
+  },
+  "channelSwitcherNextCategory": "Next category",
+  "@channelSwitcherNextCategory": {
+    "description": "Tooltip of the arrow that goes to the next channel category"
+  },
+  "channelSwitcherNowWatching": "Now watching",
+  "@channelSwitcherNowWatching": {
+    "description": "Subtitle of the channel that is currently playing in the channel panel"
+  },
+  "channelSwitcherLive": "Live",
+  "@channelSwitcherLive": {
+    "description": "Subtitle of a channel with no programme information"
+  },
+  "playerChannelUnavailableNow": "This channel isn't available right now.",
+  "@playerChannelUnavailableNow": {
+    "description": "Plain-English error shown over a channel that cannot play (player and multi-view tiles)"
+  },
+  "multiViewFullScreen": "Full screen",
+  "@multiViewFullScreen": {
+    "description": "Option in the multi-view tile menu: show this channel full screen"
+  },
+  "multiViewSwap": "Swap channel",
+  "@multiViewSwap": {
+    "description": "Option in the multi-view tile menu: replace this tile with another channel"
+  },
+  "multiViewAdd": "Add a channel",
+  "@multiViewAdd": {
+    "description": "Option in the multi-view tile menu: add another channel tile; also the tooltip of the player button that starts multi-view"
+  },
+  "multiViewLayout": "Layout",
+  "@multiViewLayout": {
+    "description": "Label of the multi-view layout choice (equal grid or one big tile)"
+  },
+  "multiViewEqualGrid": "Equal grid",
+  "@multiViewEqualGrid": {
+    "description": "Multi-view layout choice: all tiles the same size"
+  },
+  "multiViewOneBig": "One big",
+  "@multiViewOneBig": {
+    "description": "Multi-view layout choice: one large tile and the rest small"
+  },
+  "multiViewRemove": "Remove",
+  "@multiViewRemove": {
+    "description": "Option in the multi-view tile menu: remove this tile"
+  },
+  "multiViewHintOptions": "Double tap for options",
+  "@multiViewHintOptions": {
+    "description": "Screen reader hint on the highlighted multi-view tile"
+  },
+  "multiViewHintHear": "Double tap to hear this channel",
+  "@multiViewHintHear": {
+    "description": "Screen reader hint on a multi-view tile that is not playing sound"
+  },
+  "multiViewNoDecoder": "This device can't play another channel at the same time.",
+  "@multiViewNoDecoder": {
+    "description": "Error on a multi-view tile when the device has no free video decoder"
+  },
+  "multiViewProviderRefused": "Your provider didn't allow another stream.",
+  "@multiViewProviderRefused": {
+    "description": "Error on a multi-view tile when the provider refuses an extra connection"
+  },
+  "playerBackSeconds": "Back {seconds} seconds",
+  "@playerBackSeconds": {
+    "description": "Tooltip of the rewind button; {seconds} is 5, 10 or 30",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "playerForwardSeconds": "Forward {seconds} seconds",
+  "@playerForwardSeconds": {
+    "description": "Tooltip of the fast-forward button; {seconds} is 5, 10 or 30",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "playerSubtitles": "Subtitles",
+  "@playerSubtitles": {
+    "description": "Tooltip of the subtitles button in the player; also the title of the subtitles sheet and the row label"
+  },
+  "playerRemoveFavorite": "Remove from Favorites",
+  "@playerRemoveFavorite": {
+    "description": "Tooltip of the star button when the channel is already a favourite"
+  },
+  "playerAddFavorite": "Add to Favorites",
+  "@playerAddFavorite": {
+    "description": "Tooltip of the star button when the channel is not a favourite"
+  },
+  "playerTvGuide": "TV Guide",
+  "@playerTvGuide": {
+    "description": "Tooltip of the button that opens the programme guide for this channel"
+  },
+  "playerSettingsTooltip": "Playback settings",
+  "@playerSettingsTooltip": {
+    "description": "Tooltip of the gear button in the player; also the title of the settings sheet"
+  },
+  "playerTimeLeft": "{duration} left",
+  "@playerTimeLeft": {
+    "description": "Time remaining in the programme on air. {duration} is a compact duration such as 45m or 1h 5m",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "playerNextProgramme": "Next: {title}",
+  "@playerNextProgramme": {
+    "description": "Name of the programme that follows the current one. {title} is the programme title",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerLiveBadge": "LIVE",
+  "@playerLiveBadge": {
+    "description": "Small badge in the player shown while watching the live edge of a channel (all caps)"
+  },
+  "playerGoLive": "Go live",
+  "@playerGoLive": {
+    "description": "Small button in the player that jumps back to the live broadcast after pausing or rewinding"
+  },
+  "playerStreamDetails": "Stream details: {details}",
+  "@playerStreamDetails": {
+    "description": "Screen reader label of the quality chip. {details} is e.g. 1080p HD, 50 FPS",
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
+  "playerNoticeAudioDelay": "The audio delay didn't work with this stream, so it was set back to None. Playback carries on as normal.",
+  "@playerNoticeAudioDelay": {
+    "description": "Snackbar shown when the audio delay setting could not be applied. \"None\" is the name of the zero choice in the audio delay setting (playerAudioDelayNone)"
+  },
+  "playerNoticePassthrough": "Surround sound passthrough didn't work on this device, so it was switched off and the sound is playing normally. You can try it again in Power User Tools.",
+  "@playerNoticePassthrough": {
+    "description": "Snackbar when surround sound passthrough failed. \"Power User Tools\" is the name of an advanced settings page"
+  },
+  "playerNoticeTunneled": "Tunneled playback didn't work on this device, so it was switched off. You can try it again in Power User Tools.",
+  "@playerNoticeTunneled": {
+    "description": "Snackbar when tunneled video playback failed. \"Power User Tools\" is the name of an advanced settings page"
+  },
+  "playerErrorProviderRefused": "Your provider didn't allow this stream.",
+  "@playerErrorProviderRefused": {
+    "description": "Error when the provider rejected the stream with a permission error"
+  },
+  "playerErrorChannelProvider": "This channel isn't available from your provider right now.",
+  "@playerErrorChannelProvider": {
+    "description": "Error when the provider cannot deliver this channel"
+  },
+  "playerErrorTitleProvider": "This title isn't available from your provider right now.",
+  "@playerErrorTitleProvider": {
+    "description": "Error when the provider cannot deliver this movie or episode"
+  },
+  "castThisDevice": "this device",
+  "@castThisDevice": {
+    "description": "Fallback device name used in castFailedChannel / castFailedTitle"
+  },
+  "castFailedChannel": "This channel can't be played on {device}. Stop casting to watch it here.",
+  "@castFailedChannel": {
+    "description": "Error shown on the cast remote when the cast device cannot play a channel",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "castFailedTitle": "This title can't be played on {device}. Stop casting to watch it here.",
+  "@castFailedTitle": {
+    "description": "Error shown on the cast remote when the cast device cannot play a movie or episode",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "playerResumeTitle": "Resume Watching?",
+  "@playerResumeTitle": {
+    "description": "Title of the dialog offering to continue a movie or episode where it was left"
+  },
+  "playerResumeBody": "Continue from {position}?",
+  "@playerResumeBody": {
+    "description": "Body of the resume dialog. {position} is a clock time such as 12:34",
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "playerStartOver": "Start Over",
+  "@playerStartOver": {
+    "description": "Resume dialog button: play from the start"
+  },
+  "playerResume": "Resume",
+  "@playerResume": {
+    "description": "Resume dialog button: continue from the saved position"
+  },
+  "playerVideoSemantics": "Video",
+  "@playerVideoSemantics": {
+    "description": "Screen reader label of the whole video area"
+  },
+  "playerVideoSemanticsHint": "Double tap to show or hide the playback controls",
+  "@playerVideoSemanticsHint": {
+    "description": "Screen reader hint of the whole video area"
+  },
+  "playerReconnecting": "Reconnecting…",
+  "@playerReconnecting": {
+    "description": "Status shown over the video while the app reconnects to the stream"
+  },
+  "playerReconnectingAttempt": "Reconnecting… ({attempt} of {max})",
+  "@playerReconnectingAttempt": {
+    "description": "Status shown while reconnecting a stream that has not played yet",
+    "placeholders": {
+      "attempt": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "playerUpNext": "Up next",
+  "@playerUpNext": {
+    "description": "Heading of the banner offering the next episode"
+  },
+  "playerPlayNow": "Play now",
+  "@playerPlayNow": {
+    "description": "Button on the next-episode banner that starts it immediately"
+  },
+  "playerStreamNotPlaying": "This stream isn't playing right now",
+  "@playerStreamNotPlaying": {
+    "description": "Default headline of the player error screen"
+  },
+  "playerTryAgain": "Try again",
+  "@playerTryAgain": {
+    "description": "Player error screen button that retries the stream"
+  },
+  "playerGoBack": "Go back",
+  "@playerGoBack": {
+    "description": "Player error screen button that leaves the player"
+  },
+  "playerSubtitlesOff": "Off",
+  "@playerSubtitlesOff": {
+    "description": "Choice in the subtitles row: no subtitles"
+  },
+  "playerNoSubtitlesLive": "No subtitles detected on this channel yet. Captions appear here as soon as the broadcast sends them.",
+  "@playerNoSubtitlesLive": {
+    "description": "Hint under the subtitles row when a live channel has no subtitle tracks yet"
+  },
+  "playerNoSubtitlesVideo": "This video has no subtitles.",
+  "@playerNoSubtitlesVideo": {
+    "description": "Hint under the subtitles row when a movie or episode has no subtitle tracks"
+  },
+  "playerAudio": "Audio",
+  "@playerAudio": {
+    "description": "Label of the audio track row in the player settings; also the fallback name of an unlabelled audio track"
+  },
+  "playerPicture": "Picture",
+  "@playerPicture": {
+    "description": "Label of the picture fit row in the player settings"
+  },
+  "playerPictureFit": "Fit",
+  "@playerPictureFit": {
+    "description": "Picture choice: whole picture visible with bars if needed"
+  },
+  "playerPictureZoom": "Zoom",
+  "@playerPictureZoom": {
+    "description": "Picture choice: enlarge to fill the screen, cropping the edges"
+  },
+  "playerPictureFill": "Fill screen",
+  "@playerPictureFill": {
+    "description": "Picture choice: stretch to fill the whole screen"
+  },
+  "playerClock": "Clock",
+  "@playerClock": {
+    "description": "Label of the clock row in the player settings"
+  },
+  "playerClockWithControls": "With controls",
+  "@playerClockWithControls": {
+    "description": "Clock choice: shown only when the controls are visible"
+  },
+  "playerClockAlwaysOn": "Always on",
+  "@playerClockAlwaysOn": {
+    "description": "Clock choice: always shown"
+  },
+  "playerAudioDelay": "Audio delay",
+  "@playerAudioDelay": {
+    "description": "Label of the audio delay row in the player settings"
+  },
+  "playerAudioDelayNone": "None",
+  "@playerAudioDelayNone": {
+    "description": "Audio delay choice: no delay"
+  },
+  "playerStreamDetailsLabel": "Stream details",
+  "@playerStreamDetailsLabel": {
+    "description": "Label of the row that shows or hides the quality chip"
+  },
+  "playerShow": "Show",
+  "@playerShow": {
+    "description": "Choice: show something"
+  },
+  "playerHide": "Hide",
+  "@playerHide": {
+    "description": "Choice: hide something"
+  },
+  "playerSpeed": "Speed",
+  "@playerSpeed": {
+    "description": "Label of the playback speed row (movies and episodes)"
+  },
+  "playerSpeedNormal": "Normal",
+  "@playerSpeedNormal": {
+    "description": "Playback speed choice for 1x"
+  },
+  "playerCaptions": "Captions",
+  "@playerCaptions": {
+    "description": "Name of the broadcast caption track (CEA-608)"
+  },
+  "playerCaptionsNumbered": "Captions {channel}",
+  "@playerCaptionsNumbered": {
+    "description": "Name of an extra broadcast caption channel",
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "playerDigitalCaptions": "Digital captions",
+  "@playerDigitalCaptions": {
+    "description": "Name of the broadcast digital caption track (CEA-708)"
+  },
+  "playerDigitalCaptionsNumbered": "Digital captions {channel}",
+  "@playerDigitalCaptionsNumbered": {
+    "description": "Name of an extra digital caption service",
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "playerLangEn": "English",
+  "@playerLangEn": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangEs": "Spanish",
+  "@playerLangEs": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangFr": "French",
+  "@playerLangFr": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangDe": "German",
+  "@playerLangDe": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangIt": "Italian",
+  "@playerLangIt": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangPt": "Portuguese",
+  "@playerLangPt": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangNl": "Dutch",
+  "@playerLangNl": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangAr": "Arabic",
+  "@playerLangAr": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangRu": "Russian",
+  "@playerLangRu": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangTr": "Turkish",
+  "@playerLangTr": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangPl": "Polish",
+  "@playerLangPl": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangHi": "Hindi",
+  "@playerLangHi": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangJa": "Japanese",
+  "@playerLangJa": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangKo": "Korean",
+  "@playerLangKo": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangZh": "Chinese",
+  "@playerLangZh": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangEl": "Greek",
+  "@playerLangEl": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangSv": "Swedish",
+  "@playerLangSv": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangDa": "Danish",
+  "@playerLangDa": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangNo": "Norwegian",
+  "@playerLangNo": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangFi": "Finnish",
+  "@playerLangFi": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangHe": "Hebrew",
+  "@playerLangHe": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "playerLangRo": "Romanian",
+  "@playerLangRo": {
+    "description": "Name of a language, shown as the name of an audio or subtitle track"
+  },
+  "carLibrarySetup": "Open OpenIPTV on your phone to get started",
+  "@carLibrarySetup": {
+    "description": "Message shown in the car (Android Auto) when the app has not been set up on the phone yet"
+  },
+  "carLibraryLiveTv": "Live TV",
+  "@carLibraryLiveTv": {
+    "description": "Android Auto browse tab name for live channels"
+  },
+  "carLibraryMovies": "Movies",
+  "@carLibraryMovies": {
+    "description": "Android Auto browse tab name for movies"
+  },
+  "carLibrarySeries": "Series",
+  "@carLibrarySeries": {
+    "description": "Android Auto browse tab name for series"
+  },
+  "carLibraryFavorites": "Favorites",
+  "@carLibraryFavorites": {
+    "description": "Android Auto folder of favourite channels, movies or series"
+  },
+  "carLibraryRecentlyWatched": "Recently Watched",
+  "@carLibraryRecentlyWatched": {
+    "description": "Android Auto folder of recently watched channels"
+  },
+  "carLibraryContinueWatching": "Continue Watching",
+  "@carLibraryContinueWatching": {
+    "description": "Android Auto folder of movies or episodes in progress"
+  },
+  "categoryToolsRename": "Rename Category",
+  "@categoryToolsRename": {
+    "description": "Menu action and dialog title: rename a Live TV category"
+  },
+  "categoryToolsMoveUp": "Move Up",
+  "@categoryToolsMoveUp": {
+    "description": "Menu action: move a category one place up the list"
+  },
+  "categoryToolsMoveDown": "Move Down",
+  "@categoryToolsMoveDown": {
+    "description": "Menu action: move a category one place down the list"
+  },
+  "categoryToolsResetName": "Reset Name",
+  "@categoryToolsResetName": {
+    "description": "Menu action: go back to the original category name"
+  },
+  "categoryToolsHide": "Hide Category",
+  "@categoryToolsHide": {
+    "description": "Menu action: hide a category from the list"
+  },
+  "categoryToolsNameHint": "Category name",
+  "@categoryToolsNameHint": {
+    "description": "Hint in the text field when renaming a category"
+  },
+  "categoryToolsRenameNote": "Only changes how it looks here. Leave it empty to go back to the original name.",
+  "@categoryToolsRenameNote": {
+    "description": "Helper text under the rename field"
+  },
+  "categoryToolsSave": "Save",
+  "@categoryToolsSave": {
+    "description": "Dialog button that saves the new name"
+  },
+  "liveTvRemoveFromRecent": "Remove from Recently Watched",
+  "@liveTvRemoveFromRecent": {
+    "description": "Menu action: remove a channel from the Recently Watched list"
+  },
+  "liveTvTitle": "Live TV",
+  "@liveTvTitle": {
+    "description": "Title of the Live TV screen"
+  },
+  "liveTvLoadError": "Couldn't load channels. Check your internet connection.",
+  "@liveTvLoadError": {
+    "description": "Error shown when the channel list fails to load"
+  },
+  "liveTvFavorites": "Favorites",
+  "@liveTvFavorites": {
+    "description": "Live TV row and category title for favorite channels"
+  },
+  "liveTvRecentlyWatched": "Recently Watched",
+  "@liveTvRecentlyWatched": {
+    "description": "Live TV row and category title for recently watched channels"
+  },
+  "liveTvCategories": "Categories",
+  "@liveTvCategories": {
+    "description": "Heading above the list of Live TV categories"
+  },
+  "liveTvAllChannels": "All Channels",
+  "@liveTvAllChannels": {
+    "description": "Category that lists every channel"
+  },
+  "liveTvNoChannels": "No channels here yet.",
+  "@liveTvNoChannels": {
+    "description": "Empty state when a category has no channels"
+  },
+  "liveTvRenameChannel": "Rename Channel",
+  "@liveTvRenameChannel": {
+    "description": "Menu action and dialog title: rename a channel"
+  },
+  "liveTvChannelNameHint": "Channel name",
+  "@liveTvChannelNameHint": {
+    "description": "Hint in the text field when renaming a channel"
+  },
+  "liveTvChannelHidden": "Channel hidden. Bring it back in Settings → Watching → Channel Lists → Hidden Channels.",
+  "@liveTvChannelHidden": {
+    "description": "Snackbar after hiding a channel; the path names Settings screens, keep them in sync with the settings strings"
+  },
+  "liveTvCatchupAvailable": "Catch-up available",
+  "@liveTvCatchupAvailable": {
+    "description": "Tooltip on the history icon of a channel that offers catch-up (watching past programmes)"
+  },
+  "liveTvNextProgramme": "Next  {time}  {title}",
+  "@liveTvNextProgramme": {
+    "description": "Line under a channel showing the next programme; time is a clock time, title the programme name",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "liveTvRemoveFromFavorites": "Remove from Favorites",
+  "@liveTvRemoveFromFavorites": {
+    "description": "Menu action / tooltip: remove a channel from favorites"
+  },
+  "liveTvAddToFavorites": "Add to Favorites",
+  "@liveTvAddToFavorites": {
+    "description": "Menu action / tooltip: add a channel to favorites"
+  },
+  "liveTvUseOriginalName": "Use the Original Name",
+  "@liveTvUseOriginalName": {
+    "description": "Menu action: undo a channel rename"
+  },
+  "liveTvChangeGuide": "Change Guide",
+  "@liveTvChangeGuide": {
+    "description": "Menu action: choose which TV guide a channel uses"
+  },
+  "liveTvHideChannel": "Hide Channel",
+  "@liveTvHideChannel": {
+    "description": "Menu action: hide a channel"
+  },
+  "liveTvLiveBadge": "Live",
+  "@liveTvLiveBadge": {
+    "description": "Shown under a channel card when no programme information is available"
+  },
+  "epgPanelCatchupUnavailable": "Catch-up is not available for this programme.",
+  "@epgPanelCatchupUnavailable": {
+    "description": "Snackbar when tapping a past programme that cannot be replayed"
+  },
+  "epgPanelToday": "Today",
+  "@epgPanelToday": {
+    "description": "Day label in the programme panel for the current day"
+  },
+  "epgPanelLoadError": "Couldn't load the TV guide. Your channels still work — guide info will retry automatically.",
+  "@epgPanelLoadError": {
+    "description": "Error in the programme panel when the guide fails to load"
+  },
+  "epgPanelNoInfo": "No guide information available for this day.",
+  "@epgPanelNoInfo": {
+    "description": "Empty state in the programme panel"
+  },
+  "epgPanelLiveBadge": "LIVE",
+  "@epgPanelLiveBadge": {
+    "description": "Small badge on the programme that is airing now; keep very short"
+  },
+  "tvGuideCategoryLocked": "This category is locked. Press OK on it to unlock it.",
+  "@tvGuideCategoryLocked": {
+    "description": "Message in the TV guide when the selected category is parental-locked; OK is the remote button"
+  },
+  "tvGuideStreamDenied": "Your provider didn't allow this stream.",
+  "@tvGuideStreamDenied": {
+    "description": "Shown over the guide preview when the provider rejects the stream (401/403)"
+  },
+  "tvGuideChannelUnavailable": "This channel isn't available right now.",
+  "@tvGuideChannelUnavailable": {
+    "description": "Shown over the guide preview when the channel cannot play"
+  },
+  "tvGuidePressOkToPreview": "Press OK to preview",
+  "@tvGuidePressOkToPreview": {
+    "description": "Hint over the guide preview area; OK is the remote button"
+  },
+  "tvGuideNoInfo": "No guide information",
+  "@tvGuideNoInfo": {
+    "description": "Guide cell / info line for a channel with no programme data"
+  },
+  "searchLoadError": "Couldn't load search results. Try again.",
+  "@searchLoadError": {
+    "description": "Error when a search fails"
+  },
+  "searchNoResultsTitle": "No results for \"{query}\"",
+  "@searchNoResultsTitle": {
+    "description": "Empty-state title; query is what the user typed",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoResultsBody": "Check the spelling, or try a channel, a movie or a show name.",
+  "@searchNoResultsBody": {
+    "description": "Empty-state hint under \"No results\""
+  },
+  "searchHint": "Search channels, movies and series",
+  "@searchHint": {
+    "description": "Placeholder text in the search field"
+  },
+  "searchWelcomeTitle": "Find something to watch",
+  "@searchWelcomeTitle": {
+    "description": "Title of the search screen before typing"
+  },
+  "searchWelcomeBody": "Search Live TV channels, movies, series — and what's on right now.",
+  "@searchWelcomeBody": {
+    "description": "Hint on the search screen before typing"
+  },
+  "searchRecentTitle": "Recent searches",
+  "@searchRecentTitle": {
+    "description": "Heading above the user's recent search chips"
+  },
+  "searchClearRecent": "Clear recent searches",
+  "@searchClearRecent": {
+    "description": "Button that clears the recent searches"
+  },
+  "searchEnterPinToUnlock": "Enter admin PIN to unlock \"{label}\"",
+  "@searchEnterPinToUnlock": {
+    "description": "Prompt in the PIN dialog; label is the name of a locked channel, movie or series",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "searchTomorrowAt": "Tomorrow {time}",
+  "@searchTomorrowAt": {
+    "description": "Programme start in search results; time is a clock time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "searchYesterdayAt": "Yesterday {time}",
+  "@searchYesterdayAt": {
+    "description": "Programme start in search results; time is a clock time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "searchOnNow": "On now",
+  "@searchOnNow": {
+    "description": "Row title: programmes airing right now"
+  },
+  "searchLiveTv": "Live TV",
+  "@searchLiveTv": {
+    "description": "Row title: matching channels"
+  },
+  "searchLive": "Live",
+  "@searchLive": {
+    "description": "Subtitle under a channel result with no programme information"
+  },
+  "searchComingUp": "Coming up",
+  "@searchComingUp": {
+    "description": "Row title: programmes that start later"
+  },
+  "searchEarlier": "Earlier",
+  "@searchEarlier": {
+    "description": "Row title: programmes that already aired (catch-up)"
+  },
+  "searchMovies": "Movies",
+  "@searchMovies": {
+    "description": "Row title: matching movies"
+  },
+  "searchSeries": "Series",
+  "@searchSeries": {
+    "description": "Row title: matching series"
+  },
+  "mediaRailSeeAll": "See all",
+  "@mediaRailSeeAll": {
+    "description": "Button at the right of a row heading that opens the full list; keep short"
+  },
+  "mediaRailEnterPin": "Enter PIN to view",
+  "@mediaRailEnterPin": {
+    "description": "Card in a parental-locked row; tapping asks for the PIN"
+  },
+  "detailLess": "Less",
+  "@detailLess": {
+    "description": "Button that collapses a long synopsis"
+  },
+  "detailMore": "More",
+  "@detailMore": {
+    "description": "Button that expands a long synopsis"
+  },
+  "detailStarring": "Starring  {cast}",
+  "@detailStarring": {
+    "description": "Cast line on a movie/series page; cast is a list of actor names",
+    "placeholders": {
+      "cast": {
+        "type": "String"
+      }
+    }
+  },
+  "detailDirector": "Director  {director}",
+  "@detailDirector": {
+    "description": "Director line on a movie/series page; director is a name",
+    "placeholders": {
+      "director": {
+        "type": "String"
+      }
+    }
+  },
+  "detailPlay": "Play",
+  "@detailPlay": {
+    "description": "Main button on a movie page to start playing"
+  },
+  "detailResumeFrom": "Resume from {time}",
+  "@detailResumeFrom": {
+    "description": "Main button on a movie page when partly watched; time is like 12:34",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "detailStartOver": "Start Over",
+  "@detailStartOver": {
+    "description": "Round button label: play from the beginning"
+  },
+  "detailFavorited": "Favorited",
+  "@detailFavorited": {
+    "description": "Round button label when the title is already a favorite"
+  },
+  "detailFavorite": "Favorite",
+  "@detailFavorite": {
+    "description": "Round button label to add the title to favorites"
+  },
+  "detailClearProgress": "Clear Progress",
+  "@detailClearProgress": {
+    "description": "Button/menu action that forgets how much has been watched"
+  },
+  "detailMoreLikeThis": "More Like This",
+  "@detailMoreLikeThis": {
+    "description": "Row title: similar movies or series"
+  },
+  "detailGoBack": "Go Back",
+  "@detailGoBack": {
+    "description": "Retry button on the movie/series error screen; goes back"
+  },
+  "detailMovieLoadError": "Couldn't load this movie. Try again.",
+  "@detailMovieLoadError": {
+    "description": "Error on the movie page"
+  },
+  "detailSeriesLoadError": "Couldn't load this series. Try again.",
+  "@detailSeriesLoadError": {
+    "description": "Error on the series page"
+  },
+  "seriesLoadingEpisodes": "Loading episodes…",
+  "@seriesLoadingEpisodes": {
+    "description": "Main button text on a series page while episodes load"
+  },
+  "seriesNoEpisodesYet": "No episodes yet",
+  "@seriesNoEpisodesYet": {
+    "description": "Main button text on a series page with no episodes"
+  },
+  "seriesResumeEpisode": "Resume {label}",
+  "@seriesResumeEpisode": {
+    "description": "Main button: continue an episode; label is like \"S1 E2\"",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "seriesPlayEpisode": "Play {label}",
+  "@seriesPlayEpisode": {
+    "description": "Main button: play an episode; label is like \"S1 E2\"",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "seriesShortEpisode": "S{season} E{episode}",
+  "@seriesShortEpisode": {
+    "description": "Short episode label, S = season, E = episode; numbers are integers",
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      },
+      "season": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesSeasonCount": "{count, plural, =1{{count} Season} other{{count} Seasons}}",
+  "@seriesSeasonCount": {
+    "description": "Number of seasons in the series info line",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesUpNext": "Up Next",
+  "@seriesUpNext": {
+    "description": "Heading above the next episode to watch"
+  },
+  "seriesEpisodes": "Episodes",
+  "@seriesEpisodes": {
+    "description": "Heading above the list of episodes"
+  },
+  "seriesNoEpisodesAvailable": "No episodes available yet.",
+  "@seriesNoEpisodesAvailable": {
+    "description": "Empty state under the season picker"
+  },
+  "seriesSeason": "Season {number}",
+  "@seriesSeason": {
+    "description": "Season chip label",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "detailFavorites": "Favorites",
+  "@detailFavorites": {
+    "description": "Row title for the user's favorite movies or series"
+  },
+  "detailContinueWatching": "Continue Watching",
+  "@detailContinueWatching": {
+    "description": "Row title for partly watched movies or episodes"
+  },
+  "detailBrowseByGenre": "Browse by Genre",
+  "@detailBrowseByGenre": {
+    "description": "Heading above the compact list of genres"
+  },
+  "detailAllGenre": "All",
+  "@detailAllGenre": {
+    "description": "First entry in the genre list, meaning every title"
+  },
+  "detailAddToFavorites": "Add to Favorites",
+  "@detailAddToFavorites": {
+    "description": "Menu action / tooltip: add a movie or series to favorites"
+  },
+  "detailRemoveFromFavorites": "Remove from Favorites",
+  "@detailRemoveFromFavorites": {
+    "description": "Menu action / tooltip: remove a movie or series from favorites"
+  },
+  "detailRemoveFromContinueWatching": "Remove from Continue Watching",
+  "@detailRemoveFromContinueWatching": {
+    "description": "Menu action: remove an item from the Continue Watching row"
+  },
+  "moviesTitle": "Movies",
+  "@moviesTitle": {
+    "description": "Title of the Movies screen"
+  },
+  "moviesLoadError": "Couldn't load movies. Try again.",
+  "@moviesLoadError": {
+    "description": "Error when the movie list fails to load"
+  },
+  "moviesAll": "All Movies",
+  "@moviesAll": {
+    "description": "Row/screen title listing every movie"
+  },
+  "moviesNoneFound": "No movies found.",
+  "@moviesNoneFound": {
+    "description": "Empty state for a movie genre"
+  },
+  "seriesTitle": "Series",
+  "@seriesTitle": {
+    "description": "Title of the Series screen"
+  },
+  "seriesLoadError": "Couldn't load series. Try again.",
+  "@seriesLoadError": {
+    "description": "Error when the series list fails to load"
+  },
+  "seriesAll": "All Series",
+  "@seriesAll": {
+    "description": "Row/screen title listing every series"
+  },
+  "seriesNoneFound": "No series found.",
+  "@seriesNoneFound": {
+    "description": "Empty state for a series genre"
+  },
+  "shellPressBackAgain": "Press Back again to exit",
+  "@shellPressBackAgain": {
+    "description": "Snackbar on the TV/phone home screen after the first Back press; a second Back within two seconds leaves the app"
+  },
+  "navLiveTv": "Live TV",
+  "@navLiveTv": {
+    "description": "Navigation bar / TV side rail label for the live channels tab (keep short)"
+  },
+  "navMovies": "Movies",
+  "@navMovies": {
+    "description": "Navigation label for the movies tab (keep short)"
+  },
+  "navSeries": "Series",
+  "@navSeries": {
+    "description": "Navigation label for the TV series tab (keep short)"
+  },
+  "navSearch": "Search",
+  "@navSearch": {
+    "description": "Navigation label for the search tab (keep short)"
+  },
+  "navSettings": "Settings",
+  "@navSettings": {
+    "description": "Navigation label for the settings tab (keep short)"
+  },
+  "pullRefreshOne": "Couldn't refresh {name}. {reason}",
+  "@pullRefreshOne": {
+    "description": "Snackbar after pull-to-refresh failed for one playlist. {name} is the playlist's name, {reason} is a full sentence explaining why",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pullRefreshMany": "Couldn't refresh {names}. Try again later.",
+  "@pullRefreshMany": {
+    "description": "Snackbar after pull-to-refresh failed for several playlists. {names} is a comma-separated list of playlist names",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "genreActionsHideGenre": "Hide Genre",
+  "@genreActionsHideGenre": {
+    "description": "Title of the bottom-sheet action that hides a genre (category) for the current profile"
+  },
+  "filePickerNoFiles": "No files found on this device. Copy the file to the Download folder, or to Android/data/com.openiptv.app/files, then try again.",
+  "@filePickerNoFiles": {
+    "description": "Message in the file list dialog (used on TVs without a system file picker) when no matching file exists. Keep the folder paths exactly as written"
+  },
+  "starRemoveFavorite": "Remove from favorites",
+  "@starRemoveFavorite": {
+    "description": "Screen-reader label of the star button when the item is already a favorite"
+  },
+  "starAddFavorite": "Add to favorites",
+  "@starAddFavorite": {
+    "description": "Screen-reader label of the star button when the item is not yet a favorite"
+  },
+  "formatRuntimeHours": "{hours}h",
+  "@formatRuntimeHours": {
+    "description": "Runtime of exactly whole hours, e.g. 2h. Short unit",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "formatRuntimeMinutes": "{minutes}m",
+  "@formatRuntimeMinutes": {
+    "description": "Runtime under an hour, e.g. 45m. {minutes} may be zero-padded text such as 05",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "formatRuntimeHoursMinutes": "{hours}h {minutes}m",
+  "@formatRuntimeHoursMinutes": {
+    "description": "Runtime with hours and minutes, e.g. 1h 5m. {minutes} may be zero-padded text such as 05",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "formatStateEnded": "Ended",
+  "@formatStateEnded": {
+    "description": "Appended to a cleaned-up channel name for a live event that has ended"
+  },
+  "formatStateNext": "Next",
+  "@formatStateNext": {
+    "description": "Appended to a cleaned-up channel name for a live event that comes next"
+  },
+  "formatStateLive": "Live",
+  "@formatStateLive": {
+    "description": "Appended to a cleaned-up channel name for an event that is live now"
+  },
+  "formatStateNotStarted": "Not started",
+  "@formatStateNotStarted": {
+    "description": "Appended to a cleaned-up channel name for an event that has not started yet"
+  },
+  "formatGeoBlocked": "Geo-blocked",
+  "@formatGeoBlocked": {
+    "description": "Shown in brackets after a channel name that the provider blocks outside certain countries"
+  }
+}

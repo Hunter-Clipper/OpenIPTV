@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/features/live_tv/change_guide_screen.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
@@ -36,6 +37,7 @@ import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -111,7 +113,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               autofocus: true,
               leading: Icon(Icons.remove_circle_outline,
                   color: Theme.of(sheetContext).colorScheme.error),
-              title: const Text('Remove from Recently Watched'),
+              title: Text(AppLocalizations.of(sheetContext).liveTvRemoveFromRecent),
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final profileId =
@@ -150,10 +152,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     final sort = ref.watch(contentSortProvider);
     final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: const AppLogo(),
-        title: const Text('Live TV'),
+        title: Text(AppLocalizations.of(context).liveTvTitle),
         actions: const [
           SortToggleAction(),
           CastAction(),
@@ -162,7 +165,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
       body: channelsAsync.when(
         loading: () => const SkeletonList(leadingSize: 28),
         error: (e, _) => ErrorStateView(
-            message: "Couldn't load channels. Check your internet connection.",
+            message: l10n.liveTvLoadError,
             onRetry: () => ref.invalidate(allChannelsProvider)),
         data: (all) {
           final cats = liveCategories(all,
@@ -192,7 +195,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               children: [
                 if (favorites.isNotEmpty)
                   _ChannelRail(
-                    title: 'Favorites',
+                    title: l10n.liveTvFavorites,
                     autofocusFirst: true,
                     channels: favorites.take(20).toList(),
                     onSeeAll: () => context.push(
@@ -204,16 +207,16 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   ),
                 if (recent.isNotEmpty)
                   _ChannelRail(
-                    title: 'Recently Watched',
+                    title: l10n.liveTvRecentlyWatched,
                     autofocusFirst: favorites.isEmpty,
                     channels: recent,
                     onLongPress: (ch) => _showRemoveRecentSheet(ch),
                   ),
                 if (favorites.isNotEmpty || recent.isNotEmpty)
-                  const RailHeader(title: 'Categories'),
+                  RailHeader(title: l10n.liveTvCategories),
                 if (!hiddenCats.contains('All'))
                   CategoryTile(
-                    label: 'All Channels',
+                    label: l10n.liveTvAllChannels,
                     autofocus: favorites.isEmpty && recent.isEmpty,
                     count: all.length,
                     icon: Icons.live_tv_outlined,
@@ -222,7 +225,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                     onLongPress: profileId == null
                         ? null
                         : () => showCategoryOptions(context, ref, profileId, 'All',
-                            label: 'All Channels'),
+                            label: l10n.liveTvAllChannels),
                   ),
                 ...cats.map((cat) {
                   final count = catCounts[cat] ?? 0;
@@ -321,16 +324,16 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
       body: channelsAsync.when(
         loading: () => const SkeletonList(leadingSize: 44),
         error: (e, _) => ErrorStateView(
-            message: "Couldn't load channels. Check your internet connection.",
+            message: AppLocalizations.of(context).liveTvLoadError,
             onRetry: () => ref.invalidate(allChannelsProvider)),
         data: (all) {
           final channels = _channelsForCategory(all, favIds, sort);
           if (channels.isEmpty) {
-            return const RefreshIndicator(
+            return RefreshIndicator(
               onRefresh: _refreshStatic,
               child: EmptyStateView(
                 icon: Icons.live_tv_outlined,
-                message: 'No channels here yet.',
+                message: AppLocalizations.of(context).liveTvNoChannels,
               ),
             );
           }
@@ -449,8 +452,8 @@ void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
         final custom = ref.read(channelCustomProvider);
         final name = await showRenameDialog(
           context,
-          title: 'Rename Channel',
-          hint: 'Channel name',
+          title: AppLocalizations.of(context).liveTvRenameChannel,
+          hint: AppLocalizations.of(context).liveTvChannelNameHint,
           current: custom.names[channel.id] ?? context.channelName(channel),
         );
         if (name == null) return;
@@ -467,9 +470,8 @@ void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
       onHide: () async {
         await ref.read(channelCustomProvider.notifier).hide(channel.id);
         if (context.mounted) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
-              content: Text(
-                  'Channel hidden. Bring it back in Settings → Watching → Channel Lists → Hidden Channels.')));
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context).liveTvChannelHidden)));
         }
       },
     ),
@@ -547,7 +549,7 @@ class _ChannelRow extends ConsumerWidget {
                         if (channel.hasCatchup) ...[
                           const SizedBox(width: 6),
                           Tooltip(
-                            message: 'Catch-up available',
+                            message: AppLocalizations.of(context).liveTvCatchupAvailable,
                             child: Icon(Icons.history_rounded,
                                 size: 15, color: muted),
                           ),
@@ -589,7 +591,8 @@ class _ChannelRow extends ConsumerWidget {
                     if (next != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Next  ${_hm(context, next.start)}  ${next.title}',
+                        AppLocalizations.of(context).liveTvNextProgramme(
+                            _hm(context, next.start), next.title),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall!
@@ -615,8 +618,9 @@ class _ChannelRow extends ConsumerWidget {
                   isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
                   color: isFavorite ? theme.colorScheme.primary : muted,
                 ),
-                tooltip:
-                    isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                tooltip: isFavorite
+                    ? AppLocalizations.of(context).liveTvRemoveFromFavorites
+                    : AppLocalizations.of(context).liveTvAddToFavorites,
                 onPressed: profileId == null
                     ? null
                     : () async {
@@ -676,10 +680,7 @@ class LogoTile extends StatelessWidget {
 }
 
 String _hm(BuildContext context, DateTime t) =>
-    MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(t),
-      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
+    formatSystemTime(context, t);
 
 // ---------------------------------------------------------------------------
 // Channel long-press options sheet
@@ -708,6 +709,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -716,8 +718,9 @@ class _ChannelOptionsSheet extends StatelessWidget {
             // TV: the remote's OK acts on it straight away.
             autofocus: true,
             leading: Icon(isFavorite ? Icons.star_border : Icons.star),
-            title: Text(
-                isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),
+            title: Text(isFavorite
+                ? l10n.liveTvRemoveFromFavorites
+                : l10n.liveTvAddToFavorites),
             onTap: () {
               Navigator.of(context).pop();
               onToggle();
@@ -725,7 +728,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
-            title: const Text('Rename Channel'),
+            title: Text(l10n.liveTvRenameChannel),
             onTap: () {
               Navigator.of(context).pop();
               onRename();
@@ -734,7 +737,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
           if (isRenamed)
             ListTile(
               leading: const Icon(Icons.restart_alt_rounded),
-              title: const Text('Use the Original Name'),
+              title: Text(l10n.liveTvUseOriginalName),
               onTap: () {
                 Navigator.of(context).pop();
                 onResetName();
@@ -742,7 +745,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
             ),
           ListTile(
             leading: const Icon(Icons.event_note_outlined),
-            title: const Text('Change Guide'),
+            title: Text(l10n.liveTvChangeGuide),
             onTap: () {
               Navigator.of(context).pop();
               onChangeGuide();
@@ -750,7 +753,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.visibility_off_outlined),
-            title: const Text('Hide Channel'),
+            title: Text(l10n.liveTvHideChannel),
             onTap: () {
               Navigator.of(context).pop();
               onHide();
@@ -760,7 +763,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.remove_circle_outline,
                   color: Theme.of(context).colorScheme.error),
-              title: const Text('Remove from Recently Watched'),
+              title: Text(l10n.liveTvRemoveFromRecent),
               onTap: () {
                 Navigator.of(context).pop();
                 onRemoveRecent!();
@@ -1018,7 +1021,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
                   .copyWith(fontWeight: FontWeight.w500, fontSize: 13),
             ),
             Text(
-              prog?.title ?? 'Live',
+              prog?.title ?? AppLocalizations.of(context).liveTvLiveBadge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall!.copyWith(

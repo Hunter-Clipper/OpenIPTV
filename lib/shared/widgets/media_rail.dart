@@ -6,6 +6,7 @@ import 'package:open_iptv/core/services/image_cache_manager.dart';
 import 'package:open_iptv/shared/widgets/poster_image.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// One poster in a [MediaRail].
 class RailItem {
@@ -189,12 +190,12 @@ class RailHeader extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   foregroundColor: theme.colorScheme.primary,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('See all'),
-                    SizedBox(width: 2),
-                    Icon(Icons.chevron_right, size: 18),
+                    Text(AppLocalizations.of(context).mediaRailSeeAll),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.chevron_right, size: 18),
                   ],
                 ),
               ),
@@ -423,7 +424,9 @@ class LockedRail extends StatelessWidget {
       onHeaderLongPress: onHeaderLongPress,
       autofocusFirst: autofocusFirst,
       fallbackIcon: Icons.lock_outline,
-      items: [RailItem(title: 'Enter PIN to view', onTap: onUnlock)],
+      items: [RailItem(
+          title: AppLocalizations.of(context).mediaRailEnterPin,
+          onTap: onUnlock)],
     );
   }
 }

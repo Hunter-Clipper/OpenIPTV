@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// What the tunnel is doing right now.
 class VpnStatus {
@@ -161,16 +162,16 @@ class VpnService {
   }
 
   /// Null when [config] is a usable WireGuard profile, else why not.
-  Future<String?> validate(String config) async {
+  Future<String?> validate(String config, AppLocalizations l10n) async {
     if (!VpnProfile.looksLikeWireGuard(config)) {
-      return "This isn't a WireGuard profile.";
+      return l10n.vpnNotWireGuardProfile;
     }
     try {
       final problem = await _channel
           .invokeMethod<String>('validate', {'config': config});
-      return problem == null ? null : "This profile has a problem ($problem).";
+      return problem == null ? null : l10n.vpnProfileProblem(problem);
     } on MissingPluginException {
-      return 'VPN is not available on this device.';
+      return l10n.vpnNotAvailable;
     }
   }
 
@@ -237,9 +238,10 @@ class VpnService {
 
   /// null = usable; 'needs_login' = asks for a username and password;
   /// else a plain reason it can't be used.
-  Future<String?> validateOpenVpn(String config) async {
+  Future<String?> validateOpenVpn(
+      String config, AppLocalizations l10n) async {
     if (!OpenVpnProfile.looksLikeOpenVpn(config)) {
-      return "This isn't an OpenVPN profile.";
+      return l10n.vpnNotOpenVpnProfile;
     }
     try {
       final r = await _channel
@@ -247,14 +249,13 @@ class VpnService {
       if (r == null || r.isEmpty) return null;
       if (r == 'needs_login') return 'needs_login';
       if (r == 'external_pki') {
-        return 'This profile needs a certificate stored on the device, '
-            "which OpenIPTV doesn't support.";
+        return l10n.vpnNeedsDeviceCertificate;
       }
-      return 'This profile has a problem ($r).';
+      return l10n.vpnProfileProblem(r);
     } on MissingPluginException {
-      return 'VPN is not available on this device.';
+      return l10n.vpnNotAvailable;
     } on PlatformException {
-      return "Couldn't read this profile.";
+      return l10n.vpnCouldntReadProfile;
     }
   }
 
@@ -309,14 +310,14 @@ class VpnService {
   }
 }
 
-/// Plain-English message for a [VpnService.connect] result.
-String vpnConnectMessage(String result) => switch (result) {
-      'ok' => 'VPN connected',
-      'starting' => 'Connecting the VPN…',
-      'denied' => 'OpenIPTV needs your permission to set up a VPN. '
-          'Select Connect and allow it.',
-      'bad_config' => 'This profile has a problem. Import it again.',
-      _ => "Couldn't connect the VPN. Check the profile and try again.",
+/// Plain-language message for a [VpnService.connect] result.
+String vpnConnectMessage(AppLocalizations l10n, String result) =>
+    switch (result) {
+      'ok' => l10n.vpnConnected,
+      'starting' => l10n.vpnConnecting,
+      'denied' => l10n.vpnNeedsPermission,
+      'bad_config' => l10n.vpnBadConfig,
+      _ => l10n.vpnConnectFailed,
     };
 
 String formatBytes(int bytes) {

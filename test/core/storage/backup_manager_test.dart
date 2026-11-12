@@ -41,6 +41,7 @@ const _expectedBackupKeys = {
   'guideHighlightPlaying',
   'channelCustom',
   'fontScale',
+  'language',
   'overlayOpacity',
   'guideDaysAhead',
   'guideDescriptions',
@@ -133,6 +134,7 @@ void main() {
       await prefs.setAudioDelayMs(-200);
       await prefs.setSeekKeys('upDown');
       await prefs.setFontScale(1.3);
+      await prefs.setLanguage('es');
       await prefs.setShowFavoritesCategory(false);
       await prefs.setShowRecentCategory(false);
       await prefs.setShowAllCategory(false);
@@ -192,6 +194,7 @@ void main() {
       expect(prefs2.audioDelayMs, -200);
       expect(prefs2.seekKeys, 'upDown');
       expect(prefs2.fontScale, 1.3);
+      expect(prefs2.language, 'es');
       expect(prefs2.showFavoritesCategory, isFalse);
       expect(prefs2.showRecentCategory, isFalse);
       expect(prefs2.showAllCategory, isFalse);

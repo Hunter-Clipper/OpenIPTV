@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,7 @@ import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 
 // ---------------------------------------------------------------------------
@@ -304,16 +306,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         loading: () =>
                             const SkeletonList(itemCount: 6, leadingSize: 0),
                         error: (_, __) => ErrorStateView(
-                          message: "Couldn't load search results. Try again.",
+                          message: AppLocalizations.of(context).searchLoadError,
                           onRetry: () => ref.invalidate(_searchResultsProvider),
                         ),
                         data: (results) => results.isEmpty
                             ? EmptyStateView(
                                 icon: Icons.search_off_rounded,
-                                title: 'No results for "$query"',
-                                message:
-                                    'Check the spelling, or try a channel, a '
-                                    'movie or a show name.',
+                                title: AppLocalizations.of(context)
+                                    .searchNoResultsTitle(query),
+                                message: AppLocalizations.of(context)
+                                    .searchNoResultsBody,
                               )
                             : _ResultsList(
                                 results: results,
@@ -372,7 +374,7 @@ class _SearchBar extends StatelessWidget {
         textInputAction: TextInputAction.search,
         style: theme.textTheme.bodyLarge,
         decoration: InputDecoration(
-          hintText: 'Search channels, movies and series',
+          hintText: AppLocalizations.of(context).searchHint,
           filled: true,
           fillColor: theme.colorScheme.surfaceContainerHigh,
           contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -424,11 +426,11 @@ class _SearchHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const welcome = EmptyStateView(
+    final l10n = AppLocalizations.of(context);
+    final welcome = EmptyStateView(
       icon: Icons.search_rounded,
-      title: 'Find something to watch',
-      message: "Search Live TV channels, movies, series — and what's on "
-          'right now.',
+      title: l10n.searchWelcomeTitle,
+      message: l10n.searchWelcomeBody,
     );
     if (recent.isEmpty) return welcome;
     return ListView(
@@ -436,7 +438,7 @@ class _SearchHome extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-          child: Text('Recent searches',
+          child: Text(l10n.searchRecentTitle,
               style: theme.textTheme.titleMedium!
                   .copyWith(fontWeight: FontWeight.w600, fontSize: 17)),
         ),
@@ -470,7 +472,7 @@ class _SearchHome extends StatelessWidget {
               builder: (onTap) => TextButton.icon(
                 onPressed: onTap,
                 icon: const Icon(Icons.close_rounded, size: 18),
-                label: const Text('Clear recent searches'),
+                label: Text(l10n.searchClearRecent),
               ),
             ),
           ),
@@ -497,7 +499,8 @@ class _ResultsList extends ConsumerWidget {
       bool locked, VoidCallback proceed) async {
     if (locked &&
         !await promptAdminPin(
-            context, ref, 'Enter admin PIN to unlock "$label"')) {
+            context, ref,
+            AppLocalizations.of(context).searchEnterPinToUnlock(label))) {
       return;
     }
     onOpen();
@@ -580,14 +583,15 @@ class _ResultsList extends ConsumerWidget {
         if (!m.programme.end.isAfter(now)) m
     ]..sort((a, b) => b.programme.start.compareTo(a.programme.start));
 
+    final l10n = AppLocalizations.of(context);
     String when(DateTime t) {
       final loc = MaterialLocalizations.of(context);
-      final time = loc.formatTimeOfDay(TimeOfDay.fromDateTime(t));
+      final time = formatSystemTime(context, t);
       final today = DateTime(now.year, now.month, now.day);
       final day = DateTime(t.year, t.month, t.day).difference(today).inDays;
       if (day == 0) return time;
-      if (day == 1) return 'Tomorrow $time';
-      if (day == -1) return 'Yesterday $time';
+      if (day == 1) return l10n.searchTomorrowAt(time);
+      if (day == -1) return l10n.searchYesterdayAt(time);
       return '${loc.formatShortDate(t)} $time';
     }
 
@@ -625,10 +629,10 @@ class _ResultsList extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        if (onNow.isNotEmpty) programmeRail('On now', onNow),
+        if (onNow.isNotEmpty) programmeRail(l10n.searchOnNow, onNow),
         if (results.channels.isNotEmpty)
           MediaRail(
-            title: 'Live TV',
+            title: l10n.searchLiveTv,
             count: results.channels.length,
             shape: RailShape.logo,
             fallbackIcon: Icons.tv_rounded,
@@ -636,7 +640,7 @@ class _ResultsList extends ConsumerWidget {
               for (final c in results.channels)
                 RailItem(
                   title: context.channelName(c),
-                  subtitle: results.nowPlaying[c.id] ?? 'Live',
+                  subtitle: results.nowPlaying[c.id] ?? l10n.searchLive,
                   highlightSubtitle: results.nowPlaying.containsKey(c.id),
                   imageUrl: channelLocked(c) ? null : c.logoUrl,
                   locked: channelLocked(c),
@@ -651,11 +655,11 @@ class _ResultsList extends ConsumerWidget {
                 ),
             ],
           ),
-        if (upcoming.isNotEmpty) programmeRail('Coming up', upcoming),
-        if (earlier.isNotEmpty) programmeRail('Earlier', earlier),
+        if (upcoming.isNotEmpty) programmeRail(l10n.searchComingUp, upcoming),
+        if (earlier.isNotEmpty) programmeRail(l10n.searchEarlier, earlier),
         if (results.movies.isNotEmpty)
           MediaRail(
-            title: 'Movies',
+            title: l10n.searchMovies,
             count: results.movies.length,
             items: [
               for (final m in results.movies)
@@ -677,7 +681,7 @@ class _ResultsList extends ConsumerWidget {
           ),
         if (results.series.isNotEmpty)
           MediaRail(
-            title: 'Series',
+            title: l10n.searchSeries,
             count: results.series.length,
             fallbackIcon: Icons.video_library_outlined,
             items: [
