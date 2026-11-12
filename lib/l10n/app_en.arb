@@ -1,0 +1,621 @@
+{
+  "@@locale": "en",
+  "commonBack": "Back",
+  "@commonBack": {
+    "description": "Tooltip of the round back arrow button (icon only)"
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Dialog button that closes the dialog without changing anything"
+  },
+  "commonNotNow": "Not now",
+  "@commonNotNow": {
+    "description": "Dialog button that declines for the moment"
+  },
+  "wizardConnecting": "Connecting…",
+  "@wizardConnecting": {
+    "description": "Progress text shown while the app contacts the playlist server"
+  },
+  "wizardPickFileTitle": "Choose a playlist file",
+  "@wizardPickFileTitle": {
+    "description": "Title of the file picker used to choose a playlist file saved on the device"
+  },
+  "wizardFilePickerFailed": "Couldn't open the file picker on this device.",
+  "@wizardFilePickerFailed": {
+    "description": "Error shown when the system file picker is unavailable"
+  },
+  "wizardChooseFileFirst": "Choose a playlist file first.",
+  "@wizardChooseFileFirst": {
+    "description": "Error shown when the user taps Load My Playlist without having picked a file"
+  },
+  "wizardFieldServerAddress": "the server address",
+  "@wizardFieldServerAddress": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article so the sentence reads naturally"
+  },
+  "wizardFieldUsername": "the username",
+  "@wizardFieldUsername": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article"
+  },
+  "wizardFieldPassword": "the password",
+  "@wizardFieldPassword": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article"
+  },
+  "wizardFieldM3uUrl": "the M3U link",
+  "@wizardFieldM3uUrl": {
+    "description": "Missing-field noun phrase inserted into wizardEnterMissing. Include the article"
+  },
+  "wizardListAnd": "{rest} and {last}",
+  "@wizardListAnd": {
+    "description": "Joins a comma-separated list with the final item, e.g. 'the server address, the username and the password'",
+    "placeholders": {
+      "rest": {
+        "type": "String"
+      },
+      "last": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardEnterMissing": "Enter {fields} from your provider.",
+  "@wizardEnterMissing": {
+    "description": "Error listing which required fields are empty. {fields} is built from wizardFieldServerAddress, wizardFieldUsername, wizardFieldPassword, wizardFieldM3uUrl joined with commas and wizardListAnd",
+    "placeholders": {
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardRestoreEmpty": "That backup doesn't include a profile and a playlist, so there's nothing to restore yet. Tap Get Started instead.",
+  "@wizardRestoreEmpty": {
+    "description": "Snackbar after restoring an empty backup. 'Get Started' refers to the button wizardGetStarted; keep them matching"
+  },
+  "wizardRestoreProgressItem": "{nickname} ({index} of {total})",
+  "@wizardRestoreProgressItem": {
+    "description": "Playlist label during a multi-playlist restore. {nickname} is the playlist name chosen by the user",
+    "placeholders": {
+      "nickname": {
+        "type": "String"
+      },
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "wizardRestoreProgressLine": "{label} — {message}",
+  "@wizardRestoreProgressLine": {
+    "description": "Progress line while restoring: playlist label, then a status message coming from the app",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardLoadingRestoring": "Restoring your playlists…",
+  "@wizardLoadingRestoring": {
+    "description": "Headline of the loading page while restoring from a backup"
+  },
+  "wizardLoadingSettingUp": "Setting up your playlist…",
+  "@wizardLoadingSettingUp": {
+    "description": "Headline of the loading page while a new playlist is downloaded"
+  },
+  "wizardAllSetAdded": "Playlist added!",
+  "@wizardAllSetAdded": {
+    "description": "Headline of the final page when a playlist was added from Settings"
+  },
+  "wizardAllSetHeadline": "You're all set, {name}!",
+  "@wizardAllSetHeadline": {
+    "description": "Headline of the final page of the setup wizard. {name} is the user's first name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "wizardAllSetHeadlineNoName": "You're all set!",
+  "@wizardAllSetHeadlineNoName": {
+    "description": "Headline of the final page when the user gave no name. (Currently the app uses the English word 'there' as the name; see notes)"
+  },
+  "wizardAllSetBody": "Your playlist is ready.\nEnjoy the show.",
+  "@wizardAllSetBody": {
+    "description": "Two-line message under the final headline. \\n = line break"
+  },
+  "wizardWelcomeTitle": "Welcome to\nOpenIPTV",
+  "@wizardWelcomeTitle": {
+    "description": "Large welcome headline. \\n = line break. Keep OpenIPTV on its own line"
+  },
+  "wizardWelcomeSubtitle": "Let's get you set up.\nIt only takes a minute.",
+  "@wizardWelcomeSubtitle": {
+    "description": "Welcome subtitle. \\n = line break"
+  },
+  "wizardGetStarted": "Get Started",
+  "@wizardGetStarted": {
+    "description": "Primary button on the welcome page"
+  },
+  "wizardRestoreFromBackup": "Restore from a backup",
+  "@wizardRestoreFromBackup": {
+    "description": "Text button on the welcome page that restores profiles and playlists from a backup file"
+  },
+  "wizardNameTitle": "What's your name?",
+  "@wizardNameTitle": {
+    "description": "Heading of the profile name page"
+  },
+  "wizardPrivacyNote": "All information stays on your device.\nOpenIPTV never collects personal data.",
+  "@wizardPrivacyNote": {
+    "description": "Reassurance under the name heading. \\n = line break"
+  },
+  "wizardNameHint": "Your name",
+  "@wizardNameHint": {
+    "description": "Hint text inside the empty name field"
+  },
+  "wizardPickAvatar": "Pick an avatar",
+  "@wizardPickAvatar": {
+    "description": "Label above the emoji avatar choices"
+  },
+  "settingsAccentColorTitle": "Accent Color",
+  "@settingsAccentColorTitle": {
+    "description": "Name of the app highlight colour setting; also the heading of the colour picker and of the wizard's colour choice"
+  },
+  "wizardContinue": "Continue",
+  "@wizardContinue": {
+    "description": "Button that moves to the next wizard page"
+  },
+  "wizardPinTitle": "Secure your account",
+  "@wizardPinTitle": {
+    "description": "Heading of the optional PIN page"
+  },
+  "wizardPinBody": "Set a PIN of 4 to 8 digits to protect this admin account.\nYou can skip this and add one later in Settings.",
+  "@wizardPinBody": {
+    "description": "Explanation on the PIN page. \\n = line break. 'Settings' must match settingsTitle"
+  },
+  "wizardSetPin": "Set PIN",
+  "@wizardSetPin": {
+    "description": "Button that saves the PIN"
+  },
+  "wizardSkipForNow": "Skip for now",
+  "@wizardSkipForNow": {
+    "description": "Text button that skips the PIN page"
+  },
+  "wizardTypeTitleAdd": "What kind of playlist\nare you adding?",
+  "@wizardTypeTitleAdd": {
+    "description": "Heading of the playlist-type page when opened from Settings (Add Playlist). \\n = line break"
+  },
+  "wizardTypeTitleHave": "What kind of playlist\ndo you have?",
+  "@wizardTypeTitleHave": {
+    "description": "Heading of the playlist-type page during first setup. \\n = line break"
+  },
+  "wizardTypeHelp": "Not sure? Ask your IPTV provider — they'll know!",
+  "@wizardTypeHelp": {
+    "description": "Hint under the playlist-type heading"
+  },
+  "wizardTypeXtreamTitle": "Xtream Codes",
+  "@wizardTypeXtreamTitle": {
+    "description": "Card title. Product name, do not translate"
+  },
+  "wizardTypeXtreamDesc": "Login with a server address, username, and password.",
+  "@wizardTypeXtreamDesc": {
+    "description": "Card description for the Xtream Codes option"
+  },
+  "wizardTypeM3uTitle": "M3U Playlist",
+  "@wizardTypeM3uTitle": {
+    "description": "Card title for a playlist loaded from a web link"
+  },
+  "wizardTypeM3uDesc": "Load from a direct playlist URL (ending in .m3u or .m3u8).",
+  "@wizardTypeM3uDesc": {
+    "description": "Card description for the M3U link option"
+  },
+  "wizardTypeFileTitle": "Playlist File",
+  "@wizardTypeFileTitle": {
+    "description": "Card title for a playlist file saved on the device; also the page title when a file is chosen"
+  },
+  "wizardTypeFileDesc": "Choose an .m3u file saved on this device.",
+  "@wizardTypeFileDesc": {
+    "description": "Card description for the playlist file option"
+  },
+  "wizardCredsTitleXtream": "Xtream Credentials",
+  "@wizardCredsTitleXtream": {
+    "description": "Page title for entering Xtream login details"
+  },
+  "wizardCredsSubXtream": "Enter the login details from your provider.",
+  "@wizardCredsSubXtream": {
+    "description": "Subtitle under the Xtream page title"
+  },
+  "wizardCredsSubFile": "Choose the playlist file saved on this device.",
+  "@wizardCredsSubFile": {
+    "description": "Subtitle under the playlist file page title"
+  },
+  "wizardCredsSubM3u": "Paste the playlist link your provider gave you.",
+  "@wizardCredsSubM3u": {
+    "description": "Subtitle under the M3U page title"
+  },
+  "wizardNicknameOptional": "Nickname (optional)",
+  "@wizardNicknameOptional": {
+    "description": "Field label. The nickname is just a friendly name for the playlist"
+  },
+  "wizardNickname": "Nickname",
+  "@wizardNickname": {
+    "description": "Field label for the playlist's friendly name"
+  },
+  "wizardNicknameHintFile": "Uses the file name if left blank",
+  "@wizardNicknameHintFile": {
+    "description": "Hint inside the empty nickname field"
+  },
+  "wizardNicknameHintExample": "e.g. Home Server",
+  "@wizardNicknameHintExample": {
+    "description": "Example hint inside the nickname field"
+  },
+  "wizardServerAddressLabel": "Server Address",
+  "@wizardServerAddressLabel": {
+    "description": "Field label"
+  },
+  "wizardServerAddressHint": "http://your-provider.com:8080",
+  "@wizardServerAddressHint": {
+    "description": "Example address hint. Keep the URL format, only translate the host word"
+  },
+  "wizardUsernameLabel": "Username",
+  "@wizardUsernameLabel": {
+    "description": "Field label"
+  },
+  "wizardUsernameHint": "your_username",
+  "@wizardUsernameHint": {
+    "description": "Example hint, written like an identifier (underscores)"
+  },
+  "wizardPasswordLabel": "Password",
+  "@wizardPasswordLabel": {
+    "description": "Field label"
+  },
+  "wizardPasswordHint": "your_password",
+  "@wizardPasswordHint": {
+    "description": "Example hint, written like an identifier (underscores)"
+  },
+  "wizardPasswordHide": "Hide password",
+  "@wizardPasswordHide": {
+    "description": "Tooltip of the eye button while the password is visible"
+  },
+  "wizardPasswordShow": "Show password",
+  "@wizardPasswordShow": {
+    "description": "Tooltip of the eye button while the password is hidden"
+  },
+  "wizardGuideUrlLabel": "TV Guide URL (optional)",
+  "@wizardGuideUrlLabel": {
+    "description": "Field label for the optional programme guide address"
+  },
+  "wizardGuideUrlHint": "https://example.com/epg.xml",
+  "@wizardGuideUrlHint": {
+    "description": "Example guide address hint"
+  },
+  "wizardM3uUrlLabel": "M3U URL",
+  "@wizardM3uUrlLabel": {
+    "description": "Field label for the playlist web address"
+  },
+  "wizardM3uUrlHint": "https://example.com/playlist.m3u",
+  "@wizardM3uUrlHint": {
+    "description": "Example playlist address hint"
+  },
+  "wizardLoadMyPlaylist": "Load My Playlist",
+  "@wizardLoadMyPlaylist": {
+    "description": "Primary button that downloads the playlist"
+  },
+  "wizardFileFieldLabel": "Playlist file",
+  "@wizardFileFieldLabel": {
+    "description": "Label above the file chooser control"
+  },
+  "wizardFileChoose": "Choose a file…",
+  "@wizardFileChoose": {
+    "description": "Placeholder inside the file chooser control before a file is picked"
+  },
+  "wizardFileChange": "Change",
+  "@wizardFileChange": {
+    "description": "Small action label on the file chooser once a file is picked"
+  },
+  "wizardFileBrowse": "Browse",
+  "@wizardFileBrowse": {
+    "description": "Small action label on the file chooser before a file is picked"
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "App bar title and navigation label of the Settings tab"
+  },
+  "settingsGroupWatching": "Watching",
+  "@settingsGroupWatching": {
+    "description": "Group heading in Settings for everything about watching (playback, channel lists, guide layout)"
+  },
+  "settingsGroupAppearance": "Appearance",
+  "@settingsGroupAppearance": {
+    "description": "Group heading in Settings for look and feel"
+  },
+  "settingsGroupPlayerControls": "Player controls",
+  "@settingsGroupPlayerControls": {
+    "description": "Sub-group heading inside the Playback page"
+  },
+  "settingsPlaybackTitle": "Playback",
+  "@settingsPlaybackTitle": {
+    "description": "Settings row that opens the Playback page"
+  },
+  "settingsPlaybackSubtitle": "Start over, picture-in-picture, player controls",
+  "@settingsPlaybackSubtitle": {
+    "description": "Second line of the Playback row, summarising what's inside"
+  },
+  "settingsStartupTitle": "Start-up",
+  "@settingsStartupTitle": {
+    "description": "TV only: Settings row that opens the page about what happens when the app starts"
+  },
+  "settingsStartupSubtitle": "Open the last channel, start on boot or wake",
+  "@settingsStartupSubtitle": {
+    "description": "Second line of the Start-up row (TV only)"
+  },
+  "settingsChannelListsTitle": "Channel Lists",
+  "@settingsChannelListsTitle": {
+    "description": "Settings row that opens channel list options"
+  },
+  "settingsChannelListsSubtitle": "Sorting, hidden channels, which rows to show",
+  "@settingsChannelListsSubtitle": {
+    "description": "Second line of the Channel Lists row"
+  },
+  "settingsGuideLayoutTitle": "TV Guide Layout",
+  "@settingsGuideLayoutTitle": {
+    "description": "TV only: Settings row for the TV guide layout options"
+  },
+  "settingsGuideLayoutSubtitle": "Names, two-line titles, highlight",
+  "@settingsGuideLayoutSubtitle": {
+    "description": "Second line of the TV Guide Layout row"
+  },
+  "settingsAskStartOverTitle": "Ask to Start Over",
+  "@settingsAskStartOverTitle": {
+    "description": "Toggle: when opening a show that already began, ask whether to watch from the start. Also the tooltip title"
+  },
+  "settingsAskStartOverBody": "On channels that keep recordings (catch-up), asks whether to start the show from the beginning or watch it live when you open a show that is already underway. Turn this off to always go straight to live.",
+  "@settingsAskStartOverBody": {
+    "description": "Info tooltip body for the Ask to Start Over toggle"
+  },
+  "settingsPipTitle": "Picture-in-Picture",
+  "@settingsPipTitle": {
+    "description": "Toggle for Android's small floating video window. Also the tooltip title"
+  },
+  "settingsPipBody": "When enabled, pressing Home while a video is playing shrinks it into a small floating window so you can keep watching while using other apps.",
+  "@settingsPipBody": {
+    "description": "Info tooltip body. 'Home' is the Android Home button"
+  },
+  "settingsMediaNotificationTitle": "Media Notification",
+  "@settingsMediaNotificationTitle": {
+    "description": "Toggle for the Now Playing notification. Also the tooltip title"
+  },
+  "settingsMediaNotificationBody": "Shows a \"Now Playing\" notification with play/pause controls while content is playing, so you can control playback from the notification shade or lock screen.",
+  "@settingsMediaNotificationBody": {
+    "description": "Info tooltip body"
+  },
+  "settingsSkipButtonsTitle": "Skip Buttons",
+  "@settingsSkipButtonsTitle": {
+    "description": "Choice: how many seconds the skip forward/back buttons jump. Also the dialog title"
+  },
+  "settingsSecondsChoice": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "@settingsSecondsChoice": {
+    "description": "Option label in a choice list, e.g. '10 seconds'",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHideControlsTitle": "Hide Player Controls After",
+  "@settingsHideControlsTitle": {
+    "description": "Choice: seconds of inactivity before the player's on-screen controls hide. Value shown below is e.g. '4 seconds'"
+  },
+  "settingsSeekKeysTitle": "Remote Seek Keys",
+  "@settingsSeekKeysTitle": {
+    "description": "TV remote: which remote keys jump forward/back while watching"
+  },
+  "settingsSeekKeysLeftRight": "Left / Right arrows",
+  "@settingsSeekKeysLeftRight": {
+    "description": "Option label for the seek keys choice"
+  },
+  "settingsSeekKeysUpDown": "Up / Down arrows",
+  "@settingsSeekKeysUpDown": {
+    "description": "Option label for the seek keys choice"
+  },
+  "settingsSeekKeysMedia": "Rewind / Forward keys",
+  "@settingsSeekKeysMedia": {
+    "description": "Option label: the dedicated media keys on a remote"
+  },
+  "settingsLastChannelTitle": "Open Last Channel on Start",
+  "@settingsLastChannelTitle": {
+    "description": "Toggle row title"
+  },
+  "settingsLastChannelTooltipTitle": "Last Channel on Start",
+  "@settingsLastChannelTooltipTitle": {
+    "description": "Info tooltip title for the toggle above"
+  },
+  "settingsLastChannelBody": "When the app opens, it goes straight to the live channel you watched last. Turn this off to land on Live TV instead.",
+  "@settingsLastChannelBody": {
+    "description": "Info tooltip body. 'Live TV' is the name of the Live TV tab; keep it matching"
+  },
+  "settingsStartOnBootTitle": "Start on Boot",
+  "@settingsStartOnBootTitle": {
+    "description": "TV only toggle: open the app when the TV starts. Also the tooltip title"
+  },
+  "settingsStartOnBootBody": "Opens OpenIPTV by itself when the TV starts. Android needs \"Display over other apps\" allowed for OpenIPTV; you will be asked.",
+  "@settingsStartOnBootBody": {
+    "description": "Info tooltip body. \"Display over other apps\" is an Android system permission name: use the wording Android shows in Spanish"
+  },
+  "settingsStartOnWakeTitle": "Start on Wake",
+  "@settingsStartOnWakeTitle": {
+    "description": "TV only toggle: open the app when the TV wakes from sleep. Also the tooltip title"
+  },
+  "settingsStartOnWakeBody": "Opens OpenIPTV by itself when the TV wakes from sleep. Android needs \"Display over other apps\" allowed for OpenIPTV; you will be asked.",
+  "@settingsStartOnWakeBody": {
+    "description": "Info tooltip body"
+  },
+  "settingsOverlayDialogTitle": "Allow Display Over Other Apps",
+  "@settingsOverlayDialogTitle": {
+    "description": "Dialog title. Matches the Android permission name"
+  },
+  "settingsOverlayDialogBody": "Android only lets OpenIPTV open itself when the TV starts or wakes if \"Display over other apps\" is allowed for it. Open that screen now and switch it on for OpenIPTV.",
+  "@settingsOverlayDialogBody": {
+    "description": "Dialog body explaining the Android permission"
+  },
+  "settingsOverlayOpenSettings": "Open Settings",
+  "@settingsOverlayOpenSettings": {
+    "description": "Dialog button that opens the Android system settings screen"
+  },
+  "settingsAccentColorBody": "Changes the highlight color used throughout the app — active buttons, selected items, progress bars, and other indicators. Pick whichever color you like best.",
+  "@settingsAccentColorBody": {
+    "description": "Info tooltip body for the accent colour setting"
+  },
+  "settingsAccentBlue": "Blue",
+  "@settingsAccentBlue": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentPurple": "Purple",
+  "@settingsAccentPurple": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentPink": "Pink",
+  "@settingsAccentPink": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentOrange": "Orange",
+  "@settingsAccentOrange": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentGreen": "Green",
+  "@settingsAccentGreen": {
+    "description": "Accent colour name"
+  },
+  "settingsAccentTeal": "Teal",
+  "@settingsAccentTeal": {
+    "description": "Accent colour name (blue-green)"
+  },
+  "settingsAccentCustom": "Custom",
+  "@settingsAccentCustom": {
+    "description": "Shown when the colour is not one of the presets (e.g. restored from a backup)"
+  },
+  "settingsTextSizeTitle": "Text Size",
+  "@settingsTextSizeTitle": {
+    "description": "Choice setting for app text size. Also the dialog title"
+  },
+  "settingsTextSizeSmall": "Small",
+  "@settingsTextSizeSmall": {
+    "description": "Text size option"
+  },
+  "settingsTextSizeDefault": "Default",
+  "@settingsTextSizeDefault": {
+    "description": "Text size option (the normal size)"
+  },
+  "settingsTextSizeLarge": "Large",
+  "@settingsTextSizeLarge": {
+    "description": "Text size option"
+  },
+  "settingsTextSizeExtraLarge": "Extra large",
+  "@settingsTextSizeExtraLarge": {
+    "description": "Text size option"
+  },
+  "settingsPlayerTransparencyTitle": "Player Transparency",
+  "@settingsPlayerTransparencyTitle": {
+    "description": "Choice setting: how see-through the player's control panels are"
+  },
+  "settingsPlayerTransparencySolid": "Solid",
+  "@settingsPlayerTransparencySolid": {
+    "description": "Transparency option: not see-through"
+  },
+  "settingsPlayerTransparencyDefault": "Default",
+  "@settingsPlayerTransparencyDefault": {
+    "description": "Transparency option (the normal amount; feminine because it agrees with 'transparencia')"
+  },
+  "settingsPlayerTransparencyClear": "See-through",
+  "@settingsPlayerTransparencyClear": {
+    "description": "Transparency option"
+  },
+  "settingsPlayerTransparencyVeryClear": "Very see-through",
+  "@settingsPlayerTransparencyVeryClear": {
+    "description": "Transparency option"
+  },
+  "settingsCleanNamesTitle": "Clean Up Names",
+  "@settingsCleanNamesTitle": {
+    "description": "Toggle: tidy channel/movie names sent by the provider. Also the tooltip title"
+  },
+  "settingsCleanNamesBody": "Tidies the names your provider sends — removes tags like \"|EN|\", \"US|\" or \"A+ -\" and turns ALL-CAPS names into normal capitalization. Turn off to see names exactly as your provider sends them.",
+  "@settingsCleanNamesBody": {
+    "description": "Info tooltip body. The quoted tags are literal examples of provider tags; do not translate them"
+  },
+  "errorPlaylistNotM3u": "This file isn't a playlist. Choose an .m3u or .m3u8 file from your provider.",
+  "@errorPlaylistNotM3u": {
+    "description": "Error when the chosen file is not a playlist"
+  },
+  "errorPlaylistEmpty": "This playlist file doesn't have any channels in it.",
+  "@errorPlaylistEmpty": {
+    "description": "Error when the playlist file has no channels"
+  },
+  "errorPlaylistFileMissing": "The playlist file is no longer on this device. Remove this playlist and add the file again.",
+  "@errorPlaylistFileMissing": {
+    "description": "Error when a stored playlist file has disappeared"
+  },
+  "errorXtreamLogin": "Couldn't sign in with these details. Check the server address, username and password with your provider.",
+  "@errorXtreamLogin": {
+    "description": "Error when Xtream login fails while editing a playlist"
+  },
+  "errorM3uMissing": "Enter the playlist link from your provider.",
+  "@errorM3uMissing": {
+    "description": "Error when the M3U link field is empty while editing a playlist"
+  },
+  "errorLinkOpenFailed": "Couldn't open this playlist link. Check it with your provider.",
+  "@errorLinkOpenFailed": {
+    "description": "Error when the new playlist link cannot be opened"
+  },
+  "errorPlaylistTimeout": "This playlist is taking too long to load. Check your internet connection and try again.",
+  "@errorPlaylistTimeout": {
+    "description": "Error on timeout while loading a playlist"
+  },
+  "errorBadCredentials": "Your username or password doesn't seem right. Check with your provider.",
+  "@errorBadCredentials": {
+    "description": "Error for HTTP 401/403 while loading a playlist"
+  },
+  "errorUnreachable": "Couldn't reach this server. Check your internet connection and try again.",
+  "@errorUnreachable": {
+    "description": "Error when the server cannot be reached (network or DNS failure)"
+  },
+  "errorProviderServer": "The provider's server is having trouble right now. Try again later.",
+  "@errorProviderServer": {
+    "description": "Error for HTTP 5xx from the provider"
+  },
+  "errorInvalidLink": "This link doesn't look like a valid channel list. Check the URL with your provider.",
+  "@errorInvalidLink": {
+    "description": "Error for other HTTP failures, usually a wrong link"
+  },
+  "errorGeneric": "That didn't work. Check your details and try again.",
+  "@errorGeneric": {
+    "description": "Catch-all error for playlist problems"
+  },
+  "errorGuideTimeout": "The TV guide is taking too long to load. Check your internet connection and try again.",
+  "@errorGuideTimeout": {
+    "description": "Error on timeout while loading a TV guide"
+  },
+  "errorGuideEmpty": "The provider sent an empty TV guide. Your current guide was kept — try again in a few minutes.",
+  "@errorGuideEmpty": {
+    "description": "Error when the guide file contains no programmes"
+  },
+  "errorGuideLogin": "The TV guide link needs a login. Check the guide URL with your provider.",
+  "@errorGuideLogin": {
+    "description": "Error for HTTP 401/403 while loading a guide"
+  },
+  "errorGuideUnreachable": "Couldn't reach the TV guide server for this playlist. It may not have a guide — check the guide URL with your provider.",
+  "@errorGuideUnreachable": {
+    "description": "Error when the guide server cannot be reached"
+  },
+  "errorGuideServer": "The TV guide server is having trouble right now. Try again later.",
+  "@errorGuideServer": {
+    "description": "Error for HTTP 5xx from the guide server"
+  },
+  "errorGuideInvalidLink": "This TV guide link doesn't look valid. Check the URL with your provider.",
+  "@errorGuideInvalidLink": {
+    "description": "Error for other HTTP failures while loading a guide"
+  },
+  "errorGuideGeneric": "The TV guide couldn't be loaded. Check your details and try again.",
+  "@errorGuideGeneric": {
+    "description": "Catch-all error for guide problems"
+  }
+}
