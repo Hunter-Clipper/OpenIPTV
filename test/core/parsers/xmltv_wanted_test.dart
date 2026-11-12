@@ -92,4 +92,16 @@ void main() {
     // i % 3 == 1 for i in 0..3999: 1333 of them.
     expect(got.length, 1333);
   });
+
+  test('the channel list rides along with a full parse', () async {
+    final seen = <String, String>{};
+    final got = await XmltvParser.parse(
+      Stream.value(
+          '<tv><channel id="X"><display-name>First</display-name><display-name>Second</display-name></channel>'
+          '<channel id="Y"></channel>${prog('channel="X"', 'x show')}</tv>'),
+      onChannel: (id, name) => seen[id] = name,
+    ).toList();
+    expect(seen, {'X': 'First', 'Y': ''});
+    expect(got.single.title, 'x show');
+  });
 }

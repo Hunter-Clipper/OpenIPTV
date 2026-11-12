@@ -66,7 +66,8 @@ Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
 // Top-level so Isolate.run can reference it.
 // Fetches + stream-parses the XMLTV feed entirely off the main thread,
 // returning all programmes at once for batch DB writes on the caller.
-Future<List<Programme>> _fetchAndParseAll(
+Future<({List<Programme> programmes, List<({String id, String name})> channels})>
+    _fetchAndParseAll(
   String epgUrl,
   Duration pastWindow,
   int daysAhead,
@@ -74,6 +75,7 @@ Future<List<Programme>> _fetchAndParseAll(
 ) async {
   final client = http.Client();
   final programmes = <Programme>[];
+  final channels = <({String id, String name})>[];
   try {
     final request = http.Request('GET', Uri.parse(epgUrl));
     final streamed =
@@ -92,7 +94,8 @@ Future<List<Programme>> _fetchAndParseAll(
       XmltvParser.parse(bodyStream,
           pastWindow: pastWindow,
           windowDays: daysAhead,
-          keepDescriptions: keepDescriptions),
+          keepDescriptions: keepDescriptions,
+          onChannel: (id, name) => channels.add((id: id, name: name))),
       const Duration(seconds: 60),
     )) {
       programmes.add(prog);
@@ -100,7 +103,7 @@ Future<List<Programme>> _fetchAndParseAll(
   } finally {
     client.close();
   }
-  return programmes;
+  return (programmes: programmes, channels: channels);
 }
 
 /// Guides are often served as `.xml.gz` without a `Content-Encoding` header
@@ -203,11 +206,12 @@ class EpgService {
       final keepDescriptions = prefs.guideDescriptions;
 
       onProgress?.call('Downloading TV guide…');
-      final programmes = await Isolate.run(
+      final parsed = await Isolate.run(
         () =>
             _fetchAndParseAll(epgUrl, pastWindow, daysAhead, keepDescriptions),
         debugName: 'epg-parse',
       );
+      final programmes = parsed.programmes;
 
       debugPrint(
           '[EPG] Parsed ${programmes.length} programmes in ${sw.elapsedMilliseconds}ms');
@@ -222,6 +226,9 @@ class EpgService {
       // Remember which of the guide's channels actually have programmes:
       // an entry with none is not "covered" (smart assignment may fill it).
       try {
+        if (parsed.channels.isNotEmpty) {
+          await db.replaceGuideChannels('src:${source.id}', parsed.channels);
+        }
         await db.markGuideProgrammes(
             'src:${source.id}', {for (final p in programmes) p.channelId});
       } catch (e) {

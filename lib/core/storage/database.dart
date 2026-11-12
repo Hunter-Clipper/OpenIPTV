@@ -1017,6 +1017,15 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<int> countGuideChannels(String ref) async {
+    final n = countAll();
+    final row = await (selectOnly(guideChannels)
+          ..addColumns([n])
+          ..where(guideChannels.guideRef.equals(ref)))
+        .getSingle();
+    return row.read(n) ?? 0;
+  }
+
   Future<List<GuideChannelRow>> getGuideChannels() =>
       select(guideChannels).get();
 

@@ -204,11 +204,11 @@ void main() {
     expect(await db.getGuideLinks(), isEmpty);
   });
 
-  test('the playlist guide is only downloaded again for new links', () async {
+  test('the playlist guide is only downloaded for new links', () async {
     await service.sync(); // reads the list, then loads src_ch_1 (new link)
     expect(providerHits, 2);
-    await service.sync(); // src_ch_1 already has programmes: list only
-    expect(providerHits, 3);
+    await service.sync(); // list known, src_ch_1 has programmes: no download
+    expect(providerHits, 2);
     expect(await programmesOf('src_ch_1'), 4);
   });
 

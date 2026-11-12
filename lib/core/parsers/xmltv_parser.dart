@@ -16,6 +16,7 @@ class XmltvParser {
     Duration pastWindow = const Duration(hours: 1),
     bool keepDescriptions = true,
     Set<String>? onlyChannels,
+    void Function(String id, String name)? onChannel,
   }) async* {
     // Asked for a few channels out of a big guide: find their blocks by a
     // plain text scan and parse only those (a full XML pass over hundreds
@@ -43,6 +44,11 @@ class XmltvParser {
     bool inEpisodeNum = false;
     // A programme of a channel nobody asked for: its text is not collected.
     bool skipProg = false;
+    // The channel list rides along when someone wants it.
+    String? chanId;
+    final chanName = StringBuffer();
+    var inChName = false;
+    var gotChName = false;
 
     await for (final event
         in chunks.toXmlEvents().normalizeEvents().flatten()) {
@@ -66,6 +72,16 @@ class XmltvParser {
             progDesc = null;
             progCategory = null;
             progEpisodeNum = null;
+          case 'channel':
+            if (onChannel != null) {
+              chanId = event.attributes
+                  .firstWhere((a) => a.name == 'id', orElse: () => _emptyAttr)
+                  .value;
+              chanName.clear();
+              gotChName = false;
+            }
+          case 'display-name':
+            if (chanId != null && !gotChName) inChName = true;
           case 'title':
             inTitle = true;
           case 'desc':
@@ -76,6 +92,7 @@ class XmltvParser {
             inEpisodeNum = true;
         }
       } else if (event is XmlTextEvent) {
+        if (inChName) chanName.write(event.value);
         if (skipProg) continue;
         if (inTitle) progTitle = (progTitle ?? '') + event.value;
         if (inDesc && keepDescriptions) progDesc = (progDesc ?? '') + event.value;
@@ -83,6 +100,14 @@ class XmltvParser {
         if (inEpisodeNum) progEpisodeNum = (progEpisodeNum ?? '') + event.value;
       } else if (event is XmlEndElementEvent) {
         switch (event.name) {
+          case 'display-name':
+            if (inChName) gotChName = true;
+            inChName = false;
+          case 'channel':
+            if (chanId != null && chanId.isNotEmpty) {
+              onChannel?.call(chanId, chanName.toString().trim());
+            }
+            chanId = null;
           case 'title':
             inTitle = false;
           case 'desc':

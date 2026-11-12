@@ -113,6 +113,12 @@ class GuideAssignmentService {
     // 1. Channel lists of every guide.
     if (refreshLists) {
       for (final g in guides) {
+        // A playlist's own guide is read (and its channel list noted) by that
+        // playlist's regular guide refresh; reading it again here would only
+        // lean on the provider. Only a guide never seen is fetched.
+        if (g.ref.startsWith('src:') && await db.countGuideChannels(g.ref) > 0) {
+          continue;
+        }
         onProgress?.call('Reading ${g.name}…');
         try {
           final list = await fetchGuideChannels(g.url, tmp);
