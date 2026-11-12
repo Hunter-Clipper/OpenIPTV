@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/features/live_tv/change_guide_screen.dart';
+import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,12 +60,14 @@ final recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
 // Caches EPG programme per channel so scrolling doesn't re-fire DB queries.
 final _nowProgrammeProvider =
     FutureProvider.autoDispose.family<Programme?, String>((ref, channelId) {
+  ref.watch(guideRevisionProvider); // guide data changed: load again
   return ref.read(epgServiceProvider).getCurrentProgramme(channelId);
 });
 
 // What's on now and next, per channel, for the category list rows.
 final _nowNextProvider = FutureProvider.autoDispose
     .family<(Programme?, Programme?), String>((ref, channelId) async {
+  ref.watch(guideRevisionProvider);
   final epg = ref.read(epgServiceProvider);
   final now = await epg.getCurrentProgramme(channelId);
   final next = await epg.getNextProgramme(channelId);
@@ -454,6 +458,12 @@ void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
       },
       onResetName: () =>
           ref.read(channelCustomProvider.notifier).rename(channel.id, null),
+      onChangeGuide: () async {
+        await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
+          builder: (_) => ChangeGuideScreen(
+              channelId: channel.id, channelName: channel.name),
+        ));
+      },
       onHide: () async {
         await ref.read(channelCustomProvider.notifier).hide(channel.id);
         if (context.mounted) {
@@ -682,6 +692,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
     required this.onRename,
     required this.onResetName,
     required this.onHide,
+    required this.onChangeGuide,
     required this.isRenamed,
     this.onRemoveRecent,
   });
@@ -692,6 +703,7 @@ class _ChannelOptionsSheet extends StatelessWidget {
   final Future<void> Function() onRename;
   final Future<void> Function() onResetName;
   final Future<void> Function() onHide;
+  final Future<void> Function() onChangeGuide;
   final bool isRenamed;
 
   @override
@@ -728,6 +740,14 @@ class _ChannelOptionsSheet extends StatelessWidget {
                 onResetName();
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.event_note_outlined),
+            title: const Text('Change Guide'),
+            onTap: () {
+              Navigator.of(context).pop();
+              onChangeGuide();
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.visibility_off_outlined),
             title: const Text('Hide Channel'),

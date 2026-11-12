@@ -37,6 +37,7 @@ import 'package:open_iptv/features/updates/update_dialog.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
 import 'package:open_iptv/features/settings/parental_screen.dart';
 import 'package:open_iptv/features/settings/guide_data_screen.dart';
+import 'package:open_iptv/features/settings/extra_guides_screen.dart';
 import 'package:open_iptv/features/settings/power_user_screen.dart';
 import 'package:open_iptv/features/settings/profile_picker_screen.dart';
 import 'package:open_iptv/features/settings/profile_screen.dart';
@@ -321,6 +322,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                 GoRoute(
                   path: 'guide-data',
                   builder: (_, __) => const GuideDataScreen(),
+                ),
+                GoRoute(
+                  path: 'extra-guides',
+                  builder: (_, __) => const ExtraGuidesScreen(),
                 ),
                 GoRoute(
                   path: 'power-tools',

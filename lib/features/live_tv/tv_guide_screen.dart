@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,10 +57,12 @@ typedef _RowKey = ({String channelId, DateTime start, DateTime end});
 
 // One row's programmes, loaded as the row comes into view.
 final _rowProgrammesProvider =
-    FutureProvider.autoDispose.family<List<Programme>, _RowKey>((ref, k) async =>
-        guideRow(await ref
+    FutureProvider.autoDispose.family<List<Programme>, _RowKey>((ref, k) async {
+      ref.watch(guideRevisionProvider); // guide data changed: load again
+      return guideRow(await ref
             .read(epgServiceProvider)
-            .getProgrammesForChannelInRange(k.channelId, k.start, k.end)));
+            .getProgrammesForChannelInRange(k.channelId, k.start, k.end));
+    });
 
 /// A row's programmes as the guide shows them: in order, one at a time.
 /// Some providers' guides mix two schedules for a channel (e.g. a show

@@ -329,6 +329,45 @@ class GuideMatcher {
     return GuideMatch(_entries[bestIndex].channel, best);
   }
 
+  /// Likely guide channels for a playlist channel, best first, including
+  /// guesses too weak to link automatically: the manual picker shows them for
+  /// a person to choose from.
+  List<GuideChannel> suggest(String name, {int limit = 8}) {
+    final out = <GuideChannel>[];
+    final local = _locals.resolve(name);
+    if (local.kind == LocalKind.resolved) out.add(local.channel!);
+    final q = normaliseChannelName(name);
+    if (!q.isEmpty) {
+      final candidates = <int>{};
+      for (final t in q.tokens) {
+        final posting = _postings[t];
+        if (posting == null || posting.length > _commonLimit) continue;
+        candidates.addAll(posting);
+      }
+      final scored = <(double, int)>[];
+      for (final i in candidates) {
+        var best = 0.0;
+        for (final v in _entries[i].variants) {
+          final s = scoreNames(q, v);
+          if (s > best) best = s;
+        }
+        if (best >= 0.4) scored.add((best, i));
+      }
+      scored.sort((a, b) {
+        final c = b.$1.compareTo(a.$1);
+        return c != 0 ? c : a.$2.compareTo(b.$2);
+      });
+      for (final (_, i) in scored) {
+        final c = _entries[i].channel;
+        if (!out.any((o) => o.guideId == c.guideId && o.xmltvId == c.xmltvId)) {
+          out.add(c);
+        }
+        if (out.length >= limit) break;
+      }
+    }
+    return out.take(limit).toList();
+  }
+
   /// Guide channels whose name contains every word of [query], for the
   /// manual picker. Best matches first.
   List<GuideChannel> search(String query, {int limit = 50}) {

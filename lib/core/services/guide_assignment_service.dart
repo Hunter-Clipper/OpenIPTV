@@ -76,6 +76,28 @@ class GuideAssignmentService {
     ];
   }
 
+  /// A matcher over every stored guide channel, with each guide's name, for
+  /// the Change Guide picker. Guides in priority order.
+  Future<GuidePicker> loadPicker() async {
+    final guides = await _guides();
+    final order = {for (final (i, g) in guides.indexed) g.ref: i};
+    final rows = [
+      for (final r in await db.getGuideChannels())
+        if (order.containsKey(r.guideRef)) r,
+    ]..sort((a, b) => order[a.guideRef]!.compareTo(order[b.guideRef]!));
+    return GuidePicker(
+      GuideMatcher([
+        for (final r in rows)
+          GuideChannel(
+            guideId: r.guideRef,
+            xmltvId: r.xmltvId,
+            name: r.name.isEmpty ? nameFromGuideId(r.xmltvId) : r.name,
+          ),
+      ]),
+      {for (final g in guides) g.ref: g.name},
+    );
+  }
+
   Future<GuideSyncResult> _sync(
       void Function(String)? onProgress, bool refreshLists) async {
     final sw = Stopwatch()..start();
@@ -87,12 +109,6 @@ class GuideAssignmentService {
     final guides = await _guides();
     final hasExtras = guides.any((g) => g.extraId != null);
     final manual = await db.manualLinkedChannelIds();
-
-    // Nothing to do without an extra guide or a manual link.
-    if (!hasExtras && manual.isEmpty) {
-      await db.replaceAutoLinks(const []);
-      return const GuideSyncResult();
-    }
 
     // 1. Channel lists of every guide.
     if (refreshLists) {
@@ -114,6 +130,14 @@ class GuideAssignmentService {
           }
         }
       }
+    }
+
+    // Nothing more to do without an extra guide or a manual link. (The
+    // channel lists above are still kept: the Change Guide picker offers
+    // the playlists' own guide channels too.)
+    if (!hasExtras && manual.isEmpty) {
+      await db.replaceAutoLinks(const []);
+      return GuideSyncResult(guides: guides.length, errors: errors);
     }
 
     // 2. Smart assignment.
@@ -265,6 +289,20 @@ class GuideAssignmentService {
   /// Back to automatic: the playlist's guide or a smart link.
   Future<void> resetLink(String channelId) => db.clearGuideLink(channelId);
 }
+
+/// What the Change Guide screen searches.
+class GuidePicker {
+  const GuidePicker(this.matcher, this.guideNames);
+  final GuideMatcher matcher;
+
+  /// Guide reference (`src:…` / `ext:…`) → the name the user knows it by.
+  final Map<String, String> guideNames;
+  bool get isEmpty => matcher.length == 0;
+}
+
+/// Bumped whenever guide data changed under the screens (a sync finished, a
+/// link was edited), so guide rows and now/next lines load again.
+final guideRevisionProvider = StateProvider<int>((ref) => 0);
 
 /// Matching of every candidate in one pass; runs in an isolate.
 List<(String, String, String, double)> _matchAll(

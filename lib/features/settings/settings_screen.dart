@@ -460,6 +460,22 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 );
               }),
+              InfoTooltip(
+                id: 'settings_extra_guides',
+                title: 'Extra Guides',
+                body: 'Add TV guide files for channels your playlist has no '
+                    'guide for. OpenIPTV matches them by name, and you can '
+                    'pick a guide for any channel yourself.',
+                child: _NavTile(
+                  leading: const Icon(Icons.event_note_outlined),
+                  title: 'Extra Guides',
+                  subtitle: Text(
+                    'Fill in channels that have no guide',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  onTap: () => context.push('/settings/extra-guides'),
+                ),
+              ),
               Consumer(builder: (context, ref, _) => _liveToggle(
                     ref,
                     icon: Icons.star_outline_rounded,

@@ -5,6 +5,13 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased (0.14.104)
 
+**New**
+- **Extra Guides.** Settings → Live TV → Extra Guides lets you add TV guide files (XMLTV) for channels your playlist has no guide for. They can be plain `.xml`, `.xml.gz` or zipped, as long as they unpack to XML. OpenIPTV does not provide guides; community sites publish them, and a web search for "XMLTV EPG" is a good place to start.
+- **Smart matching.** A channel with no guide is matched by name to your guides. Your playlist's own guide always comes first (including channels it lists but forgot to link), then your extra guides in the order you set. Channels that already have a guide are never changed, and a doubtful match is skipped rather than guessed. US local stations are matched by call sign or by network and city, and never to a sub-channel or look-alike.
+- **Change Guide.** Hold OK (TV) or long-press (phone) a channel → Change Guide to pick which guide it uses, search the guides, say "No guide for this channel", or go back to automatic. Your choice beats everything.
+- **Review Guide Matches** (Extra Guides) lists every matched channel so a wrong one is easy to fix.
+- Extra guides and the guides you picked by hand are included in backups.
+
 **Fixed**
 - **TV guide missing for some or all channels after a refresh.** When a provider answered a guide refresh with an empty guide (busy or rate-limited), OpenIPTV treated it as a success and cleared out part of the guide it already had. It now keeps your current guide and says the provider sent an empty one.
 - **Stations listed more than once** (for example HD and SD versions of the same channel) now all get the guide. Before, only the first one did.

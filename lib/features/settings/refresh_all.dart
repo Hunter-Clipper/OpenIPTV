@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
@@ -79,6 +80,22 @@ class RefreshAllNotifier extends Notifier<RefreshAllState> {
         playlist: scope != RefreshScope.guides,
         guide: scope != RefreshScope.playlists,
       ));
+    }
+    // Extra guides and smart links, once every playlist's own guide is in.
+    if (scope != RefreshScope.playlists) {
+      state = RefreshAllState(
+        running: scope,
+        done: sources.length,
+        total: sources.length,
+        current: 'Extra guides',
+        last: state.last,
+        lastResults: state.lastResults,
+        finishedAt: state.finishedAt,
+      );
+      try {
+        await ref.read(guideAssignmentProvider).sync();
+      } catch (_) {}
+      ref.read(guideRevisionProvider.notifier).state++;
     }
     // Refresh times (and any guide URL a playlist just reported).
     ref.invalidate(allSourcesProvider);
