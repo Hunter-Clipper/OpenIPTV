@@ -30,7 +30,7 @@ void main() {
     expect(await db.getAllSources(), isEmpty); // forces open + upgrade
     final version =
         await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.data['user_version'], 15); // upgrades on to the latest
+    expect(version.data['user_version'], 16); // upgrades on to the latest
   });
 
   // Extra guides (#40): an upgrade from 14 creates the three tables, and a
@@ -61,5 +61,31 @@ void main() {
     db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
     expect(await db.getExtraGuides(), isEmpty);
+  });
+
+  // 16 adds guide_channels.has_programmes.
+  test('upgrading to 16 adds the column, and tolerates it being there', () async {
+    final dir = await Directory.systemTemp.createTemp('otv-mig16');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/test.db');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await db.customStatement('SELECT 1');
+    await db.customStatement('ALTER TABLE guide_channels DROP COLUMN has_programmes');
+    await db.customStatement('PRAGMA user_version = 15');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    await db.replaceGuideChannels('ext:x', [(id: 'A', name: 'A')]);
+    await db.markGuideProgrammes('ext:x', {'A'});
+    expect((await db.getGuideChannels()).single.hasProgrammes, isTrue);
+    await db.close();
+
+    final raw = AppDatabase(NativeDatabase(file));
+    await raw.customStatement('PRAGMA user_version = 15');
+    await raw.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    expect((await db.getGuideChannels()).single.xmltvId, 'A');
   });
 }

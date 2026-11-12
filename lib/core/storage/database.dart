@@ -135,6 +135,11 @@ class GuideChannels extends Table {
   TextColumn get xmltvId => text()();
   TextColumn get name => text()();
 
+  /// Whether the guide had any programmes for this channel when it was last
+  /// read; null when not known yet. Guides often list channels they have
+  /// nothing for, and such an entry must not count as "covered".
+  BoolColumn get hasProgrammes => boolean().nullable()();
+
   @override
   Set<Column> get primaryKey => {guideRef, xmltvId};
 }
@@ -282,7 +287,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -401,6 +406,13 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(extraGuides);
             await m.createTable(guideChannels);
             await m.createTable(channelGuideLinks);
+          }
+          if (from >= 15 && from < 16) {
+            try {
+              await m.addColumn(guideChannels, guideChannels.hasProgrammes);
+            } catch (e) {
+              if (!'$e'.contains('duplicate column name')) rethrow;
+            }
           }
         },
         beforeOpen: (details) async {
@@ -948,10 +960,17 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// Replaces the stored channel list of one guide.
+  /// Replaces the stored channel list of one guide. What was known of each
+  /// channel's programmes carries over.
   Future<void> replaceGuideChannels(
       String ref, List<({String id, String name})> list) async {
     await transaction(() async {
+      final old = {
+        for (final r in await (select(guideChannels)
+              ..where((t) => t.guideRef.equals(ref)))
+            .get())
+          r.xmltvId: r.hasProgrammes,
+      };
       await (delete(guideChannels)..where((t) => t.guideRef.equals(ref))).go();
       for (var i = 0; i < list.length; i += 1000) {
         final chunk = list.sublist(i, (i + 1000).clamp(0, list.length));
@@ -961,11 +980,39 @@ class AppDatabase extends _$AppDatabase {
             [
               for (final c in chunk)
                 GuideChannelsCompanion.insert(
-                    guideRef: ref, xmltvId: c.id, name: c.name),
+                  guideRef: ref,
+                  xmltvId: c.id,
+                  name: c.name,
+                  hasProgrammes: Value(old[c.id]),
+                ),
             ],
             mode: InsertMode.insertOrReplace,
           );
         });
+      }
+    });
+  }
+
+  /// Records which channels of a guide had programmes when it was read.
+  Future<void> markGuideProgrammes(String ref, Set<String> withProgrammes) async {
+    await transaction(() async {
+      await customUpdate(
+        'UPDATE guide_channels SET has_programmes = 0 WHERE guide_ref = ?',
+        variables: [Variable.withString(ref)],
+        updates: {guideChannels},
+      );
+      final ids = withProgrammes.toList();
+      for (var i = 0; i < ids.length; i += 500) {
+        final chunk = ids.sublist(i, (i + 500).clamp(0, ids.length));
+        await customUpdate(
+          'UPDATE guide_channels SET has_programmes = 1 WHERE guide_ref = ? '
+          'AND xmltv_id IN (${List.filled(chunk.length, '?').join(',')})',
+          variables: [
+            Variable.withString(ref),
+            for (final id in chunk) Variable.withString(id),
+          ],
+          updates: {guideChannels},
+        );
       }
     });
   }

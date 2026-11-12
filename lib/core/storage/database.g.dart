@@ -2088,8 +2088,18 @@ class $GuideChannelsTable extends GuideChannels
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _hasProgrammesMeta =
+      const VerificationMeta('hasProgrammes');
   @override
-  List<GeneratedColumn> get $columns => [guideRef, xmltvId, name];
+  late final GeneratedColumn<bool> hasProgrammes = GeneratedColumn<bool>(
+      'has_programmes', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("has_programmes" IN (0, 1))'));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [guideRef, xmltvId, name, hasProgrammes];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2118,6 +2128,12 @@ class $GuideChannelsTable extends GuideChannels
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('has_programmes')) {
+      context.handle(
+          _hasProgrammesMeta,
+          hasProgrammes.isAcceptableOrUnknown(
+              data['has_programmes']!, _hasProgrammesMeta));
+    }
     return context;
   }
 
@@ -2133,6 +2149,8 @@ class $GuideChannelsTable extends GuideChannels
           .read(DriftSqlType.string, data['${effectivePrefix}xmltv_id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      hasProgrammes: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}has_programmes']),
     );
   }
 
@@ -2146,14 +2164,25 @@ class GuideChannelRow extends DataClass implements Insertable<GuideChannelRow> {
   final String guideRef;
   final String xmltvId;
   final String name;
+
+  /// Whether the guide had any programmes for this channel when it was last
+  /// read; null when not known yet. Guides often list channels they have
+  /// nothing for, and such an entry must not count as "covered".
+  final bool? hasProgrammes;
   const GuideChannelRow(
-      {required this.guideRef, required this.xmltvId, required this.name});
+      {required this.guideRef,
+      required this.xmltvId,
+      required this.name,
+      this.hasProgrammes});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['guide_ref'] = Variable<String>(guideRef);
     map['xmltv_id'] = Variable<String>(xmltvId);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || hasProgrammes != null) {
+      map['has_programmes'] = Variable<bool>(hasProgrammes);
+    }
     return map;
   }
 
@@ -2162,6 +2191,9 @@ class GuideChannelRow extends DataClass implements Insertable<GuideChannelRow> {
       guideRef: Value(guideRef),
       xmltvId: Value(xmltvId),
       name: Value(name),
+      hasProgrammes: hasProgrammes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hasProgrammes),
     );
   }
 
@@ -2172,6 +2204,7 @@ class GuideChannelRow extends DataClass implements Insertable<GuideChannelRow> {
       guideRef: serializer.fromJson<String>(json['guideRef']),
       xmltvId: serializer.fromJson<String>(json['xmltvId']),
       name: serializer.fromJson<String>(json['name']),
+      hasProgrammes: serializer.fromJson<bool?>(json['hasProgrammes']),
     );
   }
   @override
@@ -2181,20 +2214,30 @@ class GuideChannelRow extends DataClass implements Insertable<GuideChannelRow> {
       'guideRef': serializer.toJson<String>(guideRef),
       'xmltvId': serializer.toJson<String>(xmltvId),
       'name': serializer.toJson<String>(name),
+      'hasProgrammes': serializer.toJson<bool?>(hasProgrammes),
     };
   }
 
-  GuideChannelRow copyWith({String? guideRef, String? xmltvId, String? name}) =>
+  GuideChannelRow copyWith(
+          {String? guideRef,
+          String? xmltvId,
+          String? name,
+          Value<bool?> hasProgrammes = const Value.absent()}) =>
       GuideChannelRow(
         guideRef: guideRef ?? this.guideRef,
         xmltvId: xmltvId ?? this.xmltvId,
         name: name ?? this.name,
+        hasProgrammes:
+            hasProgrammes.present ? hasProgrammes.value : this.hasProgrammes,
       );
   GuideChannelRow copyWithCompanion(GuideChannelsCompanion data) {
     return GuideChannelRow(
       guideRef: data.guideRef.present ? data.guideRef.value : this.guideRef,
       xmltvId: data.xmltvId.present ? data.xmltvId.value : this.xmltvId,
       name: data.name.present ? data.name.value : this.name,
+      hasProgrammes: data.hasProgrammes.present
+          ? data.hasProgrammes.value
+          : this.hasProgrammes,
     );
   }
 
@@ -2203,37 +2246,42 @@ class GuideChannelRow extends DataClass implements Insertable<GuideChannelRow> {
     return (StringBuffer('GuideChannelRow(')
           ..write('guideRef: $guideRef, ')
           ..write('xmltvId: $xmltvId, ')
-          ..write('name: $name')
+          ..write('name: $name, ')
+          ..write('hasProgrammes: $hasProgrammes')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(guideRef, xmltvId, name);
+  int get hashCode => Object.hash(guideRef, xmltvId, name, hasProgrammes);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is GuideChannelRow &&
           other.guideRef == this.guideRef &&
           other.xmltvId == this.xmltvId &&
-          other.name == this.name);
+          other.name == this.name &&
+          other.hasProgrammes == this.hasProgrammes);
 }
 
 class GuideChannelsCompanion extends UpdateCompanion<GuideChannelRow> {
   final Value<String> guideRef;
   final Value<String> xmltvId;
   final Value<String> name;
+  final Value<bool?> hasProgrammes;
   final Value<int> rowid;
   const GuideChannelsCompanion({
     this.guideRef = const Value.absent(),
     this.xmltvId = const Value.absent(),
     this.name = const Value.absent(),
+    this.hasProgrammes = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GuideChannelsCompanion.insert({
     required String guideRef,
     required String xmltvId,
     required String name,
+    this.hasProgrammes = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : guideRef = Value(guideRef),
         xmltvId = Value(xmltvId),
@@ -2242,12 +2290,14 @@ class GuideChannelsCompanion extends UpdateCompanion<GuideChannelRow> {
     Expression<String>? guideRef,
     Expression<String>? xmltvId,
     Expression<String>? name,
+    Expression<bool>? hasProgrammes,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (guideRef != null) 'guide_ref': guideRef,
       if (xmltvId != null) 'xmltv_id': xmltvId,
       if (name != null) 'name': name,
+      if (hasProgrammes != null) 'has_programmes': hasProgrammes,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2256,11 +2306,13 @@ class GuideChannelsCompanion extends UpdateCompanion<GuideChannelRow> {
       {Value<String>? guideRef,
       Value<String>? xmltvId,
       Value<String>? name,
+      Value<bool?>? hasProgrammes,
       Value<int>? rowid}) {
     return GuideChannelsCompanion(
       guideRef: guideRef ?? this.guideRef,
       xmltvId: xmltvId ?? this.xmltvId,
       name: name ?? this.name,
+      hasProgrammes: hasProgrammes ?? this.hasProgrammes,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2277,6 +2329,9 @@ class GuideChannelsCompanion extends UpdateCompanion<GuideChannelRow> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (hasProgrammes.present) {
+      map['has_programmes'] = Variable<bool>(hasProgrammes.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2289,6 +2344,7 @@ class GuideChannelsCompanion extends UpdateCompanion<GuideChannelRow> {
           ..write('guideRef: $guideRef, ')
           ..write('xmltvId: $xmltvId, ')
           ..write('name: $name, ')
+          ..write('hasProgrammes: $hasProgrammes, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7044,6 +7100,7 @@ typedef $$GuideChannelsTableCreateCompanionBuilder = GuideChannelsCompanion
   required String guideRef,
   required String xmltvId,
   required String name,
+  Value<bool?> hasProgrammes,
   Value<int> rowid,
 });
 typedef $$GuideChannelsTableUpdateCompanionBuilder = GuideChannelsCompanion
@@ -7051,6 +7108,7 @@ typedef $$GuideChannelsTableUpdateCompanionBuilder = GuideChannelsCompanion
   Value<String> guideRef,
   Value<String> xmltvId,
   Value<String> name,
+  Value<bool?> hasProgrammes,
   Value<int> rowid,
 });
 
@@ -7071,6 +7129,9 @@ class $$GuideChannelsTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get hasProgrammes => $composableBuilder(
+      column: $table.hasProgrammes, builder: (column) => ColumnFilters(column));
 }
 
 class $$GuideChannelsTableOrderingComposer
@@ -7090,6 +7151,10 @@ class $$GuideChannelsTableOrderingComposer
 
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get hasProgrammes => $composableBuilder(
+      column: $table.hasProgrammes,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$GuideChannelsTableAnnotationComposer
@@ -7109,6 +7174,9 @@ class $$GuideChannelsTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasProgrammes => $composableBuilder(
+      column: $table.hasProgrammes, builder: (column) => column);
 }
 
 class $$GuideChannelsTableTableManager extends RootTableManager<
@@ -7140,24 +7208,28 @@ class $$GuideChannelsTableTableManager extends RootTableManager<
             Value<String> guideRef = const Value.absent(),
             Value<String> xmltvId = const Value.absent(),
             Value<String> name = const Value.absent(),
+            Value<bool?> hasProgrammes = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               GuideChannelsCompanion(
             guideRef: guideRef,
             xmltvId: xmltvId,
             name: name,
+            hasProgrammes: hasProgrammes,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String guideRef,
             required String xmltvId,
             required String name,
+            Value<bool?> hasProgrammes = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               GuideChannelsCompanion.insert(
             guideRef: guideRef,
             xmltvId: xmltvId,
             name: name,
+            hasProgrammes: hasProgrammes,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

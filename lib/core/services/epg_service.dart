@@ -219,6 +219,15 @@ class EpgService {
         throw http.ClientException('empty_guide');
       }
 
+      // Remember which of the guide's channels actually have programmes:
+      // an entry with none is not "covered" (smart assignment may fill it).
+      try {
+        await db.markGuideProgrammes(
+            'src:${source.id}', {for (final p in programmes) p.channelId});
+      } catch (e) {
+        debugPrint('[EPG] could not note guide channels: $e');
+      }
+
       // Only delete old programmes after new data is successfully fetched
       // and parsed — a failed refresh keeps the existing guide intact.
       await db.deleteOldProgrammes();

@@ -143,9 +143,11 @@ class GuideAssignmentService {
     debugPrint('[Guides] lists read: ${sw.elapsedMilliseconds} ms');
     // 2. Smart assignment.
     final order = {for (final (i, g) in guides.indexed) g.ref: i};
+    // A guide entry known to have no programmes is of no use: it neither
+    // covers a channel nor is worth matching to.
     final rows = [
       for (final r in await db.getGuideChannels())
-        if (order.containsKey(r.guideRef)) r,
+        if (order.containsKey(r.guideRef) && r.hasProgrammes != false) r,
     ]..sort((a, b) => order[a.guideRef]!.compareTo(order[b.guideRef]!));
     final briefs = await db.channelBriefs();
 
@@ -238,7 +240,12 @@ class GuideAssignmentService {
           keepDescriptions: keepDesc,
         );
         if (ps.isEmpty) {
-          errors.add('${g.name}: no programmes for the linked channels');
+          debugPrint('[Guides] ${g.name}: no programmes for '
+              '${wanted.length} linked channels');
+          // A playlist's own guide is covered by its regular refresh.
+          if (g.extraId != null) {
+            errors.add('${g.name}: no programmes for the linked channels');
+          }
           continue;
         }
         imported += await _store(ps, wanted);

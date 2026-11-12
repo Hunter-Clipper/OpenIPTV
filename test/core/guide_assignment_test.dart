@@ -211,4 +211,32 @@ void main() {
     expect(providerHits, 3);
     expect(await programmesOf('src_ch_1'), 4);
   });
+
+  test('a playlist guide entry with no programmes does not count as covered',
+      () async {
+    // The playlist's guide lists Linked.uk but has nothing for it.
+    await service.sync(); // reads the lists
+    await db.markGuideProgrammes('src:src', {'BBCOne.uk'});
+    expect((await db.getGuideChannels())
+        .where((c) => c.guideRef == 'src:src' && c.xmltvId == 'Linked.uk')
+        .single
+        .hasProgrammes, isFalse);
+    await service.sync(refreshLists: false);
+    final l = await link('src_ch_3'); // tvg-id Linked.uk
+    expect(l, isNotNull);
+    expect(l!.guideRef, 'ext:g1'); // the empty provider entry is skipped
+    expect(await programmesOf('src_ch_3'), 4);
+  });
+
+  test('what is known about a guide channel survives re-reading the list',
+      () async {
+    await service.sync();
+    await db.markGuideProgrammes('src:src', {'BBCOne.uk'});
+    await service.sync(); // re-reads the channel lists
+    final flags = {
+      for (final c in await db.getGuideChannels())
+        if (c.guideRef == 'src:src') c.xmltvId: c.hasProgrammes,
+    };
+    expect(flags, {'BBCOne.uk': true, 'Linked.uk': false});
+  });
 }
