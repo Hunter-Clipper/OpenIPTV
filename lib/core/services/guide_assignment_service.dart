@@ -350,6 +350,52 @@ class GuideAssignmentService {
         xmltvId: xmltvId));
   }
 
+  /// Loads the programmes for one channel's manual link: reads that single
+  /// guide for that single entry, nothing else (no matching, no other guide),
+  /// and does not wait for or join a running [sync]. Returns a plain-English
+  /// problem, or null when programmes were stored.
+  Future<String?> loadChannel(String channelId) async {
+    final link = (await db.getGuideLinks())
+        .where((l) => l.channelId == channelId)
+        .firstOrNull;
+    if (link == null || link.guideRef == null || link.xmltvId == null) {
+      return null;
+    }
+    final guide =
+        (await _guides()).where((g) => g.ref == link.guideRef).firstOrNull;
+    if (guide == null) return 'That guide is no longer in your list.';
+    final sw = Stopwatch()..start();
+    try {
+      final prefs = AppPreferences(await SharedPreferences.getInstance());
+      final tmp = tempDir != null
+          ? await tempDir!()
+          : (await getTemporaryDirectory()).path;
+      final maxCatchup = await _maxCatchupDays();
+      final ps = await fetchGuideProgrammes(
+        guide.url,
+        tmp,
+        {link.xmltvId!},
+        pastWindow: maxCatchup > 0
+            ? Duration(days: maxCatchup)
+            : const Duration(hours: 1),
+        daysAhead: prefs.guideDaysAhead,
+        keepDescriptions: prefs.guideDescriptions,
+      );
+      if (ps.isEmpty) {
+        return '${guide.name} has no programmes for that channel right now.';
+      }
+      final n = await _store(ps, {
+        link.xmltvId!: [channelId]
+      });
+      debugPrint('[Guides] loaded $n programmes for one channel: '
+          '${sw.elapsedMilliseconds} ms');
+      return null;
+    } catch (e) {
+      debugPrint('[Guides] ${guide.name}: ${redactUrl('$e')}');
+      return '${guide.name}: ${friendlyGuideError(e)}';
+    }
+  }
+
   /// "No guide for this channel."
   Future<void> setNone(String channelId) async {
     await db.deleteProgrammesForChannels([channelId]);

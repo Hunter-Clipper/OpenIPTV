@@ -153,6 +153,16 @@ void main() {
     expect((await link('src_ch_4'))?.kind, 'manual');
   });
 
+  test('loadChannel fills one manual link without a full sync', () async {
+    await service.sync();
+    await service.setManual('src_ch_4', 'ext:g1', 'CNN.us');
+    expect(await programmesOf('src_ch_4'), 0);
+    expect(await service.loadChannel('src_ch_4'), isNull);
+    expect(await programmesOf('src_ch_4'), 4);
+    // No link, or a link to nothing: harmless.
+    expect(await service.loadChannel('src_ch_nope'), isNull);
+  });
+
   test('"no guide" removes the programmes and stays that way', () async {
     await service.sync();
     await service.setNone('src_ch_2');

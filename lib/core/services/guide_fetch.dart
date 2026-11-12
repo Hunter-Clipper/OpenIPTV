@@ -15,7 +15,13 @@ import 'package:open_iptv/core/services/epg_service.dart' show maybeGunzip;
 ///
 /// [tempDir] is where a zip is unpacked (zips cannot be read as a stream).
 /// Call [GuideSource.close] when done.
-Future<GuideSource> openGuide(String url, {required String tempDir}) async {
+Future<GuideSource> openGuide(String url,
+    {required String tempDir, bool latin1 = false}) async {
+  // [latin1]: hand out the raw bytes one character each, for callers that
+  // only scan for ASCII markers (see XmltvParser `latin1Input`).
+  final Converter<List<int>, String> decoder = latin1
+      ? const Latin1Decoder(allowInvalid: true)
+      : const Utf8Decoder(allowMalformed: true);
   final client = http.Client();
   final tempFiles = <FileSystemEntity>[];
   Future<void> close() async {
@@ -57,7 +63,7 @@ Future<GuideSource> openGuide(String url, {required String tempDir}) async {
         head[3] == 0x04;
     if (!isZip) {
       return GuideSource(
-          maybeGunzip(all()).transform(const Utf8Decoder(allowMalformed: true)),
+          maybeGunzip(all()).transform(decoder),
           close);
     }
 
@@ -79,8 +85,7 @@ Future<GuideSource> openGuide(String url, {required String tempDir}) async {
     }
     if (best == null) throw http.ClientException('zip_without_xml');
     return GuideSource(
-        maybeGunzip(best.openRead())
-            .transform(const Utf8Decoder(allowMalformed: true)),
+        maybeGunzip(best.openRead()).transform(decoder),
         close);
   } catch (_) {
     await close();
@@ -125,7 +130,7 @@ Future<List<Programme>> fetchGuideProgrammes(
   required bool keepDescriptions,
 }) {
   return Isolate.run(() async {
-    final src = await openGuide(url, tempDir: tempDir);
+    final src = await openGuide(url, tempDir: tempDir, latin1: true);
     try {
       final out = <Programme>[];
       await for (final p in XmltvParser.parse(
@@ -134,6 +139,7 @@ Future<List<Programme>> fetchGuideProgrammes(
         windowDays: daysAhead,
         keepDescriptions: keepDescriptions,
         onlyChannels: channelIds,
+        latin1Input: true,
       )) {
         out.add(p);
       }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/parsers/xmltv_parser.dart';
@@ -103,5 +105,15 @@ void main() {
     ).toList();
     expect(seen, {'X': 'First', 'Y': ''});
     expect(got.single.title, 'x show');
+  });
+
+  test('raw-byte (latin1) input still finds non-ASCII ids and titles', () async {
+    final raw = '<tv>${prog('channel="Café.fr"', 'Le Journal – ñ')}'
+        '${prog('channel="Other"', 'x')}</tv>';
+    final asLatin1 = latin1.decode(utf8.encode(raw));
+    final got = await XmltvParser.parse(Stream.value(asLatin1),
+        onlyChannels: {'Café.fr'}, latin1Input: true).toList();
+    expect(got.single.title, 'Le Journal – ñ');
+    expect(got.single.channelId, 'Café.fr');
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:xml/xml_events.dart';
 
@@ -17,6 +18,7 @@ class XmltvParser {
     bool keepDescriptions = true,
     Set<String>? onlyChannels,
     void Function(String id, String name)? onChannel,
+    bool latin1Input = false,
   }) async* {
     // Asked for a few channels out of a big guide: find their blocks by a
     // plain text scan and parse only those (a full XML pass over hundreds
@@ -25,7 +27,8 @@ class XmltvParser {
       yield* _parseWanted(chunks, onlyChannels,
           windowDays: windowDays,
           pastWindow: pastWindow,
-          keepDescriptions: keepDescriptions);
+          keepDescriptions: keepDescriptions,
+          latin1Input: latin1Input);
       return;
     }
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
@@ -188,7 +191,14 @@ class XmltvParser {
     required int windowDays,
     required Duration pastWindow,
     required bool keepDescriptions,
+    bool latin1Input = false,
   }) async* {
+    // [latin1Input]: the text is the file's raw bytes, one character each
+    // (decoding UTF-8 over hundreds of megabytes costs as much as the scan).
+    // Tags and ids are ASCII; only the blocks kept are decoded properly.
+    final want = latin1Input
+        ? {for (final w in wanted) latin1.decode(utf8.encode(w))}
+        : wanted;
     var buf = '';
     final batch = StringBuffer();
     var batchSize = 0;
@@ -231,8 +241,11 @@ class XmltvParser {
           blockEnd = close + 12;
         }
         final id = _channelOf(buf, i, gt);
-        if (id != null && wanted.contains(id)) {
-          final block = buf.substring(i, blockEnd);
+        if (id != null && want.contains(id)) {
+          var block = buf.substring(i, blockEnd);
+          if (latin1Input) {
+            block = utf8.decode(latin1.encode(block), allowMalformed: true);
+          }
           batch.write(block);
           batchSize += block.length;
           if (batchSize > 262144) yield* flush();
