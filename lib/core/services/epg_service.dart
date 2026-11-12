@@ -234,20 +234,30 @@ class EpgService {
       // Channels the user gave a guide by hand (or "no guide") are served by
       // that choice, not by the playlist's own guide.
       final manual = await db.manualLinkedChannelIds();
+      // Channels linked to this playlist's guide by name (smart assignment)
+      // or by hand (Change Guide): filled from the same download.
+      final linkTargets = <String, List<String>>{};
+      for (final l in await db.getGuideLinks()) {
+        if (l.guideRef == 'src:${source.id}' && l.xmltvId != null) {
+          (linkTargets[l.xmltvId!] ??= []).add(l.channelId);
+        }
+      }
       final mapped = [
         for (final p in programmes)
-          if (ids[p.channelId] case final targets?)
-            for (final id in targets)
-              if (!manual.contains(id))
-                Programme(
-                  channelId: id,
-                  start: p.start,
-                  end: p.end,
-                  title: p.title,
-                  description: keepDescriptions ? p.description : null,
-                  category: p.category,
-                  episodeNum: p.episodeNum,
-                ),
+          for (final id in {
+            for (final t in ids[p.channelId] ?? const <String>[])
+              if (!manual.contains(t)) t,
+            ...?linkTargets[p.channelId],
+          })
+            Programme(
+              channelId: id,
+              start: p.start,
+              end: p.end,
+              title: p.title,
+              description: keepDescriptions ? p.description : null,
+              category: p.category,
+              episodeNum: p.episodeNum,
+            ),
       ];
 
       var totalWritten = 0;

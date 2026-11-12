@@ -156,12 +156,24 @@ class GuideAssignmentService {
         for (final r in rows)
           if (r.guideRef.startsWith('src:')) r.xmltvId,
       };
+      // A playlist whose guide list we could not read at all: its channels
+      // that carry a guide id are left alone (that guide may well have them).
+      final listed = {
+        for (final r in rows)
+          if (r.guideRef.startsWith('src:')) r.guideRef,
+      };
+      final withGuideUrl = {
+        for (final g in guides)
+          if (g.ref.startsWith('src:')) g.ref.substring(4),
+      };
       final candidates = [
         for (final c in briefs)
           if (!manual.contains(c.id) &&
               !(c.tvgId != null &&
                   c.tvgId!.isNotEmpty &&
-                  ownIds.contains(c.tvgId)))
+                  (ownIds.contains(c.tvgId) ||
+                      (withGuideUrl.contains(c.sourceId) &&
+                          !listed.contains('src:${c.sourceId}')))))
             (c.id, c.name, c.tvgId, c.tvgName),
       ];
       final guideRows = [
@@ -197,9 +209,20 @@ class GuideAssignmentService {
     final keepDesc = prefs.guideDescriptions;
     final maxCatchup = await _maxCatchupDays();
     var imported = 0;
+    final haveProgrammes = await db.channelIdsWithProgrammes();
     for (final g in guides) {
-      final wanted = byGuide[g.ref];
+      var wanted = byGuide[g.ref];
       if (wanted == null || wanted.isEmpty) continue;
+      // A playlist's own guide is re-read by the playlist's regular guide
+      // refresh, which also fills the channels linked to it. Here only the
+      // newly linked ones (no programmes yet) are worth a download.
+      if (g.ref.startsWith('src:')) {
+        wanted = {
+          for (final e in wanted.entries)
+            if (e.value.any((c) => !haveProgrammes.contains(c))) e.key: e.value,
+        };
+        if (wanted.isEmpty) continue;
+      }
       onProgress?.call('Loading ${g.name} (${wanted.length} channels)…');
       try {
         final ps = await fetchGuideProgrammes(

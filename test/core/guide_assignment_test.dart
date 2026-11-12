@@ -44,6 +44,7 @@ void main() {
   late Directory tmp;
   late GuideAssignmentService service;
   late String base;
+  var providerHits = 0;
 
   Future<void> channel(String id, String name, {String? tvgId}) =>
       db.into(db.channels).insert(ChannelsCompanion.insert(
@@ -62,6 +63,7 @@ void main() {
   Future<GuideLinkRow?> link(String c) => db.getGuideLink(c);
 
   setUp(() async {
+    providerHits = 0;
     SharedPreferences.setMockInitialValues({});
     tmp = await Directory.systemTemp.createTemp('assign_test_');
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -77,6 +79,7 @@ void main() {
       final res = req.response;
       switch (req.uri.path) {
         case '/provider.xml':
+          providerHits++;
           res.write(provider);
         case '/extra.xml.gz':
           res.add(GZipEncoder().encode(utf8.encode(extra))!);
@@ -199,5 +202,13 @@ void main() {
     final r = await service.sync();
     expect(r.linked, 0);
     expect(await db.getGuideLinks(), isEmpty);
+  });
+
+  test('the playlist guide is only downloaded again for new links', () async {
+    await service.sync(); // reads the list, then loads src_ch_1 (new link)
+    expect(providerHits, 2);
+    await service.sync(); // src_ch_1 already has programmes: list only
+    expect(providerHits, 3);
+    expect(await programmesOf('src_ch_1'), 4);
   });
 }

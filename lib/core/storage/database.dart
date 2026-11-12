@@ -1061,6 +1061,14 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Channels that have at least one programme stored.
+  Future<Set<String>> channelIdsWithProgrammes() async {
+    final rows = await customSelect(
+            'SELECT DISTINCT channel_id AS id FROM programmes')
+        .get();
+    return {for (final r in rows) r.read<String>('id')};
+  }
+
   /// Every live channel with what smart assignment needs to know of it.
   Future<List<ChannelBrief>> channelBriefs() async {
     final rows = await (selectOnly(channels)
