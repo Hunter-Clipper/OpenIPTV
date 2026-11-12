@@ -1071,8 +1071,10 @@ class AppDatabase extends _$AppDatabase {
 
   /// Replaces every automatic link with [links] (manual ones stay). The
   /// programmes of channels whose automatic link changed or went away are
-  /// dropped so the old guide does not linger.
-  Future<void> replaceAutoLinks(List<GuideLinksCompanionArgs> links) async {
+  /// dropped so the old guide does not linger, except for channels in
+  /// [keepProgrammesFor] (served by their playlist's own guide).
+  Future<void> replaceAutoLinks(List<GuideLinksCompanionArgs> links,
+      {Set<String> keepProgrammesFor = const {}}) async {
     await transaction(() async {
       final old = await (select(channelGuideLinks)
             ..where((t) => t.kind.equals('auto')))
@@ -1085,7 +1087,9 @@ class AppDatabase extends _$AppDatabase {
               next[o.channelId]!.guideRef != o.guideRef)
             o.channelId,
       ];
-      await deleteProgrammesForChannels(stale);
+      // Channels the playlist's own guide serves keep their programmes.
+      await deleteProgrammesForChannels(
+          [for (final c in stale) if (!keepProgrammesFor.contains(c)) c]);
       await (delete(channelGuideLinks)..where((t) => t.kind.equals('auto')))
           .go();
       await batch((b) {

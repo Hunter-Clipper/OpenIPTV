@@ -159,6 +159,9 @@ class GuideAssignmentService {
     final briefs = await db.channelBriefs();
 
     var auto = const <GuideLinksCompanionArgs>[];
+    // Channels the playlist's own guide serves: their programmes are not ours
+    // to delete when an old automatic link goes away.
+    var covered = const <String>{};
     if (prefs.smartGuideAssign && rows.isNotEmpty) {
       onProgress?.call('Matching channels to guides…');
       // Channels the playlist's own guide lists keep it.
@@ -176,14 +179,19 @@ class GuideAssignmentService {
         for (final g in guides)
           if (g.ref.startsWith('src:')) g.ref.substring(4),
       };
+      bool isCovered(ChannelBrief c) =>
+          c.tvgId != null &&
+          c.tvgId!.isNotEmpty &&
+          (ownIds.contains(c.tvgId) ||
+              (withGuideUrl.contains(c.sourceId) &&
+                  !listed.contains('src:${c.sourceId}')));
+      covered = {
+        for (final c in briefs)
+          if (isCovered(c)) c.id,
+      };
       final candidates = [
         for (final c in briefs)
-          if (!manual.contains(c.id) &&
-              !(c.tvgId != null &&
-                  c.tvgId!.isNotEmpty &&
-                  (ownIds.contains(c.tvgId) ||
-                      (withGuideUrl.contains(c.sourceId) &&
-                          !listed.contains('src:${c.sourceId}')))))
+          if (!manual.contains(c.id) && !isCovered(c))
             (c.id, c.name, c.tvgId, c.tvgName),
       ];
       final guideRows = [
@@ -201,7 +209,7 @@ class GuideAssignmentService {
       ];
     }
     debugPrint('[Guides] matched ${auto.length}: ${sw.elapsedMilliseconds} ms');
-    await db.replaceAutoLinks(auto);
+    await db.replaceAutoLinks(auto, keepProgrammesFor: covered);
 
     // 3. Programmes for every linked channel, one pass per guide.
     final links = await db.getGuideLinks();
@@ -221,6 +229,28 @@ class GuideAssignmentService {
     final maxCatchup = await _maxCatchupDays();
     var imported = 0;
     final haveProgrammes = await db.channelIdsWithProgrammes();
+    // Heal: a channel its own playlist's guide covers but that holds no
+    // programmes (after "Use Automatic", or if they were lost) gets them from
+    // that guide. Costs a download only when something is actually missing.
+    final listedBy = <String, Set<String>>{};
+    for (final r in rows) {
+      if (r.guideRef.startsWith('src:')) {
+        (listedBy[r.guideRef] ??= {}).add(r.xmltvId);
+      }
+    }
+    for (final c in briefs) {
+      final id = c.tvgId;
+      if (id == null ||
+          id.isEmpty ||
+          manual.contains(c.id) ||
+          haveProgrammes.contains(c.id)) {
+        continue;
+      }
+      final ref = 'src:${c.sourceId}';
+      if (listedBy[ref]?.contains(id) ?? false) {
+        ((byGuide[ref] ??= {})[id] ??= []).add(c.id);
+      }
+    }
     for (final g in guides) {
       var wanted = byGuide[g.ref];
       if (wanted == null || wanted.isEmpty) continue;

@@ -126,7 +126,8 @@ void main() {
     expect(await programmesOf('src_ch_1'), 4);
     expect(await programmesOf('src_ch_2'), 4);
     expect(await programmesOf('src_ch_5'), 4);
-    expect(await programmesOf('src_ch_3'), 0);
+    // ch_3 is covered by the playlist's own guide (Linked.uk): filled from it.
+    expect(await programmesOf('src_ch_3'), 4);
     expect(await programmesOf('src_ch_4'), 0);
 
     final g = (await db.getExtraGuides()).single;
@@ -238,5 +239,51 @@ void main() {
         if (c.guideRef == 'src:src') c.xmltvId: c.hasProgrammes,
     };
     expect(flags, {'BBCOne.uk': true, 'Linked.uk': false});
+  });
+
+  test('when the playlist guide takes over, its programmes are kept', () async {
+    // The playlist's guide has nothing for Linked.uk, so ch_3 gets a smart link.
+    await service.sync();
+    await db.markGuideProgrammes('src:src', {'BBCOne.uk'});
+    await service.sync(refreshLists: false);
+    expect((await link('src_ch_3'))?.guideRef, 'ext:g1');
+    expect(await programmesOf('src_ch_3'), 4);
+
+    // Later the playlist's guide gets data and writes its own programmes.
+    final start = DateTime.now().add(const Duration(hours: 9));
+    await db.into(db.programmes).insert(ProgrammesCompanion.insert(
+        channelId: 'src_ch_3',
+        start: start,
+        end: start.add(const Duration(hours: 1)),
+        title: 'from the playlist guide'));
+    await db.markGuideProgrammes('src:src', {'BBCOne.uk', 'Linked.uk'});
+    await service.sync(refreshLists: false);
+
+    expect(await link('src_ch_3'), isNull); // the smart link is gone ...
+    final titles = [
+      for (final p in await (db.select(db.programmes)
+            ..where((t) => t.channelId.equals('src_ch_3')))
+          .get())
+        p.title,
+    ];
+    // ... and the playlist guide's programme was not thrown away with it.
+    expect(titles, contains('from the playlist guide'));
+  });
+
+  test('a channel its playlist guide covers but holds nothing is refilled',
+      () async {
+    await service.sync(); // reads the lists
+    // ch_3 has tvg-id Linked.uk, which the playlist guide lists with data;
+    // lose its programmes (as "Use Automatic" or an old clean-up would).
+    await db.markGuideProgrammes('src:src', {'BBCOne.uk', 'Linked.uk'});
+    await db.deleteProgrammesForChannels(['src_ch_3']);
+    expect(await programmesOf('src_ch_3'), 0);
+    final hitsBefore = providerHits;
+    await service.sync(refreshLists: false);
+    expect(await programmesOf('src_ch_3'), 4); // healed from its own guide
+    expect(providerHits, hitsBefore + 1);
+    // Nothing left to heal: no more downloads.
+    await service.sync(refreshLists: false);
+    expect(providerHits, hitsBefore + 1);
   });
 }
