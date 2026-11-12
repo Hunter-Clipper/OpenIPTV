@@ -617,5 +617,22 @@
   "errorGuideGeneric": "The TV guide couldn't be loaded. Check your details and try again.",
   "@errorGuideGeneric": {
     "description": "Catch-all error for guide problems"
+  },
+  "languageTitle": "Language",
+  "@languageTitle": {
+    "description": "Title of the app language setting, its picker and the button on the welcome page"
+  },
+  "languageAuto": "Auto-detect from system",
+  "@languageAuto": {
+    "description": "Picker choice: use the device language and follow it if it changes"
+  },
+  "languageAutoNow": "Auto — {language}",
+  "@languageAutoNow": {
+    "description": "Value shown while the language is on automatic; {language} is the language it resolved to, written in that language",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
   }
 }

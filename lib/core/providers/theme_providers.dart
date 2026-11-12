@@ -168,6 +168,15 @@ Future<void> setStartup(WidgetRef ref, AppPreferences prefs,
   await setStartupOptions(boot: prefs.startOnBoot, wake: prefs.startOnWake);
 }
 
+/// App language: 'auto' follows the system (and its later changes), or a
+/// language tag such as 'es'. One choice for the whole app (#172).
+final languageProvider = StateProvider<String>((ref) => 'auto');
+
+Future<void> setLanguage(WidgetRef ref, String v, AppPreferences prefs) async {
+  ref.read(languageProvider.notifier).state = v;
+  await prefs.setLanguage(v);
+}
+
 /// Text size multiplier, on top of the system's (0.85, 1.0, 1.15, 1.3).
 final fontScaleProvider = StateProvider<double>((ref) => 1.0);
 
@@ -359,6 +368,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;
   ref.read(seekKeysProvider.notifier).state = prefs.seekKeys;
   ref.read(fontScaleProvider.notifier).state = prefs.fontScale;
+  ref.read(languageProvider.notifier).state = prefs.language;
   ref.read(showFavoritesCategoryProvider.notifier).state =
       prefs.showFavoritesCategory;
   ref.read(showRecentCategoryProvider.notifier).state = prefs.showRecentCategory;

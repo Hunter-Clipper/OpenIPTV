@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_iptv/l10n/app_languages.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
@@ -400,11 +402,15 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   @override
   Widget build(BuildContext context) {
     final accent = ref.watch(accentColorProvider);
+    final locale = localeForPref(ref.watch(languageProvider));
 
     if (!_dbReady) {
-      return const MaterialApp(
+      return MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: BrandSplash(),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: locale,
+        home: const BrandSplash(),
       );
     }
 
@@ -413,6 +419,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     if (_needsProfilePick) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: locale,
         shortcuts: appShortcuts,
         theme: AppTheme.dark(accent),
         darkTheme: AppTheme.dark(accent),
@@ -432,6 +441,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         themeMode: ThemeMode.dark,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: locale,
         shortcuts: appShortcuts,
         builder: (context, child) => MediaQuery(
           // Text size from Settings → Appearance, on top of the system's.

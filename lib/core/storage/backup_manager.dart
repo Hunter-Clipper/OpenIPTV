@@ -582,6 +582,17 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'language',
+      encode: (p) => p.language,
+      decode: (p, v) async {
+        // Kept even if this build doesn't ship the language: it is ignored
+        // (English shows) until the language exists, then works again.
+        if (v is String && RegExp(r'^(auto|[a-z]{2,3}(-[A-Za-z0-9]{2,8})?)$').hasMatch(v)) {
+          await p.setLanguage(v);
+        }
+      },
+    ),
+    PreferenceEntry(
       key: 'fontScale',
       encode: (p) => p.fontScale,
       decode: (p, v) async {

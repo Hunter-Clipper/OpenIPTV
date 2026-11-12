@@ -33,6 +33,8 @@ import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
+import 'package:open_iptv/shared/widgets/language_picker.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -683,6 +685,16 @@ class SettingsScreen extends ConsumerWidget {
       ];
 
   List<Widget> _appearanceTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
+    Consumer(builder: (context, ref, _) {
+      final pref = ref.watch(languageProvider);
+      return _NavTile(
+        leading: const Icon(Icons.language_rounded),
+        title: AppLocalizations.of(context).languageTitle,
+        subtitle: Text(languageLabel(context, pref),
+            style: theme.textTheme.bodySmall),
+        onTap: () => showLanguagePicker(context, ref),
+      );
+    }),
     Consumer(builder: (context, ref, _) {
       final accent = ref.watch(accentColorProvider);
       return InfoTooltip(

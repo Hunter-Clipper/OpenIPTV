@@ -19,6 +19,7 @@ import 'package:open_iptv/shared/utils/friendly_error.dart';
 import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
+import 'package:open_iptv/shared/widgets/language_picker.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 String _firstName(String name) =>
@@ -729,6 +730,26 @@ class _WelcomePageState extends State<_WelcomePage>
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 4),
+              FadeTransition(
+                opacity: _fade,
+                child: Consumer(builder: (context, ref, _) {
+                  final pref = ref.watch(languageProvider);
+                  return TvActivatable(
+                    onTap: () => showLanguagePicker(context, ref),
+                    builder: (onTap) => TextButton.icon(
+                      onPressed: onTap,
+                      icon: const Icon(Icons.language_rounded,
+                          color: AppTheme.mutedTextColor),
+                      label: Text(
+                        languageLabel(context, pref),
+                        style: const TextStyle(
+                            color: AppTheme.mutedTextColor, fontSize: 15),
+                      ),
+                    ),
+                  );
+                }),
               ),
               const SizedBox(height: 28),
             ],

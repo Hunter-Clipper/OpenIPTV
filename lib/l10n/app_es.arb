@@ -143,5 +143,8 @@
   "errorGuideUnreachable": "No se pudo conectar con el servidor de la guía de TV de esta lista. Puede que no tenga guía; revisa la dirección de la guía con tu proveedor.",
   "errorGuideServer": "El servidor de la guía de TV tiene problemas en este momento. Inténtalo más tarde.",
   "errorGuideInvalidLink": "Este enlace de la guía de TV no parece válido. Revisa la dirección con tu proveedor.",
-  "errorGuideGeneric": "No se pudo cargar la guía de TV. Revisa tus datos e inténtalo de nuevo."
+  "errorGuideGeneric": "No se pudo cargar la guía de TV. Revisa tus datos e inténtalo de nuevo.",
+  "languageTitle": "Idioma",
+  "languageAuto": "Detectar desde el sistema",
+  "languageAutoNow": "Automático — {language}"
 }

@@ -64,6 +64,9 @@ dependencies:
   # by DB tests to load the host's libsqlite3.
   sqlite3: ^2.9.4
   flutter_secure_storage: ^10.3.4
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
@@ -102,6 +105,7 @@ flutter_native_splash:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   # Google Sans (SIL OFL 1.1 — assets/fonts/google_sans/OFL.txt), subset to
   # Latin, Greek and Cyrillic; other scripts fall back to the system font.

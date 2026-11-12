@@ -34,6 +34,7 @@ const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
 const _kPanelTimeoutSeconds = 'panel_timeout_seconds'; // player controls
 const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
+const _kLanguage = 'language'; // 'auto' or a language tag such as 'es' (#172)
 const _kFontScale = 'font_scale'; // text size multiplier (Appearance)
 const _kOverlayOpacity = 'overlay_opacity'; // 'solid' | 'normal' | 'clear' | 'veryclear'
 const _kGuideDays = 'guide_days_ahead'; // days of guide to keep ahead
@@ -228,6 +229,11 @@ class AppPreferences {
   String? get channelCustomJson => _prefs.getString(_kChannelCustom);
   Future<void> setChannelCustomJson(String v) =>
       _prefs.setString(_kChannelCustom, v);
+
+  /// App language: 'auto' (follow the system) or a language tag such as 'es'.
+  /// One choice for the whole app, not per profile; included in backups.
+  String get language => _prefs.getString(_kLanguage) ?? 'auto';
+  Future<void> setLanguage(String v) => _prefs.setString(_kLanguage, v);
 
   /// Text size multiplier on top of the system's: 0.85, 1.0, 1.15 or 1.3.
   double get fontScale => _prefs.getDouble(_kFontScale) ?? 1.0;
