@@ -204,7 +204,8 @@ class EpgService {
 
       onProgress?.call('Downloading TV guide…');
       final programmes = await Isolate.run(
-        () => _fetchAndParseAll(epgUrl, pastWindow, daysAhead, keepDescriptions),
+        () =>
+            _fetchAndParseAll(epgUrl, pastWindow, daysAhead, keepDescriptions),
         debugName: 'epg-parse',
       );
 
@@ -230,19 +231,23 @@ class EpgService {
       // 11 minutes on a TV stick — and kept programmes for channels the
       // playlist doesn't have.)
       final ids = await db.channelIdsByTvgId(source.id);
+      // Channels the user gave a guide by hand (or "no guide") are served by
+      // that choice, not by the playlist's own guide.
+      final manual = await db.manualLinkedChannelIds();
       final mapped = [
         for (final p in programmes)
           if (ids[p.channelId] case final targets?)
             for (final id in targets)
-              Programme(
-                channelId: id,
-                start: p.start,
-                end: p.end,
-                title: p.title,
-                description: keepDescriptions ? p.description : null,
-                category: p.category,
-                episodeNum: p.episodeNum,
-              ),
+              if (!manual.contains(id))
+                Programme(
+                  channelId: id,
+                  start: p.start,
+                  end: p.end,
+                  title: p.title,
+                  description: keepDescriptions ? p.description : null,
+                  category: p.category,
+                  episodeNum: p.episodeNum,
+                ),
       ];
 
       var totalWritten = 0;
