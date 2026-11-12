@@ -138,4 +138,20 @@ void main() {
       expect(atlanta.match('CBS 46 Atlanta'), isNull);
     });
   });
+
+  group('stations a provider\'s own guide names in full', () {
+    final own = GuideMatcher([
+      g('p', 'loc.ABC (WAPT) Jackson, MS', 'ABC (WAPT) Jackson, MS'),
+      g('p', 'loc.CBS (WTTV) Indianapolis, IN', 'CBS (WTTV) Indianapolis, IN'),
+    ]);
+
+    test('city words the guide entry itself uses are explained', () {
+      expect(own.match('US| ABC 16 Jackson (WAPT)')?.channel.xmltvId,
+          'loc.ABC (WAPT) Jackson, MS');
+    });
+
+    test('a team feed on the same station is not the station', () {
+      expect(own.match('NFL TEAMS| CBS COLTS INDIANAPOLIS IN'), isNull);
+    });
+  });
 }

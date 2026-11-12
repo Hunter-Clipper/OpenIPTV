@@ -202,7 +202,18 @@ class LocalStationIndex {
       // Anything else in the name ("South Park: Kyle Collection", "WOW Kidz",
       // "True Crime Network WCVB", "WSOC Now") means this is a different
       // channel that merely contains something shaped like a call sign.
-      if (_hasUnexplainedWords(plain, {...signIndexes, ...netIndexes})) {
+      // Words the station's own guide entry uses ("ABC (WAPT) Jackson, MS")
+      // are explained too.
+      final own = <String>{
+        for (final b in bases)
+          for (final st in _byBase[b]!)
+            ...st.channel.name
+                .toLowerCase()
+                .split(RegExp(r'[^a-z0-9]+'))
+                .where((t) => t.isNotEmpty),
+      };
+      if (_hasUnexplainedWords(plain, {...signIndexes, ...netIndexes},
+          also: own)) {
         return LocalResult.notLocal;
       }
       // KING, WISH, WILL: call signs that are also ordinary words need more
@@ -250,12 +261,17 @@ class LocalStationIndex {
   /// True when [plain] holds a word that is not a call sign, network, city,
   /// state, number or quality marker (the indexes in [explained] are the
   /// call-sign and network words).
-  bool _hasUnexplainedWords(List<String> plain, Set<int> explained) {
+  bool _hasUnexplainedWords(List<String> plain, Set<int> explained,
+      {Set<String> also = const {}}) {
     for (var i = 0; i < plain.length; i++) {
       if (explained.contains(i)) continue;
       final t = plain[i];
       if (RegExp(r'^\d+[pi]?$').hasMatch(t)) continue;
-      if (_allowedWords.contains(t) || _marketWords.contains(t)) continue;
+      if (_allowedWords.contains(t) ||
+          _marketWords.contains(t) ||
+          also.contains(t)) {
+        continue;
+      }
       return true;
     }
     return false;

@@ -24,8 +24,13 @@ class GuideChannel {
 
 /// What to call a guide channel that has no `display-name` (some feeds only
 /// have ids like "BBC.One.HD.uk"): the id with its dots read as spaces.
-String nameFromGuideId(String id) =>
-    id.replaceAll(RegExp(r'[._]+'), ' ').trim();
+String nameFromGuideId(String id) {
+  var base = id;
+  // "BBC.One.HD.uk", "WNBC-DT.us_locals1": the region is said separately.
+  final dot = id.lastIndexOf('.');
+  if (dot > 0 && regionOfGuideId(id) != null) base = id.substring(0, dot);
+  return base.replaceAll(RegExp(r'[._]+'), ' ').trim();
+}
 
 /// A guide channel judged to be the same station as a playlist channel.
 class GuideMatch {
@@ -42,15 +47,35 @@ class GuideMatch {
 
 /// A name broken into what matters for comparing it: words and a region.
 class NormalisedName {
-  const NormalisedName(this.tokens, this.region);
+  const NormalisedName(this.tokens, this.region,
+      [this.ordered = const [],
+      this.orderedStem = const [],
+      this.keys = const {}]);
 
+  /// The words with plurals folded ("sport" = "sports").
   final Set<String> tokens;
 
   /// 'uk', 'us', ... or null when the name does not say.
   final String? region;
 
-  String get squashed => (tokens.toList()..sort()).join();
+  /// The words in the order written: "FOX Soccer Plus" and "FOXSoccerPlus"
+  /// both read `foxsoccerplus`. [orderedStem] is the same with plurals
+  /// folded, so "TNT Sport 2" and "TNTSports2" meet too.
+  final List<String> ordered;
+  final List<String> orderedStem;
+
+  /// Other spellings of the same name, all joined without spaces: with the
+  /// decorations left in ("ABC News Live" = "ABCNewsLive") and without a
+  /// leading "the" or trailing "tv" / "channel" ("MAV TV" = "MAVTV"). Two
+  /// names sharing one are the same name.
+  final Set<String> keys;
+
+  String get squashed => ordered.join();
+  String get squashedStem => orderedStem.join();
   bool get isEmpty => tokens.isEmpty;
+
+  NormalisedName withRegion(String? r) =>
+      NormalisedName(tokens, r, ordered, orderedStem, keys);
 }
 
 const _regionWords = {
@@ -64,6 +89,39 @@ const _regionWords = {
   'aus': 'au',
   'ie': 'ie',
   'nz': 'nz',
+};
+
+// Country codes providers and guides use. Only taken as a region where it is
+// clearly a region: a "DE|" prefix, "(DE)" brackets or an id's last segment
+// ("SkySportNews.de"), never a bare word at the end of a name.
+const _countryCodes = {
+  'ae', 'al', 'ar', 'at', 'au', 'ba', 'be', 'bg', 'br', 'ca', 'ch', 'cl',
+  'cn', 'co', 'cz', 'de', 'dk', 'ee', 'eg', 'es', 'fi', 'fr', 'gr', 'hk',
+  'hr', 'hu', 'id', 'ie', 'il', 'in', 'ir', 'is', 'it', 'jp', 'kr', 'lt',
+  'lv', 'ma', 'mk', 'mt', 'mx', 'my', 'ng', 'nl', 'no', 'nz', 'pe', 'ph',
+  'pk', 'pl', 'pt', 'qa', 'ro', 'rs', 'ru', 'sa', 'se', 'sg', 'si', 'sk',
+  'th', 'tn', 'tr', 'tw', 'ua', 'uy', 've', 'vn', 'za', 'la', 'lat', 'ex',
+};
+
+/// 'uk' for "gb" / "UK" and so on; null if [code] is not a country code.
+String? regionOfCode(String code) {
+  final c = code.toLowerCase();
+  return _regionWords[c] ?? (_countryCodes.contains(c) ? c : null);
+}
+
+/// The region a guide id ends with: `BBCOne.uk`, `ESPN.HD.us2`,
+/// `WNBC-DT.us_locals1` -> 'uk' / 'us' / 'us'. Null when it does not say.
+String? regionOfGuideId(String id) {
+  final dot = id.lastIndexOf('.');
+  if (dot < 0) return null;
+  final last = id.substring(dot + 1).toLowerCase();
+  final m = RegExp(r'^([a-z]{2,3})(?:\d+|_[a-z0-9_]+)?$').firstMatch(last);
+  return m == null ? null : regionOfCode(m.group(1)!);
+}
+
+const _resolutionWords = {
+  'hd', 'fhd', 'uhd', 'sd', 'hq', 'lq', '4k', '8k', 'hevc', 'h265', 'h264',
+  'raw', '1080p', '1080i', '720p', '50fps', '60fps', 'fps', 'hdr',
 };
 
 const _qualityWords = {
@@ -109,8 +167,10 @@ const _numberWords = {
 };
 
 final _regionPrefix = RegExp(
-    r'^[\s|\[(]*(uk|gb|usa|us|ca|can|au|aus|ie|nz)[\s|\])]*(?:[:\-|]|\s-\s)\s*',
+    r'^[\s|\[(]*([a-z]{2,3})[\s|\])]*(?:[:\-|]|\s-\s)\s*',
     caseSensitive: false);
+// "PRIME| ", "4K| ", "TV| ": a one-word provider tag before a bar.
+final _tagPrefix = RegExp(r'^\s*[a-z0-9+]{1,8}\s*\|\s*(?=\S)');
 final _bracketed = RegExp(r'[\(\[|]\s*([^\)\]|]*?)\s*[\)\]|]');
 final _timeShift = RegExp(r'\+\s*(\d{1,2})\b');
 
@@ -120,18 +180,26 @@ NormalisedName normaliseChannelName(String raw) {
   var s = raw.toLowerCase().replaceAll('&', ' and ');
   String? region;
 
-  // "UK - BBC One", "|UK| BBC One", "US: HBO".
-  final prefix = _regionPrefix.firstMatch(s);
-  if (prefix != null) {
-    region = _regionWords[prefix.group(1)];
-    s = s.substring(prefix.end);
+  // "UK - BBC One", "|UK| BBC One", "US: HBO", "DE| Sky": a region prefix
+  // (and, after it or on its own, one-word provider tags like "4K|").
+  for (var i = 0; i < 3; i++) {
+    final prefix = _regionPrefix.firstMatch(s);
+    final r = prefix == null ? null : regionOfCode(prefix.group(1)!);
+    if (prefix != null && r != null) {
+      region ??= r;
+      s = s.substring(prefix.end);
+      continue;
+    }
+    final tag = _tagPrefix.firstMatch(s);
+    if (tag == null) break;
+    s = s.substring(tag.end);
   }
 
   // "(UK)", "[US]", "|CA|" anywhere. Only region words are taken out of the
   // brackets; other bracketed text ("(Geo-blocked)") is simply dropped.
   s = s.replaceAllMapped(_bracketed, (m) {
     final inner = m.group(1)!.trim();
-    final r = _regionWords[inner];
+    final r = regionOfCode(inner);
     if (r != null) region ??= r;
     return ' ';
   });
@@ -157,6 +225,11 @@ NormalisedName normaliseChannelName(String raw) {
     tokens = tokens.sublist(0, tokens.length - 1);
   }
 
+  // Everything but resolution tags: "ABC News Live" keeps its "live".
+  final full = [
+    for (final t in tokens)
+      if (!_resolutionWords.contains(t)) t,
+  ];
   tokens = tokens.where((t) => !_qualityWords.contains(t)).toList();
   // "ITV1" and "ITV 1" are the same name.
   tokens = [
@@ -169,7 +242,32 @@ NormalisedName normaliseChannelName(String raw) {
   final strong = tokens.where((t) => !_weakWords.contains(t)).toList();
   if (strong.any((t) => !RegExp(r'^\d+$').hasMatch(t))) tokens = strong;
 
-  return NormalisedName(tokens.toSet(), region);
+  // Plurals fold together ("sport" / "sports", "kid" / "kids").
+  String stem(String t) => t.length > 3 &&
+          t.endsWith('s') &&
+          !t.endsWith('ss') &&
+          !t.endsWith('us') &&
+          !t.endsWith('is')
+      ? t.substring(0, t.length - 1)
+      : t;
+
+  final stemmed = tokens.map(stem).toList();
+  final keys = <String>{};
+  void addKeys(String joined) {
+    if (joined.length < 4) return;
+    keys.add(joined);
+    final core = joined
+        .replaceFirst(RegExp(r'^the'), '')
+        .replaceFirst(RegExp(r'(tv|channel|network)$'), '');
+    if (core.length >= 3) keys.add(core);
+  }
+
+  addKeys(tokens.join());
+  addKeys(stemmed.join());
+  addKeys(full.join());
+  addKeys(full.map(stem).join());
+
+  return NormalisedName(stemmed.toSet(), region, tokens, stemmed, keys);
 }
 
 /// A guide's names often read "<category> - <name>": "UK - MysteryX",
@@ -192,7 +290,9 @@ double scoreNames(NormalisedName a, NormalisedName b) {
   if (numA.length != numB.length || !numA.containsAll(numB)) return 0;
 
   double score;
-  if (a.squashed == b.squashed) {
+  if (a.squashed == b.squashed ||
+      a.squashedStem == b.squashedStem ||
+      a.keys.any(b.keys.contains)) {
     score = 1;
   } else {
     final common = a.tokens.intersection(b.tokens).length;
@@ -206,15 +306,15 @@ double scoreNames(NormalisedName a, NormalisedName b) {
 
 /// Finds the guide channel for a playlist channel.
 class GuideMatcher {
-  GuideMatcher(Iterable<GuideChannel> channels, {this.threshold = 0.85}) {
+  GuideMatcher(Iterable<GuideChannel> channels, {this.threshold = 0.99}) {
     final list = channels.toList();
     _locals = LocalStationIndex(list);
     for (final c in list) {
       // The id often says the region ("...uk") when the display name does not.
-      final idRegion = normaliseChannelName(nameFromGuideId(c.xmltvId)).region;
+      final idRegion = regionOfGuideId(c.xmltvId);
       final variants = [
         for (final v in _nameVariants(c.name).map(normaliseChannelName))
-          NormalisedName(v.tokens, v.region ?? idRegion),
+          v.withRegion(v.region ?? idRegion),
       ];
       final index = _entries.length;
       _entries.add(_Entry(c, variants));
@@ -222,6 +322,13 @@ class GuideMatcher {
       for (final v in variants) {
         for (final t in v.tokens) {
           (_postings[t] ??= <int>{}).add(index);
+        }
+        if (v.squashed.isNotEmpty) {
+          (_bySquashed[v.squashed] ??= <int>{}).add(index);
+          (_bySquashed[v.squashedStem] ??= <int>{}).add(index);
+        }
+        for (final k in v.keys) {
+          (_bySquashed[k] ??= <int>{}).add(index);
         }
       }
     }
@@ -240,6 +347,8 @@ class GuideMatcher {
   final _entries = <_Entry>[];
   final _byId = <String, GuideChannel>{};
   final _postings = <String, Set<int>>{};
+  // Entries by their words joined: "SkySportNews" is found from "SKY SPORT NEWS".
+  final _bySquashed = <String, Set<int>>{};
   late final LocalStationIndex _locals;
 
   int get length => _entries.length;
@@ -283,6 +392,12 @@ class GuideMatcher {
         final posting = _postings[t];
         if (posting == null || posting.length > _commonLimit) continue;
         candidates.addAll(posting);
+      }
+      candidates
+        ..addAll(_bySquashed[q.squashed] ?? const <int>{})
+        ..addAll(_bySquashed[q.squashedStem] ?? const <int>{});
+      for (final k in q.keys) {
+        candidates.addAll(_bySquashed[k] ?? const <int>{});
       }
       for (final i in candidates) {
         var best = 0.0;
@@ -338,17 +453,21 @@ class GuideMatcher {
     if (local.kind == LocalKind.resolved) out.add(local.channel!);
     final q = normaliseChannelName(name);
     if (!q.isEmpty) {
-      final candidates = <int>{};
-      for (final t in q.tokens) {
-        final posting = _postings[t];
-        if (posting == null || posting.length > _commonLimit) continue;
-        candidates.addAll(posting);
-      }
       final scored = <(double, int)>[];
-      for (final i in candidates) {
+      for (var i = 0; i < _entries.length; i++) {
         var best = 0.0;
         for (final v in _entries[i].variants) {
-          final s = scoreNames(q, v);
+          var s = scoreNames(q, v);
+          // One name inside the other ("Spectrum News 1" in "Spectrum News 1
+          // Dallas"): a likely relative, worth showing.
+          final a = q.squashed, b = v.squashed;
+          if (s < 0.7 &&
+              a.length >= 5 &&
+              b.length >= 5 &&
+              (a.contains(b) || b.contains(a)) &&
+              (q.region == null || v.region == null || q.region == v.region)) {
+            s = 0.7;
+          }
           if (s > best) best = s;
         }
         if (best >= 0.4) scored.add((best, i));
