@@ -106,7 +106,6 @@ Future<List<Programme>> _fetchAndParseAll(
 /// Guides are often served as `.xml.gz` without a `Content-Encoding` header
 /// (DrewLive sends `application/gzip`), so the HTTP client hands over the
 /// compressed bytes. Sniff the gzip magic number and unpack when present.
-@visibleForTesting
 Stream<List<int>> maybeGunzip(Stream<List<int>> bytes) async* {
   final chunks = StreamIterator(bytes);
   final head = <int>[];

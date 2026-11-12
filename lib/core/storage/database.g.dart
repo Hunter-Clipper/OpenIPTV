@@ -1638,6 +1638,973 @@ class ProgrammesCompanion extends UpdateCompanion<ProgrammeRow> {
   }
 }
 
+class $ExtraGuidesTable extends ExtraGuides
+    with TableInfo<$ExtraGuidesTable, ExtraGuideRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExtraGuidesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+      'url', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastUpdatedMeta =
+      const VerificationMeta('lastUpdated');
+  @override
+  late final GeneratedColumn<DateTime> lastUpdated = GeneratedColumn<DateTime>(
+      'last_updated', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorMeta =
+      const VerificationMeta('lastError');
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+      'last_error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _channelCountMeta =
+      const VerificationMeta('channelCount');
+  @override
+  late final GeneratedColumn<int> channelCount = GeneratedColumn<int>(
+      'channel_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, url, enabled, sortOrder, lastUpdated, lastError, channelCount];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'extra_guides';
+  @override
+  VerificationContext validateIntegrity(Insertable<ExtraGuideRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+          _urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('last_updated')) {
+      context.handle(
+          _lastUpdatedMeta,
+          lastUpdated.isAcceptableOrUnknown(
+              data['last_updated']!, _lastUpdatedMeta));
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(_lastErrorMeta,
+          lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta));
+    }
+    if (data.containsKey('channel_count')) {
+      context.handle(
+          _channelCountMeta,
+          channelCount.isAcceptableOrUnknown(
+              data['channel_count']!, _channelCountMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExtraGuideRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExtraGuideRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      url: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}url'])!,
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      lastUpdated: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_updated']),
+      lastError: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error']),
+      channelCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}channel_count'])!,
+    );
+  }
+
+  @override
+  $ExtraGuidesTable createAlias(String alias) {
+    return $ExtraGuidesTable(attachedDatabase, alias);
+  }
+}
+
+class ExtraGuideRow extends DataClass implements Insertable<ExtraGuideRow> {
+  final String id;
+  final String name;
+  final String url;
+  final bool enabled;
+  final int sortOrder;
+  final DateTime? lastUpdated;
+  final String? lastError;
+  final int channelCount;
+  const ExtraGuideRow(
+      {required this.id,
+      required this.name,
+      required this.url,
+      required this.enabled,
+      required this.sortOrder,
+      this.lastUpdated,
+      this.lastError,
+      required this.channelCount});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['url'] = Variable<String>(url);
+    map['enabled'] = Variable<bool>(enabled);
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || lastUpdated != null) {
+      map['last_updated'] = Variable<DateTime>(lastUpdated);
+    }
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    map['channel_count'] = Variable<int>(channelCount);
+    return map;
+  }
+
+  ExtraGuidesCompanion toCompanion(bool nullToAbsent) {
+    return ExtraGuidesCompanion(
+      id: Value(id),
+      name: Value(name),
+      url: Value(url),
+      enabled: Value(enabled),
+      sortOrder: Value(sortOrder),
+      lastUpdated: lastUpdated == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUpdated),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      channelCount: Value(channelCount),
+    );
+  }
+
+  factory ExtraGuideRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExtraGuideRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      url: serializer.fromJson<String>(json['url']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      lastUpdated: serializer.fromJson<DateTime?>(json['lastUpdated']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      channelCount: serializer.fromJson<int>(json['channelCount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'url': serializer.toJson<String>(url),
+      'enabled': serializer.toJson<bool>(enabled),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'lastUpdated': serializer.toJson<DateTime?>(lastUpdated),
+      'lastError': serializer.toJson<String?>(lastError),
+      'channelCount': serializer.toJson<int>(channelCount),
+    };
+  }
+
+  ExtraGuideRow copyWith(
+          {String? id,
+          String? name,
+          String? url,
+          bool? enabled,
+          int? sortOrder,
+          Value<DateTime?> lastUpdated = const Value.absent(),
+          Value<String?> lastError = const Value.absent(),
+          int? channelCount}) =>
+      ExtraGuideRow(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        url: url ?? this.url,
+        enabled: enabled ?? this.enabled,
+        sortOrder: sortOrder ?? this.sortOrder,
+        lastUpdated: lastUpdated.present ? lastUpdated.value : this.lastUpdated,
+        lastError: lastError.present ? lastError.value : this.lastError,
+        channelCount: channelCount ?? this.channelCount,
+      );
+  ExtraGuideRow copyWithCompanion(ExtraGuidesCompanion data) {
+    return ExtraGuideRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      url: data.url.present ? data.url.value : this.url,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      lastUpdated:
+          data.lastUpdated.present ? data.lastUpdated.value : this.lastUpdated,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      channelCount: data.channelCount.present
+          ? data.channelCount.value
+          : this.channelCount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExtraGuideRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('url: $url, ')
+          ..write('enabled: $enabled, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('lastUpdated: $lastUpdated, ')
+          ..write('lastError: $lastError, ')
+          ..write('channelCount: $channelCount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, name, url, enabled, sortOrder, lastUpdated, lastError, channelCount);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExtraGuideRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.url == this.url &&
+          other.enabled == this.enabled &&
+          other.sortOrder == this.sortOrder &&
+          other.lastUpdated == this.lastUpdated &&
+          other.lastError == this.lastError &&
+          other.channelCount == this.channelCount);
+}
+
+class ExtraGuidesCompanion extends UpdateCompanion<ExtraGuideRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> url;
+  final Value<bool> enabled;
+  final Value<int> sortOrder;
+  final Value<DateTime?> lastUpdated;
+  final Value<String?> lastError;
+  final Value<int> channelCount;
+  final Value<int> rowid;
+  const ExtraGuidesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.url = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.lastUpdated = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.channelCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExtraGuidesCompanion.insert({
+    required String id,
+    required String name,
+    required String url,
+    this.enabled = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.lastUpdated = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.channelCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name),
+        url = Value(url);
+  static Insertable<ExtraGuideRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? url,
+    Expression<bool>? enabled,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? lastUpdated,
+    Expression<String>? lastError,
+    Expression<int>? channelCount,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (url != null) 'url': url,
+      if (enabled != null) 'enabled': enabled,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (lastUpdated != null) 'last_updated': lastUpdated,
+      if (lastError != null) 'last_error': lastError,
+      if (channelCount != null) 'channel_count': channelCount,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExtraGuidesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String>? url,
+      Value<bool>? enabled,
+      Value<int>? sortOrder,
+      Value<DateTime?>? lastUpdated,
+      Value<String?>? lastError,
+      Value<int>? channelCount,
+      Value<int>? rowid}) {
+    return ExtraGuidesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      url: url ?? this.url,
+      enabled: enabled ?? this.enabled,
+      sortOrder: sortOrder ?? this.sortOrder,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      lastError: lastError ?? this.lastError,
+      channelCount: channelCount ?? this.channelCount,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (lastUpdated.present) {
+      map['last_updated'] = Variable<DateTime>(lastUpdated.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (channelCount.present) {
+      map['channel_count'] = Variable<int>(channelCount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExtraGuidesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('url: $url, ')
+          ..write('enabled: $enabled, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('lastUpdated: $lastUpdated, ')
+          ..write('lastError: $lastError, ')
+          ..write('channelCount: $channelCount, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $GuideChannelsTable extends GuideChannels
+    with TableInfo<$GuideChannelsTable, GuideChannelRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GuideChannelsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _guideRefMeta =
+      const VerificationMeta('guideRef');
+  @override
+  late final GeneratedColumn<String> guideRef = GeneratedColumn<String>(
+      'guide_ref', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _xmltvIdMeta =
+      const VerificationMeta('xmltvId');
+  @override
+  late final GeneratedColumn<String> xmltvId = GeneratedColumn<String>(
+      'xmltv_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [guideRef, xmltvId, name];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'guide_channels';
+  @override
+  VerificationContext validateIntegrity(Insertable<GuideChannelRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('guide_ref')) {
+      context.handle(_guideRefMeta,
+          guideRef.isAcceptableOrUnknown(data['guide_ref']!, _guideRefMeta));
+    } else if (isInserting) {
+      context.missing(_guideRefMeta);
+    }
+    if (data.containsKey('xmltv_id')) {
+      context.handle(_xmltvIdMeta,
+          xmltvId.isAcceptableOrUnknown(data['xmltv_id']!, _xmltvIdMeta));
+    } else if (isInserting) {
+      context.missing(_xmltvIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {guideRef, xmltvId};
+  @override
+  GuideChannelRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GuideChannelRow(
+      guideRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}guide_ref'])!,
+      xmltvId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}xmltv_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+    );
+  }
+
+  @override
+  $GuideChannelsTable createAlias(String alias) {
+    return $GuideChannelsTable(attachedDatabase, alias);
+  }
+}
+
+class GuideChannelRow extends DataClass implements Insertable<GuideChannelRow> {
+  final String guideRef;
+  final String xmltvId;
+  final String name;
+  const GuideChannelRow(
+      {required this.guideRef, required this.xmltvId, required this.name});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['guide_ref'] = Variable<String>(guideRef);
+    map['xmltv_id'] = Variable<String>(xmltvId);
+    map['name'] = Variable<String>(name);
+    return map;
+  }
+
+  GuideChannelsCompanion toCompanion(bool nullToAbsent) {
+    return GuideChannelsCompanion(
+      guideRef: Value(guideRef),
+      xmltvId: Value(xmltvId),
+      name: Value(name),
+    );
+  }
+
+  factory GuideChannelRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GuideChannelRow(
+      guideRef: serializer.fromJson<String>(json['guideRef']),
+      xmltvId: serializer.fromJson<String>(json['xmltvId']),
+      name: serializer.fromJson<String>(json['name']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'guideRef': serializer.toJson<String>(guideRef),
+      'xmltvId': serializer.toJson<String>(xmltvId),
+      'name': serializer.toJson<String>(name),
+    };
+  }
+
+  GuideChannelRow copyWith({String? guideRef, String? xmltvId, String? name}) =>
+      GuideChannelRow(
+        guideRef: guideRef ?? this.guideRef,
+        xmltvId: xmltvId ?? this.xmltvId,
+        name: name ?? this.name,
+      );
+  GuideChannelRow copyWithCompanion(GuideChannelsCompanion data) {
+    return GuideChannelRow(
+      guideRef: data.guideRef.present ? data.guideRef.value : this.guideRef,
+      xmltvId: data.xmltvId.present ? data.xmltvId.value : this.xmltvId,
+      name: data.name.present ? data.name.value : this.name,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuideChannelRow(')
+          ..write('guideRef: $guideRef, ')
+          ..write('xmltvId: $xmltvId, ')
+          ..write('name: $name')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(guideRef, xmltvId, name);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GuideChannelRow &&
+          other.guideRef == this.guideRef &&
+          other.xmltvId == this.xmltvId &&
+          other.name == this.name);
+}
+
+class GuideChannelsCompanion extends UpdateCompanion<GuideChannelRow> {
+  final Value<String> guideRef;
+  final Value<String> xmltvId;
+  final Value<String> name;
+  final Value<int> rowid;
+  const GuideChannelsCompanion({
+    this.guideRef = const Value.absent(),
+    this.xmltvId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GuideChannelsCompanion.insert({
+    required String guideRef,
+    required String xmltvId,
+    required String name,
+    this.rowid = const Value.absent(),
+  })  : guideRef = Value(guideRef),
+        xmltvId = Value(xmltvId),
+        name = Value(name);
+  static Insertable<GuideChannelRow> custom({
+    Expression<String>? guideRef,
+    Expression<String>? xmltvId,
+    Expression<String>? name,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (guideRef != null) 'guide_ref': guideRef,
+      if (xmltvId != null) 'xmltv_id': xmltvId,
+      if (name != null) 'name': name,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GuideChannelsCompanion copyWith(
+      {Value<String>? guideRef,
+      Value<String>? xmltvId,
+      Value<String>? name,
+      Value<int>? rowid}) {
+    return GuideChannelsCompanion(
+      guideRef: guideRef ?? this.guideRef,
+      xmltvId: xmltvId ?? this.xmltvId,
+      name: name ?? this.name,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (guideRef.present) {
+      map['guide_ref'] = Variable<String>(guideRef.value);
+    }
+    if (xmltvId.present) {
+      map['xmltv_id'] = Variable<String>(xmltvId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuideChannelsCompanion(')
+          ..write('guideRef: $guideRef, ')
+          ..write('xmltvId: $xmltvId, ')
+          ..write('name: $name, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChannelGuideLinksTable extends ChannelGuideLinks
+    with TableInfo<$ChannelGuideLinksTable, GuideLinkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChannelGuideLinksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _channelIdMeta =
+      const VerificationMeta('channelId');
+  @override
+  late final GeneratedColumn<String> channelId = GeneratedColumn<String>(
+      'channel_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _guideRefMeta =
+      const VerificationMeta('guideRef');
+  @override
+  late final GeneratedColumn<String> guideRef = GeneratedColumn<String>(
+      'guide_ref', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _xmltvIdMeta =
+      const VerificationMeta('xmltvId');
+  @override
+  late final GeneratedColumn<String> xmltvId = GeneratedColumn<String>(
+      'xmltv_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scoreMeta = const VerificationMeta('score');
+  @override
+  late final GeneratedColumn<double> score = GeneratedColumn<double>(
+      'score', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1.0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [channelId, guideRef, xmltvId, kind, score];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'channel_guide_links';
+  @override
+  VerificationContext validateIntegrity(Insertable<GuideLinkRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('channel_id')) {
+      context.handle(_channelIdMeta,
+          channelId.isAcceptableOrUnknown(data['channel_id']!, _channelIdMeta));
+    } else if (isInserting) {
+      context.missing(_channelIdMeta);
+    }
+    if (data.containsKey('guide_ref')) {
+      context.handle(_guideRefMeta,
+          guideRef.isAcceptableOrUnknown(data['guide_ref']!, _guideRefMeta));
+    }
+    if (data.containsKey('xmltv_id')) {
+      context.handle(_xmltvIdMeta,
+          xmltvId.isAcceptableOrUnknown(data['xmltv_id']!, _xmltvIdMeta));
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('score')) {
+      context.handle(
+          _scoreMeta, score.isAcceptableOrUnknown(data['score']!, _scoreMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {channelId};
+  @override
+  GuideLinkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GuideLinkRow(
+      channelId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}channel_id'])!,
+      guideRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}guide_ref']),
+      xmltvId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}xmltv_id']),
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      score: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}score'])!,
+    );
+  }
+
+  @override
+  $ChannelGuideLinksTable createAlias(String alias) {
+    return $ChannelGuideLinksTable(attachedDatabase, alias);
+  }
+}
+
+class GuideLinkRow extends DataClass implements Insertable<GuideLinkRow> {
+  final String channelId;
+  final String? guideRef;
+  final String? xmltvId;
+  final String kind;
+  final double score;
+  const GuideLinkRow(
+      {required this.channelId,
+      this.guideRef,
+      this.xmltvId,
+      required this.kind,
+      required this.score});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['channel_id'] = Variable<String>(channelId);
+    if (!nullToAbsent || guideRef != null) {
+      map['guide_ref'] = Variable<String>(guideRef);
+    }
+    if (!nullToAbsent || xmltvId != null) {
+      map['xmltv_id'] = Variable<String>(xmltvId);
+    }
+    map['kind'] = Variable<String>(kind);
+    map['score'] = Variable<double>(score);
+    return map;
+  }
+
+  ChannelGuideLinksCompanion toCompanion(bool nullToAbsent) {
+    return ChannelGuideLinksCompanion(
+      channelId: Value(channelId),
+      guideRef: guideRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(guideRef),
+      xmltvId: xmltvId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(xmltvId),
+      kind: Value(kind),
+      score: Value(score),
+    );
+  }
+
+  factory GuideLinkRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GuideLinkRow(
+      channelId: serializer.fromJson<String>(json['channelId']),
+      guideRef: serializer.fromJson<String?>(json['guideRef']),
+      xmltvId: serializer.fromJson<String?>(json['xmltvId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      score: serializer.fromJson<double>(json['score']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'channelId': serializer.toJson<String>(channelId),
+      'guideRef': serializer.toJson<String?>(guideRef),
+      'xmltvId': serializer.toJson<String?>(xmltvId),
+      'kind': serializer.toJson<String>(kind),
+      'score': serializer.toJson<double>(score),
+    };
+  }
+
+  GuideLinkRow copyWith(
+          {String? channelId,
+          Value<String?> guideRef = const Value.absent(),
+          Value<String?> xmltvId = const Value.absent(),
+          String? kind,
+          double? score}) =>
+      GuideLinkRow(
+        channelId: channelId ?? this.channelId,
+        guideRef: guideRef.present ? guideRef.value : this.guideRef,
+        xmltvId: xmltvId.present ? xmltvId.value : this.xmltvId,
+        kind: kind ?? this.kind,
+        score: score ?? this.score,
+      );
+  GuideLinkRow copyWithCompanion(ChannelGuideLinksCompanion data) {
+    return GuideLinkRow(
+      channelId: data.channelId.present ? data.channelId.value : this.channelId,
+      guideRef: data.guideRef.present ? data.guideRef.value : this.guideRef,
+      xmltvId: data.xmltvId.present ? data.xmltvId.value : this.xmltvId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      score: data.score.present ? data.score.value : this.score,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuideLinkRow(')
+          ..write('channelId: $channelId, ')
+          ..write('guideRef: $guideRef, ')
+          ..write('xmltvId: $xmltvId, ')
+          ..write('kind: $kind, ')
+          ..write('score: $score')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(channelId, guideRef, xmltvId, kind, score);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GuideLinkRow &&
+          other.channelId == this.channelId &&
+          other.guideRef == this.guideRef &&
+          other.xmltvId == this.xmltvId &&
+          other.kind == this.kind &&
+          other.score == this.score);
+}
+
+class ChannelGuideLinksCompanion extends UpdateCompanion<GuideLinkRow> {
+  final Value<String> channelId;
+  final Value<String?> guideRef;
+  final Value<String?> xmltvId;
+  final Value<String> kind;
+  final Value<double> score;
+  final Value<int> rowid;
+  const ChannelGuideLinksCompanion({
+    this.channelId = const Value.absent(),
+    this.guideRef = const Value.absent(),
+    this.xmltvId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.score = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChannelGuideLinksCompanion.insert({
+    required String channelId,
+    this.guideRef = const Value.absent(),
+    this.xmltvId = const Value.absent(),
+    required String kind,
+    this.score = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : channelId = Value(channelId),
+        kind = Value(kind);
+  static Insertable<GuideLinkRow> custom({
+    Expression<String>? channelId,
+    Expression<String>? guideRef,
+    Expression<String>? xmltvId,
+    Expression<String>? kind,
+    Expression<double>? score,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (channelId != null) 'channel_id': channelId,
+      if (guideRef != null) 'guide_ref': guideRef,
+      if (xmltvId != null) 'xmltv_id': xmltvId,
+      if (kind != null) 'kind': kind,
+      if (score != null) 'score': score,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChannelGuideLinksCompanion copyWith(
+      {Value<String>? channelId,
+      Value<String?>? guideRef,
+      Value<String?>? xmltvId,
+      Value<String>? kind,
+      Value<double>? score,
+      Value<int>? rowid}) {
+    return ChannelGuideLinksCompanion(
+      channelId: channelId ?? this.channelId,
+      guideRef: guideRef ?? this.guideRef,
+      xmltvId: xmltvId ?? this.xmltvId,
+      kind: kind ?? this.kind,
+      score: score ?? this.score,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (channelId.present) {
+      map['channel_id'] = Variable<String>(channelId.value);
+    }
+    if (guideRef.present) {
+      map['guide_ref'] = Variable<String>(guideRef.value);
+    }
+    if (xmltvId.present) {
+      map['xmltv_id'] = Variable<String>(xmltvId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (score.present) {
+      map['score'] = Variable<double>(score.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChannelGuideLinksCompanion(')
+          ..write('channelId: $channelId, ')
+          ..write('guideRef: $guideRef, ')
+          ..write('xmltvId: $xmltvId, ')
+          ..write('kind: $kind, ')
+          ..write('score: $score, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $MoviesTable extends Movies with TableInfo<$MoviesTable, MovieRow> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -4655,6 +5622,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SourcesTable sources = $SourcesTable(this);
   late final $ChannelsTable channels = $ChannelsTable(this);
   late final $ProgrammesTable programmes = $ProgrammesTable(this);
+  late final $ExtraGuidesTable extraGuides = $ExtraGuidesTable(this);
+  late final $GuideChannelsTable guideChannels = $GuideChannelsTable(this);
+  late final $ChannelGuideLinksTable channelGuideLinks =
+      $ChannelGuideLinksTable(this);
   late final $MoviesTable movies = $MoviesTable(this);
   late final $SeriesEntriesTable seriesEntries = $SeriesEntriesTable(this);
   late final $EpisodesTable episodes = $EpisodesTable(this);
@@ -4668,6 +5639,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         sources,
         channels,
         programmes,
+        extraGuides,
+        guideChannels,
+        channelGuideLinks,
         movies,
         seriesEntries,
         episodes,
@@ -5845,6 +6819,543 @@ typedef $$ProgrammesTableProcessedTableManager = ProcessedTableManager<
       BaseReferences<_$AppDatabase, $ProgrammesTable, ProgrammeRow>
     ),
     ProgrammeRow,
+    PrefetchHooks Function()>;
+typedef $$ExtraGuidesTableCreateCompanionBuilder = ExtraGuidesCompanion
+    Function({
+  required String id,
+  required String name,
+  required String url,
+  Value<bool> enabled,
+  Value<int> sortOrder,
+  Value<DateTime?> lastUpdated,
+  Value<String?> lastError,
+  Value<int> channelCount,
+  Value<int> rowid,
+});
+typedef $$ExtraGuidesTableUpdateCompanionBuilder = ExtraGuidesCompanion
+    Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> url,
+  Value<bool> enabled,
+  Value<int> sortOrder,
+  Value<DateTime?> lastUpdated,
+  Value<String?> lastError,
+  Value<int> channelCount,
+  Value<int> rowid,
+});
+
+class $$ExtraGuidesTableFilterComposer
+    extends Composer<_$AppDatabase, $ExtraGuidesTable> {
+  $$ExtraGuidesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get url => $composableBuilder(
+      column: $table.url, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastUpdated => $composableBuilder(
+      column: $table.lastUpdated, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get channelCount => $composableBuilder(
+      column: $table.channelCount, builder: (column) => ColumnFilters(column));
+}
+
+class $$ExtraGuidesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExtraGuidesTable> {
+  $$ExtraGuidesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get url => $composableBuilder(
+      column: $table.url, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastUpdated => $composableBuilder(
+      column: $table.lastUpdated, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get channelCount => $composableBuilder(
+      column: $table.channelCount,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$ExtraGuidesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExtraGuidesTable> {
+  $$ExtraGuidesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastUpdated => $composableBuilder(
+      column: $table.lastUpdated, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<int> get channelCount => $composableBuilder(
+      column: $table.channelCount, builder: (column) => column);
+}
+
+class $$ExtraGuidesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ExtraGuidesTable,
+    ExtraGuideRow,
+    $$ExtraGuidesTableFilterComposer,
+    $$ExtraGuidesTableOrderingComposer,
+    $$ExtraGuidesTableAnnotationComposer,
+    $$ExtraGuidesTableCreateCompanionBuilder,
+    $$ExtraGuidesTableUpdateCompanionBuilder,
+    (
+      ExtraGuideRow,
+      BaseReferences<_$AppDatabase, $ExtraGuidesTable, ExtraGuideRow>
+    ),
+    ExtraGuideRow,
+    PrefetchHooks Function()> {
+  $$ExtraGuidesTableTableManager(_$AppDatabase db, $ExtraGuidesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExtraGuidesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExtraGuidesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExtraGuidesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> url = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime?> lastUpdated = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<int> channelCount = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExtraGuidesCompanion(
+            id: id,
+            name: name,
+            url: url,
+            enabled: enabled,
+            sortOrder: sortOrder,
+            lastUpdated: lastUpdated,
+            lastError: lastError,
+            channelCount: channelCount,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            required String url,
+            Value<bool> enabled = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime?> lastUpdated = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<int> channelCount = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExtraGuidesCompanion.insert(
+            id: id,
+            name: name,
+            url: url,
+            enabled: enabled,
+            sortOrder: sortOrder,
+            lastUpdated: lastUpdated,
+            lastError: lastError,
+            channelCount: channelCount,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ExtraGuidesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ExtraGuidesTable,
+    ExtraGuideRow,
+    $$ExtraGuidesTableFilterComposer,
+    $$ExtraGuidesTableOrderingComposer,
+    $$ExtraGuidesTableAnnotationComposer,
+    $$ExtraGuidesTableCreateCompanionBuilder,
+    $$ExtraGuidesTableUpdateCompanionBuilder,
+    (
+      ExtraGuideRow,
+      BaseReferences<_$AppDatabase, $ExtraGuidesTable, ExtraGuideRow>
+    ),
+    ExtraGuideRow,
+    PrefetchHooks Function()>;
+typedef $$GuideChannelsTableCreateCompanionBuilder = GuideChannelsCompanion
+    Function({
+  required String guideRef,
+  required String xmltvId,
+  required String name,
+  Value<int> rowid,
+});
+typedef $$GuideChannelsTableUpdateCompanionBuilder = GuideChannelsCompanion
+    Function({
+  Value<String> guideRef,
+  Value<String> xmltvId,
+  Value<String> name,
+  Value<int> rowid,
+});
+
+class $$GuideChannelsTableFilterComposer
+    extends Composer<_$AppDatabase, $GuideChannelsTable> {
+  $$GuideChannelsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get guideRef => $composableBuilder(
+      column: $table.guideRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get xmltvId => $composableBuilder(
+      column: $table.xmltvId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+}
+
+class $$GuideChannelsTableOrderingComposer
+    extends Composer<_$AppDatabase, $GuideChannelsTable> {
+  $$GuideChannelsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get guideRef => $composableBuilder(
+      column: $table.guideRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get xmltvId => $composableBuilder(
+      column: $table.xmltvId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+}
+
+class $$GuideChannelsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GuideChannelsTable> {
+  $$GuideChannelsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get guideRef =>
+      $composableBuilder(column: $table.guideRef, builder: (column) => column);
+
+  GeneratedColumn<String> get xmltvId =>
+      $composableBuilder(column: $table.xmltvId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+}
+
+class $$GuideChannelsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $GuideChannelsTable,
+    GuideChannelRow,
+    $$GuideChannelsTableFilterComposer,
+    $$GuideChannelsTableOrderingComposer,
+    $$GuideChannelsTableAnnotationComposer,
+    $$GuideChannelsTableCreateCompanionBuilder,
+    $$GuideChannelsTableUpdateCompanionBuilder,
+    (
+      GuideChannelRow,
+      BaseReferences<_$AppDatabase, $GuideChannelsTable, GuideChannelRow>
+    ),
+    GuideChannelRow,
+    PrefetchHooks Function()> {
+  $$GuideChannelsTableTableManager(_$AppDatabase db, $GuideChannelsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GuideChannelsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GuideChannelsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GuideChannelsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> guideRef = const Value.absent(),
+            Value<String> xmltvId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GuideChannelsCompanion(
+            guideRef: guideRef,
+            xmltvId: xmltvId,
+            name: name,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String guideRef,
+            required String xmltvId,
+            required String name,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GuideChannelsCompanion.insert(
+            guideRef: guideRef,
+            xmltvId: xmltvId,
+            name: name,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$GuideChannelsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $GuideChannelsTable,
+    GuideChannelRow,
+    $$GuideChannelsTableFilterComposer,
+    $$GuideChannelsTableOrderingComposer,
+    $$GuideChannelsTableAnnotationComposer,
+    $$GuideChannelsTableCreateCompanionBuilder,
+    $$GuideChannelsTableUpdateCompanionBuilder,
+    (
+      GuideChannelRow,
+      BaseReferences<_$AppDatabase, $GuideChannelsTable, GuideChannelRow>
+    ),
+    GuideChannelRow,
+    PrefetchHooks Function()>;
+typedef $$ChannelGuideLinksTableCreateCompanionBuilder
+    = ChannelGuideLinksCompanion Function({
+  required String channelId,
+  Value<String?> guideRef,
+  Value<String?> xmltvId,
+  required String kind,
+  Value<double> score,
+  Value<int> rowid,
+});
+typedef $$ChannelGuideLinksTableUpdateCompanionBuilder
+    = ChannelGuideLinksCompanion Function({
+  Value<String> channelId,
+  Value<String?> guideRef,
+  Value<String?> xmltvId,
+  Value<String> kind,
+  Value<double> score,
+  Value<int> rowid,
+});
+
+class $$ChannelGuideLinksTableFilterComposer
+    extends Composer<_$AppDatabase, $ChannelGuideLinksTable> {
+  $$ChannelGuideLinksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get channelId => $composableBuilder(
+      column: $table.channelId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get guideRef => $composableBuilder(
+      column: $table.guideRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get xmltvId => $composableBuilder(
+      column: $table.xmltvId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get score => $composableBuilder(
+      column: $table.score, builder: (column) => ColumnFilters(column));
+}
+
+class $$ChannelGuideLinksTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChannelGuideLinksTable> {
+  $$ChannelGuideLinksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get channelId => $composableBuilder(
+      column: $table.channelId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get guideRef => $composableBuilder(
+      column: $table.guideRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get xmltvId => $composableBuilder(
+      column: $table.xmltvId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get score => $composableBuilder(
+      column: $table.score, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ChannelGuideLinksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChannelGuideLinksTable> {
+  $$ChannelGuideLinksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get channelId =>
+      $composableBuilder(column: $table.channelId, builder: (column) => column);
+
+  GeneratedColumn<String> get guideRef =>
+      $composableBuilder(column: $table.guideRef, builder: (column) => column);
+
+  GeneratedColumn<String> get xmltvId =>
+      $composableBuilder(column: $table.xmltvId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<double> get score =>
+      $composableBuilder(column: $table.score, builder: (column) => column);
+}
+
+class $$ChannelGuideLinksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ChannelGuideLinksTable,
+    GuideLinkRow,
+    $$ChannelGuideLinksTableFilterComposer,
+    $$ChannelGuideLinksTableOrderingComposer,
+    $$ChannelGuideLinksTableAnnotationComposer,
+    $$ChannelGuideLinksTableCreateCompanionBuilder,
+    $$ChannelGuideLinksTableUpdateCompanionBuilder,
+    (
+      GuideLinkRow,
+      BaseReferences<_$AppDatabase, $ChannelGuideLinksTable, GuideLinkRow>
+    ),
+    GuideLinkRow,
+    PrefetchHooks Function()> {
+  $$ChannelGuideLinksTableTableManager(
+      _$AppDatabase db, $ChannelGuideLinksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChannelGuideLinksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChannelGuideLinksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ChannelGuideLinksTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> channelId = const Value.absent(),
+            Value<String?> guideRef = const Value.absent(),
+            Value<String?> xmltvId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<double> score = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ChannelGuideLinksCompanion(
+            channelId: channelId,
+            guideRef: guideRef,
+            xmltvId: xmltvId,
+            kind: kind,
+            score: score,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String channelId,
+            Value<String?> guideRef = const Value.absent(),
+            Value<String?> xmltvId = const Value.absent(),
+            required String kind,
+            Value<double> score = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ChannelGuideLinksCompanion.insert(
+            channelId: channelId,
+            guideRef: guideRef,
+            xmltvId: xmltvId,
+            kind: kind,
+            score: score,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ChannelGuideLinksTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ChannelGuideLinksTable,
+    GuideLinkRow,
+    $$ChannelGuideLinksTableFilterComposer,
+    $$ChannelGuideLinksTableOrderingComposer,
+    $$ChannelGuideLinksTableAnnotationComposer,
+    $$ChannelGuideLinksTableCreateCompanionBuilder,
+    $$ChannelGuideLinksTableUpdateCompanionBuilder,
+    (
+      GuideLinkRow,
+      BaseReferences<_$AppDatabase, $ChannelGuideLinksTable, GuideLinkRow>
+    ),
+    GuideLinkRow,
     PrefetchHooks Function()>;
 typedef $$MoviesTableCreateCompanionBuilder = MoviesCompanion Function({
   required String id,
@@ -7541,6 +9052,12 @@ class $AppDatabaseManager {
       $$ChannelsTableTableManager(_db, _db.channels);
   $$ProgrammesTableTableManager get programmes =>
       $$ProgrammesTableTableManager(_db, _db.programmes);
+  $$ExtraGuidesTableTableManager get extraGuides =>
+      $$ExtraGuidesTableTableManager(_db, _db.extraGuides);
+  $$GuideChannelsTableTableManager get guideChannels =>
+      $$GuideChannelsTableTableManager(_db, _db.guideChannels);
+  $$ChannelGuideLinksTableTableManager get channelGuideLinks =>
+      $$ChannelGuideLinksTableTableManager(_db, _db.channelGuideLinks);
   $$MoviesTableTableManager get movies =>
       $$MoviesTableTableManager(_db, _db.movies);
   $$SeriesEntriesTableTableManager get seriesEntries =>

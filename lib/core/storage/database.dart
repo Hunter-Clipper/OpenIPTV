@@ -24,6 +24,38 @@ import 'package:crypto/crypto.dart';
 
 part 'database.g.dart';
 
+/// A channel as smart guide assignment sees it.
+class ChannelBrief {
+  const ChannelBrief({
+    required this.id,
+    required this.name,
+    required this.sourceId,
+    this.tvgId,
+    this.tvgName,
+  });
+  final String id;
+  final String name;
+  final String sourceId;
+  final String? tvgId;
+  final String? tvgName;
+}
+
+/// What to store for one guide link.
+class GuideLinksCompanionArgs {
+  const GuideLinksCompanionArgs({
+    required this.channelId,
+    required this.kind,
+    this.guideRef,
+    this.xmltvId,
+    this.score = 1.0,
+  });
+  final String channelId;
+  final String? guideRef;
+  final String? xmltvId;
+  final String kind;
+  final double score;
+}
+
 // ---------------------------------------------------------------------------
 // Table definitions
 // ---------------------------------------------------------------------------
@@ -77,6 +109,49 @@ class Programmes extends Table {
   TextColumn get description => text().nullable()();
   TextColumn get category => text().nullable()();
   TextColumn get episodeNum => text().nullable()();
+}
+
+/// A guide (XMLTV file) the user added, on top of the playlists' own (#40).
+@DataClassName('ExtraGuideRow')
+class ExtraGuides extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get url => text()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastUpdated => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+  IntColumn get channelCount => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// The channels listed in a guide, for matching and for the manual picker.
+/// [guideRef] is `src:<sourceId>` (a playlist's own guide) or `ext:<id>`.
+@DataClassName('GuideChannelRow')
+class GuideChannels extends Table {
+  TextColumn get guideRef => text()();
+  TextColumn get xmltvId => text()();
+  TextColumn get name => text()();
+
+  @override
+  Set<Column> get primaryKey => {guideRef, xmltvId};
+}
+
+/// Which guide channel a playlist channel takes its programmes from, when it
+/// is not the one its own playlist link says. `kind` is 'manual' (the user's
+/// choice; a null xmltvId means "no guide") or 'auto' (smart assignment).
+@DataClassName('GuideLinkRow')
+class ChannelGuideLinks extends Table {
+  TextColumn get channelId => text()();
+  TextColumn get guideRef => text().nullable()();
+  TextColumn get xmltvId => text().nullable()();
+  TextColumn get kind => text()();
+  RealColumn get score => real().withDefault(const Constant(1.0))();
+
+  @override
+  Set<Column> get primaryKey => {channelId};
 }
 
 @DataClassName('MovieRow')
@@ -190,6 +265,9 @@ class WatchProgress extends Table {
   Sources,
   Channels,
   Programmes,
+  ExtraGuides,
+  GuideChannels,
+  ChannelGuideLinks,
   Movies,
   SeriesEntries,
   Episodes,
@@ -204,7 +282,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -316,6 +394,13 @@ class AppDatabase extends _$AppDatabase {
             await addOnce(sources, sources.liveFormat);
             await addOnce(profiles, profiles.categoryNames);
             await addOnce(profiles, profiles.categoryOrder);
+          }
+          if (from < 15) {
+            // Extra guides and guide links (#40). createTable is "IF NOT
+            // EXISTS", so two engines upgrading at once is harmless.
+            await m.createTable(extraGuides);
+            await m.createTable(guideChannels);
+            await m.createTable(channelGuideLinks);
           }
         },
         beforeOpen: (details) async {
@@ -814,6 +899,189 @@ class AppDatabase extends _$AppDatabase {
       variables: [Variable.withInt(prefix.length), Variable.withString(prefix)],
     ).get();
     return rows.first.read<int>('n');
+  }
+
+  // -------------------------------------------------------------------------
+  // Extra guides and guide links (#40)
+  // -------------------------------------------------------------------------
+
+  Future<List<ExtraGuideRow>> getExtraGuides() => (select(extraGuides)
+        ..orderBy([
+          (t) => OrderingTerm.asc(t.sortOrder),
+          (t) => OrderingTerm.asc(t.name),
+        ]))
+      .get();
+
+  Stream<List<ExtraGuideRow>> watchExtraGuides() => (select(extraGuides)
+        ..orderBy([
+          (t) => OrderingTerm.asc(t.sortOrder),
+          (t) => OrderingTerm.asc(t.name),
+        ]))
+      .watch();
+
+  Future<void> upsertExtraGuide(ExtraGuidesCompanion g) =>
+      into(extraGuides).insertOnConflictUpdate(g);
+
+  Future<void> setExtraGuideStatus(String id,
+      {DateTime? updated, int? count, String? error}) {
+    return (update(extraGuides)..where((t) => t.id.equals(id))).write(
+      ExtraGuidesCompanion(
+        lastUpdated: updated == null ? const Value.absent() : Value(updated),
+        channelCount: count == null ? const Value.absent() : Value(count),
+        lastError: Value(error),
+      ),
+    );
+  }
+
+  /// Removes a guide, the links that used it and the programmes those links
+  /// brought in.
+  Future<void> deleteExtraGuide(String id) async {
+    final ref = 'ext:$id';
+    await transaction(() async {
+      await customStatement(
+          'DELETE FROM programmes WHERE channel_id IN '
+          "(SELECT channel_id FROM channel_guide_links WHERE guide_ref = '$ref')");
+      await (delete(channelGuideLinks)..where((t) => t.guideRef.equals(ref)))
+          .go();
+      await (delete(guideChannels)..where((t) => t.guideRef.equals(ref))).go();
+      await (delete(extraGuides)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
+  /// Replaces the stored channel list of one guide.
+  Future<void> replaceGuideChannels(
+      String ref, List<({String id, String name})> list) async {
+    await transaction(() async {
+      await (delete(guideChannels)..where((t) => t.guideRef.equals(ref))).go();
+      for (var i = 0; i < list.length; i += 1000) {
+        final chunk = list.sublist(i, (i + 1000).clamp(0, list.length));
+        await batch((b) {
+          b.insertAll(
+            guideChannels,
+            [
+              for (final c in chunk)
+                GuideChannelsCompanion.insert(
+                    guideRef: ref, xmltvId: c.id, name: c.name),
+            ],
+            mode: InsertMode.insertOrReplace,
+          );
+        });
+      }
+    });
+  }
+
+  Future<List<GuideChannelRow>> getGuideChannels() =>
+      select(guideChannels).get();
+
+  Future<List<GuideLinkRow>> getGuideLinks() => select(channelGuideLinks).get();
+
+  Future<GuideLinkRow?> getGuideLink(String channelId) => (select(
+          channelGuideLinks)
+        ..where((t) => t.channelId.equals(channelId)))
+      .getSingleOrNull();
+
+  /// Channels whose guide the user chose by hand (including "no guide").
+  Future<Set<String>> manualLinkedChannelIds() async {
+    final rows = await (selectOnly(channelGuideLinks)
+          ..addColumns([channelGuideLinks.channelId])
+          ..where(channelGuideLinks.kind.equals('manual')))
+        .get();
+    return {for (final r in rows) r.read(channelGuideLinks.channelId)!};
+  }
+
+  Future<void> setGuideLink(GuideLinksCompanionArgs a) async {
+    await into(channelGuideLinks).insertOnConflictUpdate(
+      ChannelGuideLinksCompanion(
+        channelId: Value(a.channelId),
+        guideRef: Value(a.guideRef),
+        xmltvId: Value(a.xmltvId),
+        kind: Value(a.kind),
+        score: Value(a.score),
+      ),
+    );
+  }
+
+  /// Forgets a channel's link (back to the playlist's own guide / smart
+  /// assignment) and the programmes that link brought in.
+  Future<void> clearGuideLink(String channelId) async {
+    await transaction(() async {
+      await (delete(programmes)..where((t) => t.channelId.equals(channelId)))
+          .go();
+      await (delete(channelGuideLinks)
+            ..where((t) => t.channelId.equals(channelId)))
+          .go();
+    });
+  }
+
+  /// Replaces every automatic link with [links] (manual ones stay). The
+  /// programmes of channels whose automatic link changed or went away are
+  /// dropped so the old guide does not linger.
+  Future<void> replaceAutoLinks(List<GuideLinksCompanionArgs> links) async {
+    await transaction(() async {
+      final old = await (select(channelGuideLinks)
+            ..where((t) => t.kind.equals('auto')))
+          .get();
+      final next = {for (final l in links) l.channelId: l};
+      final stale = <String>[
+        for (final o in old)
+          if (next[o.channelId] == null ||
+              next[o.channelId]!.xmltvId != o.xmltvId ||
+              next[o.channelId]!.guideRef != o.guideRef)
+            o.channelId,
+      ];
+      await deleteProgrammesForChannels(stale);
+      await (delete(channelGuideLinks)..where((t) => t.kind.equals('auto')))
+          .go();
+      await batch((b) {
+        b.insertAll(
+          channelGuideLinks,
+          [
+            for (final l in links)
+              ChannelGuideLinksCompanion.insert(
+                channelId: l.channelId,
+                kind: 'auto',
+                guideRef: Value(l.guideRef),
+                xmltvId: Value(l.xmltvId),
+                score: Value(l.score),
+              ),
+          ],
+          mode: InsertMode.insertOrReplace,
+        );
+      });
+    });
+  }
+
+  /// Deletes programmes of the given channels, in bounded chunks (SQLite
+  /// limits bound parameters).
+  Future<void> deleteProgrammesForChannels(Iterable<String> ids) async {
+    final list = ids.toList();
+    for (var i = 0; i < list.length; i += 500) {
+      final chunk = list.sublist(i, (i + 500).clamp(0, list.length));
+      await (delete(programmes)..where((t) => t.channelId.isIn(chunk))).go();
+    }
+  }
+
+  /// Every live channel with what smart assignment needs to know of it.
+  Future<List<ChannelBrief>> channelBriefs() async {
+    final rows = await (selectOnly(channels)
+          ..addColumns([
+            channels.id,
+            channels.name,
+            channels.tvgId,
+            channels.tvgName,
+            channels.sourceId,
+          ]))
+        .get();
+    return [
+      for (final r in rows)
+        ChannelBrief(
+          id: r.read(channels.id)!,
+          name: r.read(channels.name)!,
+          tvgId: r.read(channels.tvgId),
+          tvgName: r.read(channels.tvgName),
+          sourceId: r.read(channels.sourceId)!,
+        ),
+    ];
   }
 
   Future<void> updateSourceRefreshTime(String id, DateTime time) async {

@@ -15,6 +15,7 @@ class XmltvParser {
     int windowDays = 5,
     Duration pastWindow = const Duration(hours: 1),
     bool keepDescriptions = true,
+    Set<String>? onlyChannels,
   }) async* {
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
     final cutoffStart = DateTime.now().subtract(pastWindow);
@@ -30,6 +31,8 @@ class XmltvParser {
     bool inDesc = false;
     bool inCategory = false;
     bool inEpisodeNum = false;
+    // A programme of a channel nobody asked for: its text is not collected.
+    bool skipProg = false;
 
     await for (final event
         in chunks.toXmlEvents().normalizeEvents().flatten()) {
@@ -48,6 +51,7 @@ class XmltvParser {
                 .firstWhere((a) => a.name == 'stop',
                     orElse: () => _emptyAttr)
                 .value);
+            skipProg = onlyChannels != null && !onlyChannels.contains(progChannel);
             progTitle = null;
             progDesc = null;
             progCategory = null;
@@ -62,6 +66,7 @@ class XmltvParser {
             inEpisodeNum = true;
         }
       } else if (event is XmlTextEvent) {
+        if (skipProg) continue;
         if (inTitle) progTitle = (progTitle ?? '') + event.value;
         if (inDesc && keepDescriptions) progDesc = (progDesc ?? '') + event.value;
         if (inCategory) progCategory = (progCategory ?? '') + event.value;
@@ -77,7 +82,8 @@ class XmltvParser {
           case 'episode-num':
             inEpisodeNum = false;
           case 'programme':
-            if (progChannel != null &&
+            if (!skipProg &&
+                progChannel != null &&
                 progStart != null &&
                 progEnd != null &&
                 progTitle != null &&
@@ -100,6 +106,50 @@ class XmltvParser {
       }
     }
 
+  }
+
+  /// The channels a guide lists (id and first display-name). XMLTV puts them
+  /// before the programmes, so reading stops at the first programme, which
+  /// keeps even a half-gigabyte guide cheap. A file with no channels up
+  /// front is read to the end.
+  static Stream<({String id, String name})> parseChannels(
+      Stream<String> chunks) async* {
+    String? id;
+    final name = StringBuffer();
+    var inName = false;
+    var gotName = false;
+    var count = 0;
+    await for (final event
+        in chunks.toXmlEvents().normalizeEvents().flatten()) {
+      if (event is XmlStartElementEvent) {
+        switch (event.name) {
+          case 'channel':
+            id = event.attributes
+                .firstWhere((a) => a.name == 'id', orElse: () => _emptyAttr)
+                .value;
+            name.clear();
+            gotName = false;
+          case 'display-name':
+            if (!gotName) inName = true;
+          case 'programme':
+            if (count > 0) return;
+        }
+      } else if (event is XmlTextEvent) {
+        if (inName) name.write(event.value);
+      } else if (event is XmlEndElementEvent) {
+        switch (event.name) {
+          case 'display-name':
+            if (inName) gotName = true;
+            inName = false;
+          case 'channel':
+            if (id != null && id.isNotEmpty) {
+              count++;
+              yield (id: id, name: name.toString().trim());
+            }
+            id = null;
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
