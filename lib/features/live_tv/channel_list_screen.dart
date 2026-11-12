@@ -469,7 +469,7 @@ void showChannelOptions(BuildContext context, WidgetRef ref, Channel channel,
         if (context.mounted) {
           ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
               content: Text(
-                  'Channel hidden. Bring it back in Settings → Live TV → Hidden Channels.')));
+                  'Channel hidden. Bring it back in Settings → Watching → Channel Lists → Hidden Channels.')));
         }
       },
     ),

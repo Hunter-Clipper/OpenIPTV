@@ -176,6 +176,107 @@ class RefreshAllTiles extends ConsumerWidget {
   }
 }
 
+/// One row for every kind of refresh: shows what is running or what the last
+/// run did, and asks which refresh to start when tapped.
+class RefreshNowTile extends ConsumerWidget {
+  const RefreshNowTile({super.key});
+
+  static const _choices = <(RefreshScope, IconData, String, String)>[
+    (
+      RefreshScope.everything,
+      Icons.sync_rounded,
+      'Everything',
+      'Channels, movies, series and TV guides for every playlist'
+    ),
+    (
+      RefreshScope.playlists,
+      Icons.playlist_add_check_rounded,
+      'Playlists only',
+      'Channels, movies and series'
+    ),
+    (
+      RefreshScope.guides,
+      Icons.event_note_outlined,
+      'TV guides only',
+      "What's on now and next, for every playlist"
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(refreshAllProvider);
+    final theme = Theme.of(context);
+    ref.listen(refreshAllProvider, (prev, next) {
+      if (prev?.isRunning == true && !next.isRunning && next.last != null) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+          content: Text(refreshSummary(next.last!, next.lastResults)),
+        ));
+      }
+    });
+    final String subtitle;
+    if (state.isRunning) {
+      final what = state.running == RefreshScope.guides ? "'s TV guide" : '';
+      subtitle =
+          'Updating ${state.current}$what… (${state.done + 1} of ${state.total})';
+    } else if (state.last != null && state.finishedAt != null) {
+      final time = MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.fromDateTime(state.finishedAt!),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+      );
+      subtitle = '$time · ${refreshSummary(state.last!, state.lastResults)}';
+    } else {
+      subtitle = 'Update your playlists and TV guides now';
+    }
+    // While one runs the row stays focusable (a no-op) so a TV remote keeps
+    // its place.
+    return TvActivatable(
+      onTap: state.isRunning
+          ? () {}
+          : () async {
+              final scope = await showDialog<RefreshScope>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Refresh'),
+                  scrollable: true,
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final (i, c) in _choices.indexed)
+                        TvActivatable(
+                          autofocus: i == 0,
+                          onTap: () => Navigator.of(ctx).pop(c.$1),
+                          builder: (tap) => ListTile(
+                            leading: IconBadge(icon: c.$2),
+                            title: Text(c.$3),
+                            subtitle: Text(c.$4),
+                            onTap: tap,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+              if (scope != null) {
+                await ref.read(refreshAllProvider.notifier).run(scope);
+              }
+            },
+      builder: (onTap) => ListTile(
+        leading: const IconBadge(icon: Icons.sync_rounded),
+        title: const Text('Refresh Now'),
+        subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+        trailing: state.isRunning
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              )
+            : null,
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
 class _RefreshTile extends ConsumerWidget {
   const _RefreshTile({
     required this.scope,

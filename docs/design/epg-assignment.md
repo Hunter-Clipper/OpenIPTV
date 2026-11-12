@@ -12,7 +12,7 @@ for one channel by hand (hold OK / long-press → Change Guide).
 
 ## What we are building
 
-1. **Extra guides** — XMLTV URLs the user adds once (Settings → Live TV →
+1. **Extra guides** — XMLTV URLs the user adds once (Settings → Playlists & Guides →
    Extra Guides), independent of any playlist. Public examples used for
    testing: `https://iptv-epg.org/files/epg-us.xml` (522 MB raw, 12.8k
    channels, 1.1 M programmes) and `epg-gb.xml` (71 MB, 932 channels).

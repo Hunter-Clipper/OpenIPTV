@@ -14,7 +14,7 @@ import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Settings → Live TV → Extra Guides (#40): TV guide files the user adds,
+/// Settings → Playlists & Guides → Extra Guides (#40): TV guide files the user adds,
 /// used for channels the playlist's own guide does not cover.
 class ExtraGuidesScreen extends ConsumerStatefulWidget {
   const ExtraGuidesScreen({super.key});

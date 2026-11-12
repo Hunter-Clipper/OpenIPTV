@@ -148,7 +148,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                     leading: Icon(Icons.info_outline),
                     title: Text('No guides to pick from yet'),
                     subtitle: Text(
-                        'Add one in Settings → Live TV → Extra Guides, or '
+                        'Add one in Settings → Playlists & Guides → Extra Guides, or '
                         'refresh your TV guides.'),
                   )
                 else ...[

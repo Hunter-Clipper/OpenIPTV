@@ -21,29 +21,32 @@ class SettingsGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 24, 32, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleSmall!.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (description != null) ...[
-                const SizedBox(height: 4),
+        if (title.isEmpty)
+          const SizedBox(height: 12)
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 24, 32, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  description!,
-                  style: theme.textTheme.bodySmall!
-                      .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  title,
+                  style: theme.textTheme.titleSmall!.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+                if (description != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    description!,
+                    style: theme.textTheme.bodySmall!
+                        .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Material(

@@ -248,7 +248,7 @@ class AppPreferences {
       _prefs.setBool(_kGuideDescriptions, v);
 
   /// Whether channels with no guide are matched to a guide by name
-  /// (Settings → Live TV → Extra Guides). On by default; it only does
+  /// (Settings → Playlists & Guides → Extra Guides). On by default; it only does
   /// anything once a guide is available to match against.
   bool get smartGuideAssign => _prefs.getBool(_kSmartGuide) ?? true;
   Future<void> setSmartGuideAssign(bool v) => _prefs.setBool(_kSmartGuide, v);
