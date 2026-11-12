@@ -286,6 +286,50 @@ void main() {
     expect(links.containsKey('a_ch_3'), isFalse); // automatic: recomputed
     await db2.close();
   });
+
+  test('a damaged backup skips bad guide entries instead of aborting', () async {
+    final payload = jsonEncode({
+      'profiles': [],
+      'sources': [],
+      'settings': {},
+      'extraGuides': [
+        {'id': "x'; DROP TABLE programmes; --", 'url': 'http://e.test/a.xml'},
+        {'id': 'ok1', 'url': 'http://e.test/b.xml', 'sortOrder': 'two', 'enabled': 'yes'},
+        {'id': 7, 'url': 'http://e.test/c.xml'},
+        {'id': 'nourl'},
+        'not a map',
+      ],
+      'guideLinks': [
+        {'channelId': 'c1', 'guideRef': 5, 'xmltvId': ['no']},
+        42,
+      ],
+    });
+    final manifest = jsonEncode({
+      'schema_version': 2,
+      'app_version': '1.0.0',
+      'created_at': '2026-01-01T00:00:00.000Z',
+      'encrypted': false,
+      'profile_count': 0,
+      'source_count': 0,
+    });
+    final archive = Archive()
+      ..addFile(ArchiveFile(
+          'manifest.json', utf8.encode(manifest).length, utf8.encode(manifest)))
+      ..addFile(ArchiveFile(
+          'data.json', utf8.encode(payload).length, utf8.encode(payload)));
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final db = AppDatabase(NativeDatabase.memory());
+    final prefs = AppPreferences(await SharedPreferences.getInstance());
+    await BackupManager(db: db, prefs: prefs).importAll(bytes);
+    final guides = await db.getExtraGuides();
+    expect(guides.map((g) => g.id), ['ok1']);
+    expect(guides.single.enabled, isTrue); // wrong type -> default
+    expect(guides.single.sortOrder, 0);
+    final link = (await db.getGuideLinks()).single;
+    expect(link.guideRef, isNull);
+    expect(link.xmltvId, isNull);
+    await db.close();
+  });
 }
 
 /// Encodes settings by exporting through BackupManager and extracting

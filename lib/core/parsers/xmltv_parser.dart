@@ -45,8 +45,6 @@ class XmltvParser {
     bool inDesc = false;
     bool inCategory = false;
     bool inEpisodeNum = false;
-    // A programme of a channel nobody asked for: its text is not collected.
-    bool skipProg = false;
     // The channel list rides along when someone wants it.
     String? chanId;
     final chanName = StringBuffer();
@@ -70,7 +68,6 @@ class XmltvParser {
                 .firstWhere((a) => a.name == 'stop',
                     orElse: () => _emptyAttr)
                 .value);
-            skipProg = onlyChannels != null && !onlyChannels.contains(progChannel);
             progTitle = null;
             progDesc = null;
             progCategory = null;
@@ -96,7 +93,6 @@ class XmltvParser {
         }
       } else if (event is XmlTextEvent) {
         if (inChName) chanName.write(event.value);
-        if (skipProg) continue;
         if (inTitle) progTitle = (progTitle ?? '') + event.value;
         if (inDesc && keepDescriptions) progDesc = (progDesc ?? '') + event.value;
         if (inCategory) progCategory = (progCategory ?? '') + event.value;
@@ -120,8 +116,7 @@ class XmltvParser {
           case 'episode-num':
             inEpisodeNum = false;
           case 'programme':
-            if (!skipProg &&
-                progChannel != null &&
+            if (progChannel != null &&
                 progStart != null &&
                 progEnd != null &&
                 progTitle != null &&
@@ -152,8 +147,8 @@ class XmltvParser {
   static String? _channelOf(String text, int from, int to) {
     for (final quote in const ['"', "'"]) {
       final key = ' channel=$quote';
-      final at = text.indexOf(key, from);
-      if (at < 0 || at > to) {
+      final at = _indexWithin(text, key, from, to);
+      if (at < 0) {
         // Also "\nchannel=" / "\tchannel=" after a line break.
         continue;
       }
@@ -165,6 +160,16 @@ class XmltvParser {
     return _channelOfSlow(text.substring(from, to));
   }
 
+  /// [key] inside [from]..[to] only (a plain indexOf would read on through
+  /// the whole buffer when the tag is written another way).
+  static int _indexWithin(String text, String key, int from, int to) {
+    final last = to - key.length;
+    for (var i = from; i <= last; i++) {
+      if (text.startsWith(key, i)) return i;
+    }
+    return -1;
+  }
+
   // Attributes split over lines, or written with spaces around "=".
   static final _reChannelAttr = RegExp(
       r'\bchannel\s*=\s*(?:"([^"]*)"|' "'" r'([^' "'" r']*)' "'" r')');
@@ -174,14 +179,28 @@ class XmltvParser {
     return m == null ? null : _unescape(m.group(1) ?? m.group(2) ?? '');
   }
 
-  static String _unescape(String v) => v.contains('&')
-      ? v
-          .replaceAll('&lt;', '<')
-          .replaceAll('&gt;', '>')
-          .replaceAll('&quot;', '"')
-          .replaceAll('&apos;', "'")
-          .replaceAll('&amp;', '&')
-      : v;
+  static final _reNumeric = RegExp(r'&#(x[0-9a-fA-F]+|[0-9]+);');
+
+  static String _unescape(String v) {
+    if (!v.contains('&')) return v;
+    final numeric = v.contains('&#')
+        ? v.replaceAllMapped(_reNumeric, (m) {
+            final g = m.group(1)!;
+            final code = g.startsWith('x')
+                ? int.tryParse(g.substring(1), radix: 16)
+                : int.tryParse(g);
+            return code == null || code <= 0 || code > 0x10ffff
+                ? m.group(0)!
+                : String.fromCharCode(code);
+          })
+        : v;
+    return numeric
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&amp;', '&');
+  }
 
   /// Pulls the `<programme>` blocks of [wanted] channels out of the text and
   /// parses just those, in batches.

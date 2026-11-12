@@ -97,7 +97,10 @@ void main() {
     await channel('src_ch_3', 'Linked', tvgId: 'Linked.uk'); // provider covers
     await channel('src_ch_4', 'Totally Unknown'); // nobody has it
     await channel('src_ch_5', 'ABC 7 CHICAGO'); // a local station
-    service = GuideAssignmentService(db: db, tempDir: () async => tmp.path);
+    service = GuideAssignmentService(
+        db: db,
+        tempDir: () async => tmp.path,
+        stallTimeout: const Duration(seconds: 2));
     await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
         id: 'g1', name: 'Extra', url: '$base/extra.xml.gz'));
   });
@@ -153,14 +156,11 @@ void main() {
     expect((await link('src_ch_4'))?.kind, 'manual');
   });
 
-  test('loadChannel fills one manual link without a full sync', () async {
+  test('a pick loads one channel and links it without a full sync', () async {
     await service.sync();
-    await service.setManual('src_ch_4', 'ext:g1', 'CNN.us');
-    expect(await programmesOf('src_ch_4'), 0);
-    expect(await service.loadChannel('src_ch_4'), isNull);
+    expect(await service.setManualAndLoad('src_ch_4', 'ext:g1', 'CNN.us'), isNull);
     expect(await programmesOf('src_ch_4'), 4);
-    // No link, or a link to nothing: harmless.
-    expect(await service.loadChannel('src_ch_nope'), isNull);
+    expect((await link('src_ch_4'))?.kind, 'manual');
   });
 
   test('"no guide" removes the programmes and stays that way', () async {
@@ -296,4 +296,131 @@ void main() {
     await service.sync(refreshLists: false);
     expect(providerHits, hitsBefore + 1);
   });
+
+  test('a pick made while a sync is running is not lost or overwritten',
+      () async {
+    final running = service.sync();
+    // Picked by hand while the first run is matching/downloading.
+    await service.setManual('src_ch_4', 'ext:g1', 'CNN.us');
+    final queued = service.sync(refreshLists: false, force: false);
+    await running;
+    await queued;
+    expect((await link('src_ch_4'))?.kind, 'manual');
+    expect(await programmesOf('src_ch_4'), 4);
+  });
+
+  test('automatic links never replace a manual one, even from a stale list',
+      () async {
+    await service.sync();
+    await db.setGuideLink(GuideLinksCompanionArgs(
+        channelId: 'src_ch_2',
+        kind: 'manual',
+        guideRef: 'ext:g1',
+        xmltvId: 'CNN.us'));
+    await db.replaceAutoLinks([
+      GuideLinksCompanionArgs(
+          channelId: 'src_ch_2',
+          kind: 'auto',
+          guideRef: 'src:src',
+          xmltvId: 'BBCOne.uk'),
+    ]);
+    final l = await link('src_ch_2');
+    expect(l?.kind, 'manual');
+    expect(l?.xmltvId, 'CNN.us');
+  });
+
+  test('a pick that cannot be read changes nothing', () async {
+    await service.sync();
+    final before = await programmesOf('src_ch_2');
+    expect(before, 4);
+    await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
+        id: 'dead', name: 'Dead', url: '$base/nothing-here.xml'));
+    final problem =
+        await service.setManualAndLoad('src_ch_2', 'ext:dead', 'Any.us');
+    expect(problem, isNotNull);
+    expect(problem, contains('not changed'));
+    expect((await link('src_ch_2'))?.kind, 'auto');
+    expect(await programmesOf('src_ch_2'), before);
+  });
+
+  test('an extra-guide entry with no programmes gives way to one with data',
+      () async {
+    // Guide 1 lists NBC.us with nothing; guide 2 has real NBC data.
+    final now = DateTime.now();
+    final empty = '<?xml version="1.0"?><tv><channel id="NBC.us">'
+        '<display-name>NBC</display-name></channel>'
+        '<programme start="${stamp(now.subtract(const Duration(days: 3)))}" '
+        'stop="${stamp(now.subtract(const Duration(days: 3, hours: -1)))}" '
+        'channel="NBC.us"><title>old</title></programme></tv>';
+    final real = feed({'NBC.us2': 'NBC'});
+    await server.close(force: true);
+    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    base = 'http://127.0.0.1:${server.port}';
+    server.listen((req) async {
+      final res = req.response;
+      if (req.uri.path == '/empty.xml') {
+        res.write(empty);
+      } else if (req.uri.path == '/real.xml') {
+        res.write(real);
+      } else {
+        res.statusCode = 404;
+      }
+      await res.close();
+    });
+    await db.deleteExtraGuide('g1');
+    await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
+        id: 'a', name: 'First', url: '$base/empty.xml', sortOrder: const Value(0)));
+    await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
+        id: 'b', name: 'Second', url: '$base/real.xml', sortOrder: const Value(1)));
+    await channel('src_ch_9', 'NBC');
+    final r = await service.sync();
+    expect(r.errors.where((e) => e.contains('First')), isEmpty);
+    expect((await link('src_ch_9'))?.guideRef, 'ext:b');
+    expect(await programmesOf('src_ch_9'), 4);
+  });
+
+  test('guides of a removed playlist and links of gone channels are dropped',
+      () async {
+    await service.sync();
+    await db.setGuideLink(GuideLinksCompanionArgs(
+        channelId: 'src_ch_2', kind: 'manual', guideRef: 'ext:g1', xmltvId: 'CNN.us'));
+    await (db.delete(db.channels)..where((t) => t.id.equals('src_ch_2'))).go();
+    await db.deleteOrphanGuideData();
+    expect(await link('src_ch_2'), isNull);
+    expect(await db.countGuideChannels('src:src'), greaterThan(0));
+    await db.delete(db.channels).go();
+    await (db.delete(db.sources)..where((t) => t.id.equals('src'))).go();
+    await db.deleteOrphanGuideData();
+    expect(await db.countGuideChannels('src:src'), 0);
+  });
+
+  test('removing a guide is safe whatever its id looks like', () async {
+    await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
+        id: "x'; DELETE FROM programmes; --", name: 'Odd', url: '$base/extra.xml.gz'));
+    await service.sync();
+    final before = await db.select(db.programmes).get();
+    await db.deleteExtraGuide("x'; DELETE FROM programmes; --");
+    expect((await db.select(db.programmes).get()).length, before.length);
+    expect((await db.getExtraGuides()).map((g) => g.id), ['g1']);
+  });
+
+  test('a guide that went quiet gives up instead of hanging', () async {
+    await server.close(force: true);
+    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    base = 'http://127.0.0.1:${server.port}';
+    // Stops sending after a few bytes and never ends.
+    server.listen((req) async {
+      req.response.add(utf8.encode('<?xml version="1.0"?><tv>'));
+      await req.response.flush();
+    });
+    // (The real stall limit is 60 s; here the app-level cap is what we can
+    // check cheaply: the call must not complete normally with data.)
+    await db.deleteExtraGuide('g1');
+    await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
+        id: 'q', name: 'Quiet', url: '$base/q.xml'));
+    final r = await service
+        .sync()
+        .timeout(const Duration(seconds: 20), onTimeout: () => throw 'hung');
+    expect(r.errors, isNotEmpty);
+  }, timeout: const Timeout(Duration(seconds: 40)));
 }

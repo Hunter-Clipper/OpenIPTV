@@ -116,4 +116,11 @@ void main() {
     expect(got.single.title, 'Le Journal – ñ');
     expect(got.single.channelId, 'Café.fr');
   });
+
+  test('ids written with numeric entities and single quotes are found', () async {
+    final raw = '<tv>${prog("channel='R&#38;D'", 'numeric')}'
+        '${prog('channel="Z"', 'z')}</tv>';
+    final got = await XmltvParser.parse(Stream.value(raw), onlyChannels: {'R&D'}).toList();
+    expect(got.single.title, 'numeric');
+  });
 }

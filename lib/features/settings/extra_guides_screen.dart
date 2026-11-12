@@ -104,15 +104,24 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     );
     if (chosen == null || chosen == current) return;
     await prefs.setGuideMatchMode(chosen);
-    await _update(refreshLists: false);
+    await _update(refreshLists: false, force: false);
   }
 
-  Future<void> _update({bool refreshLists = true}) async {
-    if (_status != null) return;
+  Future<void> _update({bool refreshLists = true, bool force = true}) async {
+    if (_status != null) {
+      // An update is on screen: this change is applied by one more run right
+      // after it (the service queues it), not dropped.
+      unawaited(ref
+          .read(guideAssignmentProvider)
+          .sync(refreshLists: refreshLists, force: force));
+      showSnackBarMessage(context, 'Will apply this as soon as the current update finishes.');
+      return;
+    }
     setState(() => _status = 'Starting…');
     try {
       final r = await ref.read(guideAssignmentProvider).sync(
             refreshLists: refreshLists,
+            force: force,
             onProgress: (m) {
               if (mounted) setState(() => _status = m);
             },
@@ -143,9 +152,15 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     setState(() => _status = 'Checking the guide…');
     final db = ref.read(appDatabaseProvider);
     try {
+      final existing = await db.getExtraGuides();
+      if (existing.any((g) => g.url.trim() == entry.url.trim())) {
+        if (!mounted) return;
+        setState(() => _status = null);
+        showSnackBarMessage(context, 'That guide is already in your list.');
+        return;
+      }
       final tmp = (await getTemporaryDirectory()).path;
       final list = await fetchGuideChannels(entry.url, tmp);
-      final existing = await db.getExtraGuides();
       final id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
       await db.upsertExtraGuide(ExtraGuidesCompanion.insert(
         id: id,
@@ -160,7 +175,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
       setState(() => _status = null);
       showSnackBarMessage(context,
           'Added "${entry.name}" with ${list.length} channels. Matching channels…');
-      await _update(refreshLists: false);
+      await _update(refreshLists: false, force: false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = null);
@@ -183,7 +198,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           url: Value(e.url),
           sortOrder: Value(k)));
     }
-    await _update(refreshLists: false);
+    await _update(refreshLists: false, force: false);
   }
 
   Future<void> _toggle(ExtraGuideRow g) async {
@@ -192,7 +207,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
         name: Value(g.name),
         url: Value(g.url),
         enabled: Value(!g.enabled)));
-    await _update(refreshLists: false);
+    await _update(refreshLists: false, force: false);
   }
 
   Future<void> _remove(ExtraGuideRow g) async {
@@ -220,7 +235,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     if (ok != true) return;
     await ref.read(appDatabaseProvider).deleteExtraGuide(g.id);
     ref.read(guideRevisionProvider.notifier).state++;
-    await _update(refreshLists: false);
+    await _update(refreshLists: false, force: false);
   }
 
   void _options(ExtraGuideRow g) {
@@ -351,7 +366,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                       TvActivatable(
                         onTap: () async {
                           await prefs.setSmartGuideAssign(!prefs.smartGuideAssign);
-                          await _update(refreshLists: false);
+                          await _update(refreshLists: false, force: false);
                         },
                         builder: (tap) => SwitchListTile(
                           secondary: const IconBadge(icon: Icons.auto_fix_high_rounded),
@@ -548,7 +563,9 @@ class _GuideLinksScreenState extends ConsumerState<_GuideLinksScreen> {
     final db = ref.read(appDatabaseProvider);
     final links = await db.getGuideLinks();
     final names = {for (final c in await db.channelBriefs()) c.id: c.name};
-    final picker = await ref.read(guideAssignmentProvider).loadPicker();
+    final picker = await ref
+        .read(guideAssignmentProvider)
+        .loadPicker(withMatcher: false);
     links.sort((a, b) => (names[a.channelId] ?? '')
         .toLowerCase()
         .compareTo((names[b.channelId] ?? '').toLowerCase()));

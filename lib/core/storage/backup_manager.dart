@@ -209,23 +209,37 @@ class BackupManager {
     }
     await _applySettings(settings);
 
-    for (final m in (data['extraGuides'] as List? ?? const [])) {
-      if (m is! Map || m['id'] is! String || m['url'] is! String) continue;
+    // Guides and links from a backup are checked field by field: a damaged
+    // or hand-edited file skips the bad entries and never aborts the restore.
+    final okId = RegExp(r'^[A-Za-z0-9_\-]{1,64}$');
+    final extras = data['extraGuides'];
+    for (final m in extras is List ? extras : const []) {
+      if (m is! Map) continue;
+      final id = m['id'];
+      final url = m['url'];
+      if (id is! String || !okId.hasMatch(id)) continue;
+      if (url is! String || !(Uri.tryParse(url)?.hasAuthority ?? false)) continue;
+      final name = m['name'];
+      final enabled = m['enabled'];
+      final order = m['sortOrder'];
       await db.upsertExtraGuide(ExtraGuidesCompanion(
-        id: Value(m['id'] as String),
-        name: Value(m['name'] as String? ?? m['url'] as String),
-        url: Value(m['url'] as String),
-        enabled: Value(m['enabled'] as bool? ?? true),
-        sortOrder: Value(m['sortOrder'] as int? ?? 0),
+        id: Value(id),
+        name: Value(name is String && name.isNotEmpty ? name : url),
+        url: Value(url),
+        enabled: Value(enabled is bool ? enabled : true),
+        sortOrder: Value(order is int ? order : 0),
       ));
     }
-    for (final m in (data['guideLinks'] as List? ?? const [])) {
+    final linkList = data['guideLinks'];
+    for (final m in linkList is List ? linkList : const []) {
       if (m is! Map || m['channelId'] is! String) continue;
+      final ref = m['guideRef'];
+      final xid = m['xmltvId'];
       await db.setGuideLink(GuideLinksCompanionArgs(
         channelId: m['channelId'] as String,
         kind: 'manual',
-        guideRef: m['guideRef'] as String?,
-        xmltvId: m['xmltvId'] as String?,
+        guideRef: ref is String ? ref : null,
+        xmltvId: xid is String ? xid : null,
       ));
     }
 

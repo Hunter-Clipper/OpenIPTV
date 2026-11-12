@@ -30,17 +30,21 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
   GuidePicker? _picker;
   GuideLinkRow? _link;
   List<GuideChannel> _results = const [];
+  Timer? _debounce;
+  var _searchSeq = 0;
 
   @override
   void initState() {
     super.initState();
-    _query.addListener(_search);
+    _query.addListener(_onQueryChanged);
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _query.dispose();
+    _picker?.close();
     super.dispose();
   }
 
@@ -53,18 +57,26 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
       _picker = picker;
       _link = link;
     });
-    _search();
+    unawaited(_search());
   }
 
-  void _search() {
+  // Typing asks the worker once the person pauses, not on every key.
+  void _onQueryChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), _search);
+  }
+
+  Future<void> _search() async {
     final picker = _picker;
     if (picker == null) return;
     final q = _query.text.trim();
-    setState(() {
-      _results = q.isEmpty
-          ? picker.matcher.suggest(widget.channelName)
-          : picker.matcher.search(q, like: widget.channelName);
-    });
+    final seq = ++_searchSeq;
+    final found = q.isEmpty
+        ? await picker.suggest(widget.channelName)
+        : await picker.search(q, like: widget.channelName);
+    // A newer question was asked meanwhile: its answer wins.
+    if (!mounted || seq != _searchSeq) return;
+    setState(() => _results = found);
   }
 
   String _describe(GuideLinkRow? link, GuidePicker picker) {
@@ -78,33 +90,39 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
   }
 
   Future<void> _apply(Future<void> Function(GuideAssignmentService) change,
-      String message,
-      {bool loadProgrammes = false}) async {
+      String message) async {
     final service = ref.read(guideAssignmentProvider);
     final messenger = ScaffoldMessenger.maybeOf(context);
     final revision = ref.read(guideRevisionProvider.notifier);
     await change(service);
     revision.state++;
     if (mounted) Navigator.of(context).pop();
-    messenger?.showSnackBar(SnackBar(
-        content: Text(message),
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
+    // "Use Automatic" may need a smart match or the playlist's guide.
+    unawaited(service.sync(refreshLists: false, force: false).whenComplete(() {
+      revision.state++;
+    }));
+  }
+
+  /// A guide was picked: it is read first and only then swapped in, so a
+  /// guide that is down or empty never leaves the channel worse off.
+  Future<void> _pick(GuideChannel g) async {
+    final service = ref.read(guideAssignmentProvider);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final revision = ref.read(guideRevisionProvider.notifier);
+    if (mounted) Navigator.of(context).pop();
+    messenger?.showSnackBar(const SnackBar(
+        content: Text('Loading the guide, this can take a minute…'),
         // Stays up while a guide is being read; replaced when it finishes.
-        duration: loadProgrammes ? const Duration(minutes: 5) : const Duration(seconds: 4)));
-    if (loadProgrammes) {
-      // Only this channel's programmes, from its one guide: seconds, not the
-      // minutes a full sync takes, and never lost to a sync already running.
-      unawaited(service.loadChannel(widget.channelId).then((problem) {
-        revision.state++;
-        messenger?.hideCurrentSnackBar();
-        messenger?.showSnackBar(SnackBar(
-            content: Text(problem ?? 'Guide loaded.')));
-      }));
-    } else {
-      // "Use Automatic" may need a smart match or the playlist's guide.
-      unawaited(service.sync(refreshLists: false).whenComplete(() {
-        revision.state++;
-      }));
-    }
+        duration: Duration(minutes: 5)));
+    unawaited(service
+        .setManualAndLoad(widget.channelId, g.guideId, g.xmltvId)
+        .then((problem) {
+      revision.state++;
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
+          SnackBar(content: Text(problem ?? 'Guide changed and loaded.')));
+    }));
   }
 
   @override
@@ -157,12 +175,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                     const ListTile(title: Text('Nothing found')),
                   for (final g in _results)
                     TvActivatable(
-                      onTap: () => _apply(
-                        (s) => s.setManual(
-                            widget.channelId, g.guideId, g.xmltvId),
-                        'Guide changed. Loading programmes, this can take a minute…',
-                        loadProgrammes: true,
-                      ),
+                      onTap: () => _pick(g),
                       builder: (tap) => ListTile(
                         leading: Icon(
                           _link?.xmltvId == g.xmltvId &&
