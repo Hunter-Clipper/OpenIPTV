@@ -229,8 +229,14 @@ class EpgService {
         if (parsed.channels.isNotEmpty) {
           await db.replaceGuideChannels('src:${source.id}', parsed.channels);
         }
-        await db.markGuideProgrammes(
-            'src:${source.id}', {for (final p in programmes) p.channelId});
+        // "Has programmes" means something airing now or later: an entry
+        // holding only old programmes (a guide gone stale) is as good as
+        // empty, and smart assignment may fill that channel instead.
+        final now = DateTime.now();
+        await db.markGuideProgrammes('src:${source.id}', {
+          for (final p in programmes)
+            if (p.end.isAfter(now)) p.channelId,
+        });
       } catch (e) {
         debugPrint('[EPG] could not note guide channels: $e');
       }
