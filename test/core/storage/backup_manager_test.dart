@@ -44,6 +44,7 @@ const _expectedBackupKeys = {
   'overlayOpacity',
   'guideDaysAhead',
   'guideDescriptions',
+  'smartGuideAssign',
   'seekKeys',
   'streamDetails',
   'lastChannelOnStart',
@@ -143,6 +144,7 @@ void main() {
       await prefs.setOverlayOpacity('clear');
       await prefs.setGuideDaysAhead(3);
       await prefs.setGuideDescriptions(false);
+      await prefs.setSmartGuideAssign(false);
       await prefs.setStreamDetails(false);
       await prefs.setLastChannelOnStart(true);
       await prefs.setBufferPreset('large');
@@ -202,6 +204,7 @@ void main() {
       expect(prefs2.overlayOpacity, 'clear');
       expect(prefs2.guideDaysAhead, 3);
       expect(prefs2.guideDescriptions, isFalse);
+      expect(prefs2.smartGuideAssign, isFalse);
       expect(prefs2.streamDetails, isFalse);
       expect(prefs2.lastChannelOnStart, isTrue);
       expect(prefs2.bufferPreset, 'large');
@@ -251,6 +254,81 @@ void main() {
       expect(prefs2.videoFit, 'fit');
       expect(prefs2.vpnRoute, 'app');
     });
+  });
+
+  test('extra guides and hand-picked guide links survive a backup', () async {
+    final db1 = AppDatabase(NativeDatabase.memory());
+    final prefs1 = AppPreferences(await SharedPreferences.getInstance());
+    await db1.upsertExtraGuide(ExtraGuidesCompanion.insert(
+        id: 'g1', name: 'Locals', url: 'http://example.test/g.xml.gz'));
+    await db1.setGuideLink(const GuideLinksCompanionArgs(
+        channelId: 'a_ch_1',
+        kind: 'manual',
+        guideRef: 'ext:g1',
+        xmltvId: 'WNBC-DT.us'));
+    await db1.setGuideLink(
+        const GuideLinksCompanionArgs(channelId: 'a_ch_2', kind: 'manual'));
+    await db1.setGuideLink(const GuideLinksCompanionArgs(
+        channelId: 'a_ch_3',
+        kind: 'auto',
+        guideRef: 'ext:g1',
+        xmltvId: 'CNN.us'));
+    final bytes = await BackupManager(db: db1, prefs: prefs1).exportAll();
+    await db1.close();
+
+    final db2 = AppDatabase(NativeDatabase.memory());
+    await BackupManager(db: db2, prefs: prefs1).importAll(bytes);
+    expect((await db2.getExtraGuides()).single.url, 'http://example.test/g.xml.gz');
+    final links = {for (final l in await db2.getGuideLinks()) l.channelId: l};
+    expect(links['a_ch_1']?.xmltvId, 'WNBC-DT.us');
+    expect(links['a_ch_2']?.xmltvId, isNull);
+    expect(links['a_ch_2']?.kind, 'manual');
+    expect(links.containsKey('a_ch_3'), isFalse); // automatic: recomputed
+    await db2.close();
+  });
+
+  test('a damaged backup skips bad guide entries instead of aborting', () async {
+    final payload = jsonEncode({
+      'profiles': [],
+      'sources': [],
+      'settings': {},
+      'extraGuides': [
+        {'id': "x'; DROP TABLE programmes; --", 'url': 'http://e.test/a.xml'},
+        {'id': 'ok1', 'url': 'http://e.test/b.xml', 'sortOrder': 'two', 'enabled': 'yes'},
+        {'id': 7, 'url': 'http://e.test/c.xml'},
+        {'id': 'nourl'},
+        'not a map',
+      ],
+      'guideLinks': [
+        {'channelId': 'c1', 'guideRef': 5, 'xmltvId': ['no']},
+        42,
+      ],
+    });
+    final manifest = jsonEncode({
+      'schema_version': 2,
+      'app_version': '1.0.0',
+      'created_at': '2026-01-01T00:00:00.000Z',
+      'encrypted': false,
+      'profile_count': 0,
+      'source_count': 0,
+    });
+    final archive = Archive()
+      ..addFile(ArchiveFile(
+          'manifest.json', utf8.encode(manifest).length, utf8.encode(manifest)))
+      ..addFile(ArchiveFile(
+          'data.json', utf8.encode(payload).length, utf8.encode(payload)));
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final db = AppDatabase(NativeDatabase.memory());
+    final prefs = AppPreferences(await SharedPreferences.getInstance());
+    await BackupManager(db: db, prefs: prefs).importAll(bytes);
+    final guides = await db.getExtraGuides();
+    expect(guides.map((g) => g.id), ['ok1']);
+    expect(guides.single.enabled, isTrue); // wrong type -> default
+    expect(guides.single.sortOrder, 0);
+    final link = (await db.getGuideLinks()).single;
+    expect(link.guideRef, isNull);
+    expect(link.xmltvId, isNull);
+    await db.close();
   });
 }
 

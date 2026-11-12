@@ -162,7 +162,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
       canPop: _status != 'Checking your details…',
       child: Scaffold(
         appBar: AppBar(title: const Text('Edit Playlist')),
-        body: ListView(
+        body: TvFollowFocus(child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           children: [
             _Field(
@@ -283,7 +283,7 @@ class _EditPlaylistScreenState extends ConsumerState<EditPlaylistScreen> {
                 ),
               ),
           ],
-        ),
+        )),
       ),
     );
   }

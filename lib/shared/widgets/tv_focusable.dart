@@ -967,3 +967,101 @@ class _TvCaretState extends State<_TvCaret> {
     ]);
   }
 }
+
+
+/// TV: keeps the focused row in the middle of the page while the remote moves
+/// through a long vertical list (the same centring the guide and the category
+/// list have). Wrap a settings page's list in it. Does nothing off TV, and
+/// only reacts to focus inside this list's own scrollable (dialogs, the app
+/// bar and other lists are left alone).
+class TvFollowFocus extends StatefulWidget {
+  const TvFollowFocus({
+    super.key,
+    required this.child,
+    this.alignment = 0.5,
+    this.focusFirst = false,
+  });
+
+  final Widget child;
+  final double alignment;
+
+  /// On TV, start with the first row focused (a pushed page that has no row
+  /// of its own to autofocus; otherwise the first Down press lands on the
+  /// back arrow).
+  final bool focusFirst;
+
+  @override
+  State<TvFollowFocus> createState() => _TvFollowFocusState();
+}
+
+class _TvFollowFocusState extends State<TvFollowFocus> {
+  final _scope = FocusNode(
+      debugLabel: 'TvFollowFocus', canRequestFocus: false, skipTraversal: true);
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_follow);
+    if (widget.focusFirst) {
+      // After the list has built its first rows.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _focusFirst());
+      });
+    }
+  }
+
+  void _focusFirst() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    // Something inside already has focus (the person got there first).
+    if (_scope.hasFocus) return;
+    for (final n in _scope.descendants) {
+      if (n.canRequestFocus && !n.skipTraversal) {
+        n.requestFocus();
+        return;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_follow);
+    _scope.dispose();
+    super.dispose();
+  }
+
+  void _follow() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null || !ctx.mounted) return;
+    final scrollable = Scrollable.maybeOf(ctx);
+    if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
+      return;
+    }
+    // Only focus that lives inside this widget.
+    var inside = false;
+    final mine = context;
+    ctx.visitAncestorElements((e) {
+      if (identical(e, mine)) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    if (!inside) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !ctx.mounted) return;
+      Scrollable.ensureVisible(ctx,
+          alignment: widget.alignment,
+          duration: motionDuration(const Duration(milliseconds: 200)),
+          curve: Curves.easeOut);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Focus(
+        focusNode: _scope,
+        canRequestFocus: false,
+        skipTraversal: true,
+        child: widget.child,
+      );
+}

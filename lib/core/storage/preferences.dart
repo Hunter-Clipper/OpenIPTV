@@ -37,6 +37,8 @@ const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
 const _kFontScale = 'font_scale'; // text size multiplier (Appearance)
 const _kOverlayOpacity = 'overlay_opacity'; // 'solid' | 'normal' | 'clear' | 'veryclear'
 const _kGuideDays = 'guide_days_ahead'; // days of guide to keep ahead
+const _kSmartGuide = 'smart_guide_assign'; // match channels without a guide
+const _kGuideMatchMode = 'guide_match_mode'; // explicit | standard | optimistic
 const _kGuideDescriptions = 'guide_descriptions'; // store programme descriptions
 const _kStartOnBoot = 'start_on_boot'; // TV: open the app when the TV starts
 const _kStartOnWake = 'start_on_wake'; // TV: open the app when the TV wakes
@@ -244,6 +246,18 @@ class AppPreferences {
   bool get guideDescriptions => _prefs.getBool(_kGuideDescriptions) ?? true;
   Future<void> setGuideDescriptions(bool v) =>
       _prefs.setBool(_kGuideDescriptions, v);
+
+  /// Whether channels with no guide are matched to a guide by name
+  /// (Settings → Playlists & Guides → Extra Guides). On by default; it only does
+  /// anything once a guide is available to match against.
+  bool get smartGuideAssign => _prefs.getBool(_kSmartGuide) ?? true;
+  Future<void> setSmartGuideAssign(bool v) => _prefs.setBool(_kSmartGuide, v);
+
+  /// How strictly channels are matched to guides: 'explicit' (guide id only),
+  /// 'standard' (id or exact name) or 'optimistic' (also similar names).
+  String get guideMatchMode => _prefs.getString(_kGuideMatchMode) ?? 'standard';
+  Future<void> setGuideMatchMode(String v) =>
+      _prefs.setString(_kGuideMatchMode, v);
 
   bool get startOnBoot => _prefs.getBool(_kStartOnBoot) ?? false;
   Future<void> setStartOnBoot(bool v) => _prefs.setBool(_kStartOnBoot, v);

@@ -545,7 +545,9 @@ class SourceManager {
     await db.deleteSeriesForSource(sourceId);
     await db.deleteEpisodesForSource(sourceId);
     await db.deleteProgrammesForSource(sourceId);
+    // Its guide links and channel list (#40) are now orphans.
     await db.deleteSource(sourceId);
+    await db.deleteOrphanGuideData();
     await db.compact();
   }
 

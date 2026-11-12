@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
+import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/storage/database.dart';
@@ -147,6 +148,10 @@ void autoRefreshCallbackDispatcher() {
       await db.close();
       return false;
     }
+    // Extra guides and smart links (never blocks or fails the refresh).
+    try {
+      await GuideAssignmentService(db: db).sync();
+    } catch (_) {}
 
     if (prefs.refreshNotificationsEnabled) {
       await _initNotifications();

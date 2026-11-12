@@ -133,7 +133,8 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
       appBar: AppBar(title: const Text('Guide Data')),
       body: prefs == null
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : TvFollowFocus(
+              child: SingleChildScrollView(
               padding: EdgeInsets.only(
                   bottom: 32 + MediaQuery.paddingOf(context).bottom),
               child: Column(
@@ -147,6 +148,8 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
                     children: [
                       for (final d in _dayChoices)
                         TvActivatable(
+                          // The remote starts on the current choice.
+                          autofocus: d == prefs.guideDaysAhead,
                           onTap: () => _setDays(d),
                           builder: (tap) => ListTile(
                             leading: Icon(
@@ -200,7 +203,8 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
                       TvActivatable(
                         onTap: _busy ? null : _clear,
                         builder: (tap) => ListTile(
-                          leading: const IconBadge(icon: Icons.delete_sweep_outlined),
+                          leading: const IconBadge(
+                              icon: Icons.delete_sweep_outlined),
                           title: const Text('Clear Guide Data'),
                           subtitle: Text(
                             _busy
@@ -215,7 +219,7 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
                   ),
                 ],
               ),
-            ),
+            )),
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
@@ -26,11 +27,43 @@ class InfoTooltipScope extends InheritedNotifier<InfoTooltipController> {
     required super.child,
   }) : super(notifier: controller);
 
+  static InfoTooltipController? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<InfoTooltipScope>()?.notifier;
+
   static InfoTooltipController of(BuildContext context) {
     final scope =
         context.dependOnInheritedWidgetOfExactType<InfoTooltipScope>();
     assert(scope != null, 'InfoTooltipScope not found in widget tree');
     return scope!.notifier!;
+  }
+}
+
+/// Width an (ℹ) button takes at the end of a row.
+const double kInfoGutter = 54;
+
+class _InfoRowMarker extends InheritedWidget {
+  const _InfoRowMarker({required super.child});
+
+  @override
+  bool updateShouldNotify(_InfoRowMarker old) => false;
+}
+
+/// Wrap a settings row that has no (ℹ) so its chevron / switch lines up with
+/// the rows that do. Does nothing outside a settings page (no scope) or
+/// inside an [InfoTooltip] row.
+class InfoGutter extends StatelessWidget {
+  const InfoGutter({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (InfoTooltipScope.maybeOf(context) == null ||
+        context.getInheritedWidgetOfExactType<_InfoRowMarker>() != null) {
+      return child;
+    }
+    return Padding(
+        padding: const EdgeInsets.only(right: kInfoGutter), child: child);
   }
 }
 
@@ -74,26 +107,48 @@ class InfoTooltip extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: child),
+                Expanded(child: _InfoRowMarker(child: child)),
                 const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: TvFocusable(
-                    onTap: () => controller.toggle(id),
-                    borderRadius: BorderRadius.circular(24),
-                    focusScale: 1.15,
-                    // A roomy round target, so the focus pill is easy to see.
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Icon(
-                        Icons.info_outline,
-                        size: 18,
-                        color: isOpen
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.55),
+                  // Up / Down from the (ℹ) go to the neighbouring ROWS, not
+                  // along a column of tiny buttons; Left comes back to the row.
+                  child: Focus(
+                    canRequestFocus: false,
+                    skipTraversal: true,
+                    onKeyEvent: (node, event) {
+                      if (event is KeyUpEvent) return KeyEventResult.ignored;
+                      final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
+                      final down =
+                          event.logicalKey == LogicalKeyboardKey.arrowDown;
+                      if (!up && !down) return KeyEventResult.ignored;
+                      if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                        final fm = FocusManager.instance;
+                        fm.primaryFocus
+                            ?.focusInDirection(TraversalDirection.left);
+                        fm.primaryFocus?.focusInDirection(up
+                            ? TraversalDirection.up
+                            : TraversalDirection.down);
+                      }
+                      return KeyEventResult.handled;
+                    },
+                    child: TvFocusable(
+                      onTap: () => controller.toggle(id),
+                      borderRadius: BorderRadius.circular(24),
+                      focusScale: 1.15,
+                      // A roomy round target, so the focus pill is easy to see.
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: isOpen
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.55),
+                        ),
                       ),
                     ),
                   ),

@@ -3,11 +3,26 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.104)
+## Unreleased (0.14.111)
+
+**New**
+- **Extra Guides.** Settings → Playlists & Guides → Extra Guides lets you add TV guide files (XMLTV) for channels your playlist has no guide for. They can be plain `.xml`, `.xml.gz` or zipped, as long as they unpack to XML. OpenIPTV does not provide guides; community sites publish them, and a web search for "XMLTV EPG" is a good place to start. Guides you add are used in the order you set, and your playlist's own guide always comes first.
+- **Smart matching.** A channel with no guide is matched to your guides. Channels that already have a guide are never changed, and a doubtful match is skipped rather than guessed. US local stations are matched by call sign or by network and city, and never to a sub-channel or look-alike.
+- **Matching Mode.** Extra Guides → Matching Mode sets how strict matching is. *Explicit* links a channel only when its guide ID is exactly the guide's. *Standard* (the default) also accepts an exactly matching channel name. *Optimistic* also accepts names that are merely alike, which finds more channels but will sometimes guess wrong.
+- **Change Guide.** Hold OK (TV) or long-press (phone) a channel → Change Guide to pick which guide it uses, search the guides, say "No guide for this channel", or go back to automatic. Your choice beats everything. The guide is read first and only used if it worked, so a guide that is down never empties the channel.
+- **Review Guide Matches** (Extra Guides) lists every matched channel so a wrong one is easy to fix.
+- Extra guides and the guides you picked by hand are included in backups.
+- **Settings are tidier.** The main Settings page went from about 38 rows to about 20. Related things now live together: Playlists & Guides (playlists, one Refresh Now row that asks which refresh, auto-refresh with its notification switch, extra guides, guide data, backup), Watching (Playback, Start-up on TVs, Channel Lists, TV Guide Layout on TVs, each opening its own page), Appearance, and About & Advanced (updates is one row with the automatic-check switch inside). Parental Controls moved up beside your profile. Nothing was removed.
+
+**Improved**
+- **Smoother remote navigation in Settings (TV).** The focused row stays centred, like in the guide and the category list. Every settings page opens with its first row (or your current choice) focused instead of the back arrow. Up and Down from an (i) button move to the neighbouring rows, and rows without an (i) line up with the ones that have it. Guide Data and the accent colour picker start on what is currently selected.
+- Picking a guide for one channel now loads only that channel instead of re-reading every guide, so it takes seconds to a minute on a TV rather than minutes. A pick made while an update is running is no longer lost.
+- Updating guides is gentler on providers and on a TV: guides that haven't changed are skipped, a guide that keeps coming back empty isn't asked for again straight away, and a guide download that goes quiet is given up on instead of leaving the screen stuck.
 
 **Fixed**
 - **TV guide missing for some or all channels after a refresh.** When a provider answered a guide refresh with an empty guide (busy or rate-limited), OpenIPTV treated it as a success and cleared out part of the guide it already had. It now keeps your current guide and says the provider sent an empty one.
 - **Stations listed more than once** (for example HD and SD versions of the same channel) now all get the guide. Before, only the first one did.
+- A damaged backup no longer stops a restore halfway, and leftovers of removed playlists are cleaned up.
 
 ## 0.14.103 — 2026-11-11
 

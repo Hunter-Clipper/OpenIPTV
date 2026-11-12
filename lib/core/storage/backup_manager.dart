@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:encrypt/encrypt.dart' as enc;
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/models/source.dart';
@@ -88,6 +89,27 @@ class BackupManager {
       'profiles': profiles.map(_encodeProfile).toList(),
       'sources': encodedSources,
       'settings': _encodeSettings(),
+      // Extra guides and the guides chosen by hand (#40). Automatic matches
+      // are not saved: they are worked out again after a restore.
+      'extraGuides': [
+        for (final g in await db.getExtraGuides())
+          {
+            'id': g.id,
+            'name': g.name,
+            'url': g.url,
+            'enabled': g.enabled,
+            'sortOrder': g.sortOrder,
+          },
+      ],
+      'guideLinks': [
+        for (final l in await db.getGuideLinks())
+          if (l.kind == 'manual')
+            {
+              'channelId': l.channelId,
+              'guideRef': l.guideRef,
+              'xmltvId': l.xmltvId,
+            },
+      ],
     });
 
     final hasPassword = password != null && password.isNotEmpty;
@@ -186,6 +208,40 @@ class BackupManager {
       await db.upsertProfile(profile);
     }
     await _applySettings(settings);
+
+    // Guides and links from a backup are checked field by field: a damaged
+    // or hand-edited file skips the bad entries and never aborts the restore.
+    final okId = RegExp(r'^[A-Za-z0-9_\-]{1,64}$');
+    final extras = data['extraGuides'];
+    for (final m in extras is List ? extras : const []) {
+      if (m is! Map) continue;
+      final id = m['id'];
+      final url = m['url'];
+      if (id is! String || !okId.hasMatch(id)) continue;
+      if (url is! String || !(Uri.tryParse(url)?.hasAuthority ?? false)) continue;
+      final name = m['name'];
+      final enabled = m['enabled'];
+      final order = m['sortOrder'];
+      await db.upsertExtraGuide(ExtraGuidesCompanion(
+        id: Value(id),
+        name: Value(name is String && name.isNotEmpty ? name : url),
+        url: Value(url),
+        enabled: Value(enabled is bool ? enabled : true),
+        sortOrder: Value(order is int ? order : 0),
+      ));
+    }
+    final linkList = data['guideLinks'];
+    for (final m in linkList is List ? linkList : const []) {
+      if (m is! Map || m['channelId'] is! String) continue;
+      final ref = m['guideRef'];
+      final xid = m['xmltvId'];
+      await db.setGuideLink(GuideLinksCompanionArgs(
+        channelId: m['channelId'] as String,
+        kind: 'manual',
+        guideRef: ref is String ? ref : null,
+        xmltvId: xid is String ? xid : null,
+      ));
+    }
 
     return BackupSummary(
       profileCount: profiles.length,
@@ -549,6 +605,20 @@ class BackupManager {
       encode: (p) => p.guideDaysAhead,
       decode: (p, v) async {
         if (v is int) await p.setGuideDaysAhead(v.clamp(1, 14));
+      },
+    ),
+    PreferenceEntry(
+      key: 'smartGuideAssign',
+      encode: (p) => p.smartGuideAssign,
+      decode: (p, v) async {
+        if (v is bool) await p.setSmartGuideAssign(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'guideMatchMode',
+      encode: (p) => p.guideMatchMode,
+      decode: (p, v) async {
+        if (v is String) await p.setGuideMatchMode(v);
       },
     ),
     PreferenceEntry(

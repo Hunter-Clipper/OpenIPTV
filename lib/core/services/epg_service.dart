@@ -66,7 +66,8 @@ Stream<T> _stallTimeout<T>(Stream<T> stream, Duration stall) {
 // Top-level so Isolate.run can reference it.
 // Fetches + stream-parses the XMLTV feed entirely off the main thread,
 // returning all programmes at once for batch DB writes on the caller.
-Future<List<Programme>> _fetchAndParseAll(
+Future<({List<Programme> programmes, List<({String id, String name})> channels})>
+    _fetchAndParseAll(
   String epgUrl,
   Duration pastWindow,
   int daysAhead,
@@ -74,6 +75,7 @@ Future<List<Programme>> _fetchAndParseAll(
 ) async {
   final client = http.Client();
   final programmes = <Programme>[];
+  final channels = <({String id, String name})>[];
   try {
     final request = http.Request('GET', Uri.parse(epgUrl));
     final streamed =
@@ -92,7 +94,8 @@ Future<List<Programme>> _fetchAndParseAll(
       XmltvParser.parse(bodyStream,
           pastWindow: pastWindow,
           windowDays: daysAhead,
-          keepDescriptions: keepDescriptions),
+          keepDescriptions: keepDescriptions,
+          onChannel: (id, name) => channels.add((id: id, name: name))),
       const Duration(seconds: 60),
     )) {
       programmes.add(prog);
@@ -100,13 +103,12 @@ Future<List<Programme>> _fetchAndParseAll(
   } finally {
     client.close();
   }
-  return programmes;
+  return (programmes: programmes, channels: channels);
 }
 
 /// Guides are often served as `.xml.gz` without a `Content-Encoding` header
 /// (DrewLive sends `application/gzip`), so the HTTP client hands over the
 /// compressed bytes. Sniff the gzip magic number and unpack when present.
-@visibleForTesting
 Stream<List<int>> maybeGunzip(Stream<List<int>> bytes) async* {
   final chunks = StreamIterator(bytes);
   final head = <int>[];
@@ -204,10 +206,12 @@ class EpgService {
       final keepDescriptions = prefs.guideDescriptions;
 
       onProgress?.call('Downloading TV guide…');
-      final programmes = await Isolate.run(
-        () => _fetchAndParseAll(epgUrl, pastWindow, daysAhead, keepDescriptions),
+      final parsed = await Isolate.run(
+        () =>
+            _fetchAndParseAll(epgUrl, pastWindow, daysAhead, keepDescriptions),
         debugName: 'epg-parse',
       );
+      final programmes = parsed.programmes;
 
       debugPrint(
           '[EPG] Parsed ${programmes.length} programmes in ${sw.elapsedMilliseconds}ms');
@@ -217,6 +221,24 @@ class EpgService {
       // clean-up below would otherwise thin it out) and say so.
       if (programmes.isEmpty) {
         throw http.ClientException('empty_guide');
+      }
+
+      // Remember which of the guide's channels actually have programmes:
+      // an entry with none is not "covered" (smart assignment may fill it).
+      try {
+        if (parsed.channels.isNotEmpty) {
+          await db.replaceGuideChannels('src:${source.id}', parsed.channels);
+        }
+        // "Has programmes" means something airing now or later: an entry
+        // holding only old programmes (a guide gone stale) is as good as
+        // empty, and smart assignment may fill that channel instead.
+        final now = DateTime.now();
+        await db.markGuideProgrammes('src:${source.id}', {
+          for (final p in programmes)
+            if (p.end.isAfter(now)) p.channelId,
+        });
+      } catch (e) {
+        debugPrint('[EPG] could not note guide channels: $e');
       }
 
       // Only delete old programmes after new data is successfully fetched
@@ -231,19 +253,33 @@ class EpgService {
       // 11 minutes on a TV stick — and kept programmes for channels the
       // playlist doesn't have.)
       final ids = await db.channelIdsByTvgId(source.id);
+      // Channels the user gave a guide by hand (or "no guide") are served by
+      // that choice, not by the playlist's own guide.
+      final manual = await db.manualLinkedChannelIds();
+      // Channels linked to this playlist's guide by name (smart assignment)
+      // or by hand (Change Guide): filled from the same download.
+      final linkTargets = <String, List<String>>{};
+      for (final l in await db.getGuideLinks()) {
+        if (l.guideRef == 'src:${source.id}' && l.xmltvId != null) {
+          (linkTargets[l.xmltvId!] ??= []).add(l.channelId);
+        }
+      }
       final mapped = [
         for (final p in programmes)
-          if (ids[p.channelId] case final targets?)
-            for (final id in targets)
-              Programme(
-                channelId: id,
-                start: p.start,
-                end: p.end,
-                title: p.title,
-                description: keepDescriptions ? p.description : null,
-                category: p.category,
-                episodeNum: p.episodeNum,
-              ),
+          for (final id in {
+            for (final t in ids[p.channelId] ?? const <String>[])
+              if (!manual.contains(t)) t,
+            ...?linkTargets[p.channelId],
+          })
+            Programme(
+              channelId: id,
+              start: p.start,
+              end: p.end,
+              title: p.title,
+              description: keepDescriptions ? p.description : null,
+              category: p.category,
+              episodeNum: p.episodeNum,
+            ),
       ];
 
       var totalWritten = 0;

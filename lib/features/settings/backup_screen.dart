@@ -39,65 +39,69 @@ class BackupScreen extends ConsumerWidget {
       controller: tooltipController,
       child: Scaffold(
         appBar: AppBar(title: const Text('Backup & Restore')),
-        body: ListView(
-          padding: const EdgeInsets.only(bottom: 32),
-          children: [
-            SettingsGroup(
-              title: 'Export',
+        body: TvFollowFocus(
+            focusFirst: true,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 32),
               children: [
-                InfoTooltip(
-                  id: 'backup_export_section',
-                  title: 'Export Backup',
-                  body: 'Exporting saves every profile, every source, and '
-                      'your app settings into a single .zip file. You can '
-                      'optionally protect it with a password.',
-                  tip: "Save this file somewhere safe — you'll need it to "
-                      'restore everything on a new device.',
-                  child: TvActivatable(
-                    autofocus: true,
-                    onTap: () => _exportBackup(context, ref),
-                    builder: (onTap) => ListTile(
-                      leading: const IconBadge(icon: Icons.upload_file_outlined),
-                      title: const Text('Export Backup'),
-                      subtitle: Text(
-                        'Save all profiles, sources, and settings as a .zip file',
-                        style: Theme.of(context).textTheme.bodySmall,
+                SettingsGroup(
+                  title: 'Export',
+                  children: [
+                    InfoTooltip(
+                      id: 'backup_export_section',
+                      title: 'Export Backup',
+                      body: 'Exporting saves every profile, every source, and '
+                          'your app settings into a single .zip file. You can '
+                          'optionally protect it with a password.',
+                      tip: "Save this file somewhere safe — you'll need it to "
+                          'restore everything on a new device.',
+                      child: TvActivatable(
+                        autofocus: true,
+                        onTap: () => _exportBackup(context, ref),
+                        builder: (onTap) => ListTile(
+                          leading:
+                              const IconBadge(icon: Icons.upload_file_outlined),
+                          title: const Text('Export Backup'),
+                          subtitle: Text(
+                            'Save all profiles, sources, and settings as a .zip file',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: onTap,
+                        ),
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: onTap,
                     ),
-                  ),
+                  ],
+                ),
+                SettingsGroup(
+                  title: 'Restore',
+                  children: [
+                    InfoTooltip(
+                      id: 'backup_import_section',
+                      title: 'Restore Backup',
+                      body: 'Importing reads a .zip backup file and adds its '
+                          'profiles and sources to this device. '
+                          "If the backup was password-protected, you'll be asked "
+                          'for the password used when it was exported.',
+                      tip: 'Importing does not delete anything — your existing '
+                          'profiles are kept.',
+                      child: TvActivatable(
+                        onTap: () => _importBackup(context, ref),
+                        builder: (onTap) => ListTile(
+                          leading:
+                              const IconBadge(icon: Icons.download_outlined),
+                          title: const Text('Import Backup'),
+                          subtitle: Text('Open a .zip backup file',
+                              style: Theme.of(context).textTheme.bodySmall),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: onTap,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-            SettingsGroup(
-              title: 'Restore',
-              children: [
-                InfoTooltip(
-                  id: 'backup_import_section',
-                  title: 'Restore Backup',
-                  body: 'Importing reads a .zip backup file and adds its '
-                      'profiles and sources to this device. '
-                      "If the backup was password-protected, you'll be asked "
-                      'for the password used when it was exported.',
-                  tip: 'Importing does not delete anything — your existing '
-                      'profiles are kept.',
-                  child: TvActivatable(
-                    onTap: () => _importBackup(context, ref),
-                    builder: (onTap) => ListTile(
-                      leading: const IconBadge(icon: Icons.download_outlined),
-                      title: const Text('Import Backup'),
-                      subtitle: Text('Open a .zip backup file',
-                          style: Theme.of(context).textTheme.bodySmall),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: onTap,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+            )),
       ),
     );
   }
@@ -151,7 +155,8 @@ class BackupScreen extends ConsumerWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      _showError(context,
+      _showError(
+          context,
           "Couldn't create the backup file. Make sure you have storage "
           'permission and try again.');
     }
@@ -226,7 +231,8 @@ class BackupScreen extends ConsumerWidget {
           title: 'Choose a backup', extensions: const ['.zip']);
     } catch (_) {
       if (!context.mounted) return null;
-      _showError(context,
+      _showError(
+          context,
           "Couldn't open the file picker. Check that the app has file "
           'access permission and try again.');
       return null;
@@ -261,7 +267,8 @@ class BackupScreen extends ConsumerWidget {
       return null;
     } catch (_) {
       if (!context.mounted) return null;
-      _showError(context,
+      _showError(
+          context,
           "Couldn't open this backup file. "
           "Make sure it's a valid OpenIPTV backup.");
       return null;
@@ -305,18 +312,18 @@ class BackupScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             TvTextFieldGate(
-              // TV: the remote starts on the password (OK types one), not on
-              // Export — one press used to export an unprotected backup.
-              autofocus: true,
-              builder: (context, fieldNode) => TextField(
-                focusNode: fieldNode,
-              controller: controller,
-              obscureText: true,
-              decoration:
-                  const InputDecoration(hintText: 'Password (optional)'),
-              onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
-            )
-            ),
+                // TV: the remote starts on the password (OK types one), not on
+                // Export — one press used to export an unprotected backup.
+                autofocus: true,
+                builder: (context, fieldNode) => TextField(
+                      focusNode: fieldNode,
+                      controller: controller,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                          hintText: 'Password (optional)'),
+                      onSubmitted: (_) =>
+                          Navigator.of(ctx).pop(controller.text),
+                    )),
           ],
         ),
         actions: [
@@ -357,16 +364,17 @@ class BackupScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             TvTextFieldGate(
-              // TV: the password is required, so the keyboard opens at once.
-              openOnShow: true,
-              builder: (context, fieldNode) => TextField(
-                focusNode: fieldNode,
-              controller: controller,
-              obscureText: true,
-              decoration: const InputDecoration(hintText: 'Enter password'),
-              onSubmitted: (_) => Navigator.of(ctx).pop(controller.text),
-            )
-            ),
+                // TV: the password is required, so the keyboard opens at once.
+                openOnShow: true,
+                builder: (context, fieldNode) => TextField(
+                      focusNode: fieldNode,
+                      controller: controller,
+                      obscureText: true,
+                      decoration:
+                          const InputDecoration(hintText: 'Enter password'),
+                      onSubmitted: (_) =>
+                          Navigator.of(ctx).pop(controller.text),
+                    )),
           ],
         ),
         actions: [
@@ -436,8 +444,7 @@ class BackupScreen extends ConsumerWidget {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.error_outline,
-                  color: Colors.white, size: 18),
+              const Icon(Icons.error_outline, color: Colors.white, size: 18),
               const SizedBox(width: 8),
               Expanded(child: Text(message)),
             ],

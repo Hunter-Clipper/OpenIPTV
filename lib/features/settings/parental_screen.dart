@@ -58,63 +58,65 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Parental Controls')),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
-        children: [
-          SettingsGroup(title: 'Protection', children: [
-            TvActivatable(
-              autofocus: true,
-              onTap: () => _setProtectionEnabled(prefs, !enabled),
-              builder: (_) => SwitchListTile(
-                secondary: IconBadge(
-                  icon: enabled
-                      ? Icons.lock_outline
-                      : Icons.lock_open_outlined,
+      body: TvFollowFocus(
+          focusFirst: true,
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 32),
+            children: [
+              SettingsGroup(title: 'Protection', children: [
+                TvActivatable(
+                  autofocus: true,
+                  onTap: () => _setProtectionEnabled(prefs, !enabled),
+                  builder: (_) => SwitchListTile(
+                    secondary: IconBadge(
+                      icon: enabled
+                          ? Icons.lock_outline
+                          : Icons.lock_open_outlined,
+                    ),
+                    title: const Text('Parental Protection'),
+                    subtitle: Text(
+                      enabled
+                          ? 'Adult and locked categories require an admin PIN'
+                          : 'Off — all content is visible',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    value: enabled,
+                    onChanged: (v) => _setProtectionEnabled(prefs, v),
+                  ),
                 ),
-                title: const Text('Parental Protection'),
-                subtitle: Text(
-                  enabled
-                      ? 'Adult and locked categories require an admin PIN'
-                      : 'Off — all content is visible',
-                  style: theme.textTheme.bodySmall,
-                ),
-                value: enabled,
-                onChanged: (v) => _setProtectionEnabled(prefs, v),
-              ),
-            ),
-          ]),
+              ]),
 
-          // Locked category list
-          if (enabled)
-            SettingsGroup(
-              title: 'Locked Categories',
-              description: 'Adult content is locked automatically. '
-                  'Categories below were added by the playlist scan.',
-              children: [
-                if (locked.isEmpty)
-                  const ListTile(
-                    leading: IconBadge(icon: Icons.info_outline),
-                    title: Text('No other locked categories'),
-                  )
-                else
-                  ...locked.map((cat) => ListTile(
-                        leading: const IconBadge(icon: Icons.lock_outline),
-                        title: Text(context.displayName(cat)),
-                        trailing: TvActivatable(
-        round: true,
-                          onTap: () => _removeLockedCat(prefs, cat),
-                          builder: (onTap) => IconButton(
-                            icon: Icon(Icons.delete_outline,
-                                color: theme.colorScheme.error),
-                            tooltip: 'Remove from locked list',
-                            onPressed: onTap,
-                          ),
-                        ),
-                      )),
-              ],
-            ),
-        ],
-      ),
+              // Locked category list
+              if (enabled)
+                SettingsGroup(
+                  title: 'Locked Categories',
+                  description: 'Adult content is locked automatically. '
+                      'Categories below were added by the playlist scan.',
+                  children: [
+                    if (locked.isEmpty)
+                      const ListTile(
+                        leading: IconBadge(icon: Icons.info_outline),
+                        title: Text('No other locked categories'),
+                      )
+                    else
+                      ...locked.map((cat) => ListTile(
+                            leading: const IconBadge(icon: Icons.lock_outline),
+                            title: Text(context.displayName(cat)),
+                            trailing: TvActivatable(
+                              round: true,
+                              onTap: () => _removeLockedCat(prefs, cat),
+                              builder: (onTap) => IconButton(
+                                icon: Icon(Icons.delete_outline,
+                                    color: theme.colorScheme.error),
+                                tooltip: 'Remove from locked list',
+                                onPressed: onTap,
+                              ),
+                            ),
+                          )),
+                  ],
+                ),
+            ],
+          )),
     );
   }
 }

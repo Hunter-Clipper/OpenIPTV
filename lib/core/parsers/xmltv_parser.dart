@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:xml/xml_events.dart';
 
@@ -15,7 +16,21 @@ class XmltvParser {
     int windowDays = 5,
     Duration pastWindow = const Duration(hours: 1),
     bool keepDescriptions = true,
+    Set<String>? onlyChannels,
+    void Function(String id, String name)? onChannel,
+    bool latin1Input = false,
   }) async* {
+    // Asked for a few channels out of a big guide: find their blocks by a
+    // plain text scan and parse only those (a full XML pass over hundreds
+    // of megabytes takes minutes on a TV).
+    if (onlyChannels != null) {
+      yield* _parseWanted(chunks, onlyChannels,
+          windowDays: windowDays,
+          pastWindow: pastWindow,
+          keepDescriptions: keepDescriptions,
+          latin1Input: latin1Input);
+      return;
+    }
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
     final cutoffStart = DateTime.now().subtract(pastWindow);
 
@@ -30,6 +45,11 @@ class XmltvParser {
     bool inDesc = false;
     bool inCategory = false;
     bool inEpisodeNum = false;
+    // The channel list rides along when someone wants it.
+    String? chanId;
+    final chanName = StringBuffer();
+    var inChName = false;
+    var gotChName = false;
 
     await for (final event
         in chunks.toXmlEvents().normalizeEvents().flatten()) {
@@ -52,6 +72,16 @@ class XmltvParser {
             progDesc = null;
             progCategory = null;
             progEpisodeNum = null;
+          case 'channel':
+            if (onChannel != null) {
+              chanId = event.attributes
+                  .firstWhere((a) => a.name == 'id', orElse: () => _emptyAttr)
+                  .value;
+              chanName.clear();
+              gotChName = false;
+            }
+          case 'display-name':
+            if (chanId != null && !gotChName) inChName = true;
           case 'title':
             inTitle = true;
           case 'desc':
@@ -62,12 +92,21 @@ class XmltvParser {
             inEpisodeNum = true;
         }
       } else if (event is XmlTextEvent) {
+        if (inChName) chanName.write(event.value);
         if (inTitle) progTitle = (progTitle ?? '') + event.value;
         if (inDesc && keepDescriptions) progDesc = (progDesc ?? '') + event.value;
         if (inCategory) progCategory = (progCategory ?? '') + event.value;
         if (inEpisodeNum) progEpisodeNum = (progEpisodeNum ?? '') + event.value;
       } else if (event is XmlEndElementEvent) {
         switch (event.name) {
+          case 'display-name':
+            if (inChName) gotChName = true;
+            inChName = false;
+          case 'channel':
+            if (chanId != null && chanId.isNotEmpty) {
+              onChannel?.call(chanId, chanName.toString().trim());
+            }
+            chanId = null;
           case 'title':
             inTitle = false;
           case 'desc':
@@ -100,6 +139,185 @@ class XmltvParser {
       }
     }
 
+  }
+
+  /// The `channel` attribute of the `<programme ...>` tag spanning
+  /// [from]..[to] in [text], found without building a substring (this runs
+  /// for every programme of a guide that can hold millions).
+  static String? _channelOf(String text, int from, int to) {
+    for (final quote in const ['"', "'"]) {
+      final key = ' channel=$quote';
+      final at = _indexWithin(text, key, from, to);
+      if (at < 0) {
+        // Also "\nchannel=" / "\tchannel=" after a line break.
+        continue;
+      }
+      final start = at + key.length;
+      final end = text.indexOf(quote, start);
+      if (end < 0 || end > to) return null;
+      return _unescape(text.substring(start, end));
+    }
+    return _channelOfSlow(text.substring(from, to));
+  }
+
+  /// [key] inside [from]..[to] only (a plain indexOf would read on through
+  /// the whole buffer when the tag is written another way).
+  static int _indexWithin(String text, String key, int from, int to) {
+    final last = to - key.length;
+    for (var i = from; i <= last; i++) {
+      if (text.startsWith(key, i)) return i;
+    }
+    return -1;
+  }
+
+  // Attributes split over lines, or written with spaces around "=".
+  static final _reChannelAttr = RegExp(
+      r'\bchannel\s*=\s*(?:"([^"]*)"|' "'" r'([^' "'" r']*)' "'" r')');
+
+  static String? _channelOfSlow(String tag) {
+    final m = _reChannelAttr.firstMatch(tag);
+    return m == null ? null : _unescape(m.group(1) ?? m.group(2) ?? '');
+  }
+
+  static final _reNumeric = RegExp(r'&#(x[0-9a-fA-F]+|[0-9]+);');
+
+  static String _unescape(String v) {
+    if (!v.contains('&')) return v;
+    final numeric = v.contains('&#')
+        ? v.replaceAllMapped(_reNumeric, (m) {
+            final g = m.group(1)!;
+            final code = g.startsWith('x')
+                ? int.tryParse(g.substring(1), radix: 16)
+                : int.tryParse(g);
+            return code == null || code <= 0 || code > 0x10ffff
+                ? m.group(0)!
+                : String.fromCharCode(code);
+          })
+        : v;
+    return numeric
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&amp;', '&');
+  }
+
+  /// Pulls the `<programme>` blocks of [wanted] channels out of the text and
+  /// parses just those, in batches.
+  static Stream<Programme> _parseWanted(
+    Stream<String> chunks,
+    Set<String> wanted, {
+    required int windowDays,
+    required Duration pastWindow,
+    required bool keepDescriptions,
+    bool latin1Input = false,
+  }) async* {
+    // [latin1Input]: the text is the file's raw bytes, one character each
+    // (decoding UTF-8 over hundreds of megabytes costs as much as the scan).
+    // Tags and ids are ASCII; only the blocks kept are decoded properly.
+    final want = latin1Input
+        ? {for (final w in wanted) latin1.decode(utf8.encode(w))}
+        : wanted;
+    var buf = '';
+    final batch = StringBuffer();
+    var batchSize = 0;
+
+    Stream<Programme> flush() {
+      final xml = '<tv>${batch.toString()}</tv>';
+      batch.clear();
+      batchSize = 0;
+      return parse(Stream.value(xml),
+          windowDays: windowDays,
+          pastWindow: pastWindow,
+          keepDescriptions: keepDescriptions);
+    }
+
+    await for (final chunk in chunks) {
+      buf = buf.isEmpty ? chunk : buf + chunk;
+      var pos = 0;
+      while (true) {
+        final i = buf.indexOf('<programme', pos);
+        if (i < 0) {
+          // Keep a little in case "<programme" is split across chunks.
+          pos = buf.length > 12 ? buf.length - 12 : 0;
+          break;
+        }
+        final gt = buf.indexOf('>', i);
+        if (gt < 0) {
+          pos = i;
+          break;
+        }
+        final selfClosing = buf.codeUnitAt(gt - 1) == 0x2f; // "/>"
+        final int blockEnd;
+        if (selfClosing) {
+          blockEnd = gt + 1;
+        } else {
+          final close = buf.indexOf('</programme>', gt);
+          if (close < 0) {
+            pos = i;
+            break;
+          }
+          blockEnd = close + 12;
+        }
+        final id = _channelOf(buf, i, gt);
+        if (id != null && want.contains(id)) {
+          var block = buf.substring(i, blockEnd);
+          if (latin1Input) {
+            block = utf8.decode(latin1.encode(block), allowMalformed: true);
+          }
+          batch.write(block);
+          batchSize += block.length;
+          if (batchSize > 262144) yield* flush();
+        }
+        pos = blockEnd;
+      }
+      buf = buf.substring(pos);
+    }
+    if (batchSize > 0) yield* flush();
+  }
+
+  /// The channels a guide lists (id and first display-name). XMLTV puts them
+  /// before the programmes, so reading stops at the first programme, which
+  /// keeps even a half-gigabyte guide cheap. A file with no channels up
+  /// front is read to the end.
+  static Stream<({String id, String name})> parseChannels(
+      Stream<String> chunks) async* {
+    String? id;
+    final name = StringBuffer();
+    var inName = false;
+    var gotName = false;
+    var count = 0;
+    await for (final event
+        in chunks.toXmlEvents().normalizeEvents().flatten()) {
+      if (event is XmlStartElementEvent) {
+        switch (event.name) {
+          case 'channel':
+            id = event.attributes
+                .firstWhere((a) => a.name == 'id', orElse: () => _emptyAttr)
+                .value;
+            name.clear();
+            gotName = false;
+          case 'display-name':
+            if (!gotName) inName = true;
+          case 'programme':
+            if (count > 0) return;
+        }
+      } else if (event is XmlTextEvent) {
+        if (inName) name.write(event.value);
+      } else if (event is XmlEndElementEvent) {
+        switch (event.name) {
+          case 'display-name':
+            if (inName) gotName = true;
+            inName = false;
+          case 'channel':
+            if (id != null && id.isNotEmpty) {
+              count++;
+              yield (id: id, name: name.toString().trim());
+            }
+            id = null;
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
