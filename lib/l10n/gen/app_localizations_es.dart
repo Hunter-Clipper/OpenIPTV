@@ -54,7 +54,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get wizardRestoreEmpty =>
-      'Esta copia de seguridad no incluye un perfil ni una lista, así que todavía no hay nada que restaurar. Toca Empezar.';
+      'Esta copia de seguridad no incluye un perfil ni una lista, así que todavía no hay nada que restaurar. Usa Empezar en su lugar.';
 
   @override
   String wizardRestoreProgressItem(String nickname, int index, int total) {
@@ -73,7 +73,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get wizardLoadingSettingUp => 'Preparando tu lista…';
 
   @override
-  String get wizardAllSetAdded => '¡Lista añadida!';
+  String get wizardAllSetAdded => '¡Lista agregada!';
 
   @override
   String wizardAllSetHeadline(String name) {
@@ -98,8 +98,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get wizardGetStarted => 'Empezar';
 
   @override
-  String get wizardRestoreFromBackup =>
-      'Restaurar desde una copia de seguridad';
+  String get wizardRestoreFromBackup => 'Restaurar copia de seguridad';
 
   @override
   String get wizardNameTitle => '¿Cómo te llamas?';
@@ -125,7 +124,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get wizardPinBody =>
-      'Crea un PIN de 4 a 8 dígitos para proteger esta cuenta de administrador.\nPuedes omitirlo y añadir uno más tarde en Ajustes.';
+      'Crea un PIN de 4 a 8 dígitos para proteger esta cuenta de administrador.\nPuedes omitirlo y agregar uno más tarde en Ajustes.';
 
   @override
   String get wizardSetPin => 'Crear PIN';
@@ -134,7 +133,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get wizardSkipForNow => 'Omitir por ahora';
 
   @override
-  String get wizardTypeTitleAdd => '¿Qué tipo de lista\nvas a añadir?';
+  String get wizardTypeTitleAdd => '¿Qué tipo de lista\nvas a agregar?';
 
   @override
   String get wizardTypeTitleHave => '¿Qué tipo de lista\ntienes?';
@@ -217,7 +216,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get wizardPasswordShow => 'Mostrar contraseña';
 
   @override
-  String get wizardGuideUrlLabel => 'Enlace de la guía de TV (opcional)';
+  String get wizardGuideUrlLabel => 'Dirección de la guía (opcional)';
 
   @override
   String get wizardGuideUrlHint => 'https://ejemplo.com/epg.xml';
@@ -247,7 +246,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsTitle => 'Ajustes';
 
   @override
-  String get settingsGroupWatching => 'Ver';
+  String get settingsGroupWatching => 'Visualización';
 
   @override
   String get settingsGroupAppearance => 'Apariencia';
@@ -260,7 +259,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsPlaybackSubtitle =>
-      'Volver al inicio, imagen en imagen, controles del reproductor';
+      'Empezar de nuevo, imagen en imagen, controles del reproductor';
 
   @override
   String get settingsStartupTitle => 'Inicio';
@@ -284,11 +283,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'Nombres, títulos en dos líneas, resaltado';
 
   @override
-  String get settingsAskStartOverTitle => 'Ofrecer ver desde el principio';
+  String get settingsAskStartOverTitle => 'Ofrecer empezar de nuevo';
 
   @override
   String get settingsAskStartOverBody =>
-      'En los canales que guardan grabaciones (diferido), pregunta si quieres ver el programa desde el principio o en directo cuando abres uno que ya empezó. Desactívalo para ver siempre en directo.';
+      'En los canales que guardan grabaciones (diferido), pregunta si quieres ver el programa desde el principio o en vivo cuando abres uno que ya empezó. Desactívalo para ver siempre en vivo.';
 
   @override
   String get settingsPipTitle => 'Imagen en imagen';
@@ -414,7 +413,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsPlayerTransparencySolid => 'Sólido';
 
   @override
-  String get settingsPlayerTransparencyDefault => 'Predeterminada';
+  String get settingsPlayerTransparencyDefault => 'Predeterminado';
 
   @override
   String get settingsPlayerTransparencyClear => 'Transparente';
@@ -439,7 +438,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorPlaylistFileMissing =>
-      'El archivo de lista ya no está en este dispositivo. Elimina esta lista y vuelve a añadir el archivo.';
+      'El archivo de lista ya no está en este dispositivo. Elimina esta lista y vuelve a agregar el archivo.';
 
   @override
   String get errorXtreamLogin =>
@@ -487,7 +486,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorGuideLogin =>
-      'El enlace de la guía de TV requiere iniciar sesión. Revisa la dirección de la guía con tu proveedor.';
+      'La dirección de la guía de TV requiere iniciar sesión. Revísala con tu proveedor.';
 
   @override
   String get errorGuideUnreachable =>
@@ -499,7 +498,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorGuideInvalidLink =>
-      'Este enlace de la guía de TV no parece válido. Revisa la dirección con tu proveedor.';
+      'Esta dirección de la guía de TV no parece válida. Revísala con tu proveedor.';
 
   @override
   String get errorGuideGeneric =>
@@ -661,10 +660,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsPlaylistsBody =>
-      'Una lista es la conexión con tu proveedor: un enlace de lista M3U o las credenciales de Xtream Codes. Las listas aportan tus canales, películas y series. Puedes añadir varias listas y actualizarlas aquí.';
+      'Una lista es la conexión con tu proveedor: un enlace de lista M3U o las credenciales de Xtream Codes. Las listas aportan tus canales, películas y series. Puedes agregar varias listas y actualizarlas aquí.';
 
   @override
-  String get settingsPlaylistsNone => 'No hay listas añadidas';
+  String get settingsPlaylistsNone => 'No hay listas agregadas';
 
   @override
   String settingsPlaylistsCount(int count) {
@@ -701,7 +700,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get settingsAutoRefreshOff => 'Desactivada';
+  String get settingsAutoRefreshOff => 'Desactivado';
 
   @override
   String settingsAutoRefreshNotifies(String interval) {
@@ -723,11 +722,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsReliableRefreshTitle =>
-      'Actualización fiable en segundo plano';
+      'Actualización confiable en segundo plano';
 
   @override
   String get settingsReliableRefreshBody =>
-      'Algunos teléfonos limitan mucho las apps en segundo plano para ahorrar batería, lo que puede retrasar la actualización automática. Excluir a OpenIPTV de la optimización de batería hace las actualizaciones más fiables.';
+      'Algunos teléfonos limitan mucho las apps en segundo plano para ahorrar batería, lo que puede retrasar la actualización automática. Excluir a OpenIPTV de la optimización de batería hace las actualizaciones más confiables.';
 
   @override
   String get settingsContinue => 'Continuar';
@@ -747,7 +746,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsExtraGuidesBody =>
-      'Añade archivos de guía de TV para los canales de tu lista que no tienen guía. OpenIPTV los empareja por nombre y tú también puedes elegir la guía de cualquier canal.';
+      'Agrega archivos de guía de TV para los canales de tu lista que no tienen guía. OpenIPTV los empareja por nombre y tú también puedes elegir la guía de cualquier canal.';
 
   @override
   String get settingsExtraGuidesSubtitle =>
@@ -796,7 +795,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsHiddenChannelsBody =>
-      'Los canales que ocultaste (mantén presionado OK o toca y mantén un canal → Ocultar canal) no aparecen en TV en vivo, en la guía ni en la búsqueda de este perfil. Recupéralos aquí.';
+      'Los canales que ocultaste (mantén presionado un canal → Ocultar canal) no aparecen en TV en vivo, en la guía ni en la búsqueda de este perfil. Recupéralos aquí.';
 
   @override
   String get settingsHiddenChannelsNone => 'Ninguno';
@@ -939,11 +938,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String settingsRemovingPlaylist(String name) {
-    return 'Eliminando «$name»...';
+    return 'Eliminando «$name»…';
   }
 
   @override
-  String get settingsAddPlaylist => 'Añadir lista';
+  String get settingsAddPlaylist => 'Agregar lista';
 
   @override
   String get settingsChoosePlaylistHint =>
@@ -1374,7 +1373,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get parentalProtectionOff =>
-      'Desactivada — todo el contenido es visible';
+      'Desactivado — todo el contenido es visible';
 
   @override
   String get parentalLockedGroup => 'Categorías bloqueadas';
@@ -1421,14 +1420,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get carVideoNeedsPermission =>
-      'Para instalar el complemento, OpenIPTV necesita permiso para instalar apps.\n\nSelecciona Abrir Ajustes, activa «Permitir de esta fuente» y vuelve aquí; la instalación continuará automáticamente.';
+      'Para instalar el complemento, OpenIPTV necesita permiso para instalar apps.\n\nSelecciona Abrir Ajustes, activa «Permitir desde esta fuente» y vuelve aquí; la instalación continuará automáticamente.';
 
   @override
   String get carVideoDownloading => 'Descargando…';
 
   @override
   String carVideoDownloadingPercent(int percent) {
-    return 'Descargando… $percent%';
+    return 'Descargando… $percent %';
   }
 
   @override
@@ -1462,7 +1461,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get carVideoInstallAgain => 'Instalar de nuevo';
 
   @override
-  String get carVideoTryAgain => 'Intentar de nuevo';
+  String get carVideoTryAgain => 'Reintentar';
 
   @override
   String get profileTitle => 'Perfil';
@@ -1521,7 +1520,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String profileDeleteBody(String name) {
-    return 'Al eliminar «$name» se borrarán sus favoritos y ajustes. Tus listas y canales no se ven afectados.';
+    return 'Al eliminar «$name» se eliminarán sus favoritos y ajustes. Tus listas y canales no se ven afectados.';
   }
 
   @override
@@ -1686,7 +1685,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get powerUserNetworkDescriptionCopy =>
-      'Cómo está conectado este dispositivo ahora mismo. Es útil cuando un proveedor tiene problemas para llegar a ti, por ejemplo para ver qué dirección ve o comprobar que tu VPN está activada. Toca una dirección para copiarla.';
+      'Cómo está conectado este dispositivo ahora mismo. Es útil cuando un proveedor tiene problemas para llegar a ti, por ejemplo para ver qué dirección ve o comprobar que tu VPN está activada. Selecciona una dirección para copiarla.';
 
   @override
   String get powerUserCheckingConnection => 'Comprobando tu conexión…';
@@ -1746,7 +1745,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String powerUserVpnStateOff(String name, String where) {
-    return 'Desactivada — $name$where';
+    return 'Desconectada — $name$where';
   }
 
   @override
@@ -1764,7 +1763,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get powerUserJustNow => 'justo ahora';
+  String get powerUserJustNow => 'hace un momento';
 
   @override
   String powerUserSecondsAgo(int seconds) {
@@ -1826,7 +1825,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get powerUserAutoConnectHint => 'Usa la última VPN que conectaste';
 
   @override
-  String get powerUserRemoveWireGuard => 'Quitar el perfil de WireGuard';
+  String get powerUserRemoveWireGuard => 'Eliminar el perfil de WireGuard';
 
   @override
   String get powerUserChangeOvpnLogin => 'Cambiar el acceso de OpenVPN';
@@ -1837,7 +1836,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get powerUserRemoveOpenVpn => 'Quitar el perfil de OpenVPN';
+  String get powerUserRemoveOpenVpn => 'Eliminar el perfil de OpenVPN';
 
   @override
   String get powerUserPickOvpn => 'Elige un perfil de OpenVPN';
@@ -1870,14 +1869,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get powerUserVpnLoginSaved => 'Acceso a la VPN guardado';
 
   @override
-  String get powerUserRemoveTitle => '¿Quitar el perfil de VPN?';
+  String get powerUserRemoveTitle => '¿Eliminar el perfil de VPN?';
 
   @override
   String get powerUserRemoveBody =>
-      'La VPN se desconecta y el perfil se borra de este dispositivo. Puedes importarlo de nuevo más tarde.';
+      'La VPN se desconecta y el perfil se elimina de este dispositivo. Puedes importarlo de nuevo más tarde.';
 
   @override
-  String get powerUserRemove => 'Quitar';
+  String get powerUserRemove => 'Eliminar';
 
   @override
   String get powerUserOvpnAuthFailed =>
@@ -2107,7 +2106,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get powerUserUaDescription =>
-      'Cómo se presenta el reproductor ante tu proveedor. OpenIPTV envía su propio nombre, versión y dispositivo. Cámbialo solo si tu proveedor pide uno en particular. Cada canal adicional en la vista múltiple añade su propia etiqueta al final, para que tu proveedor pueda distinguirlos. Se aplica desde el próximo canal que abras.';
+      'Cómo se presenta el reproductor ante tu proveedor. OpenIPTV envía su propio nombre, versión y dispositivo. Cámbialo solo si tu proveedor pide uno en particular. Cada canal adicional en la vista múltiple agrega su propia etiqueta al final, para que tu proveedor pueda distinguirlos. Se aplica desde el próximo canal que abras.';
 
   @override
   String get powerUserUaRow => 'Agente de usuario del reproductor';
@@ -2221,7 +2220,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get extraGuidesFillDescription =>
-      'La guía de TV de tu propia lista se usa siempre primero. Un canal que esa guía no cubre se empareja por nombre con las guías que agregues aquí. También puedes elegir tú mismo la guía de cualquier canal: mantén presionado OK (o toca y mantén) un canal → Cambiar guía.\n\nFunciona con guías .xml, .xml.gz y comprimidas en zip, siempre que al descomprimirse sean XML. OpenIPTV no ofrece guías, pero hay sitios de la comunidad que las publican: buscar «XMLTV EPG» en internet es un buen punto de partida. 😉';
+      'La guía de TV de tu propia lista se usa siempre primero. Un canal que esa guía no cubre se empareja por nombre con las guías que agregues aquí. También puedes elegir la guía de cualquier canal: mantén presionado un canal → Cambiar guía.\n\nFunciona con guías .xml, .xml.gz y comprimidas en zip, siempre que al descomprimirse sean XML. OpenIPTV no ofrece guías, pero hay sitios de la comunidad que las publican: buscar «XMLTV EPG» en internet es un buen punto de partida. 😉';
 
   @override
   String get extraGuidesYourGuides => 'Tus guías';
@@ -2313,7 +2312,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get extraGuidesLinksEmpty =>
-      'Todavía no hay canales emparejados con una guía adicional. Elige una para un canal manteniendo presionado OK → Cambiar guía, o agrega una guía y deja que OpenIPTV empareje los canales por ti.';
+      'Todavía no hay canales emparejados con una guía adicional. Elige una para un canal: mantenlo presionado → Cambiar guía, o agrega una guía y deja que OpenIPTV empareje los canales por ti.';
 
   @override
   String get extraGuidesLinkNone => 'Sin guía (tu elección)';
@@ -2759,11 +2758,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reportsTitle => 'Informes anónimos';
 
   @override
-  String get reportsSwitchTitle => 'Enviar informes de fallos anónimos';
+  String get reportsSwitchTitle => 'Enviar informes de fallas anónimos';
 
   @override
   String get reportsSwitchSubtitle =>
-      'Desactivado salvo que lo actives. Ayuda a corregir fallos más rápido.';
+      'Desactivado salvo que lo actives. Ayuda a corregir fallas más rápido.';
 
   @override
   String get reportsIntro =>
@@ -2774,7 +2773,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get reportsContainsList =>
-      '• Versión de la app\n• Versión de Android\n• Fabricante y modelo del dispositivo\n• La fecha (sin la hora)\n• Qué tipo de problema fue (fallo o congelamiento) y solo su nombre\n• En qué parte del código ocurrió (hasta 30 líneas)';
+      '• Versión de la app\n• Versión de Android\n• Fabricante y modelo del dispositivo\n• La fecha (sin la hora)\n• Qué tipo de problema fue (falla o congelamiento) y solo su nombre\n• En qué parte del código ocurrió (hasta 30 líneas)';
 
   @override
   String get reportsNeverHeading => 'Nunca se incluye';
@@ -2818,26 +2817,26 @@ class AppLocalizationsEs extends AppLocalizations {
   String get castConnected => 'Conectado';
 
   @override
-  String get castStop => 'Detener transmisión';
+  String get castStop => 'Dejar de transmitir';
 
   @override
   String get castPickerTitle => 'Transmitir a';
 
   @override
-  String get castSearching => 'Buscando TVs y altavoces en tu Wi-Fi…';
+  String get castSearching => 'Buscando televisores y altavoces en tu Wi-Fi…';
 
   @override
   String get castConnecting => 'Conectando…';
 
   @override
   String get castSameWifi =>
-      'Tu teléfono y la TV deben estar en la misma red Wi-Fi.';
+      'Tu teléfono y el televisor deben estar en la misma red Wi-Fi.';
 
   @override
   String get castCastTooltip => 'Transmitir';
 
   @override
-  String get castYourTv => 'tu TV';
+  String get castYourTv => 'tu televisor';
 
   @override
   String castPlayingOn(String device) {
@@ -2976,10 +2975,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get playerSubtitles => 'Subtítulos';
 
   @override
-  String get playerRemoveFavorite => 'Quitar de Favoritos';
+  String get playerRemoveFavorite => 'Quitar de favoritos';
 
   @override
-  String get playerAddFavorite => 'Agregar a Favoritos';
+  String get playerAddFavorite => 'Agregar a favoritos';
 
   @override
   String get playerTvGuide => 'Guía de TV';
@@ -2998,10 +2997,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get playerLiveBadge => 'EN VIVO';
+  String get playerLiveBadge => 'VIVO';
 
   @override
-  String get playerGoLive => 'Ir al vivo';
+  String get playerGoLive => 'Ver en vivo';
 
   @override
   String playerStreamDetails(String details) {
@@ -3014,11 +3013,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get playerNoticePassthrough =>
-      'El sonido envolvente directo no funcionó en este dispositivo, así que se desactivó y el audio se reproduce con normalidad. Puedes volver a probarlo en las Herramientas avanzadas.';
+      'El sonido envolvente sin procesar no funcionó en este dispositivo, así que se desactivó y el audio se reproduce con normalidad. Puedes volver a probarlo en Herramientas avanzadas.';
 
   @override
   String get playerNoticeTunneled =>
-      'La reproducción en túnel no funcionó en este dispositivo, así que se desactivó. Puedes volver a probarla en las Herramientas avanzadas.';
+      'La reproducción en túnel no funcionó en este dispositivo, así que se desactivó. Puedes volver a probarla en Herramientas avanzadas.';
 
   @override
   String get playerErrorProviderRefused =>
@@ -3037,12 +3036,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String castFailedChannel(String device) {
-    return 'Este canal no se puede reproducir en $device. Detén la transmisión para verlo aquí.';
+    return 'Este canal no se puede reproducir en $device. Deja de transmitir para verlo aquí.';
   }
 
   @override
   String castFailedTitle(String device) {
-    return 'Este título no se puede reproducir en $device. Detén la transmisión para verlo aquí.';
+    return 'Este título no se puede reproducir en $device. Deja de transmitir para verlo aquí.';
   }
 
   @override
@@ -3085,7 +3084,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Esta transmisión no se está reproduciendo ahora';
 
   @override
-  String get playerTryAgain => 'Intentar de nuevo';
+  String get playerTryAgain => 'Reintentar';
 
   @override
   String get playerGoBack => 'Volver';
@@ -3306,7 +3305,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get liveTvChannelHidden =>
-      'Canal oculto. Para volver a mostrarlo, ve a Ajustes → Ver → Listas de canales → Canales ocultos.';
+      'Canal oculto. Para volver a mostrarlo, ve a Ajustes → Visualización → Listas de canales → Canales ocultos.';
 
   @override
   String get liveTvCatchupAvailable => 'Diferido disponible';
@@ -3320,7 +3319,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get liveTvRemoveFromFavorites => 'Quitar de favoritos';
 
   @override
-  String get liveTvAddToFavorites => 'Añadir a favoritos';
+  String get liveTvAddToFavorites => 'Agregar a favoritos';
 
   @override
   String get liveTvUseOriginalName => 'Usar el nombre original';
@@ -3332,7 +3331,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get liveTvHideChannel => 'Ocultar canal';
 
   @override
-  String get liveTvLiveBadge => 'En vivo';
+  String get liveTvLiveBadge => 'Vivo';
 
   @override
   String get epgPanelCatchupUnavailable =>
@@ -3349,7 +3348,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get epgPanelNoInfo => 'No hay información de la guía para este día.';
 
   @override
-  String get epgPanelLiveBadge => 'EN VIVO';
+  String get epgPanelLiveBadge => 'VIVO';
 
   @override
   String get tvGuideCategoryLocked =>
@@ -3414,7 +3413,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get searchOnNow => 'Ahora en emisión';
+  String get searchOnNow => 'En emisión';
 
   @override
   String get searchLiveTv => 'TV en vivo';
@@ -3540,7 +3539,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get detailFavorites => 'Favoritos';
 
   @override
-  String get detailContinueWatching => 'Seguir viendo';
+  String get detailContinueWatching => 'Continuar viendo';
 
   @override
   String get detailBrowseByGenre => 'Explorar por género';
@@ -3549,13 +3548,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get detailAllGenre => 'Todo';
 
   @override
-  String get detailAddToFavorites => 'Añadir a favoritos';
+  String get detailAddToFavorites => 'Agregar a favoritos';
 
   @override
   String get detailRemoveFromFavorites => 'Quitar de favoritos';
 
   @override
-  String get detailRemoveFromContinueWatching => 'Quitar de Seguir viendo';
+  String get detailRemoveFromContinueWatching => 'Quitar de Continuar viendo';
 
   @override
   String get moviesTitle => 'Películas';
