@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.111)
+## 0.14.111 — 2026-11-12
 
 **New**
 - **Extra Guides.** Settings → Playlists & Guides → Extra Guides lets you add TV guide files (XMLTV) for channels your playlist has no guide for. They can be plain `.xml`, `.xml.gz` or zipped, as long as they unpack to XML. OpenIPTV does not provide guides; community sites publish them, and a web search for "XMLTV EPG" is a good place to start. Guides you add are used in the order you set, and your playlist's own guide always comes first.
