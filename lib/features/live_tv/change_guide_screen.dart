@@ -63,7 +63,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
     setState(() {
       _results = q.isEmpty
           ? picker.matcher.suggest(widget.channelName)
-          : picker.matcher.search(q);
+          : picker.matcher.search(q, like: widget.channelName);
     });
   }
 

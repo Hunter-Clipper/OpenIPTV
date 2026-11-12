@@ -155,4 +155,23 @@ void main() {
       expect(s, contains('SpectrumNews1.us'));
     });
   });
+
+  group('manual search ranks by the channel being edited', () {
+    final m = GuideMatcher([
+      g('a', 'BBCOne.nl', 'NL| BBC ONE HEVC'),
+      g('a', 'BBCOne.uk', 'UK| BBC One'),
+      g('b', 'BBC.One.HD.uk'),
+    ]);
+
+    test('the channel\'s own region comes first, then guide order', () {
+      final r = m.search('bbc one', like: 'UK: BBC 1 [H265]');
+      expect(r.map((c) => c.xmltvId), ['BBCOne.uk', 'BBC.One.HD.uk', 'BBCOne.nl']);
+    });
+
+    test('without a region to go by, it is plain score and guide order', () {
+      final r = m.search('bbc one');
+      expect(r.first.xmltvId, 'BBCOne.nl');
+      expect(r.length, 3);
+    });
+  });
 }

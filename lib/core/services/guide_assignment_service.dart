@@ -81,9 +81,10 @@ class GuideAssignmentService {
   Future<GuidePicker> loadPicker() async {
     final guides = await _guides();
     final order = {for (final (i, g) in guides.indexed) g.ref: i};
+    // Entries a guide lists but has nothing for are no use to pick.
     final rows = [
       for (final r in await db.getGuideChannels())
-        if (order.containsKey(r.guideRef)) r,
+        if (order.containsKey(r.guideRef) && r.hasProgrammes != false) r,
     ]..sort((a, b) => order[a.guideRef]!.compareTo(order[b.guideRef]!));
     return GuidePicker(
       GuideMatcher([

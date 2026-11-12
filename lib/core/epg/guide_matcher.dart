@@ -539,24 +539,40 @@ class GuideMatcher {
 
   /// Guide channels whose name contains every word of [query], for the
   /// manual picker. Best matches first.
-  List<GuideChannel> search(String query, {int limit = 50}) {
+  ///
+  /// [like] is the playlist channel being edited: results from its own region
+  /// come first ("UK: BBC 1" shows the UK BBC One before the Dutch one), and
+  /// guides listed first win ties.
+  List<GuideChannel> search(String query, {int limit = 50, String? like}) {
     final q =
         query.toLowerCase().split(_reSpace).where((t) => t.isNotEmpty);
     if (q.isEmpty) return const [];
-    final hits = <(double, GuideChannel)>[];
+    final region = like == null ? null : normaliseChannelName(like).region;
+    final hits = <(int, double, int, GuideChannel)>[];
     final qn = normaliseChannelName(query);
-    for (final e in _entries) {
+    for (var i = 0; i < _entries.length; i++) {
+      final e = _entries[i];
       final name = e.channel.name.toLowerCase();
       if (!q.every(name.contains)) continue;
       var s = 0.0;
+      String? r;
       for (final v in e.variants) {
         final x = scoreNames(qn, v);
         if (x > s) s = x;
+        r ??= v.region;
       }
-      hits.add((s, e.channel));
+      // 0: same region, 1: region unknown, 2: a different region.
+      final rank = region == null || r == null
+          ? 1
+          : (r == region ? 0 : 2);
+      hits.add((rank, s, i, e.channel));
     }
-    hits.sort((a, b) => b.$1.compareTo(a.$1));
-    return [for (final h in hits.take(limit)) h.$2];
+    hits.sort((a, b) {
+      if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
+      if (a.$2 != b.$2) return b.$2.compareTo(a.$2);
+      return a.$3.compareTo(b.$3);
+    });
+    return [for (final h in hits.take(limit)) h.$4];
   }
 }
 
