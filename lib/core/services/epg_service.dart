@@ -212,6 +212,13 @@ class EpgService {
       debugPrint(
           '[EPG] Parsed ${programmes.length} programmes in ${sw.elapsedMilliseconds}ms');
 
+      // A provider that is busy or rate-limiting can answer "200 OK" with an
+      // empty or error page. That is not a guide: keep what is stored (the
+      // clean-up below would otherwise thin it out) and say so.
+      if (programmes.isEmpty) {
+        throw http.ClientException('empty_guide');
+      }
+
       // Only delete old programmes after new data is successfully fetched
       // and parsed — a failed refresh keeps the existing guide intact.
       await db.deleteOldProgrammes();
@@ -226,16 +233,17 @@ class EpgService {
       final ids = await db.channelIdsByTvgId(source.id);
       final mapped = [
         for (final p in programmes)
-          if (ids[p.channelId] case final id?)
-            Programme(
-              channelId: id,
-              start: p.start,
-              end: p.end,
-              title: p.title,
-              description: keepDescriptions ? p.description : null,
-              category: p.category,
-              episodeNum: p.episodeNum,
-            ),
+          if (ids[p.channelId] case final targets?)
+            for (final id in targets)
+              Programme(
+                channelId: id,
+                start: p.start,
+                end: p.end,
+                title: p.title,
+                description: keepDescriptions ? p.description : null,
+                category: p.category,
+                episodeNum: p.episodeNum,
+              ),
       ];
 
       var totalWritten = 0;

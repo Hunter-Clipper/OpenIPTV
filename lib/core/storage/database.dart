@@ -985,23 +985,27 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// XMLTV channel id (`tvg-id`) → the app's channel id, for storing a
-  /// guide under the channels it belongs to. Channels of [preferSourceId]
-  /// (the playlist whose guide this is) win when several playlists share
-  /// an id; otherwise the first one found, as before.
-  Future<Map<String, String>> channelIdsByTvgId(String preferSourceId) async {
+  /// XMLTV channel id (`tvg-id`) → every app channel that uses it, for
+  /// storing a guide under the channels it belongs to. Playlists often list
+  /// one station several times (HD, SD, backup feeds) under the same id, and
+  /// each of those rows needs the guide. Channels of [preferSourceId] (the
+  /// playlist whose guide this is) win when several playlists share an id;
+  /// otherwise the channels of the other playlists are used.
+  Future<Map<String, List<String>>> channelIdsByTvgId(
+      String preferSourceId) async {
     final rows = await (selectOnly(channels)
           ..addColumns([channels.id, channels.tvgId, channels.sourceId])
           ..where(channels.tvgId.isNotNull() & channels.tvgId.equals('').not()))
         .get();
-    final map = <String, String>{};
-    for (final own in [true, false]) {
-      for (final r in rows) {
-        if ((r.read(channels.sourceId) == preferSourceId) != own) continue;
-        map.putIfAbsent(r.read(channels.tvgId)!, () => r.read(channels.id)!);
-      }
+    final own = <String, List<String>>{};
+    final others = <String, List<String>>{};
+    for (final r in rows) {
+      final target = r.read(channels.sourceId) == preferSourceId ? own : others;
+      target
+          .putIfAbsent(r.read(channels.tvgId)!, () => [])
+          .add(r.read(channels.id)!);
     }
-    return map;
+    return {...others, ...own};
   }
 
   /// Channels without catch-up keep only a short grace window (so "now" EPG

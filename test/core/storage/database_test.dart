@@ -144,9 +144,24 @@ void main() {
     await tvg('other_2', 'other', 'CNN.us');
 
     final ids = await db.channelIdsByTvgId('src');
-    expect(ids['BBC1.uk'], 'src_1');
-    expect(ids['CNN.us'], 'other_2');
+    expect(ids['BBC1.uk'], ['src_1']);
+    expect(ids['CNN.us'], ['other_2']);
     expect(ids.containsKey('ITV.uk'), isFalse);
+  });
+
+  test('a station listed several times gets the guide on every row', () async {
+    Future<void> tvg(String id) =>
+        db.into(db.channels).insert(ChannelsCompanion.insert(
+              id: id,
+              sourceId: 'src',
+              name: id,
+              streamUrl: 'http://$id',
+              tvgId: const Value('BBC1.uk'),
+            ));
+    await tvg('src_hd');
+    await tvg('src_sd');
+    final ids = await db.channelIdsByTvgId('src');
+    expect(ids['BBC1.uk'], unorderedEquals(['src_hd', 'src_sd']));
   });
 
   group('guide data options', () {

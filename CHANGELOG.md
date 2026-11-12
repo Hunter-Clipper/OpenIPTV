@@ -3,6 +3,12 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.104)
+
+**Fixed**
+- **TV guide missing for some or all channels after a refresh.** When a provider answered a guide refresh with an empty guide (busy or rate-limited), OpenIPTV treated it as a success and cleared out part of the guide it already had. It now keeps your current guide and says the provider sent an empty one.
+- **Stations listed more than once** (for example HD and SD versions of the same channel) now all get the guide. Before, only the first one did.
+
 ## 0.14.103 — 2026-11-11
 
 **New**

@@ -68,6 +68,10 @@ String friendlyEpgErrorMessage(Object error) {
         'connection and try again.';
   }
   final msg = error.toString();
+  if (msg.contains('empty_guide')) {
+    return 'The provider sent an empty TV guide. Your current guide was '
+        'kept — try again in a few minutes.';
+  }
   if (msg.contains('http_401') || msg.contains('http_403')) {
     return "The TV guide link needs a login. Check the guide URL with your provider.";
   } else if (error is SocketException || error is http.ClientException) {
