@@ -1,6 +1,9 @@
 # Translations and a language picker (#172)
 
-Status: proposal, owner decisions recorded below (draft PR). No code yet.
+Status: implemented for Spanish as the first language and proof of concept
+(draft PR #175). English and Spanish ship; other languages follow the batches
+below. Still English: service progress text, native Android strings, release
+notes. Spanish needs a native-speaker review (`translations-es-review.md`).
 
 ## The decision in one line
 
