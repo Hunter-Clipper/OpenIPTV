@@ -1,6 +1,6 @@
 # Translations and a language picker (#172)
 
-Status: proposal for the owner's review (draft PR). No code yet.
+Status: proposal, owner decisions recorded below (draft PR). No code yet.
 
 ## The decision in one line
 
@@ -85,22 +85,24 @@ carried by backup/restore. It is not a per-profile setting.
   can open a PR that adds or edits one file; no code knowledge needed.
 - CI check: `flutter gen-l10n` must succeed, and a test fails if a translation
   is missing a placeholder the English string has.
-- Missing keys fall back to English per string, so a half-done language is
-  safe to ship but is only listed in the picker above a completeness
-  threshold (proposal: 90 % of keys).
+- Missing keys fall back to English per string. A language appears in the
+  picker once it is at least 90 % complete (owner decision).
 - Short `docs/TRANSLATING.md` explaining the above in plain words.
-- Open question: a hosted translation site (Weblate has a free tier for open
-  source) vs. plain ARB PRs. Proposal: start with ARB PRs, revisit if people
-  show up.
+- **Decision: plain ARB pull requests** (a hosted site like Weblate is more
+  upkeep than a solo project needs; the ARB format lets us move later).
 
-## First languages (proposal)
+## First languages (owner: ship the most common ones)
 
-Spanish, Portuguese (Brazil), French, German, Italian, Dutch, Polish, Turkish
-— Latin scripts that the bundled font covers, and common IPTV audiences. The
-translations would be machine-drafted and marked as such in the PR until a
-native speaker reviews them; the owner decides which to ship in the first
-release. Cyrillic, Greek, Arabic and CJK follow after the font and RTL
-checks.
+- **Batch 1 (Latin scripts, covered by the bundled font):** Spanish,
+  Portuguese (Brazil), French, German, Italian, Dutch, Polish, Turkish.
+- **Batch 2 (needs the font check):** Russian, Ukrainian, Greek (Cyrillic and
+  Greek glyphs are missing from the Google Sans subset).
+- **Batch 3 (needs the font check and the RTL pass):** Arabic, plus Hindi and
+  Chinese/Japanese/Korean if there is demand (large fonts, APK size).
+
+Translations are machine-drafted and flagged as such in the PR until a native
+speaker reviews them. A language ships in the picker once it is 90 % complete
+(owner decision).
 
 ## Testing plan
 
@@ -126,11 +128,11 @@ checks.
 
 Nothing is released without the owner's go-ahead.
 
-## Questions for the owner
+## Decisions (owner, 2026-11-12)
 
-1. Is the first-batch language list right, and are machine-drafted
-   translations acceptable until reviewed?
-2. 90 % completeness threshold for showing a language in the picker?
-3. ARB pull requests only, or a hosted translation site?
-4. Should *Auto-detect* remember "auto" (follows later system changes) — the
-   proposal — or snapshot the language at install?
+- Ship the most common languages (batches above).
+- 90 % completeness before a language is listed.
+- ARB pull requests, no hosted site for now.
+- **Auto follows the system**: the stored value stays `auto`, and the app
+  re-resolves when the device language changes (Flutter
+  `didChangeLocales`), live, without a restart.
