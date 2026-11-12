@@ -967,3 +967,64 @@ class _TvCaretState extends State<_TvCaret> {
     ]);
   }
 }
+
+
+/// TV: keeps the focused row in the middle of the page while the remote moves
+/// through a long vertical list (the same centring the guide and the category
+/// list have). Wrap a settings page's list in it. Does nothing off TV, and
+/// only reacts to focus inside this list's own scrollable (dialogs, the app
+/// bar and other lists are left alone).
+class TvFollowFocus extends StatefulWidget {
+  const TvFollowFocus({super.key, required this.child, this.alignment = 0.5});
+
+  final Widget child;
+  final double alignment;
+
+  @override
+  State<TvFollowFocus> createState() => _TvFollowFocusState();
+}
+
+class _TvFollowFocusState extends State<TvFollowFocus> {
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_follow);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_follow);
+    super.dispose();
+  }
+
+  void _follow() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null || !ctx.mounted) return;
+    final scrollable = Scrollable.maybeOf(ctx);
+    if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
+      return;
+    }
+    // Only focus that lives inside this widget.
+    var inside = false;
+    final mine = context;
+    ctx.visitAncestorElements((e) {
+      if (identical(e, mine)) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    if (!inside) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !ctx.mounted) return;
+      Scrollable.ensureVisible(ctx,
+          alignment: widget.alignment,
+          duration: motionDuration(const Duration(milliseconds: 200)),
+          curve: Curves.easeOut);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}

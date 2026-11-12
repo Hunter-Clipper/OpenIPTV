@@ -53,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
                 blockPinRemoval:
                     profile.isAdmin && (allAsync.valueOrNull?.length ?? 1) > 1,
               );
-          return ListView(
+          return TvFollowFocus(child: ListView(
             children: [
               // ── Hero ──────────────────────────────────────────────
               _ProfileHero(
@@ -155,7 +155,7 @@ class ProfileScreen extends ConsumerWidget {
                 ]),
               const SizedBox(height: 32),
             ],
-          );
+          ));
         },
       ),
     );

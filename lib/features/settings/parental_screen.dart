@@ -58,7 +58,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Parental Controls')),
-      body: ListView(
+      body: TvFollowFocus(child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           SettingsGroup(title: 'Protection', children: [
@@ -114,7 +114,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
               ],
             ),
         ],
-      ),
+      )),
     );
   }
 }

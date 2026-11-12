@@ -54,7 +54,7 @@ class SettingsScreen extends ConsumerWidget {
       controller: tooltipController,
       child: Scaffold(
         appBar: AppBar(title: const Text('Settings')),
-        body: ListView(
+        body: TvFollowFocus(child: ListView(
           children: [
             SettingsGroup(title: 'Account', children: [
               ..._accountTiles(context, theme, profile),
@@ -119,7 +119,7 @@ class SettingsScreen extends ConsumerWidget {
             ]),
             const SizedBox(height: 32),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -1210,14 +1210,14 @@ class _SubPage extends StatelessWidget {
       controller: InfoTooltipController(),
       child: Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: ListView(
+        body: TvFollowFocus(child: ListView(
           padding: EdgeInsets.only(
               bottom: 32 + MediaQuery.paddingOf(context).bottom),
           children: [
             for (final (heading, rows) in groups)
               SettingsGroup(title: heading ?? '', children: rows),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -1648,7 +1648,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                 // the no-active-playlist state (everything merged) visible
                 // and selectable.
                 final allOffset = multiSource ? 1 : 0;
-                return ListView.builder(
+                return TvFollowFocus(child: ListView.builder(
                   controller: controller,
                   itemCount: sources.length + allOffset,
                   itemBuilder: (context, index) {
@@ -1727,7 +1727,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                       ),
                     );
                   },
-                );
+                ));
               },
             ),
           ),
@@ -2053,7 +2053,7 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
           Expanded(
             child: hidden.isEmpty
                 ? const Center(child: Text('No categories are hidden.'))
-                : ListView.builder(
+                : TvFollowFocus(child: ListView.builder(
                     controller: controller,
                     itemCount: hidden.length,
                     itemBuilder: (context, i) => ListTile(
@@ -2078,7 +2078,7 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  ),
+                  )),
           ),
         ],
       ),
@@ -2134,7 +2134,7 @@ class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
           Expanded(
             child: ids.isEmpty
                 ? const Center(child: Text('No channels are hidden.'))
-                : ListView.builder(
+                : TvFollowFocus(child: ListView.builder(
                     controller: controller,
                     itemCount: ids.length + 1,
                     itemBuilder: (context, i) {
@@ -2167,7 +2167,7 @@ class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
                         ),
                       );
                     },
-                  ),
+                  )),
           ),
         ],
       ),

@@ -133,7 +133,7 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
       appBar: AppBar(title: const Text('Guide Data')),
       body: prefs == null
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : TvFollowFocus(child: SingleChildScrollView(
               padding: EdgeInsets.only(
                   bottom: 32 + MediaQuery.paddingOf(context).bottom),
               child: Column(
@@ -215,7 +215,7 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
                   ),
                 ],
               ),
-            ),
+            )),
     );
   }
 

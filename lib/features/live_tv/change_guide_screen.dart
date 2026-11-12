@@ -133,7 +133,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
       appBar: AppBar(title: const Text('Change Guide')),
       body: picker == null
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
+          : TvFollowFocus(child: ListView(
               padding: EdgeInsets.fromLTRB(
                   16, 8, 16, 32 + MediaQuery.paddingOf(context).bottom),
               children: [
@@ -216,7 +216,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                     ),
                   ),
               ],
-            ),
+            )),
     );
   }
 }

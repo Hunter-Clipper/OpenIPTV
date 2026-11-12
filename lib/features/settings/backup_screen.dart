@@ -39,7 +39,7 @@ class BackupScreen extends ConsumerWidget {
       controller: tooltipController,
       child: Scaffold(
         appBar: AppBar(title: const Text('Backup & Restore')),
-        body: ListView(
+        body: TvFollowFocus(child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
             SettingsGroup(
@@ -97,7 +97,7 @@ class BackupScreen extends ConsumerWidget {
               ],
             ),
           ],
-        ),
+        )),
       ),
     );
   }
