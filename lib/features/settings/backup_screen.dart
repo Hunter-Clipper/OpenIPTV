@@ -10,6 +10,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/backup_manager.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/device_file_picker.dart';
@@ -34,36 +35,34 @@ class BackupScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tooltipController = InfoTooltipController();
+    final l10n = AppLocalizations.of(context);
 
     return InfoTooltipScope(
       controller: tooltipController,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Backup & Restore')),
+        appBar: AppBar(title: Text(l10n.backupTitle)),
         body: TvFollowFocus(
             focusFirst: true,
             child: ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
                 SettingsGroup(
-                  title: 'Export',
+                  title: l10n.backupExportGroup,
                   children: [
                     InfoTooltip(
                       id: 'backup_export_section',
-                      title: 'Export Backup',
-                      body: 'Exporting saves every profile, every source, and '
-                          'your app settings into a single .zip file. You can '
-                          'optionally protect it with a password.',
-                      tip: "Save this file somewhere safe — you'll need it to "
-                          'restore everything on a new device.',
+                      title: l10n.backupExportInfoTitle,
+                      body: l10n.backupExportInfoBody,
+                      tip: l10n.backupExportInfoTip,
                       child: TvActivatable(
                         autofocus: true,
                         onTap: () => _exportBackup(context, ref),
                         builder: (onTap) => ListTile(
                           leading:
                               const IconBadge(icon: Icons.upload_file_outlined),
-                          title: const Text('Export Backup'),
+                          title: Text(l10n.backupExportTitle),
                           subtitle: Text(
-                            'Save all profiles, sources, and settings as a .zip file',
+                            l10n.backupExportSubtitle,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           trailing: const Icon(Icons.chevron_right),
@@ -74,24 +73,20 @@ class BackupScreen extends ConsumerWidget {
                   ],
                 ),
                 SettingsGroup(
-                  title: 'Restore',
+                  title: l10n.backupRestoreGroup,
                   children: [
                     InfoTooltip(
                       id: 'backup_import_section',
-                      title: 'Restore Backup',
-                      body: 'Importing reads a .zip backup file and adds its '
-                          'profiles and sources to this device. '
-                          "If the backup was password-protected, you'll be asked "
-                          'for the password used when it was exported.',
-                      tip: 'Importing does not delete anything — your existing '
-                          'profiles are kept.',
+                      title: l10n.backupImportInfoTitle,
+                      body: l10n.backupImportInfoBody,
+                      tip: l10n.backupImportInfoTip,
                       child: TvActivatable(
                         onTap: () => _importBackup(context, ref),
                         builder: (onTap) => ListTile(
                           leading:
                               const IconBadge(icon: Icons.download_outlined),
-                          title: const Text('Import Backup'),
-                          subtitle: Text('Open a .zip backup file',
+                          title: Text(l10n.backupImportTitle),
+                          subtitle: Text(l10n.backupImportSubtitle,
                               style: Theme.of(context).textTheme.bodySmall),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: onTap,
@@ -111,12 +106,13 @@ class BackupScreen extends ConsumerWidget {
   // ---------------------------------------------------------------------------
 
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     final password = await _promptSetPassword(context);
     if (password == null) return; // dialog dismissed — cancel entirely.
     if (!context.mounted) return;
 
     try {
-      _showLoadingSnack(context, 'Preparing backup…');
+      _showLoadingSnack(context, l10n.backupPreparing);
       final db = ref.read(appDatabaseProvider);
       final prefs = await ref.read(appPreferencesProvider.future);
       final manager = BackupManager(db: db, prefs: prefs);
@@ -139,7 +135,7 @@ class BackupScreen extends ConsumerWidget {
         final location = await _saveToDownloads(name, bytes);
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup saved to $location')),
+          SnackBar(content: Text(l10n.backupSavedTo(location))),
         );
         return;
       }
@@ -150,37 +146,33 @@ class BackupScreen extends ConsumerWidget {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/zip')],
-          subject: 'OpenIPTV backup',
+          subject: l10n.backupShareSubject,
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
-      _showError(
-          context,
-          "Couldn't create the backup file. Make sure you have storage "
-          'permission and try again.');
+      _showError(context, l10n.backupCreateFailed);
     }
   }
 
   Future<_ExportDestination?> _chooseDestination(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return showDialog<_ExportDestination>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Save Backup'),
-        content: const Text(
-            'Save the backup file to this device, or share it to another '
-            'app (email, cloud storage, …).'),
+        title: Text(l10n.backupSaveTitle),
+        content: Text(l10n.backupSaveBody),
         actions: [
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(_ExportDestination.share),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Share…')),
+                TextButton(onPressed: onTap, child: Text(l10n.backupShareButton)),
           ),
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(ctx).pop(_ExportDestination.downloads),
             builder: (onTap) => FilledButton(
-                onPressed: onTap, child: const Text('Save to Downloads')),
+                onPressed: onTap, child: Text(l10n.backupSaveToDownloads)),
           ),
         ],
       ),
@@ -214,27 +206,24 @@ class BackupScreen extends ConsumerWidget {
   Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
     final summary = await _pickAndRestore(context, ref);
     if (summary == null || !context.mounted) return;
+    final l10n = AppLocalizations.of(context);
     _showSuccess(
       context,
-      'Restored ${summary.profileCount} '
-      'profile${summary.profileCount == 1 ? '' : 's'} and '
-      '${summary.sourceCount} '
-      'source${summary.sourceCount == 1 ? '' : 's'}.',
+      l10n.backupRestored(l10n.backupRestoredProfiles(summary.profileCount),
+          l10n.backupRestoredSources(summary.sourceCount)),
     );
   }
 
   Future<BackupSummary?> _pickAndRestore(
       BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     PickedDeviceFile? file;
     try {
       file = await pickDeviceFile(context,
-          title: 'Choose a backup', extensions: const ['.zip']);
+          title: l10n.backupPickTitle, extensions: const ['.zip']);
     } catch (_) {
       if (!context.mounted) return null;
-      _showError(
-          context,
-          "Couldn't open the file picker. Check that the app has file "
-          'access permission and try again.');
+      _showError(context, l10n.backupPickerFailed);
       return null;
     }
 
@@ -267,10 +256,7 @@ class BackupScreen extends ConsumerWidget {
       return null;
     } catch (_) {
       if (!context.mounted) return null;
-      _showError(
-          context,
-          "Couldn't open this backup file. "
-          "Make sure it's a valid OpenIPTV backup.");
+      _showError(context, AppLocalizations.of(context).backupOpenFailed);
       return null;
     }
   }
@@ -294,22 +280,19 @@ class BackupScreen extends ConsumerWidget {
   /// Returns '' for "no password", the entered password, or null if the
   /// user dismissed the dialog (export should be cancelled entirely).
   Future<String?> _promptSetPassword(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Protect This Backup?'),
+        title: Text(l10n.backupProtectTitle),
         // Scrolls when the TV keyboard leaves little room.
         scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Source credentials are stored in plain text inside the '
-              'backup file. Optionally set a password to encrypt it — '
-              "you'll need the same password to restore it.",
-            ),
+            Text(l10n.backupProtectBody),
             const SizedBox(height: 16),
             TvTextFieldGate(
                 // TV: the remote starts on the password (OK types one), not on
@@ -319,8 +302,8 @@ class BackupScreen extends ConsumerWidget {
                       focusNode: fieldNode,
                       controller: controller,
                       obscureText: true,
-                      decoration: const InputDecoration(
-                          hintText: 'Password (optional)'),
+                      decoration: InputDecoration(
+                          hintText: l10n.backupPasswordOptionalHint),
                       onSubmitted: (_) =>
                           Navigator.of(ctx).pop(controller.text),
                     )),
@@ -330,7 +313,7 @@ class BackupScreen extends ConsumerWidget {
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(''),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Skip')),
+                TextButton(onPressed: onTap, child: Text(l10n.backupSkip)),
           ),
           TvActivatable(
             // Phones: the default button (a plain autofocus TextField would
@@ -339,7 +322,7 @@ class BackupScreen extends ConsumerWidget {
             autofocus: !PlatformHelper.isTV(ctx),
             onTap: () => Navigator.of(ctx).pop(controller.text),
             builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Export')),
+                FilledButton(onPressed: onTap, child: Text(l10n.backupExportButton)),
           ),
         ],
       ),
@@ -347,21 +330,19 @@ class BackupScreen extends ConsumerWidget {
   }
 
   Future<String?> _promptEnterPassword(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Backup is Protected'),
+        title: Text(l10n.backupProtectedTitle),
         // Scrolls when the TV keyboard leaves little room.
         scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'This backup was protected with a password. '
-              'Enter the password that was set when it was exported.',
-            ),
+            Text(l10n.backupProtectedBody),
             const SizedBox(height: 16),
             TvTextFieldGate(
                 // TV: the password is required, so the keyboard opens at once.
@@ -370,8 +351,8 @@ class BackupScreen extends ConsumerWidget {
                       focusNode: fieldNode,
                       controller: controller,
                       obscureText: true,
-                      decoration:
-                          const InputDecoration(hintText: 'Enter password'),
+                      decoration: InputDecoration(
+                          hintText: l10n.backupEnterPasswordHint),
                       onSubmitted: (_) =>
                           Navigator.of(ctx).pop(controller.text),
                     )),
@@ -381,14 +362,14 @@ class BackupScreen extends ConsumerWidget {
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(null),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+                TextButton(onPressed: onTap, child: Text(l10n.commonCancel)),
           ),
           TvActivatable(
             // Phones: the default button. TV opens the field's keyboard.
             autofocus: !PlatformHelper.isTV(ctx),
             onTap: () => Navigator.of(ctx).pop(controller.text),
             builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Restore')),
+                FilledButton(onPressed: onTap, child: Text(l10n.backupRestoreButton)),
           ),
         ],
       ),

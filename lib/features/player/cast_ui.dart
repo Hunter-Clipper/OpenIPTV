@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -39,6 +40,7 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     final status = ref.watch(castStatusProvider).valueOrNull ?? _cast.status;
@@ -58,12 +60,12 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
     });
 
     if (status.connected) {
-      return PlayerSheet(title: 'Casting', children: [
+      return PlayerSheet(title: l10n.castTitleCasting, children: [
         ListTile(
           leading: Icon(Icons.cast_connected_rounded,
               color: theme.colorScheme.primary),
-          title: Text(status.device ?? 'Cast device'),
-          subtitle: const Text('Connected'),
+          title: Text(status.device ?? l10n.castDeviceFallback),
+          subtitle: Text(l10n.castConnected),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
@@ -77,7 +79,7 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
             builder: (onTap) => OutlinedButton.icon(
               onPressed: onTap,
               icon: const Icon(Icons.cast_rounded),
-              label: const Text('Stop casting'),
+              label: Text(l10n.castStop),
               style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   shape: const StadiumBorder()),
@@ -87,7 +89,7 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
       ]);
     }
 
-    return PlayerSheet(title: 'Cast to', children: [
+    return PlayerSheet(title: l10n.castPickerTitle, children: [
       if (status.devices.isEmpty)
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
@@ -101,7 +103,7 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  'Looking for TVs and speakers on your Wi-Fi…',
+                  l10n.castSearching,
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -122,7 +124,7 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
               enabled: _pickedId == null || _pickedId == d.id,
               leading: Icon(d.speaker ? Icons.speaker_rounded : Icons.tv_rounded),
               title: Text(d.name),
-              subtitle: _pickedId == d.id ? const Text('Connecting…') : null,
+              subtitle: _pickedId == d.id ? Text(l10n.castConnecting) : null,
               trailing: _pickedId == d.id
                   ? const SizedBox(
                       width: 18,
@@ -136,7 +138,7 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
       Padding(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
         child: Text(
-          'Your phone and the TV need to be on the same Wi-Fi network.',
+          l10n.castSameWifi,
           style: theme.textTheme.bodySmall!.copyWith(color: muted),
         ),
       ),
@@ -167,6 +169,7 @@ class CastRemoteView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final m = PlayerMetrics.of(context);
@@ -188,7 +191,7 @@ class CastRemoteView extends ConsumerWidget {
                 children: [
                   PlayerButton(
                     icon: Icons.arrow_back_rounded,
-                    tooltip: 'Back',
+                    tooltip: l10n.commonBack,
                     onTap: onBack,
                     size: m.actionSize,
                     style: PlayerButtonStyle.tonal,
@@ -196,7 +199,7 @@ class CastRemoteView extends ConsumerWidget {
                   const Spacer(),
                   PlayerButton(
                     icon: Icons.cast_connected_rounded,
-                    tooltip: 'Cast',
+                    tooltip: l10n.castCastTooltip,
                     onTap: () => showCastPicker(context),
                     size: m.actionSize,
                     selected: true,
@@ -208,7 +211,7 @@ class CastRemoteView extends ConsumerWidget {
                   size: 56 * m.scale, color: scheme.primary),
               SizedBox(height: 14 * m.scale),
               Text(
-                'Playing on ${status.device ?? 'your TV'}',
+                l10n.castPlayingOn(status.device ?? l10n.castYourTv),
                 style: theme.textTheme.titleSmall!
                     .copyWith(color: Colors.white70, letterSpacing: 0.3),
                 textAlign: TextAlign.center,
@@ -253,7 +256,7 @@ class CastRemoteView extends ConsumerWidget {
                     if (seekable) ...[
                       PlayerButton(
                         icon: Icons.replay_10_rounded,
-                        tooltip: 'Back 10 seconds',
+                        tooltip: l10n.castBack10,
                         onTap: () => cast.seek(_clamp(
                             status.position - const Duration(seconds: 10),
                             status.duration)),
@@ -269,7 +272,7 @@ class CastRemoteView extends ConsumerWidget {
                           icon: playing
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          tooltip: playing ? 'Pause' : 'Play',
+                          tooltip: playing ? l10n.playerPause : l10n.playerPlay,
                           onTap: playing ? cast.pause : cast.play,
                           size: m.playSize,
                           style: PlayerButtonStyle.primary,
@@ -290,7 +293,7 @@ class CastRemoteView extends ConsumerWidget {
                       SizedBox(width: m.transportGap),
                       PlayerButton(
                         icon: Icons.forward_10_rounded,
-                        tooltip: 'Forward 10 seconds',
+                        tooltip: l10n.castForward10,
                         onTap: () => cast.seek(_clamp(
                             status.position + const Duration(seconds: 10),
                             status.duration)),
@@ -306,20 +309,20 @@ class CastRemoteView extends ConsumerWidget {
                 children: [
                   PlayerButton(
                     icon: Icons.volume_down_rounded,
-                    tooltip: 'Volume down',
+                    tooltip: l10n.castVolumeDown,
                     onTap: () => cast.setVolume(status.volume - 0.05),
                     size: m.actionSize,
                   ),
                   PlayerButton(
                     icon: Icons.volume_up_rounded,
-                    tooltip: 'Volume up',
+                    tooltip: l10n.castVolumeUp,
                     onTap: () => cast.setVolume(status.volume + 0.05),
                     size: m.actionSize,
                   ),
                   if (onChannels != null)
                     PlayerButton(
                       icon: Icons.format_list_bulleted_rounded,
-                      tooltip: 'Channels',
+                      tooltip: l10n.playerChannels,
                       onTap: onChannels!,
                       size: m.actionSize,
                     ),
@@ -330,7 +333,7 @@ class CastRemoteView extends ConsumerWidget {
                     builder: (onTap) => OutlinedButton.icon(
                       onPressed: onTap,
                       icon: const Icon(Icons.close_rounded),
-                      label: const Text('Stop casting'),
+                      label: Text(l10n.castStop),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white38),
@@ -428,6 +431,7 @@ class _CastActionState extends ConsumerState<CastAction> {
   @override
   Widget build(BuildContext context) {
     if (_tv) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
     final status = ref.watch(castStatusProvider).valueOrNull ?? _cast.status;
     if (!status.available && !status.connected) return const SizedBox.shrink();
     final connected = status.connected;
@@ -436,7 +440,9 @@ class _CastActionState extends ConsumerState<CastAction> {
         connected ? Icons.cast_connected_rounded : Icons.cast_rounded,
         color: connected ? Theme.of(context).colorScheme.primary : null,
       ),
-      tooltip: connected ? 'Casting to ${status.device}' : 'Cast',
+      tooltip: connected
+          ? l10n.castCastingTo(status.device ?? l10n.castYourTv)
+          : l10n.castCastTooltip,
       onPressed: () => showCastPicker(context),
     );
   }
@@ -451,6 +457,7 @@ class CastMiniBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(castStatusProvider).valueOrNull;
     if (status == null || !status.hasMedia) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final cast = ref.read(castServiceProvider);
     final playing = status.playerState == CastPlayerState.playing;
@@ -480,13 +487,13 @@ class CastMiniBar extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          context.displayName(status.title ?? 'Casting'),
+                          context.displayName(status.title ?? l10n.castTitleCasting),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleSmall,
                         ),
                         Text(
-                          'On ${status.device ?? 'your TV'}',
+                          l10n.castOnDevice(status.device ?? l10n.castYourTv),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall!.copyWith(
@@ -499,12 +506,12 @@ class CastMiniBar extends ConsumerWidget {
                     icon: Icon(playing
                         ? Icons.pause_rounded
                         : Icons.play_arrow_rounded),
-                    tooltip: playing ? 'Pause' : 'Play',
+                    tooltip: playing ? l10n.playerPause : l10n.playerPlay,
                     onPressed: playing ? cast.pause : cast.play,
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
-                    tooltip: 'Stop casting',
+                    tooltip: l10n.castStop,
                     onPressed: cast.disconnect,
                   ),
                 ],
@@ -538,7 +545,7 @@ class _CastRemotePage extends ConsumerWidget {
     });
     return Scaffold(
       body: CastRemoteView(
-        title: status?.title ?? 'Casting',
+        title: status?.title ?? AppLocalizations.of(context).castTitleCasting,
         subtitle: status?.subtitle,
         isLive: status?.live ?? false,
         onBack: () => Navigator.of(context).pop(),

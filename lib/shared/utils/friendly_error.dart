@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
+import 'package:open_iptv/l10n/gen/app_localizations_en.dart';
 
 /// Whether [error] represents a timeout — either a Dart [TimeoutException]
 /// or an HTTP client timeout (which surfaces as a [ClientException] with
@@ -19,67 +21,67 @@ bool _isTimeout(Object error) {
 /// and the Settings source-refresh actions, which all hit the same class of
 /// failure (bad credentials, unreachable server, malformed URL) — kept in one
 /// place so the wording can't drift between call sites again.
-String friendlySourceErrorMessage(Object error) {
+///
+/// Pass [l10n] (from `AppLocalizations.of(context)`) to get the message in the
+/// app language. Callers with no [BuildContext] (services) may leave it out
+/// and get English.
+String friendlySourceErrorMessage(Object error, [AppLocalizations? l10n]) {
+  final t = l10n ?? AppLocalizationsEn();
   final msg = error.toString();
   if (error is LocalPlaylistException) {
     return switch (error.code) {
-      'not_m3u' => "This file isn't a playlist. Choose an .m3u or .m3u8 "
-          'file from your provider.',
-      'empty' => "This playlist file doesn't have any channels in it.",
-      _ => "The playlist file is no longer on this device. Remove this "
-          'playlist and add the file again.',
+      'not_m3u' => t.errorPlaylistNotM3u,
+      'empty' => t.errorPlaylistEmpty,
+      _ => t.errorPlaylistFileMissing,
     };
   }
   if (error is SourceEditException) {
     return switch (error.code) {
-      'xtream_login' => "Couldn't sign in with these details. Check the "
-          'server address, username and password with your provider.',
-      'm3u_missing' => 'Enter the playlist link from your provider.',
-      _ => "Couldn't open this playlist link. Check it with your provider.",
+      'xtream_login' => t.errorXtreamLogin,
+      'm3u_missing' => t.errorM3uMissing,
+      _ => t.errorLinkOpenFailed,
     };
   }
   if (_isTimeout(error)) {
-    return "This playlist is taking too long to load. Check your internet "
-        'connection and try again.';
+    return t.errorPlaylistTimeout;
   }
   if (msg.contains('http_401') || msg.contains('http_403')) {
-    return "Your username or password doesn't seem right. Check with your provider.";
+    return t.errorBadCredentials;
   } else if (error is SocketException ||
       // package:http wraps socket failures (e.g. DNS lookup) in a
       // ClientException whose message never mentions SocketException.
       error is http.ClientException) {
-    return "Couldn't reach this server. Check your internet connection and try again.";
+    return t.errorUnreachable;
   } else if (RegExp(r'http_5\d\d').hasMatch(msg)) {
     // The provider's own server failed — the link and login are fine.
-    return "The provider's server is having trouble right now. Try again later.";
+    return t.errorProviderServer;
   } else if (msg.contains('http_')) {
-    return "This link doesn't look like a valid channel list. Check the URL with your provider.";
+    return t.errorInvalidLink;
   }
-  return "That didn't work. Check your details and try again.";
+  return t.errorGeneric;
 }
 
 /// Maps a raw exception thrown while refreshing a TV guide into a
 /// user-friendly message. EPG failures are common (large files, slow
 /// servers) and the user should know the guide specifically failed —
-/// not the whole playlist.
-String friendlyEpgErrorMessage(Object error) {
+/// not the whole playlist. [l10n] works as in [friendlySourceErrorMessage].
+String friendlyEpgErrorMessage(Object error, [AppLocalizations? l10n]) {
+  final t = l10n ?? AppLocalizationsEn();
   if (_isTimeout(error)) {
-    return "The TV guide is taking too long to load. Check your internet "
-        'connection and try again.';
+    return t.errorGuideTimeout;
   }
   final msg = error.toString();
   if (msg.contains('empty_guide')) {
-    return 'The provider sent an empty TV guide. Your current guide was '
-        'kept — try again in a few minutes.';
+    return t.errorGuideEmpty;
   }
   if (msg.contains('http_401') || msg.contains('http_403')) {
-    return "The TV guide link needs a login. Check the guide URL with your provider.";
+    return t.errorGuideLogin;
   } else if (error is SocketException || error is http.ClientException) {
-    return "Couldn't reach the TV guide server for this playlist. It may not have a guide — check the guide URL with your provider.";
+    return t.errorGuideUnreachable;
   } else if (RegExp(r'http_5\d\d').hasMatch(msg)) {
-    return "The TV guide server is having trouble right now. Try again later.";
+    return t.errorGuideServer;
   } else if (msg.contains('http_')) {
-    return "This TV guide link doesn't look valid. Check the URL with your provider.";
+    return t.errorGuideInvalidLink;
   }
-  return "The TV guide couldn't be loaded. Check your details and try again.";
+  return t.errorGuideGeneric;
 }

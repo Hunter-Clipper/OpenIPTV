@@ -512,7 +512,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   // jump from a scrollable page across into this separate column.
   final List<FocusNode> _railNodes = [
     for (final d in _kNavDestinations)
-      FocusNode(debugLabel: 'NavRail ${d.label}'),
+      FocusNode(debugLabel: 'NavRail ${d.path}'),
   ];
   FocusNode get _activeRailNode => _railNodes[_navIndexForLocation(context)];
 
@@ -683,8 +683,8 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     _exitArmedAt = DateTime.now();
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Press Back again to exit'),
+      ..showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context).shellPressBackAgain),
         duration: _exitWindow,
       ));
   }
@@ -776,23 +776,31 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
 // ---------------------------------------------------------------------------
 
 class _NavDestination {
-  const _NavDestination(this.icon, this.label, this.path, {this.selectedIcon});
+  const _NavDestination(this.icon, this.path, {this.selectedIcon});
   final IconData icon;
   final IconData? selectedIcon;
-  final String label;
   final String path;
+
+  /// The tab's name in the app language.
+  String label(AppLocalizations l10n) => switch (path) {
+        '/live' => l10n.navLiveTv,
+        '/movies' => l10n.navMovies,
+        '/series' => l10n.navSeries,
+        '/search' => l10n.navSearch,
+        _ => l10n.navSettings,
+      };
 }
 
 const _kNavDestinations = [
-  _NavDestination(Icons.live_tv_outlined, 'Live TV', '/live',
+  _NavDestination(Icons.live_tv_outlined, '/live',
       selectedIcon: Icons.live_tv),
-  _NavDestination(Icons.movie_outlined, 'Movies', '/movies',
+  _NavDestination(Icons.movie_outlined, '/movies',
       selectedIcon: Icons.movie),
-  _NavDestination(Icons.video_library_outlined, 'Series', '/series',
+  _NavDestination(Icons.video_library_outlined, '/series',
       selectedIcon: Icons.video_library),
-  _NavDestination(Icons.search, 'Search', '/search',
+  _NavDestination(Icons.search, '/search',
       selectedIcon: Icons.search),
-  _NavDestination(Icons.settings_outlined, 'Settings', '/settings',
+  _NavDestination(Icons.settings_outlined, '/settings',
       selectedIcon: Icons.settings),
 ];
 
@@ -821,7 +829,7 @@ class _BottomNav extends StatelessWidget {
           NavigationDestination(
             icon: Icon(d.icon),
             selectedIcon: Icon(d.selectedIcon ?? d.icon),
-            label: d.label,
+            label: d.label(AppLocalizations.of(context)),
           ),
       ],
     );
@@ -908,7 +916,8 @@ class _TvNavRailState extends State<_TvNavRail> {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: _TvNavRailItem(
                     icon: _kNavDestinations[i].icon,
-                    label: _kNavDestinations[i].label,
+                    label: _kNavDestinations[i]
+                        .label(AppLocalizations.of(context)),
                     active: i == index,
                     compact: compact,
                     // Only the very first item auto-claims focus, and only on

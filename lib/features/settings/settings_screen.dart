@@ -39,6 +39,23 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+extension _SettingsL10n on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(this);
+}
+
+/// The accent swatch names live in [AppTheme.accentSwatches] as English
+/// labels; they are translated here.
+String _accentName(BuildContext context, String label) => switch (label) {
+      'Blue' => context.l10n.settingsAccentBlue,
+      'Purple' => context.l10n.settingsAccentPurple,
+      'Pink' => context.l10n.settingsAccentPink,
+      'Orange' => context.l10n.settingsAccentOrange,
+      'Green' => context.l10n.settingsAccentGreen,
+      'Teal' => context.l10n.settingsAccentTeal,
+      'Custom' => context.l10n.settingsAccentCustom,
+      _ => label,
+    };
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -55,27 +72,27 @@ class SettingsScreen extends ConsumerWidget {
     return InfoTooltipScope(
       controller: tooltipController,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Settings')),
+        appBar: AppBar(title: Text(context.l10n.settingsTitle)),
         body: TvFollowFocus(child: ListView(
           children: [
-            SettingsGroup(title: 'Account', children: [
+            SettingsGroup(title: context.l10n.settingsGroupAccount, children: [
               ..._accountTiles(context, theme, profile),
               if (isAdmin) ..._parentalTiles(context, theme, isAdmin),
             ]),
             if (isAdmin)
-              SettingsGroup(title: 'Playlists & Guides', children: [
+              SettingsGroup(title: context.l10n.settingsGroupPlaylistsGuides, children: [
                 ..._playlistTiles(context, theme, isAdmin),
                 ..._autoRefreshTiles(context, theme, isAdmin),
                 ..._extraGuideTiles(context, theme, isAdmin),
                 ..._guideDataTiles(context, theme, isAdmin),
                 ..._backupTiles(context, theme, isAdmin),
               ]),
-            SettingsGroup(title: 'Watching', children: [
+            SettingsGroup(title: context.l10n.settingsGroupWatching, children: [
               _pageTile(
                 context,
                 icon: Icons.play_circle_outline_rounded,
-                title: 'Playback',
-                subtitle: 'Start over, picture-in-picture, player controls',
+                title: context.l10n.settingsPlaybackTitle,
+                subtitle: context.l10n.settingsPlaybackSubtitle,
                 groups: [
                   (
                     null,
@@ -84,37 +101,37 @@ class SettingsScreen extends ConsumerWidget {
                       if (!tv) ..._startupTiles(context, theme, isAdmin),
                     ]
                   ),
-                  ('Player controls', _playerTiles(context, theme, isAdmin)),
+                  (context.l10n.settingsGroupPlayerControls, _playerTiles(context, theme, isAdmin)),
                 ],
               ),
               if (tv)
                 _pageTile(
                   context,
                   icon: Icons.power_settings_new_rounded,
-                  title: 'Start-up',
-                  subtitle: 'Open the last channel, start on boot or wake',
+                  title: context.l10n.settingsStartupTitle,
+                  subtitle: context.l10n.settingsStartupSubtitle,
                   groups: [(null, _startupTiles(context, theme, isAdmin))],
                 ),
               _pageTile(
                 context,
                 icon: Icons.live_tv_outlined,
-                title: 'Channel Lists',
-                subtitle: 'Sorting, hidden channels, which rows to show',
+                title: context.l10n.settingsChannelListsTitle,
+                subtitle: context.l10n.settingsChannelListsSubtitle,
                 groups: [(null, _channelListTiles(context, theme, isAdmin))],
               ),
               if (tv)
                 _pageTile(
                   context,
                   icon: Icons.grid_view_rounded,
-                  title: 'TV Guide Layout',
-                  subtitle: 'Names, two-line titles, highlight',
+                  title: context.l10n.settingsGuideLayoutTitle,
+                  subtitle: context.l10n.settingsGuideLayoutSubtitle,
                   groups: [(null, _guideLayoutTiles(context, theme, isAdmin))],
                 ),
             ]),
             SettingsGroup(
-                title: 'Appearance',
+                title: context.l10n.settingsGroupAppearance,
                 children: _appearanceTiles(context, theme, isAdmin)),
-            SettingsGroup(title: 'About & Advanced', children: [
+            SettingsGroup(title: context.l10n.settingsGroupAboutAdvanced, children: [
               ..._aboutTiles(context, theme, isAdmin),
               _updatesTile(context),
               if (isAdmin) ..._advancedTiles(context, theme, isAdmin),
@@ -151,26 +168,22 @@ class SettingsScreen extends ConsumerWidget {
         final auto = prefs?.autoUpdateCheck ?? true;
         return InfoTooltip(
           id: 'settings_check_updates',
-          title: 'Updates',
-          body: 'Looks for a newer version of OpenIPTV on GitHub and, if '
-              'there is one, shows what changed and installs it. Only the '
-              'public release page is contacted — nothing about you or your '
-              'device is sent. Choose whether this also happens every time '
-              'the app starts.',
+          title: context.l10n.settingsUpdatesTitle,
+          body: context.l10n.settingsUpdatesBody,
           child: _NavTile(
             leading: const Icon(Icons.system_update_outlined),
-            title: 'Updates',
-            subtitle: Text(auto ? 'Checks automatically' : 'Manual only',
+            title: context.l10n.settingsUpdatesTitle,
+            subtitle: Text(auto ? context.l10n.settingsUpdatesAutoOn : context.l10n.settingsUpdatesManual,
                 style: Theme.of(context).textTheme.bodySmall),
             onTap: () async {
               final check = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => StatefulBuilder(
                   builder: (ctx, setDialog) => AlertDialog(
-                    title: const Text('Updates'),
+                    title: Text(context.l10n.settingsUpdatesTitle),
                     content: _ToggleTile(
                       icon: Icons.update,
-                      title: 'Check Automatically',
+                      title: context.l10n.settingsUpdatesCheckAuto,
                       value: prefs?.autoUpdateCheck ?? true,
                       onChanged: (v) async {
                         await prefs?.setAutoUpdateCheck(v);
@@ -181,13 +194,13 @@ class SettingsScreen extends ConsumerWidget {
                       TvActivatable(
                         onTap: () => Navigator.of(ctx).pop(false),
                         builder: (onTap) => TextButton(
-                            onPressed: onTap, child: const Text('Close')),
+                            onPressed: onTap, child: Text(context.l10n.settingsUpdatesClose)),
                       ),
                       TvActivatable(
                         autofocus: true,
                         onTap: () => Navigator.of(ctx).pop(true),
                         builder: (onTap) => FilledButton(
-                            onPressed: onTap, child: const Text('Check Now')),
+                            onPressed: onTap, child: Text(context.l10n.settingsUpdatesCheckNow)),
                       ),
                     ],
                   ),
@@ -207,21 +220,23 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _accountTiles(BuildContext context, ThemeData theme, Profile? profile) => [
     InfoTooltip(
       id: 'settings_profile',
-      title: 'Profile',
-      body: 'OpenIPTV supports multiple profiles on one device. '
-          'Each profile has its own watch history, favorites, hidden '
-          'categories, and PIN lock. Select to manage profiles.',
+      title: context.l10n.settingsProfileTitle,
+      body: context.l10n.settingsProfileBody,
       child: _NavTile(
         autofocus: true,
         leading: profile != null
             ? ProfileAvatar(
                 emoji: profile.avatarEmoji, name: profile.name)
             : const Icon(Icons.person_outline),
-        title: profile?.name ?? 'Profile',
+        title: profile?.name ?? context.l10n.settingsProfileTitle,
         subtitle: Text(
           profile == null
-              ? 'No profile selected'
-              : '${profile.isAdmin ? 'Admin' : profile.isKidsProfile ? 'Kids profile' : 'Standard profile'} · Manage profiles',
+              ? context.l10n.settingsProfileNone
+              : context.l10n.settingsProfileSubtitle(profile.isAdmin
+                  ? 'admin'
+                  : profile.isKidsProfile
+                      ? 'kids'
+                      : 'standard'),
           style: theme.textTheme.bodySmall,
         ),
         onTap: () => context.push('/settings/profiles'),
@@ -233,14 +248,12 @@ class SettingsScreen extends ConsumerWidget {
       if (count <= 1) return const SizedBox.shrink();
       return InfoTooltip(
         id: 'settings_switch_profile',
-        title: 'Switch Profile',
-        body: 'Quickly change the active profile without going into '
-            'profile management. Useful when sharing a device with '
-            'family or roommates.',
+        title: context.l10n.settingsSwitchProfileTitle,
+        body: context.l10n.settingsSwitchProfileBody,
         child: _NavTile(
           leading: const Icon(Icons.switch_account_outlined),
-          title: 'Switch Profile',
-          subtitle: Text('$count profiles available',
+          title: context.l10n.settingsSwitchProfileTitle,
+          subtitle: Text(context.l10n.settingsProfilesAvailable(count),
               style: theme.textTheme.bodySmall),
           onTap: () => showModalBottomSheet<void>(
             context: context,
@@ -258,15 +271,13 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _parentalTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
     InfoTooltip(
       id: 'settings_parental',
-      title: 'Parental Controls',
-      body: 'Hide adult categories and lock any category you '
-          'choose behind an admin PIN. Locked categories stay '
-          'unlocked until the app is restarted.',
+      title: context.l10n.settingsParentalTitle,
+      body: context.l10n.settingsParentalBody,
       child: _NavTile(
         leading: const Icon(Icons.family_restroom_outlined),
-        title: 'Parental Controls',
+        title: context.l10n.settingsParentalTitle,
         subtitle: Text(
-          'PIN-protect adult and locked categories',
+          context.l10n.settingsParentalSubtitle,
           style: theme.textTheme.bodySmall,
         ),
         onTap: () => context.push('/settings/parental'),
@@ -279,21 +290,18 @@ class SettingsScreen extends ConsumerWidget {
       final sources = ref.watch(allSourcesProvider);
       return InfoTooltip(
         id: 'settings_sources',
-        title: 'Playlists',
-        body: 'A playlist is your provider connection — either '
-            'an M3U playlist URL or Xtream Codes credentials. '
-            'Playlists supply your channels, movies, and series. '
-            'You can add multiple playlists and refresh them here.',
+        title: context.l10n.settingsPlaylistsTitle,
+        body: context.l10n.settingsPlaylistsBody,
         child: _NavTile(
           leading: const Icon(Icons.playlist_play_outlined),
-          title: 'Playlists',
+          title: context.l10n.settingsPlaylistsTitle,
           subtitle: sources.when(
             loading: () => null,
             error: (_, __) => null,
             data: (list) => Text(
               list.isEmpty
-                  ? 'No playlists added'
-                  : '${list.length} playlist${list.length == 1 ? '' : 's'}',
+                  ? context.l10n.settingsPlaylistsNone
+                  : context.l10n.settingsPlaylistsCount(list.length),
               style: theme.textTheme.bodySmall,
             ),
           ),
@@ -307,16 +315,13 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _backupTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
     InfoTooltip(
       id: 'settings_backup',
-      title: 'Backup & Restore',
-      body: 'Export your profiles and playlists to a single '
-          '.zip file you can store anywhere. Restore it '
-          'later to move to a new device or recover from a reset. '
-          'Stream credentials are included — keep the file safe.',
+      title: context.l10n.settingsBackupTitle,
+      body: context.l10n.settingsBackupBody,
       child: _NavTile(
         leading: const Icon(Icons.backup_outlined),
-        title: 'Backup & Restore',
+        title: context.l10n.settingsBackupTitle,
         subtitle: Text(
-          'Export or import your profile and playlists',
+          context.l10n.settingsBackupSubtitle,
           style: theme.textTheme.bodySmall,
         ),
         onTap: () => context.push('/settings/backup'),
@@ -329,17 +334,16 @@ class SettingsScreen extends ConsumerWidget {
       final hours = ref.watch(refreshIntervalHoursProvider);
       return InfoTooltip(
         id: 'settings_auto_refresh',
-        title: 'Auto-Refresh',
-        body: 'Automatically refreshes your playlists and TV guide '
-            'in the background so channels and schedules stay '
-            'current without manual refreshing.',
+        title: context.l10n.settingsAutoRefreshTitle,
+        body: context.l10n.settingsAutoRefreshBody,
         child: _NavTile(
           leading: const Icon(Icons.autorenew),
-          title: 'Auto-Refresh',
+          title: context.l10n.settingsAutoRefreshTitle,
           subtitle: Text(
             hours > 0 && ref.watch(refreshNotificationsEnabledProvider)
-              ? '${_refreshIntervalLabel(hours)} · notifies when done'
-              : _refreshIntervalLabel(hours),
+              ? context.l10n.settingsAutoRefreshNotifies(
+                  _refreshIntervalLabel(context, hours))
+              : _refreshIntervalLabel(context, hours),
             style: theme.textTheme.bodySmall,
           ),
           onTap: () => _showAutoRefreshDialog(context, ref, hours),
@@ -351,14 +355,12 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _guideDataTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
     InfoTooltip(
       id: 'settings_guide_data',
-      title: 'Guide Data',
-      body: 'Choose how many days of TV guide are kept, whether '
-          'programme descriptions are stored, see when each '
-          "playlist's guide last updated, and clear it.",
+      title: context.l10n.settingsGuideDataTitle,
+      body: context.l10n.settingsGuideDataBody,
       child: _NavTile(
         leading: const Icon(Icons.event_note_outlined),
-        title: 'Guide Data',
-        subtitle: Text('How much TV guide is stored',
+        title: context.l10n.settingsGuideDataTitle,
+        subtitle: Text(context.l10n.settingsGuideDataSubtitle,
             style: theme.textTheme.bodySmall),
         onTap: () => context.push('/settings/guide-data'),
       ),
@@ -368,15 +370,13 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _extraGuideTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
     InfoTooltip(
       id: 'settings_extra_guides',
-      title: 'Extra Guides',
-      body: 'Add TV guide files for channels your playlist has no '
-          'guide for. OpenIPTV matches them by name, and you can '
-          'pick a guide for any channel yourself.',
+      title: context.l10n.settingsExtraGuidesTitle,
+      body: context.l10n.settingsExtraGuidesBody,
       child: _NavTile(
         leading: const Icon(Icons.event_note_outlined),
-        title: 'Extra Guides',
+        title: context.l10n.settingsExtraGuidesTitle,
         subtitle: Text(
-          'Fill in channels that have no guide',
+          context.l10n.settingsExtraGuidesSubtitle,
           style: theme.textTheme.bodySmall,
         ),
         onTap: () => context.push('/settings/extra-guides'),
@@ -389,14 +389,11 @@ class SettingsScreen extends ConsumerWidget {
       final ask = ref.watch(askStartOverProvider);
       return InfoTooltip(
         id: 'settings_ask_start_over',
-        title: 'Ask to Start Over',
-        body: 'On channels that keep recordings (catch-up), asks '
-            'whether to start the show from the beginning or watch '
-            'it live when you open a show that is already '
-            'underway. Turn this off to always go straight to live.',
+        title: context.l10n.settingsAskStartOverTitle,
+        body: context.l10n.settingsAskStartOverBody,
         child: _ToggleTile(
           icon: Icons.history_rounded,
-          title: 'Ask to Start Over',
+          title: context.l10n.settingsAskStartOverTitle,
           value: ask,
           onChanged: (v) async {
             final prefs =
@@ -410,13 +407,11 @@ class SettingsScreen extends ConsumerWidget {
       final pipEnabled = ref.watch(pipEnabledProvider);
       return InfoTooltip(
         id: 'settings_pip',
-        title: 'Picture-in-Picture',
-        body: 'When enabled, pressing Home while a video is playing '
-            'shrinks it into a small floating window so you can '
-            'keep watching while using other apps.',
+        title: context.l10n.settingsPipTitle,
+        body: context.l10n.settingsPipBody,
         child: _ToggleTile(
           icon: Icons.picture_in_picture_alt_outlined,
-          title: 'Picture-in-Picture',
+          title: context.l10n.settingsPipTitle,
           value: pipEnabled,
           onChanged: (v) async {
             final prefs =
@@ -431,13 +426,11 @@ class SettingsScreen extends ConsumerWidget {
           ref.watch(mediaNotificationEnabledProvider);
       return InfoTooltip(
         id: 'settings_media_notification',
-        title: 'Media Notification',
-        body: 'Shows a "Now Playing" notification with play/pause '
-            'controls while content is playing, so you can control '
-            'playback from the notification shade or lock screen.',
+        title: context.l10n.settingsMediaNotificationTitle,
+        body: context.l10n.settingsMediaNotificationBody,
         child: _ToggleTile(
           icon: Icons.notifications_active_outlined,
-          title: 'Media Notification',
+          title: context.l10n.settingsMediaNotificationTitle,
           value: notifyEnabled,
           onChanged: (v) async {
             final prefs =
@@ -458,10 +451,10 @@ class SettingsScreen extends ConsumerWidget {
       final seconds = ref.watch(skipSecondsProvider);
       return _ChoiceTile(
         icon: Icons.forward_10_rounded,
-        title: 'Skip Buttons',
+        title: context.l10n.settingsSkipButtonsTitle,
         options: const [5, 10, 30],
         current: seconds,
-        label: (v) => '$v seconds',
+        label: (v) => context.l10n.settingsSecondsChoice(v),
         onPicked: (v) async {
           final prefs = await ref.read(appPreferencesProvider.future);
           await setSkipSeconds(ref, v, prefs);
@@ -472,10 +465,10 @@ class SettingsScreen extends ConsumerWidget {
       final seconds = ref.watch(panelTimeoutProvider);
       return _ChoiceTile(
         icon: Icons.timer_outlined,
-        title: 'Hide Player Controls After',
+        title: context.l10n.settingsHideControlsTitle,
         options: const [3, 4, 6, 8, 12],
         current: seconds,
-        label: (v) => '$v seconds',
+        label: (v) => context.l10n.settingsSecondsChoice(v),
         onPicked: (v) async {
           final prefs = await ref.read(appPreferencesProvider.future);
           await setPanelTimeout(ref, v, prefs);
@@ -486,13 +479,13 @@ class SettingsScreen extends ConsumerWidget {
       final keys = ref.watch(seekKeysProvider);
       return _ChoiceTile(
         icon: Icons.keyboard_double_arrow_right_rounded,
-        title: 'Remote Seek Keys',
+        title: context.l10n.settingsSeekKeysTitle,
         options: const ['media', 'leftRight', 'upDown'],
         current: keys,
         label: (v) => switch (v) {
-          'leftRight' => 'Left / Right arrows',
-          'upDown' => 'Up / Down arrows',
-          _ => 'Rewind / Forward keys',
+          'leftRight' => context.l10n.settingsSeekKeysLeftRight,
+          'upDown' => context.l10n.settingsSeekKeysUpDown,
+          _ => context.l10n.settingsSeekKeysMedia,
         },
         onPicked: (v) async {
           final prefs = await ref.read(appPreferencesProvider.future);
@@ -507,13 +500,11 @@ class SettingsScreen extends ConsumerWidget {
       final on = ref.watch(lastChannelOnStartProvider);
       return InfoTooltip(
         id: 'settings_last_channel_on_start',
-        title: 'Last Channel on Start',
-        body: 'When the app opens, it goes straight to the live '
-            'channel you watched last. Turn this off to land on '
-            'Live TV instead.',
+        title: context.l10n.settingsLastChannelTooltipTitle,
+        body: context.l10n.settingsLastChannelBody,
         child: _ToggleTile(
           icon: Icons.live_tv_outlined,
-          title: 'Open Last Channel on Start',
+          title: context.l10n.settingsLastChannelTitle,
           value: on,
           onChanged: (v) async {
             final prefs =
@@ -528,13 +519,11 @@ class SettingsScreen extends ConsumerWidget {
       Consumer(builder: (context, ref, _) {
         return InfoTooltip(
           id: 'settings_start_on_boot',
-          title: 'Start on Boot',
-          body: 'Opens OpenIPTV by itself when the TV starts. Android '
-              'needs "Display over other apps" allowed for '
-              'OpenIPTV; you will be asked.',
+          title: context.l10n.settingsStartOnBootTitle,
+          body: context.l10n.settingsStartOnBootBody,
           child: _ToggleTile(
             icon: Icons.power_settings_new_rounded,
-            title: 'Start on Boot',
+            title: context.l10n.settingsStartOnBootTitle,
             value: ref.watch(startOnBootProvider),
             onChanged: (v) async {
               final prefs =
@@ -548,13 +537,11 @@ class SettingsScreen extends ConsumerWidget {
       Consumer(builder: (context, ref, _) {
         return InfoTooltip(
           id: 'settings_start_on_wake',
-          title: 'Start on Wake',
-          body: 'Opens OpenIPTV by itself when the TV wakes from '
-              'sleep. Android needs "Display over other apps" '
-              'allowed for OpenIPTV; you will be asked.',
+          title: context.l10n.settingsStartOnWakeTitle,
+          body: context.l10n.settingsStartOnWakeBody,
           child: _ToggleTile(
             icon: Icons.bedtime_outlined,
-            title: 'Start on Wake',
+            title: context.l10n.settingsStartOnWakeTitle,
             value: ref.watch(startOnWakeProvider),
             onChanged: (v) async {
               final prefs =
@@ -573,15 +560,15 @@ class SettingsScreen extends ConsumerWidget {
       final sort = ref.watch(contentSortProvider);
       return InfoTooltip(
         id: 'settings_sort_order',
-        title: 'Content Sort Order',
-        body: 'Controls how channels, movies, and series are listed. '
-            'Provider order shows them in the sequence your IPTV '
-            'provider sends them. A–Z sorts them alphabetically.',
+        title: context.l10n.settingsSortOrderTitle,
+        body: context.l10n.settingsSortOrderBody,
         child: _NavTile(
           leading: const Icon(Icons.sort),
-          title: 'Content Sort Order',
+          title: context.l10n.settingsSortOrderTitle,
           subtitle: Text(
-            sort == 'az' ? 'A–Z' : 'Provider order',
+            sort == 'az'
+                ? context.l10n.settingsSortAz
+                : context.l10n.settingsSortProvider,
             style: theme.textTheme.bodySmall,
           ),
           onTap: () => _showSortOrderDialog(context, ref, sort),
@@ -591,20 +578,18 @@ class SettingsScreen extends ConsumerWidget {
     if (isAdmin)
       InfoTooltip(
         id: 'settings_hidden_cats',
-        title: 'Hidden Categories',
-        body: "Categories you've hidden won't appear in your channel "
-            "list. Your channels are still there — they're just out "
-            "of the way. You can unhide them here at any time.",
+        title: context.l10n.settingsHiddenCategoriesTitle,
+        body: context.l10n.settingsHiddenCategoriesBody,
         child: _NavTile(
           leading: const Icon(Icons.visibility_off_outlined),
-          title: 'Hidden Categories',
+          title: context.l10n.settingsHiddenCategoriesTitle,
           onTap: () => _showHiddenCategoriesPage(context),
         ),
       ),
     Consumer(
       builder: (context, ref, _) => _NavTile(
         leading: const Icon(Icons.restart_alt_rounded),
-        title: 'Reset Category Names and Order',
+        title: context.l10n.settingsResetCategoriesTitle,
         onTap: () => _resetCategories(context, ref),
       ),
     ),
@@ -613,15 +598,15 @@ class SettingsScreen extends ConsumerWidget {
           ref.watch(channelCustomProvider.select((c) => c.hidden.length));
       return InfoTooltip(
         id: 'settings_hidden_channels',
-        title: 'Hidden Channels',
-        body: 'Channels you hid (hold OK or long-press a channel → '
-            'Hide Channel) are kept out of Live TV, the guide and '
-            'search for this profile. Bring them back here.',
+        title: context.l10n.settingsHiddenChannelsTitle,
+        body: context.l10n.settingsHiddenChannelsBody,
         child: _NavTile(
           leading: const Icon(Icons.block_outlined),
-          title: 'Hidden Channels',
+          title: context.l10n.settingsHiddenChannelsTitle,
           subtitle: Text(
-            count == 0 ? 'None' : '$count hidden',
+            count == 0
+                ? context.l10n.settingsHiddenChannelsNone
+                : context.l10n.settingsHiddenChannelsCount(count),
             style: theme.textTheme.bodySmall,
           ),
           onTap: () => _showHiddenChannelsPage(context),
@@ -631,14 +616,14 @@ class SettingsScreen extends ConsumerWidget {
     Consumer(builder: (context, ref, _) => _liveToggle(
           ref,
           icon: Icons.star_outline_rounded,
-          title: 'Show Favorites',
+          title: context.l10n.settingsShowFavorites,
           provider: showFavoritesCategoryProvider,
           save: (p, v) => p.setShowFavoritesCategory(v),
         )),
     Consumer(builder: (context, ref, _) => _liveToggle(
           ref,
           icon: Icons.history_rounded,
-          title: 'Show Recently Watched',
+          title: context.l10n.settingsShowRecent,
           provider: showRecentCategoryProvider,
           save: (p, v) => p.setShowRecentCategory(v),
         )),
@@ -646,7 +631,7 @@ class SettingsScreen extends ConsumerWidget {
       Consumer(builder: (context, ref, _) => _liveToggle(
             ref,
             icon: Icons.live_tv_outlined,
-            title: 'Show All Channels',
+            title: context.l10n.settingsShowAllChannels,
             provider: showAllCategoryProvider,
             save: (p, v) => p.setShowAllCategory(v),
           )),
@@ -657,28 +642,28 @@ class SettingsScreen extends ConsumerWidget {
     Consumer(builder: (context, ref, _) => _liveToggle(
           ref,
           icon: Icons.badge_outlined,
-          title: 'Guide: Show Channel Names',
+          title: context.l10n.settingsGuideShowNames,
           provider: guideShowNamesProvider,
           save: (p, v) => p.setGuideShowNames(v),
         )),
     Consumer(builder: (context, ref, _) => _liveToggle(
           ref,
           icon: Icons.format_line_spacing_rounded,
-          title: 'Guide: Two-Line Channel Names',
+          title: context.l10n.settingsGuideTwoLineNames,
           provider: guideTwoLineNamesProvider,
           save: (p, v) => p.setGuideTwoLineNames(v),
         )),
     Consumer(builder: (context, ref, _) => _liveToggle(
           ref,
           icon: Icons.view_agenda_outlined,
-          title: 'Guide: Two-Line Programme Titles',
+          title: context.l10n.settingsGuideTwoLineTitles,
           provider: guideTwoLineTitlesProvider,
           save: (p, v) => p.setGuideTwoLineTitles(v),
         )),
     Consumer(builder: (context, ref, _) => _liveToggle(
           ref,
           icon: Icons.graphic_eq_rounded,
-          title: 'Guide: Highlight the Playing Channel',
+          title: context.l10n.settingsGuideHighlightPlaying,
           provider: guideHighlightPlayingProvider,
           save: (p, v) => p.setGuideHighlightPlaying(v),
         )),
@@ -699,22 +684,22 @@ class SettingsScreen extends ConsumerWidget {
       final accent = ref.watch(accentColorProvider);
       return InfoTooltip(
         id: 'settings_accent_color',
-        title: 'Accent Color',
-        body: 'Changes the highlight color used throughout the app — '
-            'active buttons, selected items, progress bars, and '
-            'other indicators. Pick whichever color you like best.',
+        title: context.l10n.settingsAccentColorTitle,
+        body: context.l10n.settingsAccentColorBody,
         child: _NavTile(
           leading: CircleAvatar(
             radius: 20,
             backgroundColor: accent.withValues(alpha: 0.14),
             child: CircleAvatar(backgroundColor: accent, radius: 10),
           ),
-          title: 'Accent Color',
+          title: context.l10n.settingsAccentColorTitle,
           subtitle: Text(
-            AppTheme.accentSwatches
-                .firstWhere((s) => s.color == accent,
-                    orElse: () => (label: 'Custom', color: accent))
-                .label,
+            _accentName(
+                context,
+                AppTheme.accentSwatches
+                    .firstWhere((s) => s.color == accent,
+                        orElse: () => (label: 'Custom', color: accent))
+                    .label),
             style: theme.textTheme.bodySmall,
           ),
           onTap: () => _showAccentColorPicker(context, ref, accent),
@@ -725,14 +710,14 @@ class SettingsScreen extends ConsumerWidget {
       final scale = ref.watch(fontScaleProvider);
       return _ChoiceTile(
         icon: Icons.text_fields_rounded,
-        title: 'Text Size',
+        title: context.l10n.settingsTextSizeTitle,
         options: const [0.85, 1.0, 1.15, 1.3],
         current: scale,
         label: (v) => switch (v) {
-          0.85 => 'Small',
-          1.15 => 'Large',
-          1.3 => 'Extra large',
-          _ => 'Default',
+          0.85 => context.l10n.settingsTextSizeSmall,
+          1.15 => context.l10n.settingsTextSizeLarge,
+          1.3 => context.l10n.settingsTextSizeExtraLarge,
+          _ => context.l10n.settingsTextSizeDefault,
         },
         onPicked: (v) async {
           final prefs = await ref.read(appPreferencesProvider.future);
@@ -744,14 +729,14 @@ class SettingsScreen extends ConsumerWidget {
       final mode = ref.watch(overlayOpacityProvider);
       return _ChoiceTile(
         icon: Icons.opacity_rounded,
-        title: 'Player Transparency',
+        title: context.l10n.settingsPlayerTransparencyTitle,
         options: const ['solid', 'normal', 'clear', 'veryclear'],
         current: mode,
         label: (v) => switch (v) {
-          'solid' => 'Solid',
-          'clear' => 'See-through',
-          'veryclear' => 'Very see-through',
-          _ => 'Default',
+          'solid' => context.l10n.settingsPlayerTransparencySolid,
+          'clear' => context.l10n.settingsPlayerTransparencyClear,
+          'veryclear' => context.l10n.settingsPlayerTransparencyVeryClear,
+          _ => context.l10n.settingsPlayerTransparencyDefault,
         },
         onPicked: (v) async {
           final prefs = await ref.read(appPreferencesProvider.future);
@@ -761,16 +746,12 @@ class SettingsScreen extends ConsumerWidget {
     }),
     InfoTooltip(
       id: 'settings_clean_names',
-      title: 'Clean Up Names',
-      body:
-          'Tidies the names your provider sends — removes tags like '
-          '"|EN|", "US|" or "A+ -" and turns ALL-CAPS names into '
-          'normal capitalization. Turn off to see names exactly as '
-          'your provider sends them.',
+      title: context.l10n.settingsCleanNamesTitle,
+      body: context.l10n.settingsCleanNamesBody,
       child: Consumer(builder: (context, ref, _) {
         return _ToggleTile(
           icon: Icons.auto_fix_high_outlined,
-          title: 'Clean Up Names',
+          title: context.l10n.settingsCleanNamesTitle,
           value: ref.watch(cleanNamesProvider),
           onChanged: (v) async {
             final prefs =
@@ -785,19 +766,17 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _aboutTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
     InfoTooltip(
       id: 'settings_about',
-      title: 'About OpenIPTV',
-      body: 'Shows the current app version and license information. '
-          'OpenIPTV is open-source under the GPL-3.0 license — '
-          'no ads, no telemetry, no accounts. Ever.',
+      title: context.l10n.settingsAboutTitle,
+      body: context.l10n.settingsAboutBody,
       child: FutureBuilder<PackageInfo>(
         future: PackageInfo.fromPlatform(),
         builder: (context, snap) {
           final version = snap.hasData
-              ? 'Version ${snap.data!.version}'
+              ? context.l10n.settingsAboutVersion(snap.data!.version)
               : 'OpenIPTV';
           return _NavTile(
             leading: const Icon(Icons.info_outline),
-            title: 'About OpenIPTV',
+            title: context.l10n.settingsAboutTitle,
             subtitle: Text(version, style: theme.textTheme.bodySmall),
             showChevron: false,
             onTap: () => _showAboutDialog(context, snap.data),
@@ -810,32 +789,27 @@ class SettingsScreen extends ConsumerWidget {
   List<Widget> _advancedTiles(BuildContext context, ThemeData theme, bool isAdmin) => [
     InfoTooltip(
       id: 'settings_power_tools',
-      title: 'Power User Tools',
-      body: 'Tools for checking and tuning your connection: '
-          'your device and public IP addresses, connection '
-          'type, VPN and DNS — handy when a provider has '
-          'trouble reaching you.',
+      title: context.l10n.settingsPowerToolsTitle,
+      body: context.l10n.settingsPowerToolsBody,
       child: _NavTile(
         leading: const Icon(Icons.tune),
-        title: 'Power User Tools',
-        subtitle: Text('Network info for troubleshooting',
+        title: context.l10n.settingsPowerToolsTitle,
+        subtitle: Text(context.l10n.settingsPowerToolsSubtitle,
             style: theme.textTheme.bodySmall),
         onTap: () => context.push('/settings/power-tools'),
       ),
     ),
     InfoTooltip(
       id: 'settings_anonymous_reports',
-      title: 'Anonymous Reports',
-      body: 'Optionally send an anonymous report when the app '
-          'crashes or freezes, so problems get fixed faster. Off unless you '
-          'turn it on, and you can see exactly what is sent.',
+      title: context.l10n.settingsAnonReportsTitle,
+      body: context.l10n.settingsAnonReportsBody,
       child: _NavTile(
         leading: const Icon(Icons.bug_report_outlined),
-        title: 'Anonymous Reports',
+        title: context.l10n.settingsAnonReportsTitle,
         subtitle: Consumer(builder: (context, ref, _) {
           final on =
               ref.watch(statsChoiceProvider) == StatsChoice.on;
-          return Text(on ? 'On' : 'Off',
+          return Text(on ? context.l10n.settingsOn : context.l10n.settingsOff,
               style: theme.textTheme.bodySmall);
         }),
         onTap: () => context.push('/settings/anonymous-reports'),
@@ -860,12 +834,12 @@ class SettingsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Content Sort Order'),
+        title: Text(context.l10n.settingsSortOrderTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _DialogChoice(
-              label: 'Provider order',
+              label: context.l10n.settingsSortProvider,
               selected: current == 'provider',
               onTap: () async {
                 Navigator.of(ctx).pop();
@@ -873,7 +847,7 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
             _DialogChoice(
-              label: 'A–Z',
+              label: context.l10n.settingsSortAz,
               selected: current == 'az',
               onTap: () async {
                 Navigator.of(ctx).pop();
@@ -886,26 +860,18 @@ class SettingsScreen extends ConsumerWidget {
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonCancel)),
           ),
         ],
       ),
     );
   }
 
-  String _refreshIntervalLabel(int hours) {
-    switch (hours) {
-      case 2:
-        return 'Every 2 hours';
-      case 6:
-        return 'Every 6 hours';
-      case 12:
-        return 'Every 12 hours';
-      case 24:
-        return 'Every 24 hours';
-      default:
-        return 'Off';
-    }
+  String _refreshIntervalLabel(BuildContext context, int hours) {
+    return switch (hours) {
+      2 || 6 || 12 || 24 => context.l10n.settingsAutoRefreshEvery(hours),
+      _ => context.l10n.settingsAutoRefreshOff,
+    };
   }
 
   Future<void> _showAutoRefreshDialog(
@@ -915,13 +881,13 @@ class SettingsScreen extends ConsumerWidget {
     final selected = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Auto-Refresh'),
+        title: Text(context.l10n.settingsAutoRefreshTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final hours in [0, 2, 6, 12, 24])
               _DialogChoice(
-                label: _refreshIntervalLabel(hours),
+                label: _refreshIntervalLabel(context, hours),
                 selected: current == hours,
                 onTap: () => Navigator.of(ctx).pop(hours),
               ),
@@ -931,7 +897,7 @@ class SettingsScreen extends ConsumerWidget {
               Consumer(builder: (context, ref, _) {
                 return _ToggleTile(
                   icon: Icons.notifications_outlined,
-                  title: 'Notify when done',
+                  title: context.l10n.settingsAutoRefreshNotifyTitle,
                   value: ref.watch(refreshNotificationsEnabledProvider),
                   onChanged: (v) async {
                     await setRefreshNotificationsEnabled(ref, v, prefs);
@@ -945,7 +911,7 @@ class SettingsScreen extends ConsumerWidget {
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonCancel)),
           ),
         ],
       ),
@@ -969,10 +935,9 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _runAutoRefreshPermissionFlow(BuildContext context) async {
     final wantsNotifications = await _askPermission(
       context,
-      title: 'Stay Informed',
-      body: 'Allow notifications so OpenIPTV can let you know when a '
-          'background refresh finishes or runs into a problem?',
-      confirmLabel: 'Allow',
+      title: context.l10n.settingsStayInformedTitle,
+      body: context.l10n.settingsStayInformedBody,
+      confirmLabel: context.l10n.settingsAllow,
     );
     if (wantsNotifications) {
       await requestNotificationPermission();
@@ -981,11 +946,9 @@ class SettingsScreen extends ConsumerWidget {
 
     final wantsBatteryExemption = await _askPermission(
       context,
-      title: 'Reliable Background Refresh',
-      body: 'Some phones aggressively limit background apps to save '
-          'battery, which can delay auto-refresh. Exempting OpenIPTV '
-          'from battery optimization makes refreshes more reliable.',
-      confirmLabel: 'Continue',
+      title: context.l10n.settingsReliableRefreshTitle,
+      body: context.l10n.settingsReliableRefreshBody,
+      confirmLabel: context.l10n.settingsContinue,
     );
     if (wantsBatteryExemption) {
       await requestBatteryOptimizationExemption();
@@ -1009,7 +972,7 @@ class SettingsScreen extends ConsumerWidget {
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(false),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Not Now')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonNotNow)),
           ),
           TvActivatable(
             autofocus: true,
@@ -1034,7 +997,7 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text('Accent Color',
+              child: Text(context.l10n.settingsAccentColorTitle,
                   style: Theme.of(ctx).textTheme.titleMedium),
             ),
             Padding(
@@ -1079,7 +1042,7 @@ class SettingsScreen extends ConsumerWidget {
                               : null,
                         ),
                         const SizedBox(height: 6),
-                        Text(swatch.label,
+                        Text(_accentName(context, swatch.label),
                             style: Theme.of(ctx).textTheme.bodySmall),
                       ],
                     ),
@@ -1101,22 +1064,19 @@ class SettingsScreen extends ConsumerWidget {
     final open = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Allow Display Over Other Apps'),
-        content: const Text(
-            'Android only lets OpenIPTV open itself when the TV starts or '
-            'wakes if "Display over other apps" is allowed for it. Open that '
-            'screen now and switch it on for OpenIPTV.'),
+        title: Text(context.l10n.settingsOverlayDialogTitle),
+        content: Text(context.l10n.settingsOverlayDialogBody),
         actions: [
           TvActivatable(
             onTap: () => Navigator.of(dialogContext).pop(false),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Not now')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonNotNow)),
           ),
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(dialogContext).pop(true),
             builder: (onTap) => FilledButton(
-                onPressed: onTap, child: const Text('Open Settings')),
+                onPressed: onTap, child: Text(context.l10n.settingsOverlayOpenSettings)),
           ),
         ],
       ),
@@ -1132,21 +1092,19 @@ class SettingsScreen extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Reset Category Names and Order?'),
-        content: const Text(
-            'Live TV categories go back to the names and order your '
-            'playlist gives them. Hidden categories stay hidden.'),
+        title: Text(context.l10n.settingsResetCategoriesDialogTitle),
+        content: Text(context.l10n.settingsResetCategoriesDialogBody),
         actions: [
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(dialogContext).pop(false),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonCancel)),
           ),
           TvActivatable(
             onTap: () => Navigator.of(dialogContext).pop(true),
             builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Reset')),
+                FilledButton(onPressed: onTap, child: Text(context.l10n.settingsReset)),
           ),
         ],
       ),
@@ -1197,14 +1155,10 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       applicationName: 'OpenIPTV',
       applicationVersion: info != null ? info.version : '',
-      applicationLegalese:
-          '© 2026 OpenIPTV contributors. Licensed under GPL-3.0.',
+      applicationLegalese: context.l10n.settingsAboutLegalese,
       children: [
         const SizedBox(height: 16),
-        const Text(
-          'An open-source, ad-free, cross-platform IPTV client. '
-          'No accounts required. No telemetry. No ads. Ever.',
-        ),
+        Text(context.l10n.settingsAboutDescription),
       ],
     );
   }
@@ -1358,7 +1312,7 @@ class _ChoiceTile<T> extends StatelessWidget {
               TvActivatable(
                 onTap: () => Navigator.of(ctx).pop(),
                 builder: (onTap) =>
-                    TextButton(onPressed: onTap, child: const Text('Cancel')),
+                    TextButton(onPressed: onTap, child: Text(context.l10n.commonCancel)),
               ),
             ],
           ),
@@ -1436,12 +1390,13 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       await ref.read(sourceManagerProvider).refreshPlaylist(source);
       ref.invalidate(allSourcesProvider);
       if (mounted) {
-        _showMessage('"${source.nickname}" playlist refreshed.');
+        _showMessage(context.l10n.settingsPlaylistRefreshed(source.nickname));
       }
     } catch (e) {
       if (mounted) {
         _showMessage(
-            'Playlist refresh failed: ${friendlySourceErrorMessage(e)}');
+            context.l10n.settingsPlaylistRefreshFailed(
+                friendlySourceErrorMessage(e, context.l10n)));
       }
     } finally {
       if (mounted) setState(() => _refreshingPlaylist.remove(id));
@@ -1467,11 +1422,11 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
       source = sources.firstWhere((s) => s.id == id);
       await ref.read(sourceManagerProvider).refreshEpgOnly(source);
       if (mounted) {
-        _showMessage('"${source.nickname}" TV guide refreshed.');
+        _showMessage(context.l10n.settingsGuideRefreshed(source.nickname));
       }
     } catch (e) {
       if (mounted) {
-        _showMessage(friendlyEpgErrorMessage(e));
+        _showMessage(friendlyEpgErrorMessage(e, context.l10n));
       }
     } finally {
       if (mounted) setState(() => _refreshingEpg.remove(id));
@@ -1483,25 +1438,23 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Switch Playlist?'),
+        title: Text(context.l10n.settingsSwitchPlaylistTitle),
         content: Text(
           source == null
-              ? 'Show all playlists together?\n\n'
-                  'The channel list, movies, and series will include every playlist.'
-              : 'Switch to "${source.nickname}"?\n\n'
-                  'The channel list, movies, and series will update to show only this playlist.',
+              ? context.l10n.settingsSwitchToAllBody
+              : context.l10n.settingsSwitchToOneBody(source.nickname),
         ),
         actions: [
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(false),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonCancel)),
           ),
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(ctx).pop(true),
             builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Switch')),
+                FilledButton(onPressed: onTap, child: Text(context.l10n.settingsSwitch)),
           ),
         ],
       ),
@@ -1520,22 +1473,21 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Playlist?'),
-        content: Text('This will remove "$nickname" and all its channels, '
-            'movies, and series. This cannot be undone.'),
+        title: Text(context.l10n.settingsRemovePlaylistTitle),
+        content: Text(context.l10n.settingsRemovePlaylistBody(nickname)),
         actions: [
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(ctx).pop(false),
             builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+                TextButton(onPressed: onTap, child: Text(context.l10n.commonCancel)),
           ),
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(true),
             builder: (onTap) => FilledButton(
               onPressed: onTap,
               style: AppTheme.destructiveButtonStyle(ctx),
-              child: const Text('Remove'),
+              child: Text(context.l10n.settingsRemove),
             ),
           ),
         ],
@@ -1567,7 +1519,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                 ),
                 const SizedBox(width: 20),
                 Text(
-                  'Removing "$nickname"...',
+                  context.l10n.settingsRemovingPlaylist(nickname),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
               ],
@@ -1620,7 +1572,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Playlists',
+                Text(context.l10n.settingsPlaylistsTitle,
                     style: Theme.of(context).textTheme.titleLarge),
                 TvActivatable(
                   // TV: something in the sheet must hold the remote, or the
@@ -1637,7 +1589,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                   },
                   builder: (onTap) => FilledButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Playlist'),
+                    label: Text(context.l10n.settingsAddPlaylist),
                     onPressed: onTap,
                   ),
                 ),
@@ -1648,7 +1600,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'Choose which playlist to browse, or show them all together.',
+                context.l10n.settingsChoosePlaylistHint,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1657,10 +1609,10 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
             child: sourcesAsync.when(
               loading: () => const LoadingView(),
               error: (_, __) =>
-                  const Center(child: Text("Couldn't load playlists.")),
+                  Center(child: Text(context.l10n.settingsPlaylistsLoadError)),
               data: (sources) {
                 if (sources.isEmpty) {
-                  return const Center(child: Text('No playlists yet.'));
+                  return Center(child: Text(context.l10n.settingsPlaylistsEmpty));
                 }
                 final multiSource = sources.length > 1;
                 // With several playlists, a leading "All playlists" row makes
@@ -1681,9 +1633,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                           leading: _PlaylistBadge(
                               icon: Icons.library_books_outlined,
                               active: allActive),
-                          title: const Text('All playlists'),
+                          title: Text(context.l10n.settingsAllPlaylists),
                           subtitle: Text(
-                            '${sources.length} playlists combined',
+                            context.l10n.settingsPlaylistsCombined(sources.length),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           onTap: onTap,
@@ -1714,9 +1666,9 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                               s.type == SourceType.xtream
                                   ? 'Xtream Codes'
                                   : LocalPlaylists.isLocal(s.m3uUrl)
-                                      ? 'Playlist file'
-                                      : 'M3U playlist',
-                              if (isActive && multiSource) 'Browsing',
+                                      ? context.l10n.settingsSourceFile
+                                      : context.l10n.settingsSourceM3u,
+                              if (isActive && multiSource) context.l10n.settingsBrowsing,
                             ].join(' · '),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
@@ -1726,7 +1678,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
                             children: [
                               _SourceAction(
                                 icon: Icons.sync_rounded,
-                                tooltip: 'Refresh Playlist',
+                                tooltip: context.l10n.settingsRefreshPlaylistTooltip,
                                 busy: isBusy,
                                 onTap: isBusy
                                     ? null
@@ -1824,7 +1776,7 @@ class _SourceMenu extends StatelessWidget {
         child: PopupMenuButton<int>(
           key: menuKey,
           enabled: enabled,
-          tooltip: 'More',
+          tooltip: context.l10n.settingsMoreTooltip,
           onSelected: (v) => switch (v) {
             3 => onEdit(),
             0 => onInfo(),
@@ -1832,11 +1784,11 @@ class _SourceMenu extends StatelessWidget {
             _ => onRemove(),
           },
           itemBuilder: (_) => [
-            item(3, Icons.edit_outlined, 'Edit Playlist'),
-            item(0, Icons.info_outline, 'Playlist Info'),
-            item(1, Icons.event_note_outlined, 'Refresh TV Guide'),
+            item(3, Icons.edit_outlined, context.l10n.settingsEditPlaylist),
+            item(0, Icons.info_outline, context.l10n.settingsPlaylistInfo),
+            item(1, Icons.event_note_outlined, context.l10n.settingsRefreshTvGuide),
             const PopupMenuDivider(),
-            item(2, Icons.delete_outline, 'Remove', error),
+            item(2, Icons.delete_outline, context.l10n.settingsRemove, error),
           ],
         ),
       ),
@@ -1900,7 +1852,7 @@ class _SourceInfoSheet extends StatefulWidget {
 
 class _SourceInfoSheetState extends State<_SourceInfoSheet> {
   bool _loading = false;
-  String? _error;
+  bool _failed = false;
   Map<String, dynamic>? _userInfo;
   Map<String, dynamic>? _serverInfo;
 
@@ -1913,7 +1865,7 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
   Future<void> _fetchInfo() async {
     setState(() {
       _loading = true;
-      _error = null;
+      _failed = false;
     });
     final client = XtreamClient.fromSource(widget.source);
     try {
@@ -1928,7 +1880,7 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Could not fetch server info.';
+          _failed = true;
           _loading = false;
         });
       }
@@ -1942,7 +1894,7 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
     final epoch = int.tryParse(value.toString());
     if (epoch == null || epoch == 0) return '—';
     final dt = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
-    return formatYmd(dt);
+    return formatDate(dt, Localizations.localeOf(context));
   }
 
   @override
@@ -1964,20 +1916,20 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
               source.type == SourceType.xtream
                   ? 'Xtream Codes'
                   : LocalPlaylists.isLocal(source.m3uUrl)
-                      ? 'Playlist file'
-                      : 'M3U Playlist',
+                      ? context.l10n.settingsSourceFile
+                      : context.l10n.settingsSourceM3u,
               style: theme.textTheme.bodySmall,
             ),
             const Divider(height: 28),
             if (source.type == SourceType.m3u) ...[
               LocalPlaylists.isLocal(source.m3uUrl)
-                  ? const _InfoRow('Source', 'File saved on this device')
+                  ? _InfoRow(context.l10n.settingsInfoSource, context.l10n.settingsInfoFileSaved)
                   : _InfoRow('URL', redactUrl(source.m3uUrl ?? '—')),
               if (source.epgUrl != null)
-                _InfoRow('EPG URL', redactUrl(source.epgUrl!)),
+                _InfoRow(context.l10n.settingsInfoGuideUrl, redactUrl(source.epgUrl!)),
               _InfoRow(
-                'Last refreshed',
-                lastRefreshed != null ? formatYmd(lastRefreshed) : 'Never',
+                context.l10n.settingsInfoLastRefreshed,
+                lastRefreshed != null ? formatDate(lastRefreshed, Localizations.localeOf(context)) : context.l10n.settingsInfoNever,
               ),
             ] else if (_loading) ...[
               const Center(
@@ -1986,20 +1938,21 @@ class _SourceInfoSheetState extends State<_SourceInfoSheet> {
                   child: CircularProgressIndicator(),
                 ),
               ),
-            ] else if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            ] else if (_failed) ...[
+              Text(context.l10n.settingsInfoFetchError, style: TextStyle(color: theme.colorScheme.error)),
             ] else ...[
-              _InfoRow('Status', '${_userInfo?['status'] ?? '—'}'),
-              _InfoRow('Expires', _formatEpoch(_userInfo?['exp_date'])),
+              _InfoRow(context.l10n.settingsInfoStatus, '${_userInfo?['status'] ?? '—'}'),
+              _InfoRow(context.l10n.settingsInfoExpires, _formatEpoch(_userInfo?['exp_date'])),
               _InfoRow(
-                  'Active connections', '${_userInfo?['active_cons'] ?? '—'}'),
+                  context.l10n.settingsInfoActiveConnections, '${_userInfo?['active_cons'] ?? '—'}'),
               _InfoRow(
-                  'Max connections', '${_userInfo?['max_connections'] ?? '—'}'),
-              _InfoRow('Trial', _userInfo?['is_trial'] == '1' ? 'Yes' : 'No'),
+                  context.l10n.settingsInfoMaxConnections, '${_userInfo?['max_connections'] ?? '—'}'),
+              _InfoRow(context.l10n.settingsInfoTrial,
+                  _userInfo?['is_trial'] == '1' ? context.l10n.settingsInfoYes : context.l10n.settingsInfoNo),
               const Divider(height: 24),
-              _InfoRow('Server',
+              _InfoRow(context.l10n.settingsInfoServer,
                   '${_serverInfo?['url'] ?? source.xtreamHost ?? '—'}'),
-              _InfoRow('Timezone', '${_serverInfo?['timezone'] ?? '—'}'),
+              _InfoRow(context.l10n.settingsInfoTimezone, '${_serverInfo?['timezone'] ?? '—'}'),
             ],
           ],
         ),
@@ -2065,13 +2018,13 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Hidden Categories',
+            child: Text(context.l10n.settingsHiddenCategoriesTitle,
                 style: Theme.of(context).textTheme.titleLarge),
           ),
           const Divider(height: 1),
           Expanded(
             child: hidden.isEmpty
-                ? const Center(child: Text('No categories are hidden.'))
+                ? Center(child: Text(context.l10n.settingsHiddenCategoriesNone))
                 : TvFollowFocus(child: ListView.builder(
                     controller: controller,
                     itemCount: hidden.length,
@@ -2079,7 +2032,7 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                       // Same name as in Live TV (the built-in "All Channels"
                       // row is stored under a private key).
                       title: Text(hidden[i] == '\u0001all'
-                          ? 'All Channels'
+                          ? context.l10n.settingsAllChannels
                           : categoryLabel(context, profile, hidden[i])),
                       trailing: TvActivatable(
                         autofocus: i == 0,
@@ -2093,7 +2046,7 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
                               },
                         builder: (onTap) => TextButton(
                           onPressed: onTap,
-                          child: const Text('Show'),
+                          child: Text(context.l10n.settingsShow),
                         ),
                       ),
                     ),
@@ -2135,7 +2088,7 @@ class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
     _load(hidden);
     String nameOf(String id) {
       final c = _known[id];
-      return c == null ? 'Channel from a removed playlist' : context.channelName(c);
+      return c == null ? context.l10n.settingsChannelFromRemovedPlaylist : context.channelName(c);
     }
 
     return DraggableScrollableSheet(
@@ -2146,13 +2099,13 @@ class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Hidden Channels',
+            child: Text(context.l10n.settingsHiddenChannelsTitle,
                 style: Theme.of(context).textTheme.titleLarge),
           ),
           const Divider(height: 1),
           Expanded(
             child: ids.isEmpty
-                ? const Center(child: Text('No channels are hidden.'))
+                ? Center(child: Text(context.l10n.settingsHiddenChannelsEmpty))
                 : TvFollowFocus(child: ListView.builder(
                     controller: controller,
                     itemCount: ids.length + 1,
@@ -2166,7 +2119,7 @@ class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
                                 .unhideAll(),
                             builder: (onTap) => OutlinedButton(
                               onPressed: onTap,
-                              child: const Text('Show All'),
+                              child: Text(context.l10n.settingsShowAll),
                             ),
                           ),
                         );
@@ -2181,7 +2134,7 @@ class _HiddenChannelsSheetState extends ConsumerState<_HiddenChannelsSheet> {
                               .unhide(id),
                           builder: (onTap) => TextButton(
                             onPressed: onTap,
-                            child: const Text('Show'),
+                            child: Text(context.l10n.settingsShow),
                           ),
                         ),
                       );

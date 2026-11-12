@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
@@ -36,6 +37,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final activeProfile = ref.watch(activeProfileProvider).valueOrNull;
 
@@ -47,8 +49,8 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
 
     if (!activeProfile.isAdmin) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Parental Controls')),
-        body: const Center(child: Text('Admins only.')),
+        appBar: AppBar(title: Text(l10n.parentalTitle)),
+        body: Center(child: Text(l10n.parentalAdminsOnly)),
       );
     }
 
@@ -57,13 +59,13 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
     final enabled = prefs.parentalProtectionEnabled;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Parental Controls')),
+      appBar: AppBar(title: Text(l10n.parentalTitle)),
       body: TvFollowFocus(
           focusFirst: true,
           child: ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
-              SettingsGroup(title: 'Protection', children: [
+              SettingsGroup(title: l10n.parentalProtectionGroup, children: [
                 TvActivatable(
                   autofocus: true,
                   onTap: () => _setProtectionEnabled(prefs, !enabled),
@@ -73,11 +75,11 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
                           ? Icons.lock_outline
                           : Icons.lock_open_outlined,
                     ),
-                    title: const Text('Parental Protection'),
+                    title: Text(l10n.parentalProtectionTitle),
                     subtitle: Text(
                       enabled
-                          ? 'Adult and locked categories require an admin PIN'
-                          : 'Off — all content is visible',
+                          ? l10n.parentalProtectionOn
+                          : l10n.parentalProtectionOff,
                       style: theme.textTheme.bodySmall,
                     ),
                     value: enabled,
@@ -89,14 +91,13 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
               // Locked category list
               if (enabled)
                 SettingsGroup(
-                  title: 'Locked Categories',
-                  description: 'Adult content is locked automatically. '
-                      'Categories below were added by the playlist scan.',
+                  title: l10n.parentalLockedGroup,
+                  description: l10n.parentalLockedDescription,
                   children: [
                     if (locked.isEmpty)
-                      const ListTile(
-                        leading: IconBadge(icon: Icons.info_outline),
-                        title: Text('No other locked categories'),
+                      ListTile(
+                        leading: const IconBadge(icon: Icons.info_outline),
+                        title: Text(l10n.parentalNoLocked),
                       )
                     else
                       ...locked.map((cat) => ListTile(
@@ -108,7 +109,7 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
                               builder: (onTap) => IconButton(
                                 icon: Icon(Icons.delete_outline,
                                     color: theme.colorScheme.error),
-                                tooltip: 'Remove from locked list',
+                                tooltip: l10n.parentalRemoveTooltip,
                                 onPressed: onTap,
                               ),
                             ),

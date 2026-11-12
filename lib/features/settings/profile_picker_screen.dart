@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
@@ -43,8 +44,8 @@ class ProfilePickerScreen extends ConsumerWidget {
         child: SafeArea(
           child: profilesAsync.when(
             loading: () => const LoadingView(),
-            error: (_, __) =>
-                const Center(child: Text('Could not load profiles.')),
+            error: (_, __) => Center(
+                child: Text(AppLocalizations.of(context).profilePickerLoadFailed)),
             data: (profiles) => Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(vertical: 32),
@@ -58,7 +59,7 @@ class ProfilePickerScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      "Who's watching?",
+                      AppLocalizations.of(context).profilePickerWhoIsWatching,
                       style: theme.textTheme.displaySmall!
                           .copyWith(fontWeight: FontWeight.w600),
                     ),
@@ -96,7 +97,8 @@ class ProfilePickerScreen extends ConsumerWidget {
     // fingerprint / face may stand in for it. Other profiles' PINs don't.
     String? notice;
     final scan = profile.hasPin && profile.isAdmin
-        ? await tryAdminBiometric(ref, 'Switch to ${profile.name}',
+        ? await tryAdminBiometric(
+            ref, AppLocalizations.of(context).pinSwitchToProfile(profile.name),
             onNotice: (m) => notice = m)
         : AdminScanResult.usePin;
     if (scan == AdminScanResult.alreadyShowing) return;
@@ -114,7 +116,8 @@ class ProfilePickerScreen extends ConsumerWidget {
       if (!ok) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect PIN')),
+            SnackBar(
+                content: Text(AppLocalizations.of(context).pinIncorrect)),
           );
         }
         return;
@@ -137,7 +140,8 @@ class ProfilePickerScreen extends ConsumerWidget {
   Future<String?> _showPinDialog(
           BuildContext context, String name, String? message) =>
       showPinEntryDialog(context,
-          title: 'Enter PIN for $name', message: message);
+          title: AppLocalizations.of(context).pinEnterForProfile(name),
+          message: message);
 }
 
 class _ProfileCard extends StatefulWidget {
@@ -238,7 +242,7 @@ class _ProfileCardState extends State<_ProfileCard> {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Kids',
+                  AppLocalizations.of(context).profilePickerKids,
                   style: theme.textTheme.labelMedium!
                       .copyWith(color: theme.colorScheme.primary),
                 ),

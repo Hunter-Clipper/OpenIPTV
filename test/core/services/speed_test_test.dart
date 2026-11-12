@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/services/speed_test.dart';
+import 'package:open_iptv/l10n/gen/app_localizations_en.dart';
 
 void main() {
   late HttpServer server;
@@ -61,8 +62,8 @@ void main() {
         bytes: (mbps * 1000000 / 8).round(),
         elapsed: const Duration(seconds: 1),
         firstByte: Duration.zero);
-    expect(at(30).verdict, contains('4K'));
-    expect(at(12).verdict, contains('HD'));
-    expect(at(1).verdict, contains('Too slow'));
+    expect(at(30).verdict(AppLocalizationsEn()), contains('4K'));
+    expect(at(12).verdict(AppLocalizationsEn()), contains('HD'));
+    expect(at(1).verdict(AppLocalizationsEn()), contains('Too slow'));
   });
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// Result of one download measurement.
 class SpeedResult {
@@ -26,13 +27,13 @@ class SpeedResult {
       : bytes * 8 / elapsed.inMicroseconds; // bits per µs == Mbit/s
 
   /// Plain-English verdict for an IPTV viewer.
-  String get verdict {
+  String verdict(AppLocalizations l10n) {
     final m = mbps;
-    if (m >= 25) return 'Plenty, even for 4K.';
-    if (m >= 10) return 'Good for HD and most 4K.';
-    if (m >= 5) return 'Fine for HD; 4K may buffer.';
-    if (m >= 2.5) return 'Enough for SD; HD may buffer.';
-    return 'Too slow for smooth playback.';
+    if (m >= 25) return l10n.speedTestVerdictPlenty;
+    if (m >= 10) return l10n.speedTestVerdictGood;
+    if (m >= 5) return l10n.speedTestVerdictFineHd;
+    if (m >= 2.5) return l10n.speedTestVerdictEnoughSd;
+    return l10n.speedTestVerdictTooSlow;
   }
 }
 

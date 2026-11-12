@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
@@ -41,7 +42,7 @@ Future<void> hideGenre(
           ListTile(
             autofocus: true,
             leading: const Icon(Icons.visibility_off_outlined),
-            title: const Text('Hide Genre'),
+            title: Text(AppLocalizations.of(context).genreActionsHideGenre),
             subtitle: Text(context.displayName(genre),
                 style: Theme.of(sheetContext).textTheme.bodySmall),
             onTap: () => Navigator.of(sheetContext).pop(true),

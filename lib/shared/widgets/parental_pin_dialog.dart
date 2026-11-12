@@ -4,6 +4,7 @@ import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
 
@@ -35,6 +36,7 @@ Future<AdminScanResult> tryAdminBiometric(
 }
 
 /// "Enter admin PIN to unlock X" → "Unlock X", for the biometric prompt.
+/// English-only fallback for callers that don't pass an explicit action.
 String _actionFrom(String title) {
   const lead = 'Enter admin PIN to ';
   if (!title.startsWith(lead)) return title;
@@ -45,10 +47,14 @@ String _actionFrom(String title) {
 /// Asks for the admin — by fingerprint / face when turned on, else (or on
 /// "Use PIN") the admin PIN. Shows an "Incorrect PIN" snackbar on a wrong
 /// entry. Returns true only for the admin.
+///
+/// [action] is the short line under the fingerprint / face prompt ("Unlock
+/// Kids"); when null it is derived from the English [title].
 Future<bool> promptAdminPin(
-    BuildContext context, WidgetRef ref, String title) async {
+    BuildContext context, WidgetRef ref, String title,
+    {String? action}) async {
   String? notice;
-  switch (await tryAdminBiometric(ref, _actionFrom(title),
+  switch (await tryAdminBiometric(ref, action ?? _actionFrom(title),
       onNotice: (m) => notice = m)) {
     case AdminScanResult.unlocked:
       return true;
@@ -64,8 +70,8 @@ Future<bool> promptAdminPin(
     return true;
   }
   if (context.mounted) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Incorrect PIN')));
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).pinIncorrect)));
   }
   return false;
 }
@@ -79,8 +85,10 @@ Future<bool> ensureCategoryUnlocked(
   if (prefs == null || !isCategoryLocked(category, prefs, sessionUnlocked)) {
     return true;
   }
-  if (!await promptAdminPin(
-      context, ref, 'Enter admin PIN to unlock "${context.displayName(category)}"')) {
+  final l10n = AppLocalizations.of(context);
+  final shown = context.displayName(category);
+  if (!await promptAdminPin(context, ref, l10n.pinEnterAdminToUnlock(shown),
+      action: l10n.pinUnlockAction(shown))) {
     return false;
   }
   ref.read(parentalSessionUnlockedProvider.notifier).state = {

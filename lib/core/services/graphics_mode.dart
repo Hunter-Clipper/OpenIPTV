@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 const _channel = MethodChannel('openiptv/device');
 
@@ -12,35 +13,37 @@ const _channel = MethodChannel('openiptv/device');
 enum GraphicsModeSetting {
   automatic(
     id: 'auto',
-    label: 'Automatic',
-    description: 'Uses the compatible mode only on TVs known to need it. '
-        'Recommended.',
   ),
   standard(
     id: 'standard',
-    label: 'Standard',
-    description: 'The newest drawing method. Best on most phones and TVs.',
   ),
   compatibility(
     id: 'compat',
-    label: 'Compatible',
-    description: 'An older, steadier drawing method. Try this if the picture '
-        'looks torn (a line across it) or jittery, mostly on fast motion.',
   );
 
-  const GraphicsModeSetting({
-    required this.id,
-    required this.label,
-    required this.description,
-  });
+  const GraphicsModeSetting({required this.id});
 
   /// Stored natively and sent over the channel.
   final String id;
-  final String label;
-  final String description;
 
   static GraphicsModeSetting fromId(String? id) => values
       .firstWhere((m) => m.id == id, orElse: () => GraphicsModeSetting.automatic);
+}
+
+/// The words shown for a [GraphicsModeSetting].
+extension GraphicsModeSettingText on GraphicsModeSetting {
+  String label(AppLocalizations l10n) => switch (this) {
+        GraphicsModeSetting.automatic => l10n.graphicsModeAutomaticLabel,
+        GraphicsModeSetting.standard => l10n.graphicsModeStandardLabel,
+        GraphicsModeSetting.compatibility => l10n.graphicsModeCompatibleLabel,
+      };
+
+  String description(AppLocalizations l10n) => switch (this) {
+        GraphicsModeSetting.automatic => l10n.graphicsModeAutomaticDescription,
+        GraphicsModeSetting.standard => l10n.graphicsModeStandardDescription,
+        GraphicsModeSetting.compatibility =>
+          l10n.graphicsModeCompatibleDescription,
+      };
 }
 
 /// What the native side reports about the graphics mode.

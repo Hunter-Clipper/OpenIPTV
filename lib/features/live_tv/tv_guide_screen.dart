@@ -31,6 +31,7 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/tv_nav_rail_focus.dart';
 import 'package:open_iptv/core/services/video_layer_mode.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -483,7 +484,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       body: channelsAsync.when(
         loading: () => const SkeletonList(leadingSize: 28),
         error: (e, _) => ErrorStateView(
-          message: "Couldn't load channels. Check your internet connection.",
+          message: AppLocalizations.of(context).liveTvLoadError,
           onRetry: () => ref.invalidate(allChannelsProvider),
         ),
         data: _buildGuide,
@@ -619,9 +620,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                       _ => genreIcon(key, fallback: Icons.folder_outlined),
                     },
                     label: switch (key) {
-                      _favorites => 'Favorites',
-                      _recent => 'Recently Watched',
-                      _all => 'All Channels',
+                      _favorites => AppLocalizations.of(context).liveTvFavorites,
+                      _recent =>
+                        AppLocalizations.of(context).liveTvRecentlyWatched,
+                      _all => AppLocalizations.of(context).liveTvAllChannels,
                       _ => categoryLabel(context, profile, key),
                     },
                     selected: key == shown,
@@ -632,7 +634,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     onLongPress: (_isRealCategory(key) || key == _all) && profile != null
                         ? () => showCategoryOptions(
                             context, ref, profile.id, key,
-                            label: key == _all ? 'All Channels' : null,
+                            label: key == _all
+                                ? AppLocalizations.of(context).liveTvAllChannels
+                                : null,
                             visible: realCategories)
                         : null,
                   );
@@ -665,15 +669,14 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               ),
               Expanded(
                 child: locked(shown)
-                    ? const _GuideMessage(
+                    ? _GuideMessage(
                         icon: Icons.lock_outline_rounded,
-                        text: 'This category is locked. Press OK on it to '
-                            'unlock it.',
+                        text: AppLocalizations.of(context).tvGuideCategoryLocked,
                       )
                     : channels.isEmpty
-                        ? const _GuideMessage(
+                        ? _GuideMessage(
                             icon: Icons.live_tv_outlined,
-                            text: 'No channels here yet.',
+                            text: AppLocalizations.of(context).liveTvNoChannels,
                           )
                         : _buildGrid(channels, favIds, profile?.id),
               ),
@@ -809,7 +812,7 @@ class _PaneModel extends ChangeNotifier implements CatchupAware {
   bool get showPicture => previewing && _hasVideo;
 
   /// The preview that couldn't play, and why.
-  ({String channelId, String text})? failed;
+  ({String channelId, bool denied})? failed;
 
   /// The preview is (re)connecting.
   bool get loading => previewing && (_dog?.loading ?? true);
@@ -886,9 +889,7 @@ class _PaneModel extends ChangeNotifier implements CatchupAware {
     final dog = _dog;
     if (!previewing || dog == null) return;
     if (e.isPermanent) {
-      _fail(e.httpStatus == 401 || e.httpStatus == 403
-          ? "Your provider didn't allow this stream."
-          : "This channel isn't available right now.");
+      _fail(denied: e.httpStatus == 401 || e.httpStatus == 403);
     } else {
       _act(dog.onError(DateTime.now()));
     }
@@ -908,15 +909,15 @@ class _PaneModel extends ChangeNotifier implements CatchupAware {
           unawaited(service.play(url, startPosition: pos, owner: this));
         }
       case WatchdogAction.giveUp:
-        _fail("This channel isn't available right now.");
+        _fail(denied: false);
       case WatchdogAction.none:
         break;
     }
   }
 
-  void _fail(String text) {
+  void _fail({required bool denied}) {
     final id = playingId;
-    if (id != null) failed = (channelId: id, text: text);
+    if (id != null) failed = (channelId: id, denied: denied);
     stopPreview();
   }
 
@@ -1062,8 +1063,13 @@ class _TopPane extends ConsumerWidget {
                             hint: channel == null
                                 ? null
                                 : model.failed?.channelId == channel.id
-                                    ? model.failed!.text
-                                    : 'Press OK to preview',
+                                    ? (model.failed!.denied
+                                        ? AppLocalizations.of(context)
+                                            .tvGuideStreamDenied
+                                        : AppLocalizations.of(context)
+                                            .tvGuideChannelUnavailable)
+                                    : AppLocalizations.of(context)
+                                        .tvGuidePressOkToPreview,
                           ),
                   ),
                 ),
@@ -1185,7 +1191,7 @@ class _ProgrammeInfoState extends State<_ProgrammeInfo> {
         const SizedBox(height: 4),
         MarqueeText(
           p == null
-              ? 'No guide information'
+              ? AppLocalizations.of(context).tvGuideNoInfo
               : '${_hm(context, p.start)} – ${_hm(context, p.end)}  ·  $name',
           style: theme.textTheme.bodyMedium!
               .copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -1632,7 +1638,7 @@ class _GuideRow extends ConsumerWidget {
                 // No guide data: one cell, so the channel can still be
                 // reached and played from here.
                 ? _ProgrammeCell(
-                    title: 'No guide information',
+                    title: AppLocalizations.of(context).tvGuideNoInfo,
                     muted: true,
                     focusNode: entryNode,
                     autofocus: autofocus,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// The AppBar actions shared by every browse screen (Live TV, Movies, Series
@@ -23,7 +24,9 @@ class SortToggleAction extends ConsumerWidget {
       },
       builder: (onTap) => IconButton(
         icon: Icon(sort == 'az' ? Icons.sort_by_alpha : Icons.sort),
-        tooltip: sort == 'az' ? 'Sorted A–Z' : 'Provider order',
+        tooltip: sort == 'az'
+            ? AppLocalizations.of(context).browseActionsSortedAz
+            : AppLocalizations.of(context).browseActionsProviderOrder,
         onPressed: onTap,
       ),
     );
@@ -56,8 +59,8 @@ class ViewModeToggleAction extends ConsumerWidget {
       builder: (onTap) => IconButton(
         icon: Icon(viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
         tooltip: viewMode == 'grid'
-            ? 'Switch to list view'
-            : 'Switch to grid view',
+            ? AppLocalizations.of(context).browseActionsSwitchToList
+            : AppLocalizations.of(context).browseActionsSwitchToGrid,
         onPressed: onTap,
       ),
     );
@@ -90,7 +93,9 @@ class HomeLayoutToggleAction extends ConsumerWidget {
       },
       builder: (onTap) => IconButton(
         icon: Icon(posters ? Icons.view_list : Icons.view_carousel_outlined),
-        tooltip: posters ? 'Switch to compact view' : 'Switch to poster view',
+        tooltip: posters
+            ? AppLocalizations.of(context).browseActionsSwitchToCompact
+            : AppLocalizations.of(context).browseActionsSwitchToPosters,
         onPressed: onTap,
       ),
     );

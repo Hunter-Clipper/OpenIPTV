@@ -17,6 +17,7 @@ import 'package:open_iptv/core/services/speed_test.dart';
 import 'package:open_iptv/core/services/vpn_service.dart';
 import 'package:open_iptv/core/services/user_agent.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/snack_bar_utils.dart';
 import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
@@ -115,32 +116,29 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       _vpnStatus = st;
       _ovpnStatus = os;
     });
-    if (failed) _say(_openVpnError(os.error));
+    if (failed) _say(_openVpnError(AppLocalizations.of(context), os.error));
     // The connection details (VPN on/off, addresses) change with it.
     if (changed) unawaited(_refresh());
   }
 
-  static String _openVpnError(String? e) {
+  static String _openVpnError(AppLocalizations l10n, String? e) {
     final t = (e ?? '').toLowerCase();
-    if (t.contains('auth')) {
-      return 'The VPN server rejected the username or password. Use '
-          '"Change OpenVPN login" to fix it.';
-    }
+    if (t.contains('auth')) return l10n.powerUserOvpnAuthFailed;
     if (t.contains('timeout') ||
         t.contains('resolve') ||
         t.contains('network')) {
-      return "Couldn't reach the VPN server. Check the profile and your "
-          'connection.';
+      return l10n.powerUserOvpnUnreachable;
     }
-    return "The VPN couldn't connect. Check the profile and try again.";
+    return l10n.powerUserOvpnConnectFailed;
   }
 
   Future<void> _importOpenVpn() async {
+    final l10n = AppLocalizations.of(context);
     final file = await pickDeviceFile(context,
-        title: 'Choose an OpenVPN profile', extensions: const ['ovpn', 'conf']);
+        title: l10n.powerUserPickOvpn, extensions: const ['ovpn', 'conf']);
     if (file == null || !mounted) return;
     final text = utf8.decode(file.bytes, allowMalformed: true);
-    final problem = await _vpn.validateOpenVpn(text);
+    final problem = await _vpn.validateOpenVpn(text, l10n);
     if (!mounted) return;
     String? user;
     String? pass;
@@ -158,24 +156,23 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     await _vpn.saveOpenVpn(profile);
     if (!mounted) return;
     setState(() => _ovpn = profile);
-    _say('Profile "$name" added');
+    _say(l10n.powerUserProfileAdded(name));
   }
 
   /// Username and password for a profile that asks for them.
   Future<(String, String)?> _askLogin() async {
+    final l10n = AppLocalizations.of(context);
     final user = TextEditingController();
     final pass = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('VPN login'),
+        title: Text(l10n.powerUserVpnLoginTitle),
         scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('This profile needs the username and password from '
-                'your VPN provider. They are stored encrypted on this '
-                'device.'),
+            Text(l10n.powerUserVpnLoginBody),
             const SizedBox(height: 12),
             TvTextFieldGate(
               autofocus: true,
@@ -185,7 +182,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                 autocorrect: false,
                 enableSuggestions: false,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Username'),
+                decoration: InputDecoration(labelText: l10n.powerUserUsername),
               ),
             ),
             const SizedBox(height: 8),
@@ -195,7 +192,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                 controller: pass,
                 obscureText: true,
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(labelText: 'Password'),
+                decoration: InputDecoration(labelText: l10n.powerUserPassword),
                 onSubmitted: (_) => Navigator.of(ctx).pop(true),
               ),
             ),
@@ -204,13 +201,13 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         actions: [
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(false),
-            builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+            builder: (onTap) => TextButton(
+                onPressed: onTap, child: Text(l10n.commonCancel)),
           ),
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(true),
-            builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Save')),
+            builder: (onTap) => FilledButton(
+                onPressed: onTap, child: Text(l10n.powerUserSave)),
           ),
         ],
       ),
@@ -236,7 +233,10 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       await prefs?.setVpnKind('openvpn');
       final r =
           await _vpn.connectOpenVpn(profile, route: prefs?.vpnRoute ?? 'app');
-      if (mounted) _say(vpnConnectMessage(r == 'ok' ? 'starting' : r));
+      if (mounted) {
+        _say(vpnConnectMessage(
+            AppLocalizations.of(context), r == 'ok' ? 'starting' : r));
+      }
     }
     await Future<void>.delayed(const Duration(milliseconds: 600));
     await _pollVpn();
@@ -246,6 +246,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   Future<void> _changeOpenVpnLogin() async {
     final profile = _ovpn;
     if (profile == null) return;
+    final l10n = AppLocalizations.of(context);
     final login = await _askLogin();
     if (login == null || !mounted) return;
     final updated = OpenVpnProfile(
@@ -256,7 +257,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     await _vpn.saveOpenVpn(updated);
     if (!mounted) return;
     setState(() => _ovpn = updated);
-    _say('VPN login saved');
+    _say(l10n.powerUserVpnLoginSaved);
   }
 
   Future<void> _removeOpenVpn() async {
@@ -274,11 +275,12 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Future<void> _importVpn() async {
+    final l10n = AppLocalizations.of(context);
     final file = await pickDeviceFile(context,
-        title: 'Choose a WireGuard profile', extensions: const ['conf']);
+        title: l10n.powerUserPickWireGuard, extensions: const ['conf']);
     if (file == null || !mounted) return;
     final text = utf8.decode(file.bytes, allowMalformed: true);
-    final problem = await _vpn.validate(text);
+    final problem = await _vpn.validate(text, l10n);
     if (!mounted) return;
     if (problem != null) {
       _say(problem);
@@ -289,7 +291,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     await _vpn.saveProfile(profile);
     if (!mounted) return;
     setState(() => _vpnProfile = profile);
-    _say('Profile "$name" added');
+    _say(l10n.powerUserProfileAdded(name));
   }
 
   Future<void> _toggleVpn() async {
@@ -304,33 +306,35 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       if (_ovpnStatus.state != 'off') await _vpn.disconnectOpenVpn();
       await prefs?.setVpnKind('wireguard');
       final r = await _vpn.connect(profile, route: prefs?.vpnRoute ?? 'app');
-      if (mounted) _say(vpnConnectMessage(r));
+      if (mounted) _say(vpnConnectMessage(AppLocalizations.of(context), r));
     }
     await _pollVpn();
     if (mounted) setState(() => _vpnBusy = false);
   }
 
-  Future<bool?> _confirmRemove() => showDialog<bool>(
+  Future<bool?> _confirmRemove() {
+    final l10n = AppLocalizations.of(context);
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove VPN profile?'),
-        content: const Text('The VPN disconnects and the profile is deleted '
-            'from this device. You can import it again later.'),
+        title: Text(l10n.powerUserRemoveTitle),
+        content: Text(l10n.powerUserRemoveBody),
         actions: [
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(ctx).pop(false),
-            builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+            builder: (onTap) => TextButton(
+                onPressed: onTap, child: Text(l10n.commonCancel)),
           ),
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(true),
-            builder: (onTap) =>
-                FilledButton(onPressed: onTap, child: const Text('Remove')),
+            builder: (onTap) => FilledButton(
+                onPressed: onTap, child: Text(l10n.powerUserRemove)),
           ),
         ],
       ),
     );
+  }
 
   Future<void> _removeVpn() async {
     if (await _confirmRemove() != true) return;
@@ -389,25 +393,27 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$label copied')));
+      ..showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context).powerUserCopied(label))));
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final net = _network;
     final isTv = PlatformHelper.isTV(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Power User Tools'),
+        title: Text(l10n.powerUserTitle),
         actions: [
           TvActivatable(
         round: true,
             onTap: _refresh,
             builder: (onTap) => IconButton(
               icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh',
+              tooltip: l10n.powerUserRefreshTooltip,
               onPressed: onTap,
             ),
           ),
@@ -426,16 +432,15 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SettingsGroup(
-            title: 'Network',
-            description: 'How this device is connected right now. Useful '
-                'when a provider has trouble reaching you — for example to '
-                'check which address it sees, or that your VPN is on.'
-                '${isTv ? '' : ' Tap an address to copy it.'}',
+            title: l10n.powerUserNetworkTitle,
+            description: isTv
+                ? l10n.powerUserNetworkDescription
+                : l10n.powerUserNetworkDescriptionCopy,
             children: net == null
-                ? const [
+                ? [
                     ListTile(
-                      leading: IconBadge(icon: Icons.wifi_find_outlined),
-                      title: Text('Checking your connection…'),
+                      leading: const IconBadge(icon: Icons.wifi_find_outlined),
+                      title: Text(l10n.powerUserCheckingConnection),
                     ),
                   ]
                 : [
@@ -447,38 +452,38 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                         'none' => Icons.wifi_off,
                         _ => Icons.lan_outlined,
                       },
-                      label: 'Connection',
+                      label: l10n.powerUserConnection,
                       value: net.connectionLabel,
                       autofocus: true,
                     ),
                     _InfoRow(
                       icon: net.vpn ? Icons.vpn_lock : Icons.vpn_lock_outlined,
                       label: 'VPN',
-                      value: net.vpn ? 'On' : 'Off',
+                      value: net.vpn ? l10n.powerUserOn : l10n.powerUserOff,
                     ),
                     if (net.connected)
                       _InfoRow(
                         icon: Icons.router_outlined,
-                        label: 'Device IP address',
+                        label: l10n.powerUserDeviceIp,
                         value: net.orderedAddresses.isEmpty
-                            ? 'Not available'
+                            ? l10n.powerUserNotAvailable
                             : net.orderedAddresses.join('\n'),
-                        onTap: _copier('Device IP address',
+                        onTap: _copier(l10n.powerUserDeviceIp,
                             net.orderedAddresses.firstOrNull),
                       ),
                     if (net.vpn && net.vpnAddresses.isNotEmpty)
                       _InfoRow(
                         icon: Icons.vpn_lock_outlined,
-                        label: 'VPN address',
+                        label: l10n.powerUserVpnAddress,
                         value: net.vpnAddresses.join('\n'),
-                        onTap: _copier(
-                            'VPN address', net.vpnAddresses.firstOrNull),
+                        onTap: _copier(l10n.powerUserVpnAddress,
+                            net.vpnAddresses.firstOrNull),
                       ),
                     if (net.connected) _publicIpRow(theme),
                     if (net.connected && net.dns.isNotEmpty)
                       _InfoRow(
                         icon: Icons.dns_outlined,
-                        label: 'DNS servers',
+                        label: l10n.powerUserDnsServers,
                         value: net.dns.join('\n'),
                       ),
                   ],
@@ -507,6 +512,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _vpnGroup() {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final profile = _vpnProfile;
     final st = _vpnStatus;
@@ -516,32 +522,26 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     final route = prefs?.vpnRoute ?? 'app';
 
     String wgText() {
-      if (profile == null) {
-        return 'Import a WireGuard profile (.conf file) from your VPN '
-            'provider.';
-      }
+      if (profile == null) return l10n.powerUserWgImportHint;
       final where = profile.endpoint == null ? '' : ' · ${profile.endpoint}';
-      if (!st.up) return 'Off — ${profile.name}$where';
+      if (!st.up) return l10n.powerUserVpnStateOff(profile.name, where);
       final hs = st.lastHandshake;
       final ago = hs == null
-          ? 'waiting for the server to answer'
-          : 'server answered ${_ago(hs)}';
-      return 'Connected — ${profile.name}$where\n'
-          '↓ ${formatBytes(st.rxBytes)}  ↑ ${formatBytes(st.txBytes)} · $ago';
+          ? l10n.powerUserHandshakeWaiting
+          : l10n.powerUserHandshakeAnswered(_ago(l10n, hs));
+      return l10n.powerUserWgConnected(profile.name, where,
+          formatBytes(st.rxBytes), formatBytes(st.txBytes), ago);
     }
 
     String ovpnText() {
-      if (ovpn == null) {
-        return 'Import an OpenVPN profile (.ovpn file) from your VPN '
-            'provider.';
-      }
+      if (ovpn == null) return l10n.powerUserOvpnImportHint;
       final where = ovpn.endpoint == null ? '' : ' · ${ovpn.endpoint}';
       return switch (os.state) {
-        'connected' => 'Connected — ${ovpn.name}$where\n'
-            '↓ ${formatBytes(os.rxBytes)}  ↑ ${formatBytes(os.txBytes)}',
-        'connecting' => 'Connecting — ${ovpn.name}$where',
-        'error' => "Couldn't connect — ${ovpn.name}$where",
-        _ => 'Off — ${ovpn.name}$where',
+        'connected' => l10n.powerUserOvpnConnected(ovpn.name, where,
+            formatBytes(os.rxBytes), formatBytes(os.txBytes)),
+        'connecting' => l10n.powerUserOvpnConnecting(ovpn.name, where),
+        'error' => l10n.powerUserOvpnError(ovpn.name, where),
+        _ => l10n.powerUserVpnStateOff(ovpn.name, where),
       };
     }
 
@@ -556,9 +556,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
     return SettingsGroup(
       title: 'VPN',
-      description: 'A built-in VPN — WireGuard or OpenVPN. Handy when your '
-          'internet provider blocks or slows down your IPTV provider. One '
-          'connects at a time.',
+      description: l10n.powerUserVpnDescription,
       children: [
         _InfoRow(
           icon: st.up ? Icons.vpn_lock : Icons.vpn_key_outlined,
@@ -566,10 +564,10 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           value: wgText(),
           trailing: actionButton(
               profile == null
-                  ? 'Import'
+                  ? l10n.powerUserImport
                   : st.up
-                      ? 'Disconnect'
-                      : 'Connect',
+                      ? l10n.powerUserDisconnect
+                      : l10n.powerUserConnect,
               profile == null ? _importVpn : _toggleVpn),
         ),
         _InfoRow(
@@ -578,17 +576,17 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           value: ovpnText(),
           trailing: actionButton(
               ovpn == null
-                  ? 'Import'
+                  ? l10n.powerUserImport
                   : ovpnOn
-                      ? 'Disconnect'
-                      : 'Connect',
+                      ? l10n.powerUserDisconnect
+                      : l10n.powerUserConnect,
               ovpn == null ? _importOpenVpn : _toggleOpenVpn),
         ),
         if (profile != null || ovpn != null) ...[
-          for (final (id, label, sub) in const [
-            ('app', 'Only OpenIPTV', 'Other apps keep your normal connection'),
-            ('device', 'Whole device',
-                'Every app uses the VPN, except Android Auto\'s car link'),
+          for (final (id, label, sub) in [
+            ('app', l10n.powerUserRouteApp, l10n.powerUserRouteAppHint),
+            ('device', l10n.powerUserRouteDevice,
+                l10n.powerUserRouteDeviceHint),
           ])
             TvActivatable(
               onTap: () async {
@@ -596,7 +594,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                 if (!mounted) return;
                 setState(() {});
                 if (_vpnStatus.up || _ovpnStatus.up) {
-                  _say('Reconnect the VPN to apply this.');
+                  _say(l10n.powerUserReconnectToApply);
                 }
               },
               builder: (tap) => ListTile(
@@ -618,8 +616,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
             },
             builder: (tap) => SwitchListTile(
               secondary: const IconBadge(icon: Icons.play_circle_outline),
-              title: const Text('Connect when OpenIPTV opens'),
-              subtitle: Text('Uses the VPN you connected last',
+              title: Text(l10n.powerUserAutoConnect),
+              subtitle: Text(l10n.powerUserAutoConnectHint,
                   style: theme.textTheme.bodySmall),
               value: prefs?.vpnAutoConnect ?? false,
               onChanged: tap == null ? null : (_) => tap(),
@@ -630,7 +628,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
               onTap: _removeVpn,
               builder: (tap) => ListTile(
                 leading: const IconBadge(icon: Icons.delete_outline),
-                title: const Text('Remove WireGuard profile'),
+                title: Text(l10n.powerUserRemoveWireGuard),
                 onTap: tap,
               ),
             ),
@@ -639,8 +637,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
               onTap: _changeOpenVpnLogin,
               builder: (tap) => ListTile(
                 leading: const IconBadge(icon: Icons.password),
-                title: const Text('Change OpenVPN login'),
-                subtitle: Text('Signed in as ${ovpn.user}',
+                title: Text(l10n.powerUserChangeOvpnLogin),
+                subtitle: Text(l10n.powerUserSignedInAs(ovpn.user!),
                     style: theme.textTheme.bodySmall),
                 onTap: tap,
               ),
@@ -650,7 +648,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
               onTap: _removeOpenVpn,
               builder: (tap) => ListTile(
                 leading: const IconBadge(icon: Icons.delete_outline),
-                title: const Text('Remove OpenVPN profile'),
+                title: Text(l10n.powerUserRemoveOpenVpn),
                 onTap: tap,
               ),
             ),
@@ -659,11 +657,11 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     );
   }
 
-  static String _ago(DateTime t) {
+  static String _ago(AppLocalizations l10n, DateTime t) {
     final s = DateTime.now().difference(t).inSeconds;
-    if (s < 5) return 'just now';
-    if (s < 60) return '${s}s ago';
-    return '${s ~/ 60} min ago';
+    if (s < 5) return l10n.powerUserJustNow;
+    if (s < 60) return l10n.powerUserSecondsAgo(s);
+    return l10n.powerUserMinutesAgo(s ~/ 60);
   }
 
   // ---------------------------------------------------------------------------
@@ -677,6 +675,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   /// there is one (full speed), else a live channel (shows whether the
   /// connection keeps up). Tries a few links, since some may be dead.
   Future<void> _testProvider() async {
+    final l10n = AppLocalizations.of(context);
     if (_provider.running || _internet.running) return;
     setState(() => _provider = const _SpeedRun(running: true));
     final db = ref.read(appDatabaseProvider);
@@ -699,13 +698,13 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     setState(() => _provider = result == null
         ? _SpeedRun(
             error: candidates.isEmpty
-                ? 'This playlist has nothing to test with yet.'
-                : "Couldn't download from your provider. It may be busy, "
-                    'or your plan may allow only one connection at a time.')
+                ? l10n.powerUserSpeedNothingToTest
+                : l10n.powerUserSpeedProviderFailed)
         : _SpeedRun(result: result));
   }
 
   Future<void> _testInternet() async {
+    final l10n = AppLocalizations.of(context);
     if (_provider.running || _internet.running) return;
     setState(() => _internet = const _SpeedRun(running: true));
     SpeedResult? result;
@@ -715,8 +714,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     } catch (_) {}
     if (!mounted) return;
     setState(() => _internet = result == null
-        ? const _SpeedRun(error: "Couldn't run the test. Check your "
-            'connection and try again.')
+        ? _SpeedRun(error: l10n.powerUserSpeedInternetFailed)
         : _SpeedRun(result: result));
   }
 
@@ -732,24 +730,22 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Widget _speedGroup() {
+    final l10n = AppLocalizations.of(context);
     return SettingsGroup(
-      title: 'Speed test',
-      description: 'Measures how fast video arrives. The provider test uses '
-          'one connection to your provider — if your plan allows only one '
-          'at a time, stop watching on other devices first.',
+      title: l10n.powerUserSpeedTitle,
+      description: l10n.powerUserSpeedDescription,
       children: [
         _speedRow(
           icon: Icons.speed,
-          label: 'Speed to your provider',
-          idle: 'Downloads from the playlist you are browsing for a few '
-              'seconds.',
+          label: l10n.powerUserSpeedProviderLabel,
+          idle: l10n.powerUserSpeedProviderIdle,
           run: _provider,
           onRun: _testProvider,
         ),
         _speedRow(
           icon: Icons.language,
-          label: 'General internet speed',
-          idle: 'Downloads a test file from $kInternetSpeedHost.',
+          label: l10n.powerUserSpeedInternetLabel,
+          idle: l10n.powerUserSpeedInternetIdle(kInternetSpeedHost),
           run: _internet,
           onRun: _testInternet,
         ),
@@ -764,18 +760,19 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     required _SpeedRun run,
     required VoidCallback onRun,
   }) {
+    final l10n = AppLocalizations.of(context);
     final r = run.result;
     final String value;
     if (run.running) {
       value = run.liveMbps == null
-          ? 'Connecting…'
-          : 'Testing… ${run.liveMbps!.toStringAsFixed(1)} Mbit/s';
+          ? l10n.powerUserSpeedConnecting
+          : l10n.powerUserSpeedTesting(run.liveMbps!.toStringAsFixed(1));
     } else if (r != null) {
-      value = '${r.mbps.toStringAsFixed(1)} Mbit/s — ${r.verdict}\n'
-          'Response time ${r.firstByte.inMilliseconds} ms'
-          '${r.paced ? '\nMeasured on a live channel, which arrives at '
-              'playback speed — this shows it keeps up, not your top '
-              'speed.' : ''}';
+      final result = l10n.powerUserSpeedResult(r.mbps.toStringAsFixed(1),
+          r.verdict(l10n), r.firstByte.inMilliseconds);
+      value = r.paced
+          ? '$result\n${l10n.powerUserSpeedPacedNote}'
+          : result;
     } else {
       value = run.error ?? idle;
     }
@@ -788,7 +785,9 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         onTap: run.running ? () {} : onRun,
         builder: (onTap) => TextButton(
           onPressed: onTap,
-          child: Text(r == null && run.error == null ? 'Run' : 'Run again'),
+          child: Text(r == null && run.error == null
+              ? l10n.powerUserRun
+              : l10n.powerUserRunAgain),
         ),
       ),
     );
@@ -796,6 +795,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   // Moved here from the main Settings list so a stray OK can't flip it.
   Widget _databaseGroup() {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final skip = prefs?.skipDbEncryption ?? false;
 
@@ -804,24 +804,21 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(enable
-              ? 'Skip Database Encryption?'
-              : 'Turn Database Encryption back on?'),
+              ? l10n.powerUserDbSkipQuestion
+              : l10n.powerUserDbTurnOnQuestion),
           content: Text(enable
-              ? 'This will store your database (including playlist '
-                  'credentials and stream links) unencrypted on disk. '
-                  'Anyone with access to the device can read it. The app '
-                  'must be restarted for the change to take effect.'
-              : 'Your database will be encrypted again, which is safer but '
-                  'can be slower on older TVs. The app will restart to '
-                  'apply it.'),
+              ? l10n.powerUserDbSkipBody
+              : l10n.powerUserDbTurnOnBody),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(enable ? 'Enable' : 'Turn On'),
+              child: Text(enable
+                  ? l10n.powerUserDbEnable
+                  : l10n.powerUserDbTurnOn),
             ),
           ],
         ),
@@ -834,13 +831,12 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Reopen OpenIPTV to finish'),
-          content: const Text('The database encryption mode has changed. '
-              'OpenIPTV will close now. Open it again to apply the change.'),
+          title: Text(l10n.powerUserDbReopenTitle),
+          content: Text(l10n.powerUserDbReopenBody),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close OpenIPTV'),
+              child: Text(l10n.powerUserDbClose),
             ),
           ],
         ),
@@ -849,16 +845,14 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     }
 
     return SettingsGroup(
-      title: 'Database',
-      description: 'The database holds your playlists, logins and watch '
-          'history, and is encrypted on the device. Turning encryption off '
-          'can make very slow TVs faster.',
+      title: l10n.powerUserDbTitle,
+      description: l10n.powerUserDbDescription,
       children: [
         TvActivatable(
           onTap: () => change(!skip),
           builder: (tap) => SwitchListTile(
             secondary: const IconBadge(icon: Icons.lock_open),
-            title: const Text('Skip Database Encryption'),
+            title: Text(l10n.powerUserDbSkipTitle),
             value: skip,
             onChanged: tap == null ? null : (_) => tap(),
           ),
@@ -868,13 +862,12 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Widget _bufferGroup() {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final current = BufferPreset.fromId(prefs?.bufferPreset);
     return SettingsGroup(
-      title: 'Playback buffer',
-      description: 'How much video the player keeps in reserve. A bigger '
-          'reserve rides out a shaky connection but takes longer to start. '
-          'Applies from the next channel or video you open.',
+      title: l10n.powerUserBufferTitle,
+      description: l10n.powerUserBufferDescription,
       children: [
         for (final preset in BufferPreset.values)
           TvActivatable(
@@ -891,8 +884,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                     ? Theme.of(context).colorScheme.primary
                     : null,
               ),
-              title: Text(preset.label),
-              subtitle: Text(preset.description,
+              title: Text(preset.label(l10n)),
+              subtitle: Text(preset.description(l10n),
                   style: Theme.of(context).textTheme.bodySmall),
               onTap: tap,
             ),
@@ -902,6 +895,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Widget _imageQualityGroup() {
+    final l10n = AppLocalizations.of(context);
     final on = ref.watch(fullResImagesProvider);
     Future<void> change(bool v) async {
       final prefs = await ref.read(appPreferencesProvider.future);
@@ -909,19 +903,14 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     }
 
     return SettingsGroup(
-      title: 'Pictures',
-      description: 'Posters, channel logos and backdrops are shown in full '
-          'resolution, for the sharpest pictures. Turn this off to show '
-          'them at about the size they are drawn instead, which uses less '
-          'memory. Try that if the app ever feels slow or restarts on a '
-          'TV or phone with little memory. Takes effect straight away; no '
-          're-download needed.',
+      title: l10n.powerUserPicturesTitle,
+      description: l10n.powerUserPicturesDescription,
       children: [
         TvActivatable(
           onTap: () => change(!on),
           builder: (tap) => SwitchListTile(
             secondary: const IconBadge(icon: Icons.high_quality_outlined),
-            title: const Text('Full-Resolution Pictures'),
+            title: Text(l10n.powerUserFullResTitle),
             value: on,
             onChanged: tap == null ? null : (_) => tap(),
           ),
@@ -931,6 +920,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Widget _frameRateGroup() {
+    final l10n = AppLocalizations.of(context);
     final on = ref.watch(autoFrameRateProvider);
     Future<void> change(bool v) async {
       final prefs = await ref.read(appPreferencesProvider.future);
@@ -938,18 +928,14 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     }
 
     return SettingsGroup(
-      title: 'Match frame rate',
-      description: 'Switches your screen to a refresh rate that suits the '
-          'video (for example 24 Hz for films), so motion looks smoother. '
-          'Only works if your screen supports it, and some TVs go black for '
-          'a moment when it switches. The screen goes back to normal when '
-          'you stop watching.',
+      title: l10n.powerUserFrameRateTitle,
+      description: l10n.powerUserFrameRateDescription,
       children: [
         TvActivatable(
           onTap: () => change(!on),
           builder: (tap) => SwitchListTile(
             secondary: const IconBadge(icon: Icons.speed_rounded),
-            title: const Text('Match Frame Rate'),
+            title: Text(l10n.powerUserFrameRateSwitch),
             value: on,
             onChanged: tap == null ? null : (_) => tap(),
           ),
@@ -969,6 +955,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     required String offText,
   }) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     Widget row(String id, String label, String text) => TvActivatable(
           onTap: () async {
             await save(id);
@@ -996,45 +983,38 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
       title: title,
       description: description,
       children: [
-        row('auto', 'Automatic', autoText),
-        row('on', 'On', onText),
-        row('off', 'Off', offText),
+        row('auto', l10n.powerUserAutomatic, autoText),
+        row('on', l10n.powerUserOn, onText),
+        row('off', l10n.powerUserOff, offText),
       ],
     );
   }
 
   Widget _passthroughGroup() {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     return _outputGroup(
-      title: 'Surround sound passthrough',
-      description: 'Sends Dolby and DTS sound untouched to a soundbar, '
-          'receiver or TV that decodes it. It pauses by itself while '
-          'Multi-view is on.',
+      title: l10n.powerUserPassthroughTitle,
+      description: l10n.powerUserPassthroughDescription,
       current: prefs?.audioPassthrough ?? 'auto',
       save: (v) async => prefs?.setAudioPassthrough(v),
-      autoText: 'Uses it when your sound system says it can. Recommended.',
-      onText: 'Always send surround sound as it is. Only if a soundbar or '
-          'receiver can decode it, otherwise you may get no sound.',
-      offText: 'The device always decodes the sound itself. Pick this for '
-          'built-in TV speakers or if the sound cuts out or crackles.',
+      autoText: l10n.powerUserPassthroughAuto,
+      onText: l10n.powerUserPassthroughOn,
+      offText: l10n.powerUserPassthroughOff,
     );
   }
 
   Widget _tunnelingGroup() {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     return _outputGroup(
-      title: 'Tunneled playback',
-      description: 'Lets the video and sound chips work together directly, '
-          'which can ease stutter on demanding streams. It pauses by itself '
-          'while Multi-view is on.',
+      title: l10n.powerUserTunnelingTitle,
+      description: l10n.powerUserTunnelingDescription,
       current: prefs?.tunneledPlayback ?? 'auto',
       save: (v) async => prefs?.setTunneledPlayback(v),
-      autoText: 'Used only on devices where it has been checked to work. '
-          'Recommended.',
-      onText: 'Experimental, live channels only. If it stalls or shows a black '
-          'picture, OpenIPTV switches it off by itself; you can also turn it '
-          'off here.',
-      offText: 'Never used.',
+      autoText: l10n.powerUserTunnelingAuto,
+      onText: l10n.powerUserTunnelingOn,
+      offText: l10n.powerUserTunnelingOff,
     );
   }
 
@@ -1047,13 +1027,12 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   Widget _layerGroup() {
     final info = _layer;
     if (info == null) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return SettingsGroup(
-      title: 'Video layer',
-      description: 'Shows the main picture the way TV players do: smoother '
-          'motion, quicker channel changes, and what tunneled playback needs. '
-          'Takes effect when the app restarts.\nIn use now: '
-          '${info.active ? 'Yes' : 'No'}.',
+      title: l10n.powerUserLayerTitle,
+      description: '${l10n.powerUserLayerDescription}\n'
+          '${l10n.powerUserInUseNow(info.active ? l10n.powerUserYes : l10n.powerUserNo)}',
       children: [
         for (final mode in VideoLayerSetting.values)
           TvActivatable(
@@ -1065,9 +1044,9 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                     : Icons.radio_button_unchecked,
                 color: mode == info.setting ? theme.colorScheme.primary : null,
               ),
-              title: Text(mode.label),
-              subtitle:
-                  Text(mode.description, style: theme.textTheme.bodySmall),
+              title: Text(mode.label(l10n)),
+              subtitle: Text(mode.description(l10n),
+                  style: theme.textTheme.bodySmall),
               onTap: tap,
             ),
           ),
@@ -1076,12 +1055,13 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Future<void> _pickLayer(VideoLayerSetting mode) async {
+    final l10n = AppLocalizations.of(context);
     final before = _layer;
     if (before == null || mode == before.setting) return;
     final after = await setVideoLayerMode(mode);
     if (!mounted) return;
     if (after == null) {
-      _say("Couldn't change the video layer setting.");
+      _say(l10n.powerUserLayerChangeFailed);
       return;
     }
     setState(() => _layer = after);
@@ -1089,24 +1069,23 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     final restart = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Restart to apply?'),
-        content: const Text('OpenIPTV needs to restart to change how it '
-            'shows the picture. Anything playing will stop.'),
+        title: Text(l10n.powerUserRestartTitle),
+        content: Text(l10n.powerUserRestartLayerBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Later'),
+            child: Text(l10n.powerUserLater),
           ),
           FilledButton(
             autofocus: true,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Restart now'),
+            child: Text(l10n.powerUserRestartNow),
           ),
         ],
       ),
     );
     if (restart == true && !await restartApp() && mounted) {
-      _say("Couldn't restart. Close and open OpenIPTV to apply it.");
+      _say(l10n.powerUserRestartFailed);
     }
   }
 
@@ -1124,14 +1103,16 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     }
     // Non-null from here: showGraphicsMode checked it.
     final current = info!;
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final activeMode = current.active == 'compat'
+        ? GraphicsModeSetting.compatibility
+        : GraphicsModeSetting.standard;
     return SettingsGroup(
-      title: 'Graphics mode',
-      description: 'How OpenIPTV draws the screen and the video. If the '
-          'picture looks torn (a line across it) or jittery on fast motion, '
-          'try Compatible. Takes effect when the app restarts.'
-          '${current.chip == null ? '' : '\nThis device: ${current.chip}.'}'
-          '\nIn use now: ${current.active == 'compat' ? 'Compatible' : 'Standard'}.',
+      title: l10n.powerUserGraphicsTitle,
+      description: '${l10n.powerUserGraphicsDescription}'
+          '${current.chip == null ? '' : '\n${l10n.powerUserGraphicsThisDevice(current.chip!)}'}'
+          '\n${l10n.powerUserInUseNow(activeMode.label(l10n))}',
       children: [
         for (final mode in GraphicsModeSetting.values)
           TvActivatable(
@@ -1143,9 +1124,9 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                     : Icons.radio_button_unchecked,
                 color: mode == current.setting ? theme.colorScheme.primary : null,
               ),
-              title: Text(mode.label),
-              subtitle:
-                  Text(mode.description, style: theme.textTheme.bodySmall),
+              title: Text(mode.label(l10n)),
+              subtitle: Text(mode.description(l10n),
+                  style: theme.textTheme.bodySmall),
               onTap: tap,
             ),
           ),
@@ -1154,12 +1135,13 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Future<void> _pickGraphics(GraphicsModeSetting mode) async {
+    final l10n = AppLocalizations.of(context);
     final before = _graphics;
     if (before == null || mode == before.setting) return;
     final after = await setGraphicsMode(mode);
     if (!mounted) return;
     if (after == null) {
-      _say("Couldn't change the graphics mode.");
+      _say(l10n.powerUserGraphicsChangeFailed);
       return;
     }
     setState(() => _graphics = after);
@@ -1167,45 +1149,41 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     final restart = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Restart to apply?'),
-        content: const Text('OpenIPTV needs to restart to change how it '
-            'draws the screen. Anything playing will stop.'),
+        title: Text(l10n.powerUserRestartTitle),
+        content: Text(l10n.powerUserRestartGraphicsBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Later'),
+            child: Text(l10n.powerUserLater),
           ),
           FilledButton(
             autofocus: true,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Restart now'),
+            child: Text(l10n.powerUserRestartNow),
           ),
         ],
       ),
     );
     if (restart == true && !await restartApp() && mounted) {
-      _say("Couldn't restart. Close and open OpenIPTV to apply it.");
+      _say(l10n.powerUserRestartFailed);
     }
   }
 
   Widget _userAgentGroup() {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final custom = prefs?.userAgent;
     return SettingsGroup(
-      title: 'User agent',
-      description: 'How the player introduces itself to your provider. '
-          'OpenIPTV sends its own name, version and device. Change it only '
-          'if your provider asks for a particular one. Each extra channel '
-          'in multi-view adds its own tag on the end, so your provider can '
-          'tell them apart. Applies from the next channel you open.',
+      title: l10n.powerUserUaTitle,
+      description: l10n.powerUserUaDescription,
       children: [
         TvActivatable(
           onTap: _editUserAgent,
           builder: (tap) => ListTile(
             leading: const IconBadge(icon: Icons.badge_outlined),
-            title: const Text('Player user agent'),
+            title: Text(l10n.powerUserUaRow),
             subtitle: Text(
-              custom ?? 'OpenIPTV (default)',
+              custom ?? l10n.powerUserUaDefault,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             trailing: const Icon(Icons.edit_outlined),
@@ -1217,6 +1195,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Future<void> _editUserAgent() async {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.read(appPreferencesProvider).valueOrNull;
     if (prefs == null) return;
     final controller = TextEditingController(text: prefs.userAgent ?? '');
@@ -1235,12 +1214,12 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
           }
 
           return AlertDialog(
-            title: const Text('User agent'),
+            title: Text(l10n.powerUserUaTitle),
             scrollable: true,
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Leave it empty to use OpenIPTV\'s own.'),
+                Text(l10n.powerUserUaEmptyNote),
                 const SizedBox(height: 12),
                 TvTextFieldGate(
                   autofocus: true,
@@ -1251,8 +1230,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                     enableSuggestions: false,
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
-                      labelText: 'User agent',
-                      hintText: 'e.g. VLC/3.0.20 LibVLC/3.0.20',
+                      labelText: l10n.powerUserUaTitle,
+                      hintText: l10n.powerUserUaHint,
                       errorText: error,
                     ),
                     onSubmitted: (_) => trySave(),
@@ -1267,17 +1246,17 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
                   Navigator.of(ctx).pop(true);
                 },
                 builder: (onTap) => TextButton(
-                    onPressed: onTap, child: const Text('Use default')),
+                    onPressed: onTap, child: Text(l10n.powerUserUseDefault)),
               ),
               TvActivatable(
                 onTap: () => Navigator.of(ctx).pop(false),
-                builder: (onTap) =>
-                    TextButton(onPressed: onTap, child: const Text('Cancel')),
+                builder: (onTap) => TextButton(
+                    onPressed: onTap, child: Text(l10n.commonCancel)),
               ),
               TvActivatable(
                 onTap: trySave,
-                builder: (onTap) =>
-                    FilledButton(onPressed: onTap, child: const Text('Save')),
+                builder: (onTap) => FilledButton(
+                    onPressed: onTap, child: Text(l10n.powerUserSave)),
               ),
             ],
           );
@@ -1292,30 +1271,31 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   }
 
   Widget _publicIpRow(ThemeData theme) {
+    final l10n = AppLocalizations.of(context);
     final ip = _publicIp;
     final String value;
     if (_checkingPublicIp) {
-      value = 'Checking…';
+      value = l10n.powerUserChecking;
     } else if (ip != null) {
       value = ip;
     } else if (_publicIpFailed) {
-      value = "Couldn't check right now. Try again.";
+      value = l10n.powerUserCheckFailed;
     } else {
-      value = 'The address your provider sees. Checking asks '
-          '$kPublicIpService.';
+      value = l10n.powerUserPublicIpIdle(kPublicIpService);
     }
     return _InfoRow(
       icon: Icons.public,
-      label: 'Public IP address',
+      label: l10n.powerUserPublicIp,
       value: value,
-      onTap: _copier('Public IP address', ip),
+      onTap: _copier(l10n.powerUserPublicIp, ip),
       // Stays enabled (a no-op while checking): disabling it removed the
       // remote's focus, which jumped to another row.
       trailing: TvActivatable(
         onTap: _checkingPublicIp ? () {} : _checkPublicIp,
         builder: (onTap) => TextButton(
           onPressed: onTap,
-          child: Text(ip == null ? 'Check' : 'Check again'),
+          child: Text(
+              ip == null ? l10n.powerUserCheck : l10n.powerUserCheckAgain),
         ),
       ),
     );

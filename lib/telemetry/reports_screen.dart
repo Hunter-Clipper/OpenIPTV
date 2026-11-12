@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/telemetry/telemetry.dart';
@@ -44,6 +45,7 @@ class _AnonymousReportsScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final on = ref.watch(statsChoiceProvider) == StatsChoice.on;
     final tv = PlatformHelper.isTV(context);
 
@@ -62,7 +64,7 @@ class _AnonymousReportsScreenState
         );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Anonymous Reports')),
+      appBar: AppBar(title: Text(l10n.reportsTitle)),
       body: SingleChildScrollView(
         padding:
             EdgeInsets.only(bottom: 32 + MediaQuery.paddingOf(context).bottom),
@@ -73,41 +75,23 @@ class _AnonymousReportsScreenState
               autofocus: tv,
               onTap: () => _set(!on),
               builder: (_) => SwitchListTile(
-                title: const Text('Send anonymous crash reports'),
-                subtitle: const Text(
-                    'Off unless you turn it on. Helps fix crashes faster.'),
+                title: Text(l10n.reportsSwitchTitle),
+                subtitle: Text(l10n.reportsSwitchSubtitle),
                 value: on,
                 onChanged: _set,
               ),
             ),
             block(Text(
-              'When the app crashes or freezes, a short report is saved on this '
-              'device and sent in the background soon after, never more than '
-              'once every 10 minutes. It cannot be '
-              'tied to you or to anything you watch.',
+              l10n.reportsIntro,
               style: theme.textTheme.bodyMedium,
             )),
-            heading('A report contains only this'),
-            block(const Text(
-              '• App version\n'
-              '• Android version\n'
-              '• Device maker and model\n'
-              '• The date (no time)\n'
-              '• What kind of problem (crash or freeze) and its name only\n'
-              '• Where in the code it happened (up to 30 lines)',
-            )),
-            heading('Never included'),
-            block(const Text(
-              '• Playlists, logins, passwords or links\n'
-              '• Channel, movie or series names, or what you watch\n'
-              '• Search text, profile names or settings\n'
-              '• IP addresses, device IDs, or any ID that '
-              'could tie reports together\n'
-              '• Error messages (they can contain links or names)',
-            )),
-            heading('Waiting to be sent from this device'),
+            heading(l10n.reportsContainsHeading),
+            block(Text(l10n.reportsContainsList)),
+            heading(l10n.reportsNeverHeading),
+            block(Text(l10n.reportsNeverList)),
+            heading(l10n.reportsWaitingHeading),
             block(_queued.isEmpty
-                ? const Text('Nothing is waiting.')
+                ? Text(l10n.reportsNothingWaiting)
                 : SelectableText(
                     const JsonEncoder.withIndent('  ').convert(_queued),
                     style: theme.textTheme.bodySmall
@@ -125,16 +109,12 @@ class _AnonymousReportsScreenState
                     },
                     builder: (onTap) => OutlinedButton(
                         onPressed: onTap,
-                        child: const Text('Delete waiting reports')),
+                        child: Text(l10n.reportsDeleteWaiting)),
                   ),
                 ),
               ),
-            heading('Check the code'),
-            block(const Text(
-              'All of it lives in lib/telemetry/ in the OpenIPTV GitHub '
-              'repository, with a short design note in docs/design/'
-              'anonymous-stats.md.',
-            )),
+            heading(l10n.reportsCheckCodeHeading),
+            block(Text(l10n.reportsCheckCodeBody)),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 class AppTheme {
   AppTheme._();
@@ -62,6 +63,19 @@ class AppTheme {
     (label: 'Green', color: Color(0xFF30D158)),
     (label: 'Teal', color: Color(0xFF5AC8FA)),
   ];
+
+  /// The swatch's name in the app language, for the swatch at [index] of
+  /// [accentSwatches]. (The English `label` in the list is only a fallback.)
+  static String accentLabel(AppLocalizations l10n, int index) =>
+      switch (index) {
+        0 => l10n.settingsAccentBlue,
+        1 => l10n.settingsAccentPurple,
+        2 => l10n.settingsAccentPink,
+        3 => l10n.settingsAccentOrange,
+        4 => l10n.settingsAccentGreen,
+        5 => l10n.settingsAccentTeal,
+        _ => accentSwatches[index].label,
+      };
 
   // Public accessors so one-off screens (e.g. the setup wizard, which draws
   // its own gradient background before the app's theme is fully "committed")

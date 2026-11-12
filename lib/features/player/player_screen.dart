@@ -33,6 +33,7 @@ import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/core/services/video_layer_mode.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -319,14 +320,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // else reconnects now instead of waiting for the stall timer.
     _noticeSub = NativeVideoPlayer.outputNotices.listen((feature) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       final text = switch (feature) {
-        'audioDelay' => "The audio delay didn't work with this stream, so it "
-            'was set back to None. Playback carries on as normal.',
-        'passthrough' => "Surround sound passthrough didn't work on this "
-            'device, so it was switched off and the sound is playing '
-            'normally. You can try it again in Power User Tools.',
-        _ => "Tunneled playback didn't work on this device, so it was "
-            'switched off. You can try it again in Power User Tools.',
+        'audioDelay' => l10n.playerNoticeAudioDelay,
+        'passthrough' => l10n.playerNoticePassthrough,
+        _ => l10n.playerNoticeTunneled,
       };
       ScaffoldMessenger.maybeOf(context)
           ?.showSnackBar(SnackBar(content: Text(text)));
@@ -334,15 +332,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _errorSub = _playbackService.errorStream.listen((e) {
       if (!mounted || _casting) return;
       if (e.isPermanent) {
+        final l10n = AppLocalizations.of(context);
         setState(() {
           _playbackFailed = true;
           _isRecovering = false;
           _isBuffering = true;
           _errorMessage = e.httpStatus == 401 || e.httpStatus == 403
-              ? "Your provider didn't allow this stream."
+              ? l10n.playerErrorProviderRefused
               : _isChannelPlayback
-                  ? "This channel isn't available from your provider right now."
-                  : "This title isn't available from your provider right now.";
+                  ? l10n.playerErrorChannelProvider
+                  : l10n.playerErrorTitleProvider;
         });
       } else if (!_reconnecting && !_playbackGaveUp) {
         _applyWatchdog(_watchdog.onError(DateTime.now()));
@@ -1027,9 +1026,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  String _castFailedMessage(CastStatus s) =>
-      "This ${_isChannelPlayback ? 'channel' : 'title'} can't be played on "
-      "${s.device ?? 'this device'}. Stop casting to watch it here.";
+  String _castFailedMessage(CastStatus s) {
+    final l10n = AppLocalizations.of(context);
+    final device = s.device ?? l10n.castThisDevice;
+    return _isChannelPlayback
+        ? l10n.castFailedChannel(device)
+        : l10n.castFailedTitle(device);
+  }
 
   Future<void> _startCasting(Duration? start) async {
     setState(() {
@@ -1125,16 +1128,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Resume Watching?'),
-        content: Text('Continue from ${formatClock(position)}?'),
+        title: Text(AppLocalizations.of(ctx).playerResumeTitle),
+        content: Text(
+            AppLocalizations.of(ctx).playerResumeBody(formatClock(position))),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Start Over'),
+            child: Text(AppLocalizations.of(ctx).playerStartOver),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Resume'),
+            child: Text(AppLocalizations.of(ctx).playerResume),
           ),
         ],
       ),
@@ -1343,7 +1347,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             firstAdded: added,
             mainLoading: _isBuffering && !_playbackGaveUp,
             mainMessage: _playbackGaveUp
-                ? (_errorMessage ?? "This channel isn't available right now.")
+                ? (_errorMessage ??
+                    AppLocalizations.of(context).playerChannelUnavailableNow)
                 : null,
             onSwapMain: _playOnMain,
             onRemoveMain: _parkMain,
@@ -1386,8 +1391,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           onKeyEvent: _handleKeyEvent,
           child: Semantics(
             button: true,
-            label: 'Video',
-            hint: 'Double tap to show or hide the playback controls',
+            label: AppLocalizations.of(context).playerVideoSemantics,
+            hint: AppLocalizations.of(context).playerVideoSemanticsHint,
             child: GestureDetector(
             onTap: _onTap,
             // Swipe left (from anywhere) for the channel list on Live TV.
@@ -1451,9 +1456,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 title: _titleForControls,
                                 status: _isRecovering
                                     ? _watchdog.everPlayed
-                                        ? 'Reconnecting…'
-                                        : 'Reconnecting… (${_watchdog.attempts} '
-                                            'of ${_watchdog.maxAttemptsBeforePlaying})'
+                                        ? AppLocalizations.of(context)
+                                            .playerReconnecting
+                                        : AppLocalizations.of(context)
+                                            .playerReconnectingAttempt(
+                                                _watchdog.attempts,
+                                                _watchdog
+                                                    .maxAttemptsBeforePlaying)
                                     : null,
                               ),
                       ),
@@ -1673,7 +1682,7 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Up next',
+                    Text(AppLocalizations.of(context).playerUpNext,
                         style: theme.textTheme.labelLarge!
                             .copyWith(color: scheme.primary)),
                     const SizedBox(height: 4),
@@ -1717,7 +1726,7 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                                   ],
                                 ),
                               ),
-                              label: const Text('Play now'),
+                              label: Text(AppLocalizations.of(context).playerPlayNow),
                             ),
                           ),
                         ),
@@ -1726,7 +1735,7 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                           onTap: widget.onDismiss,
                           builder: (onTap) => TextButton(
                             onPressed: onTap,
-                            child: const Text('Cancel'),
+                            child: Text(AppLocalizations.of(context).commonCancel),
                           ),
                         ),
                       ],
@@ -1869,7 +1878,7 @@ class _ErrorOverlayState extends State<_ErrorOverlay> {
             ),
             const SizedBox(height: 18),
             Text(
-              message ?? "This stream isn't playing right now",
+              message ?? AppLocalizations.of(context).playerStreamNotPlaying,
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge!
                   .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
@@ -1896,7 +1905,7 @@ class _ErrorOverlayState extends State<_ErrorOverlay> {
                     onPressed: onTap,
                     style: FilledButton.styleFrom(shape: const StadiumBorder()),
                     icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Try again'),
+                    label: Text(AppLocalizations.of(context).playerTryAgain),
                   ),
                 ),
                 if (onChannels != null)
@@ -1906,7 +1915,7 @@ class _ErrorOverlayState extends State<_ErrorOverlay> {
                       onPressed: onTap,
                       style: _outlined,
                       icon: const Icon(Icons.format_list_bulleted_rounded),
-                      label: const Text('Channels'),
+                      label: Text(AppLocalizations.of(context).playerChannels),
                     ),
                   ),
                 TvActivatable(
@@ -1915,7 +1924,7 @@ class _ErrorOverlayState extends State<_ErrorOverlay> {
                     onPressed: onTap,
                     style: _outlined,
                     icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('Go back'),
+                    label: Text(AppLocalizations.of(context).playerGoBack),
                   ),
                 ),
               ],

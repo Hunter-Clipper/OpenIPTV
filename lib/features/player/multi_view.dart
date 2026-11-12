@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/features/player/channel_switcher.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
 import 'package:open_iptv/features/player/stream_watchdog.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/video_surface.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -159,23 +160,25 @@ class MultiViewState extends State<MultiView> {
     final t = _tiles[i];
     final action = await showPlayerSheet<_TileAction>(
       context,
-      (ctx) => PlayerSheet(
+      (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return PlayerSheet(
         title: context.channelName(t.channel),
         children: [
           _OptionTile(
             icon: Icons.fullscreen_rounded,
-            label: 'Full screen',
+            label: l10n.multiViewFullScreen,
             autofocus: true,
             onTap: () => Navigator.pop(ctx, _TileAction.fullScreen),
           ),
           _OptionTile(
             icon: Icons.swap_horiz_rounded,
-            label: 'Swap channel',
+            label: l10n.multiViewSwap,
             onTap: () => Navigator.pop(ctx, _TileAction.swap),
           ),
           _OptionTile(
             icon: Icons.add_to_queue_rounded,
-            label: 'Add a channel',
+            label: l10n.multiViewAdd,
             onTap: () => Navigator.pop(ctx, _TileAction.add),
           ),
           if (_tiles.length >= 3)
@@ -183,8 +186,11 @@ class MultiViewState extends State<MultiView> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: OptionRow<bool>(
                 icon: Icons.dashboard_rounded,
-                label: 'Layout',
-                options: const [(false, 'Equal grid'), (true, 'One big')],
+                label: l10n.multiViewLayout,
+                options: [
+                  (false, l10n.multiViewEqualGrid),
+                  (true, l10n.multiViewOneBig),
+                ],
                 selected: _isFeatured,
                 onSelected: (featured) {
                   setState(() => _featured = featured);
@@ -194,11 +200,12 @@ class MultiViewState extends State<MultiView> {
             ),
           _OptionTile(
             icon: Icons.close_rounded,
-            label: 'Remove',
+            label: l10n.multiViewRemove,
             onTap: () => Navigator.pop(ctx, _TileAction.remove),
           ),
         ],
-      ),
+      );
+      },
     );
     if (!mounted) return;
     switch (action) {
@@ -337,8 +344,8 @@ class MultiViewState extends State<MultiView> {
                     selected: i == _highlight,
                     label: context.channelName(_tiles[i].channel),
                     hint: i == _highlight
-                        ? 'Double tap for options'
-                        : 'Double tap to hear this channel',
+                        ? AppLocalizations.of(context).multiViewHintOptions
+                        : AppLocalizations.of(context).multiViewHintHear,
                     excludeSemantics: true,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -459,6 +466,9 @@ class _Tile {
       states.map((s) => s.aspectRatio).distinct();
 }
 
+/// Why an added tile stopped; shown as plain-English text in the tile.
+enum _TileFailure { noDecoder, providerRefused, unavailable }
+
 /// An added channel's own player, with its own freeze check and
 /// plain-English messages.
 class _ExtraPlayer {
@@ -483,8 +493,8 @@ class _ExtraPlayer {
 
   int? textureId;
   NativeVideoPlayerState? last;
-  String? message;
-  bool get loading => message == null && _dog.loading;
+  _TileFailure? failure;
+  bool get loading => failure == null && _dog.loading;
 
   int _openCount = 0;
   bool _audible = false;
@@ -527,7 +537,7 @@ class _ExtraPlayer {
 
   void tune(String url) {
     _url = url;
-    message = null;
+    failure = null;
     _dog.reset();
     unawaited(_open());
     onChange();
@@ -541,7 +551,7 @@ class _ExtraPlayer {
 
   void _check() {
     final s = last;
-    if (_disposed || s == null || message != null) return;
+    if (_disposed || s == null || failure != null) return;
     final wasLoading = _dog.loading;
     final action =
         _dog.check(s, now: DateTime.now(), openCount: _openCount, live: true);
@@ -550,16 +560,16 @@ class _ExtraPlayer {
   }
 
   void _onError(NativePlaybackError e) {
-    if (_disposed || message != null) return;
+    if (_disposed || failure != null) return;
     final code = e.code.toUpperCase();
     final http = e.httpStatus;
     debugPrint('[OTV-mv] extra#$textureId error code=$code http=$http');
     if (code.contains('DECODER') || code.contains('DECODING')) {
-      _fail("This device can't play another channel at the same time.");
+      _fail(_TileFailure.noDecoder);
     } else if (const {401, 403, 429, 458, 509, 551}.contains(http)) {
-      _fail("Your provider didn't allow another stream.");
+      _fail(_TileFailure.providerRefused);
     } else if (e.isPermanent) {
-      _fail("This channel isn't available right now.");
+      _fail(_TileFailure.unavailable);
     } else {
       _act(_dog.onError(DateTime.now()));
     }
@@ -574,15 +584,15 @@ class _ExtraPlayer {
       case WatchdogAction.reconnect:
         unawaited(_open());
       case WatchdogAction.giveUp:
-        _fail("This channel isn't available right now.");
+        _fail(_TileFailure.unavailable);
       case WatchdogAction.none:
         break;
     }
   }
 
-  void _fail(String text) {
-    debugPrint('[OTV-mv] extra#$textureId failed: $text');
-    message = text;
+  void _fail(_TileFailure why) {
+    debugPrint('[OTV-mv] extra#$textureId failed: ${why.name}');
+    failure = why;
     // Free the provider connection.
     unawaited(_player.stop());
     onChange();
@@ -625,6 +635,7 @@ class _TileView extends StatelessWidget {
     final double? knownAspect;
     final bool loading;
     final String? message;
+    final l10n = AppLocalizations.of(context);
     if (extra == null) {
       textureId = playbackService.hasTexture ? playbackService.textureId : null;
       states = playbackService.stateStream;
@@ -636,7 +647,12 @@ class _TileView extends StatelessWidget {
       states = extra.stateStream;
       knownAspect = extra.last?.aspectRatio;
       loading = extra.loading;
-      message = extra.message;
+      message = switch (extra.failure) {
+        null => null,
+        _TileFailure.noDecoder => l10n.multiViewNoDecoder,
+        _TileFailure.providerRefused => l10n.multiViewProviderRefused,
+        _TileFailure.unavailable => l10n.playerChannelUnavailableNow,
+      };
     }
     final theme = Theme.of(context);
     return Stack(

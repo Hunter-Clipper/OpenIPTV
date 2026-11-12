@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 /// The standard clean-up for any provider's channel, category or title name.
 /// Display only — search, sorting, parental locks and genre icons all keep
@@ -28,7 +29,7 @@ import 'package:flutter/widgets.dart';
 ///     resolutions) and space out `word/word`. Mixed-case names keep their
 ///     capitals.
 ///  5. **Assemble**: `Name` + `4K` + `(Region)` + `[Geo-blocked]` + `- State`.
-String cleanDisplayName(String raw) {
+String cleanDisplayName(String raw, {AppLocalizations? l10n}) {
   final c = _Found();
   var s = raw
       .replaceAll(_decorations, ' ')
@@ -54,9 +55,22 @@ String cleanDisplayName(String raw) {
       .trim();
   if (c.fourK) s = '$s 4K';
   if (c.region != null) s = '$s (${c.region})';
-  if (c.geo) s = '$s [Geo-blocked]';
-  if (c.state != null) s = '$s - ${c.state}';
+  if (c.geo) s = '$s [${l10n?.formatGeoBlocked ?? 'Geo-blocked'}]';
+  if (c.state != null) s = '$s - ${_stateLabel(c.state!, l10n)}';
   return s;
+}
+
+/// The event state (kept as English text while parsing, so already-cleaned
+/// names still match) in the app language.
+String _stateLabel(String state, AppLocalizations? l10n) {
+  if (l10n == null) return state;
+  return switch (state) {
+    'Ended' => l10n.formatStateEnded,
+    'Next' => l10n.formatStateNext,
+    'Live' => l10n.formatStateLive,
+    'Not started' => l10n.formatStateNotStarted,
+    _ => state,
+  };
 }
 
 /// What the markers of one name told us.
@@ -481,5 +495,8 @@ class DisplayNames extends InheritedWidget {
 extension DisplayNameContext on BuildContext {
   /// [raw] tidied for display, unless the user turned cleaning off.
   String displayName(String raw) =>
-      DisplayNames.enabledOf(this) ? cleanDisplayName(raw) : raw;
+      DisplayNames.enabledOf(this)
+          ? cleanDisplayName(raw,
+              l10n: Localizations.of<AppLocalizations>(this, AppLocalizations))
+          : raw;
 }

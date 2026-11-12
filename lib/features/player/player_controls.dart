@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/live_tv/epg_panel.dart';
 import 'package:open_iptv/features/player/player_settings_sheet.dart';
 import 'package:open_iptv/features/player/player_ui.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -327,7 +328,7 @@ class _ControlsLayout extends StatelessWidget {
               children: [
                 PlayerButton(
                   icon: Icons.arrow_back_rounded,
-                  tooltip: 'Back',
+                  tooltip: AppLocalizations.of(context).commonBack,
                   onTap: onBack,
                   focusNode: backFocusNode,
                   size: m.actionSize,
@@ -556,7 +557,7 @@ class _Transport extends ConsumerWidget {
             30 => Icons.replay_30_rounded,
             _ => Icons.replay_10_rounded,
           },
-          tooltip: 'Back $skip seconds',
+          tooltip: AppLocalizations.of(context).playerBackSeconds(skip),
           onTap: onRewind,
           size: skipSize,
           style: skipStyle,
@@ -575,7 +576,9 @@ class _Transport extends ConsumerWidget {
               children: [
                 PlayerButton(
                   icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  tooltip: playing ? 'Pause' : 'Play',
+                  tooltip: playing
+                      ? AppLocalizations.of(context).playerPause
+                      : AppLocalizations.of(context).playerPlay,
                   onTap: onPlayPause,
                   focusNode: playPauseFocusNode,
                   size: playSize,
@@ -606,7 +609,7 @@ class _Transport extends ConsumerWidget {
             30 => Icons.forward_30_rounded,
             _ => Icons.forward_10_rounded,
           },
-          tooltip: 'Forward $skip seconds',
+          tooltip: AppLocalizations.of(context).playerForwardSeconds(skip),
           onTap: onForward,
           size: skipSize,
           style: skipStyle,
@@ -631,6 +634,7 @@ List<Widget> _actionButtons({
   VoidCallback? onAddChannel,
   VoidCallback? onCast,
 }) {
+  final l10n = AppLocalizations.of(context);
   final m = PlayerMetrics.of(context);
   final size = m.tv ? m.tvButton : m.actionSize;
   final profile = ref.watch(activeProfileProvider).valueOrNull;
@@ -644,7 +648,7 @@ List<Widget> _actionButtons({
         icon: ccActive
             ? Icons.closed_caption_rounded
             : Icons.closed_caption_off_outlined,
-        tooltip: 'Subtitles',
+        tooltip: l10n.playerSubtitles,
         onTap: onCc,
         size: size,
         dimmed: !hasCc && !ccActive,
@@ -653,7 +657,8 @@ List<Widget> _actionButtons({
     if (favoriteChannelId != null && profile != null)
       PlayerButton(
         icon: isFav ? Icons.star_rounded : Icons.star_border_rounded,
-        tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+        tooltip:
+            isFav ? l10n.playerRemoveFavorite : l10n.playerAddFavorite,
         onTap: () async {
           await ref
               .read(profileServiceProvider)
@@ -669,34 +674,34 @@ List<Widget> _actionButtons({
     if (onEpg != null)
       PlayerButton(
         icon: Icons.event_note_rounded,
-        tooltip: 'TV Guide',
+        tooltip: l10n.playerTvGuide,
         onTap: onEpg,
         size: size,
       ),
     if (onCast != null)
       PlayerButton(
         icon: Icons.cast_rounded,
-        tooltip: 'Cast',
+        tooltip: l10n.castCastTooltip,
         onTap: onCast,
         size: size,
       ),
     if (onChannels != null)
       PlayerButton(
         icon: Icons.format_list_bulleted_rounded,
-        tooltip: 'Channels',
+        tooltip: l10n.playerChannels,
         onTap: onChannels,
         size: size,
       ),
     if (onAddChannel != null)
       PlayerButton(
         icon: Icons.add_to_queue_rounded,
-        tooltip: 'Add a channel',
+        tooltip: l10n.multiViewAdd,
         onTap: onAddChannel,
         size: size,
       ),
     PlayerButton(
       icon: Icons.settings_rounded,
-      tooltip: 'Playback settings',
+      tooltip: l10n.playerSettingsTooltip,
       onTap: onSettings,
       size: size,
     ),
@@ -906,8 +911,13 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
                   child: Text(
                     [
                       '${_time(context, prog.start)} – ${_time(context, prog.end)}',
-                      '${formatRuntime(prog.end.difference(_now))} left',
-                      if (next != null) 'Next: ${next.title}',
+                      AppLocalizations.of(context)
+                          .playerTimeLeft(
+                              formatRuntimeL10n(AppLocalizations.of(context),
+                                  prog.end.difference(_now))),
+                      if (next != null)
+                        AppLocalizations.of(context)
+                            .playerNextProgramme(next.title),
                     ].join('  ·  '),
                     style: metaStyle,
                     maxLines: 1,
@@ -1166,7 +1176,9 @@ class _LiveChip extends StatelessWidget {
             ),
           SizedBox(width: 6 * m.scale),
           Text(
-            isBehindLive ? 'Go live' : 'LIVE',
+            isBehindLive
+                ? AppLocalizations.of(context).playerGoLive
+                : AppLocalizations.of(context).playerLiveBadge,
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
@@ -1236,7 +1248,7 @@ class _QualityChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
     return Semantics(
-      label: 'Stream details: $label',
+      label: AppLocalizations.of(context).playerStreamDetails(label),
       child: Container(
       padding: EdgeInsets.symmetric(
           horizontal: 10 * m.scale, vertical: 5 * m.scale),

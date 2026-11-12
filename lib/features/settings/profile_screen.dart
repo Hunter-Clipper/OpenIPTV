@@ -6,6 +6,7 @@ import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/utils/snack_bar_utils.dart';
@@ -28,23 +29,24 @@ class ProfileScreen extends ConsumerWidget {
     final activeAsync = ref.watch(activeProfileProvider);
     final allAsync = ref.watch(allProfilesProvider);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: Text(l10n.profileTitle)),
       body: activeAsync.when(
         loading: () => const LoadingView(),
-        error: (_, __) => const Center(child: Text("Couldn't load profile.")),
+        error: (_, __) => Center(child: Text(l10n.profileLoadFailed)),
         data: (profile) {
           if (profile == null) {
-            return const Center(child: Text('No active profile.'));
+            return Center(child: Text(l10n.profileNoActive));
           }
           final String kidsSubtitle;
           if (profile.isAdmin) {
-            kidsSubtitle = "Admin accounts can't be marked as kid accounts";
+            kidsSubtitle = l10n.profileKidsAdminBlocked;
           } else if (profile.isKidsProfile) {
-            kidsSubtitle = 'Adult content will be hidden';
+            kidsSubtitle = l10n.profileAdultHidden;
           } else {
-            kidsSubtitle = 'All content is visible';
+            kidsSubtitle = l10n.profileAllVisible;
           }
           void showPinDialog() => _showPinDialog(
                 context,
@@ -61,16 +63,13 @@ class ProfileScreen extends ConsumerWidget {
                 onEdit: () => _showEditDialog(context, ref, profile),
               ),
               // ── Account ───────────────────────────────────────────
-              SettingsGroup(title: 'Account', children: [
+              SettingsGroup(title: l10n.profileAccountGroup, children: [
                 InfoTooltipScope(
                   controller: InfoTooltipController(),
                   child: InfoTooltip(
                     id: 'kids_profile',
-                    title: 'Kids Profile',
-                    body: 'When turned on, this profile is marked as a Kids '
-                        'profile and adult content is automatically hidden '
-                        'from Live, Movies, and Series. Requires Parental '
-                        'Protection to be enabled.',
+                    title: l10n.profileKidsProfile,
+                    body: l10n.profileKidsTooltipBody,
                     child: TvActivatable(
                       onTap: profile.isAdmin
                           ? null
@@ -79,7 +78,7 @@ class ProfileScreen extends ConsumerWidget {
                       builder: (_) => SwitchListTile(
                         secondary:
                             const IconBadge(icon: Icons.child_care_outlined),
-                        title: const Text('Kids Profile'),
+                        title: Text(l10n.profileKidsProfile),
                         subtitle: Text(kidsSubtitle,
                             style: theme.textTheme.bodySmall),
                         value: profile.isKidsProfile,
@@ -95,7 +94,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // ── Security ──────────────────────────────────────────
               if (!profile.isKidsProfile)
-                SettingsGroup(title: 'Security', children: [
+                SettingsGroup(title: l10n.profileSecurityGroup, children: [
                   TvActivatable(
                     autofocus: profile.isAdmin,
                     onTap: showPinDialog,
@@ -104,11 +103,11 @@ class ProfileScreen extends ConsumerWidget {
                           icon: profile.hasPin
                               ? Icons.lock_outline
                               : Icons.lock_open_outlined),
-                      title: const Text('PIN Lock'),
+                      title: Text(l10n.profilePinLock),
                       subtitle: Text(
                         profile.hasPin
-                            ? 'PIN is set — select to change or remove'
-                            : 'No PIN — select to set one',
+                            ? l10n.profilePinIsSet
+                            : l10n.profilePinNotSet,
                         style: theme.textTheme.bodySmall,
                       ),
                       trailing: profile.hasPin
@@ -125,7 +124,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // ── All Profiles (admin only) ─────────────────────────
               if (profile.isAdmin)
-                SettingsGroup(title: 'All Profiles', children: [
+                SettingsGroup(title: l10n.profileAllProfilesGroup, children: [
                   allAsync.when(
                     loading: () => const SizedBox.shrink(),
                     error: (_, __) => const SizedBox.shrink(),
@@ -145,7 +144,7 @@ class ProfileScreen extends ConsumerWidget {
                           onTap: () => _showCreateDialog(context, ref),
                           builder: (onTap) => ListTile(
                             leading: const IconBadge(icon: Icons.add),
-                            title: const Text('Add Profile'),
+                            title: Text(l10n.profileAddProfile),
                             onTap: onTap,
                           ),
                         ),
@@ -165,6 +164,7 @@ class ProfileScreen extends ConsumerWidget {
   /// it if it isn't yet); turning it off requires an admin PIN.
   Future<void> _setKidsProfile(
       BuildContext context, WidgetRef ref, Profile profile, bool val) async {
+    final l10n = AppLocalizations.of(context);
     if (val) {
       final prefs = await ref.read(appPreferencesProvider.future);
       if (!context.mounted) return;
@@ -175,7 +175,7 @@ class ProfileScreen extends ConsumerWidget {
       }
     } else {
       if (!await promptAdminPin(
-          context, ref, 'Enter admin PIN to disable Kids Profile')) {
+          context, ref, l10n.profileEnterPinToDisableKids)) {
         return;
       }
     }
@@ -223,27 +223,25 @@ class ProfileScreen extends ConsumerWidget {
 
   Future<void> _confirmDelete(
       BuildContext context, WidgetRef ref, Profile profile) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Profile?'),
-        content: Text(
-          'Deleting "${profile.name}" will remove all its favourites and '
-          'settings. Your sources and channels are not affected.',
-        ),
+        title: Text(l10n.profileDeleteTitle),
+        content: Text(l10n.profileDeleteBody(profile.name)),
         actions: [
           TvActivatable(
             autofocus: true,
             onTap: () => Navigator.of(ctx).pop(false),
-            builder: (onTap) =>
-                TextButton(onPressed: onTap, child: const Text('Cancel')),
+            builder: (onTap) => TextButton(
+                onPressed: onTap, child: Text(l10n.commonCancel)),
           ),
           TvActivatable(
             onTap: () => Navigator.of(ctx).pop(true),
             builder: (onTap) => FilledButton(
               style: AppTheme.destructiveButtonStyle(ctx),
               onPressed: onTap,
-              child: const Text('Delete'),
+              child: Text(l10n.profileDelete),
             ),
           ),
         ],
@@ -267,24 +265,23 @@ class ProfileScreen extends ConsumerWidget {
 /// tries to mark a profile as a Kids profile while Parental Protection is
 /// still disabled. Returns whether the user chose to enable it.
 Future<bool> _showParentalProtectionRequiredDialog(BuildContext context) async {
+  final l10n = AppLocalizations.of(context);
   final enable = await showDialog<bool>(
     context: context,
     builder: (_) => AlertDialog(
-      title: const Text('Parental Protection Required'),
-      content: const Text(
-          'Kid profiles require Parental Protection to be turned on, so '
-          'adult content can be hidden automatically. Enable it now?'),
+      title: Text(l10n.profileProtectionRequiredTitle),
+      content: Text(l10n.profileProtectionRequiredBody),
       actions: [
         TvActivatable(
           autofocus: true,
           onTap: () => Navigator.pop(context, false),
           builder: (onTap) =>
-              TextButton(onPressed: onTap, child: const Text('Cancel')),
+              TextButton(onPressed: onTap, child: Text(l10n.commonCancel)),
         ),
         TvActivatable(
           onTap: () => Navigator.pop(context, true),
           builder: (onTap) => FilledButton(
-              onPressed: onTap, child: const Text('Enable Protection')),
+              onPressed: onTap, child: Text(l10n.profileEnableProtection)),
         ),
       ],
     ),
@@ -305,6 +302,7 @@ class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       // Centred so the focus pill hugs the picture and name.
@@ -358,7 +356,7 @@ class _ProfileHero extends StatelessWidget {
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text('Active',
+                child: Text(l10n.profileActive,
                     style: theme.textTheme.bodySmall!
                         .copyWith(color: theme.colorScheme.primary)),
               ),
@@ -371,7 +369,7 @@ class _ProfileHero extends StatelessWidget {
                     color: Colors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text('Kids',
+                  child: Text(l10n.profileKidsBadge,
                       style: theme.textTheme.bodySmall!
                           .copyWith(color: Colors.green)),
                 ),
@@ -412,6 +410,7 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final menuKey = GlobalKey<PopupMenuButtonState<_Action>>();
     return ListTile(
       leading: Stack(
@@ -438,12 +437,12 @@ class _ProfileTile extends StatelessWidget {
       subtitle: Row(
         children: [
           if (isActive)
-            Text('Active',
+            Text(l10n.profileActive,
                 style: theme.textTheme.bodySmall!
                     .copyWith(color: theme.colorScheme.primary)),
           if (isActive && profile.isKidsProfile) const Text(' · '),
           if (profile.isKidsProfile)
-            Text('Kids', style: theme.textTheme.bodySmall),
+            Text(l10n.profileKidsBadge, style: theme.textTheme.bodySmall),
           if ((isActive || profile.isKidsProfile) && profile.hasPin)
             const Text(' · '),
           if (profile.hasPin)
@@ -451,7 +450,7 @@ class _ProfileTile extends StatelessWidget {
               Icon(Icons.lock_outline,
                   size: 12, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 2),
-              Text('PIN', style: theme.textTheme.bodySmall),
+              Text(l10n.profilePinBadge, style: theme.textTheme.bodySmall),
             ]),
         ],
       ),
@@ -466,13 +465,13 @@ class _ProfileTile extends StatelessWidget {
               if (a == _Action.delete) onDelete?.call();
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                   value: _Action.edit,
-                  child: TvInitialFocus(child: Text('Edit'))),
+                  child: TvInitialFocus(child: Text(l10n.profileMenuEdit))),
               if (onDelete != null) ...[
                 const PopupMenuDivider(),
-                const PopupMenuItem(
-                    value: _Action.delete, child: Text('Delete')),
+                PopupMenuItem(
+                    value: _Action.delete, child: Text(l10n.profileDelete)),
               ],
             ],
           ),
@@ -516,9 +515,10 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
   }
 
   Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Enter a name.');
+      setState(() => _error = l10n.profileEnterName);
       return;
     }
     try {
@@ -527,20 +527,21 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
           );
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
-      setState(() => _error = "Couldn't save changes.");
+      setState(() => _error = l10n.profileSaveFailed);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Edit Profile'),
+      title: Text(l10n.profileEditTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Name'),
+            Text(l10n.profileNameLabel),
             const SizedBox(height: 8),
             TvTextFieldGate(
               autofocus: true,
@@ -552,7 +553,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
             )
             ),
             const SizedBox(height: 16),
-            const Text('Avatar'),
+            Text(l10n.profileAvatarLabel),
             const SizedBox(height: 8),
             _EmojiPicker(
               selected: _emoji,
@@ -572,7 +573,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
         TvActivatable(
           onTap: () => Navigator.of(context).pop(),
           builder: (onTap) =>
-              TextButton(onPressed: onTap, child: const Text('Cancel')),
+              TextButton(onPressed: onTap, child: Text(l10n.commonCancel)),
         ),
         TvActivatable(
           // A plain autofocus TextField above would trap D-pad focus there
@@ -582,7 +583,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
           autofocus: true,
           onTap: _save,
           builder: (onTap) =>
-              FilledButton(onPressed: onTap, child: const Text('Save')),
+              FilledButton(onPressed: onTap, child: Text(l10n.profileSave)),
         ),
       ],
     );
@@ -627,9 +628,10 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
   }
 
   Future<void> _create() async {
+    final l10n = AppLocalizations.of(context);
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Enter a name.');
+      setState(() => _error = l10n.profileEnterName);
       return;
     }
     try {
@@ -642,34 +644,34 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
     } on StateError catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = "Couldn't create profile.");
+      setState(() => _error = l10n.profileCreateFailed);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('New Profile'),
+      title: Text(l10n.profileNewTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Name'),
+            Text(l10n.profileNameLabel),
             const SizedBox(height: 8),
             TvTextFieldGate(
               autofocus: true,
               builder: (context, fieldNode) => TextField(
                 focusNode: fieldNode,
               controller: _name,
-              decoration:
-                  const InputDecoration(hintText: 'e.g. Kids, Living Room'),
+              decoration: InputDecoration(hintText: l10n.profileNameHint),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _create(),
             )
             ),
             const SizedBox(height: 16),
-            const Text('Avatar'),
+            Text(l10n.profileAvatarLabel),
             const SizedBox(height: 8),
             _EmojiPicker(
               selected: _emoji,
@@ -681,11 +683,11 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
               builder: (_) => SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 secondary: const Icon(Icons.child_care_outlined),
-                title: const Text('Is Kid Account'),
+                title: Text(l10n.profileIsKidAccount),
                 subtitle: Text(
                   _isKidAccount
-                      ? 'Adult content will be hidden'
-                      : 'All content is visible',
+                      ? l10n.profileAdultHidden
+                      : l10n.profileAllVisible,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 value: _isKidAccount,
@@ -706,7 +708,7 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
         TvActivatable(
           onTap: () => Navigator.of(context).pop(),
           builder: (onTap) =>
-              TextButton(onPressed: onTap, child: const Text('Cancel')),
+              TextButton(onPressed: onTap, child: Text(l10n.commonCancel)),
         ),
         TvActivatable(
           // A plain autofocus TextField above would trap D-pad focus there
@@ -717,7 +719,7 @@ class _CreateProfileDialogState extends State<_CreateProfileDialog> {
           autofocus: true,
           onTap: _create,
           builder: (onTap) =>
-              FilledButton(onPressed: onTap, child: const Text('Create')),
+              FilledButton(onPressed: onTap, child: Text(l10n.profileCreate)),
         ),
       ],
     );
@@ -760,13 +762,14 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
   }
 
   Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
     final newPin = _newPin.text.trim();
     if (newPin != _confirm.text.trim()) {
-      setState(() => _error = "PINs don't match.");
+      setState(() => _error = l10n.profilePinsDontMatch);
       return;
     }
     if (newPin.length < 4) {
-      setState(() => _error = 'PIN must be at least 4 digits.');
+      setState(() => _error = l10n.profilePinTooShort);
       return;
     }
     if (widget.profile.hasPin) {
@@ -774,7 +777,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
           .read(profileServiceProvider)
           .verifyPin(widget.profile, _current.text.trim());
       if (!ok) {
-        setState(() => _error = 'Current PIN is incorrect.');
+        setState(() => _error = l10n.profileCurrentPinIncorrect);
         return;
       }
     }
@@ -785,6 +788,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
   }
 
   Future<void> _remove() async {
+    final l10n = AppLocalizations.of(context);
     try {
       await widget.ref.read(profileServiceProvider).clearPin(
             widget.profile.id,
@@ -792,21 +796,24 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
           );
       if (mounted) Navigator.of(context).pop();
     } on ArgumentError {
-      setState(() => _error = 'Current PIN is incorrect.');
+      setState(() => _error = l10n.profileCurrentPinIncorrect);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text(widget.profile.hasPin ? 'Change PIN' : 'Set PIN'),
+      title: Text(widget.profile.hasPin
+          ? l10n.profileChangePinTitle
+          : l10n.profileSetPinTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.profile.hasPin) ...[
-              const Text('Current PIN'),
+              Text(l10n.profileCurrentPin),
               const SizedBox(height: 6),
               TvTextFieldGate(
                 autofocus: true,
@@ -825,7 +832,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                 maxLength: 8,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
-                  hintText: 'Current PIN',
+                  hintText: l10n.profileCurrentPin,
                   hintStyle: Theme.of(context)
                       .textTheme
                       .bodyLarge!
@@ -842,7 +849,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               ),
               const SizedBox(height: 4),
             ],
-            const Text('New PIN'),
+            Text(l10n.profileNewPin),
             const SizedBox(height: 6),
             TvTextFieldGate(
               autofocus: !widget.profile.hasPin,
@@ -863,7 +870,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
                   !widget.profile.hasPin && !PlatformHelper.isTV(context),
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
-                hintText: '4–8 digits',
+                hintText: l10n.profilePinDigitsHint,
                   hintStyle: Theme.of(context)
                       .textTheme
                       .bodyLarge!
@@ -877,7 +884,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
             )
             ),
             const SizedBox(height: 4),
-            const Text('Confirm PIN'),
+            Text(l10n.profileConfirmPin),
             const SizedBox(height: 6),
             TvTextFieldGate(
               builder: (context, fieldNode) => TextField(
@@ -894,7 +901,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 8,
               decoration: InputDecoration(
-                hintText: 'Repeat new PIN',
+                hintText: l10n.profileRepeatNewPin,
                   hintStyle: Theme.of(context)
                       .textTheme
                       .bodyLarge!
@@ -923,7 +930,7 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
         TvActivatable(
           onTap: () => Navigator.of(context).pop(),
           builder: (onTap) =>
-              TextButton(onPressed: onTap, child: const Text('Cancel')),
+              TextButton(onPressed: onTap, child: Text(l10n.commonCancel)),
         ),
         if (widget.profile.hasPin && !widget.blockPinRemoval)
           TvActivatable(
@@ -931,13 +938,13 @@ class _PinManagementDialogState extends State<_PinManagementDialog> {
             builder: (onTap) => FilledButton(
               style: AppTheme.destructiveButtonStyle(context),
               onPressed: onTap,
-              child: const Text('Remove PIN'),
+              child: Text(l10n.profileRemovePin),
             ),
           ),
         TvActivatable(
           onTap: _save,
           builder: (onTap) =>
-              FilledButton(onPressed: onTap, child: const Text('Save')),
+              FilledButton(onPressed: onTap, child: Text(l10n.profileSave)),
         ),
       ],
     );
@@ -1022,6 +1029,7 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
   /// Turning it on takes the admin PIN — never a scan — and then a scan to
   /// set up the device key. Turning it off needs nothing.
   Future<void> _set(AppPreferences prefs, bool on) async {
+    final l10n = AppLocalizations.of(context);
     final biometric = ref.read(adminBiometricProvider);
     if (!on) {
       await biometric.disable();
@@ -1031,27 +1039,28 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
     }
     final pin = await showPinEntryDialog(
       context,
-      title: 'Enter admin PIN',
-      message: 'To turn on fingerprint and face unlock',
-      confirmLabel: 'Continue',
+      title: l10n.profileEnterAdminPin,
+      message: l10n.profileBiometricPinMessage,
+      confirmLabel: l10n.profileContinue,
     );
     if (pin == null || !mounted) return;
     if (!await ref.read(profileServiceProvider).verifyAnyAdminPin(pin)) {
-      _say('Incorrect PIN');
+      _say(l10n.profileIncorrectPin);
       return;
     }
     final outcome = await biometric.enable();
     if (outcome == BiometricOutcome.success) {
       await prefs.setAdminBiometricUnlock(true);
-      _say('Fingerprint and face unlock is on');
+      _say(l10n.profileBiometricOn);
     } else if (outcome != BiometricOutcome.fallback) {
-      _say("Couldn't turn on fingerprint and face unlock on this device.");
+      _say(l10n.profileBiometricFailed);
     }
     if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider).valueOrNull;
     final available =
         ref.watch(adminBiometricAvailableProvider).valueOrNull ?? false;
@@ -1065,22 +1074,17 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
       controller: InfoTooltipController(),
       child: InfoTooltip(
         id: 'admin_biometric',
-        title: 'Unlock with Fingerprint or Face',
-        body: 'Use your fingerprint or face wherever the admin PIN is '
-            'asked for on this device. Anyone whose fingerprint or face is '
-            'set up on this device can use it, so only turn it on if that '
-            'is just you. Adding a new fingerprint or face turns it off '
-            'until you turn it on again. Other profiles still use their '
-            'own PINs.',
+        title: l10n.profileBiometricTitle,
+        body: l10n.profileBiometricBody,
         child: TvActivatable(
           onTap: canToggle ? () => _set(prefs, !on) : null,
           builder: (_) => SwitchListTile(
             secondary: const IconBadge(icon: Icons.fingerprint),
-            title: const Text('Unlock with Fingerprint or Face'),
+            title: Text(l10n.profileBiometricTitle),
             subtitle: Text(
               hasPin
-                  ? 'Use it instead of typing the admin PIN'
-                  : 'Set a PIN first',
+                  ? l10n.profileBiometricSubtitleOn
+                  : l10n.profileBiometricSubtitleNeedsPin,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             value: on,

@@ -6,6 +6,7 @@ import 'package:open_iptv/core/epg/guide_matcher.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// Hold OK / long-press a channel → Change Guide: pick which guide channel
@@ -79,14 +80,16 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
     setState(() => _results = found);
   }
 
-  String _describe(GuideLinkRow? link, GuidePicker picker) {
-    if (link == null) {
-      return "Using the playlist's own guide (or a smart match, if it has none)";
-    }
-    if (link.xmltvId == null) return 'No guide, as you chose';
-    final guide = picker.guideNames[link.guideRef] ?? 'a guide';
-    final how = link.kind == 'manual' ? 'You chose' : 'Matched automatically to';
-    return '$how ${link.xmltvId} in $guide';
+  String _describe(
+      AppLocalizations l10n, GuideLinkRow? link, GuidePicker picker) {
+    if (link == null) return l10n.changeGuideDescribeDefault;
+    final id = link.xmltvId;
+    if (id == null) return l10n.changeGuideDescribeNone;
+    final guide =
+        picker.guideNames[link.guideRef] ?? l10n.changeGuideGuideFallback;
+    return link.kind == 'manual'
+        ? l10n.changeGuideDescribeManual(id, guide)
+        : l10n.changeGuideDescribeAuto(id, guide);
   }
 
   Future<void> _apply(Future<void> Function(GuideAssignmentService) change,
@@ -110,27 +113,29 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
     final service = ref.read(guideAssignmentProvider);
     final messenger = ScaffoldMessenger.maybeOf(context);
     final revision = ref.read(guideRevisionProvider.notifier);
+    final l10n = AppLocalizations.of(context);
     if (mounted) Navigator.of(context).pop();
-    messenger?.showSnackBar(const SnackBar(
-        content: Text('Loading the guide, this can take a minute…'),
+    messenger?.showSnackBar(SnackBar(
+        content: Text(l10n.changeGuideLoading),
         // Stays up while a guide is being read; replaced when it finishes.
-        duration: Duration(minutes: 5)));
+        duration: const Duration(minutes: 5)));
     unawaited(service
         .setManualAndLoad(widget.channelId, g.guideId, g.xmltvId)
         .then((problem) {
       revision.state++;
       messenger?.hideCurrentSnackBar();
       messenger?.showSnackBar(
-          SnackBar(content: Text(problem ?? 'Guide changed and loaded.')));
+          SnackBar(content: Text(problem ?? l10n.changeGuideLoaded)));
     }));
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final picker = _picker;
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Guide')),
+      appBar: AppBar(title: Text(l10n.changeGuideTitle)),
       body: picker == null
           ? const Center(child: CircularProgressIndicator())
           : TvFollowFocus(focusFirst: true, child: ListView(
@@ -140,16 +145,14 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                 ListTile(
                   title: Text(widget.channelName,
                       style: theme.textTheme.titleMedium),
-                  subtitle: Text(_describe(_link, picker)),
+                  subtitle: Text(_describe(l10n, _link, picker)),
                 ),
                 const SizedBox(height: 8),
                 if (picker.isEmpty)
-                  const ListTile(
-                    leading: Icon(Icons.info_outline),
-                    title: Text('No guides to pick from yet'),
-                    subtitle: Text(
-                        'Add one in Settings → Playlists & Guides → Extra Guides, or '
-                        'refresh your TV guides.'),
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: Text(l10n.changeGuideNoGuidesTitle),
+                    subtitle: Text(l10n.changeGuideNoGuidesBody),
                   )
                 else ...[
                   TvTextFieldGate(
@@ -157,22 +160,24 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                       focusNode: fieldNode,
                       controller: _query,
                       textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        hintText: 'Search the guides',
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: l10n.changeGuideSearchHint,
                       ),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                     child: Text(
-                      _query.text.trim().isEmpty ? 'Suggested' : 'Results',
+                      _query.text.trim().isEmpty
+                          ? l10n.changeGuideSuggested
+                          : l10n.changeGuideResults,
                       style: theme.textTheme.titleSmall
                           ?.copyWith(color: theme.colorScheme.primary),
                     ),
                   ),
                   if (_results.isEmpty)
-                    const ListTile(title: Text('Nothing found')),
+                    ListTile(title: Text(l10n.changeGuideNothingFound)),
                   for (final g in _results)
                     TvActivatable(
                       onTap: () => _pick(g),
@@ -186,7 +191,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                         ),
                         title: Text(g.name),
                         subtitle: Text(
-                            '${picker.guideNames[g.guideId] ?? 'Guide'} · ${g.xmltvId}'),
+                            '${picker.guideNames[g.guideId] ?? l10n.changeGuideGuideLabel} · ${g.xmltvId}'),
                         onTap: tap,
                       ),
                     ),
@@ -194,24 +199,22 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
                 const Divider(height: 32),
                 TvActivatable(
                   onTap: () => _apply(
-                      (s) => s.setNone(widget.channelId), 'Guide removed.'),
+                      (s) => s.setNone(widget.channelId), l10n.changeGuideRemoved),
                   builder: (tap) => ListTile(
                     leading: const Icon(Icons.event_busy_outlined),
-                    title: const Text('No Guide for This Channel'),
-                    subtitle: const Text(
-                        'Clears its programmes and keeps it that way'),
+                    title: Text(l10n.changeGuideNoGuideTitle),
+                    subtitle: Text(l10n.changeGuideNoGuideSubtitle),
                     onTap: tap,
                   ),
                 ),
                 if (_link != null)
                   TvActivatable(
                     onTap: () => _apply((s) => s.resetLink(widget.channelId),
-                        'Back to automatic.'),
+                        l10n.changeGuideBackToAuto),
                     builder: (tap) => ListTile(
                       leading: const Icon(Icons.restart_alt_rounded),
-                      title: const Text('Use Automatic'),
-                      subtitle: const Text(
-                          "The playlist's own guide, or a smart match"),
+                      title: Text(l10n.changeGuideUseAutomatic),
+                      subtitle: Text(l10n.changeGuideUseAutomaticSubtitle),
                       onTap: tap,
                     ),
                   ),

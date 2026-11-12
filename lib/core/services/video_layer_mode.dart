@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 const _channel = MethodChannel('openiptv/device');
 
@@ -12,31 +13,35 @@ bool videoLayerActive = false;
 enum VideoLayerSetting {
   automatic(
     id: 'auto',
-    label: 'Automatic',
-    description: 'Shows the picture the way TV players do, for smoother '
-        'video and faster, cleaner switching. Recommended.',
   ),
   on(
     id: 'on',
-    label: 'On',
-    description: 'Always use it on this TV.',
   ),
   off(
     id: 'off',
-    label: 'Off',
-    description: 'Draw the picture inside the app, as before. Try this if '
-        'the picture is ever missing or wrong.',
   );
 
-  const VideoLayerSetting(
-      {required this.id, required this.label, required this.description});
+  const VideoLayerSetting({required this.id});
 
   final String id;
-  final String label;
-  final String description;
 
   static VideoLayerSetting fromId(String? id) => values
       .firstWhere((m) => m.id == id, orElse: () => VideoLayerSetting.automatic);
+}
+
+/// The words shown for a [VideoLayerSetting].
+extension VideoLayerSettingText on VideoLayerSetting {
+  String label(AppLocalizations l10n) => switch (this) {
+        VideoLayerSetting.automatic => l10n.videoLayerAutomaticLabel,
+        VideoLayerSetting.on => l10n.videoLayerOnLabel,
+        VideoLayerSetting.off => l10n.videoLayerOffLabel,
+      };
+
+  String description(AppLocalizations l10n) => switch (this) {
+        VideoLayerSetting.automatic => l10n.videoLayerAutomaticDescription,
+        VideoLayerSetting.on => l10n.videoLayerOnDescription,
+        VideoLayerSetting.off => l10n.videoLayerOffDescription,
+      };
 }
 
 class VideoLayerInfo {

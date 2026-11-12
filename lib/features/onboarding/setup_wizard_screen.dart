@@ -20,10 +20,12 @@ import 'package:open_iptv/shared/widgets/device_file_picker.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/widgets/language_picker.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
+/// The first word of [name], or empty when no name was entered.
 String _firstName(String name) =>
-    name.trim().isNotEmpty ? name.trim().split(' ').first : 'there';
+    name.trim().isNotEmpty ? name.trim().split(' ').first : '';
 
 /// A lighter tint of [color], used for the wizard's gradient accents.
 Color _lighten(Color color, [double amount = 0.3]) =>
@@ -92,7 +94,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   bool _isLoading = false;
   bool _restoring = false;
   String? _errorMessage;
-  String _progressMessage = 'Connecting…';
+  /// Null until the service reports progress; the loading page then shows
+  /// the localized "Connecting…".
+  String? _progressMessage;
 
   // All-set animations
   late final AnimationController _checkCtrl;
@@ -209,12 +213,12 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       // Any type in the system picker: Android has no reliable MIME type for
       // .m3u/.m3u8, so a filter hides real playlists. Contents are checked.
       file = await pickDeviceFile(context,
-          title: 'Choose a playlist file',
+          title: AppLocalizations.of(context).wizardPickFileTitle,
           extensions: const ['.m3u', '.m3u8', '.txt']);
     } catch (_) {
       if (mounted) {
         setState(() => _errorMessage =
-            "Couldn't open the file picker on this device.");
+            AppLocalizations.of(context).wizardFilePickerFailed);
       }
       return;
     }
@@ -231,38 +235,45 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       setState(() {
         _pickedFileName = null;
         _pickedFileContent = null;
-        _errorMessage = friendlySourceErrorMessage(e);
+        _errorMessage =
+            friendlySourceErrorMessage(e, AppLocalizations.of(context));
       });
     }
   }
 
   Future<void> _submitSource() async {
+    final l10n = AppLocalizations.of(context);
     FocusScope.of(context).unfocus();
     if (_fromFile && _pickedFileContent == null) {
-      setState(() => _errorMessage = 'Choose a playlist file first.');
+      setState(() => _errorMessage = l10n.wizardChooseFileFirst);
       return;
     }
     // Say what's missing rather than trying to connect with blanks and
     // failing with a vague error.
     final missing = _playlistType == SourceType.xtream
         ? [
-            if (_xtreamHostCtrl.text.trim().isEmpty) 'server address',
-            if (_xtreamUserCtrl.text.trim().isEmpty) 'username',
-            if (_xtreamPassCtrl.text.trim().isEmpty) 'password',
+            if (_xtreamHostCtrl.text.trim().isEmpty)
+              l10n.wizardFieldServerAddress,
+            if (_xtreamUserCtrl.text.trim().isEmpty) l10n.wizardFieldUsername,
+            if (_xtreamPassCtrl.text.trim().isEmpty) l10n.wizardFieldPassword,
           ]
-        : [if (!_fromFile && _m3uUrlCtrl.text.trim().isEmpty) 'M3U URL'];
+        : [
+            if (!_fromFile && _m3uUrlCtrl.text.trim().isEmpty)
+              l10n.wizardFieldM3uUrl
+          ];
     if (missing.isNotEmpty) {
       final list = missing.length == 1
           ? missing.first
-          : '${missing.sublist(0, missing.length - 1).join(', ')} and '
-              '${missing.last}';
-      setState(() => _errorMessage = 'Enter the $list from your provider.');
+          : l10n.wizardListAnd(
+              missing.sublist(0, missing.length - 1).join(', '),
+              missing.last);
+      setState(() => _errorMessage = l10n.wizardEnterMissing(list));
       return;
     }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _progressMessage = 'Connecting…';
+      _progressMessage = null;
     });
     _goToPage(5);
 
@@ -334,7 +345,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = friendlySourceErrorMessage(e);
+        _errorMessage =
+            friendlySourceErrorMessage(e, AppLocalizations.of(context));
       });
       // On touch devices, refocusing the nickname field would pop the
       // keyboard straight back up over the error; TV still needs a D-pad
@@ -356,10 +368,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     final sources = await db.getAllSources();
     if (profiles.isEmpty || sources.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              "That backup doesn't include a profile and a playlist, so "
-              "there's nothing to restore yet. Tap Get Started instead.")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context).wizardRestoreEmpty)));
       return;
     }
     // One profile: use it. Several: start on an admin one (the person
@@ -379,17 +389,19 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       _restoring = true;
       // Show the restored accent, not the wizard's default.
       _accentColor = AppTheme.accentFromHex(prefs.accentColor);
-      _progressMessage = 'Connecting…';
+      _progressMessage = null;
     });
     _goToPage(5);
     final manager = ref.read(sourceManagerProvider);
+    final l10n = AppLocalizations.of(context);
     for (final (i, source) in sources.indexed) {
       final label = sources.length > 1
-          ? '${source.nickname} (${i + 1} of ${sources.length})'
+          ? l10n.wizardRestoreProgressItem(source.nickname, i + 1, sources.length)
           : source.nickname;
       try {
         await manager.refreshSource(source, onProgress: (msg) {
-          if (mounted) setState(() => _progressMessage = '$label — $msg');
+          if (mounted) setState(() =>
+              _progressMessage = l10n.wizardRestoreProgressLine(label, msg));
         });
       } catch (e) {
         // One unreachable playlist mustn't block the rest; it can be
@@ -516,16 +528,20 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             onSubmit: _isLoading ? null : _submitSource,
           ),
           _LoadingPage(
-            message: _progressMessage,
+            message:
+                _progressMessage ?? AppLocalizations.of(context).wizardConnecting,
             accentColor: _accentColor,
             title: _restoring
-                ? 'Restoring your playlists…'
-                : 'Setting up your playlist…',
+                ? AppLocalizations.of(context).wizardLoadingRestoring
+                : AppLocalizations.of(context).wizardLoadingSettingUp,
           ),
           _AllSetPage(
             headline: addOnly
-                ? 'Playlist added!'
-                : "You're all set, ${_firstName(_nameCtrl.text)}!",
+                ? AppLocalizations.of(context).wizardAllSetAdded
+                : _firstName(_nameCtrl.text).isEmpty
+                    ? AppLocalizations.of(context).wizardAllSetHeadlineNoName
+                    : AppLocalizations.of(context)
+                        .wizardAllSetHeadline(_firstName(_nameCtrl.text)),
             accentColor: _accentColor,
             checkScale: _checkScale,
             sparkleAngle: _sparkleAngle,
@@ -676,10 +692,10 @@ class _WelcomePageState extends State<_WelcomePage>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ).createShader(bounds),
-                          child: const Text(
-                            'Welcome to\nOpenIPTV',
+                          child: Text(
+                            AppLocalizations.of(context).wizardWelcomeTitle,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 34,
                               fontWeight: FontWeight.w800,
@@ -688,10 +704,10 @@ class _WelcomePageState extends State<_WelcomePage>
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          "Let's get you set up.\nIt only takes a minute.",
+                        Text(
+                          AppLocalizations.of(context).wizardWelcomeSubtitle,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppTheme.mutedTextColor,
                             fontSize: 16,
                             height: 1.6,
@@ -708,7 +724,7 @@ class _WelcomePageState extends State<_WelcomePage>
                 builder: (_, child) =>
                     Transform.scale(scale: _btnScale.value, child: child),
                 child: _GradientButton(
-                  label: 'Get Started',
+                  label: AppLocalizations.of(context).wizardGetStarted,
                   icon: Icons.arrow_forward,
                   accentColor: AppTheme.accentSwatches.first.color,
                   onTap: widget.onStart,
@@ -723,9 +739,9 @@ class _WelcomePageState extends State<_WelcomePage>
                     onPressed: onTap,
                     icon: const Icon(Icons.settings_backup_restore,
                         color: AppTheme.mutedTextColor),
-                    label: const Text(
-                      'Restore from a backup',
-                      style: TextStyle(
+                    label: Text(
+                      AppLocalizations.of(context).wizardRestoreFromBackup,
+                      style: const TextStyle(
                           color: AppTheme.mutedTextColor, fontSize: 15),
                     ),
                   ),
@@ -815,18 +831,18 @@ class _NamePage extends StatelessWidget {
               SizedBox(height: v(24)),
               _StepIndicator(current: 0, total: 4, accentColor: selectedColor),
               SizedBox(height: v(36)),
-              const Text(
-                "What's your name?",
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).wizardNameTitle,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               SizedBox(height: v(8)),
-              const Text(
-                'All information stays on your device.\nOpenIPTV never collects personal data.',
-                style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
+              Text(
+                AppLocalizations.of(context).wizardPrivacyNote,
+                style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
               ),
               SizedBox(height: v(32)),
               TvTextFieldGate(
@@ -840,7 +856,7 @@ class _NamePage extends StatelessWidget {
                 onSubmitted: (_) => onContinue(),
                 style: const TextStyle(color: Colors.white, fontSize: 18),
                 decoration: InputDecoration(
-                  hintText: 'Your name',
+                  hintText: AppLocalizations.of(context).wizardNameHint,
                   hintStyle: const TextStyle(color: AppTheme.mutedTextColor),
                   filled: true,
                   fillColor: AppTheme.surfaceVariantColor,
@@ -862,9 +878,9 @@ class _NamePage extends StatelessWidget {
               ),
               ),
               SizedBox(height: v(32)),
-              const Text(
-                'Pick an avatar',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).wizardPickAvatar,
+                style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                     fontWeight: FontWeight.w600),
@@ -907,9 +923,9 @@ class _NamePage extends StatelessWidget {
                 ),
               ),
               SizedBox(height: v(28)),
-              const Text(
-                'Accent Color',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).wizardAccentColor,
+                style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                     fontWeight: FontWeight.w600),
@@ -963,7 +979,7 @@ class _NamePage extends StatelessWidget {
               // pushing this off-screen, unlike the old Spacer-based layout).
               SizedBox(height: v(16)),
               _GradientButton(
-                label: 'Continue',
+                label: AppLocalizations.of(context).wizardContinue,
                 icon: Icons.arrow_forward,
                 accentColor: selectedColor,
                 onTap: onContinue,
@@ -1040,17 +1056,17 @@ class _PinPageState extends State<_PinPage> {
                       _StepIndicator(
                           current: 1, total: 4, accentColor: widget.accentColor),
                       SizedBox(height: v(36)),
-                      const Text(
-                        'Secure your account',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).wizardPinTitle,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
                             fontWeight: FontWeight.w800),
                       ),
                       SizedBox(height: v(8)),
-                      const Text(
-                        'Set a PIN of 4 to 8 digits to protect this admin account.\nYou can skip this and add one later in Settings.',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).wizardPinBody,
+                        style: const TextStyle(
                             color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
                       ),
                       SizedBox(height: v(40)),
@@ -1081,7 +1097,7 @@ class _PinPageState extends State<_PinPage> {
               ),
               SizedBox(height: v(16)),
               _GradientButton(
-                label: 'Set PIN',
+                label: AppLocalizations.of(context).wizardSetPin,
                 icon: Icons.lock,
                 accentColor: widget.accentColor,
                 onTap: _valid ? _submit : null,
@@ -1090,9 +1106,9 @@ class _PinPageState extends State<_PinPage> {
               Center(
                 child: TextButton(
                   onPressed: widget.onSkip,
-                  child: const Text(
-                    'Skip for now',
-                    style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 15),
+                  child: Text(
+                    AppLocalizations.of(context).wizardSkipForNow,
+                    style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 15),
                   ),
                 ),
               ),
@@ -1160,7 +1176,7 @@ class _PlaylistTypePage extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.arrow_back,
                               color: Colors.white70),
-                          tooltip: 'Back',
+                          tooltip: AppLocalizations.of(context).commonBack,
                           onPressed: onBack,
                         ),
                         const SizedBox(width: 4),
@@ -1175,8 +1191,8 @@ class _PlaylistTypePage extends StatelessWidget {
                 SizedBox(height: v(36)),
                 Text(
                   addingPlaylist
-                      ? 'What kind of playlist\nare you adding?'
-                      : 'What kind of playlist\ndo you have?',
+                      ? AppLocalizations.of(context).wizardTypeTitleAdd
+                      : AppLocalizations.of(context).wizardTypeTitleHave,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -1185,16 +1201,16 @@ class _PlaylistTypePage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: v(8)),
-                const Text(
-                  "Not sure? Ask your IPTV provider — they'll know!",
-                  style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
+                Text(
+                  AppLocalizations.of(context).wizardTypeHelp,
+                  style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
                 ),
                 SizedBox(height: v(40)),
                 _PlaylistTypeCard(
                   icon: Icons.dns_rounded,
-                  title: 'Xtream Codes',
+                  title: AppLocalizations.of(context).wizardTypeXtreamTitle,
                   description:
-                      'Login with a server address, username, and password.',
+                      AppLocalizations.of(context).wizardTypeXtreamDesc,
                   accentColor: accentColor,
                   onTap: () => onSelected(SourceType.xtream),
                   focusNode: firstCardFocusNode,
@@ -1202,18 +1218,16 @@ class _PlaylistTypePage extends StatelessWidget {
                 SizedBox(height: v(16)),
                 _PlaylistTypeCard(
                   icon: Icons.link_rounded,
-                  title: 'M3U Playlist',
-                  description:
-                      'Load from a direct playlist URL (ending in .m3u or .m3u8).',
+                  title: AppLocalizations.of(context).wizardTypeM3uTitle,
+                  description: AppLocalizations.of(context).wizardTypeM3uDesc,
                   accentColor: accentColor,
                   onTap: () => onSelected(SourceType.m3u),
                 ),
                 SizedBox(height: v(16)),
                 _PlaylistTypeCard(
                   icon: Icons.upload_file_rounded,
-                  title: 'Playlist File',
-                  description:
-                      'Choose an .m3u file saved on this device.',
+                  title: AppLocalizations.of(context).wizardTypeFileTitle,
+                  description: AppLocalizations.of(context).wizardTypeFileDesc,
                   accentColor: accentColor,
                   onTap: onFileSelected,
                 ),
@@ -1415,7 +1429,7 @@ class _CredentialsPage extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.arrow_back,
                             color: Colors.white70),
-                        tooltip: 'Back',
+                        tooltip: AppLocalizations.of(context).commonBack,
                         onPressed: onBack,
                       ),
                       const SizedBox(width: 4),
@@ -1433,10 +1447,10 @@ class _CredentialsPage extends StatelessWidget {
                       children: [
                         Text(
                           isXtream
-                              ? 'Xtream Credentials'
+                              ? AppLocalizations.of(context).wizardCredsTitleXtream
                               : fromFile
-                                  ? 'Playlist File'
-                                  : 'M3U Playlist',
+                                  ? AppLocalizations.of(context).wizardTypeFileTitle
+                                  : AppLocalizations.of(context).wizardTypeM3uTitle,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 26,
@@ -1446,10 +1460,10 @@ class _CredentialsPage extends StatelessWidget {
                         const SizedBox(height: 6),
                         Text(
                           isXtream
-                              ? 'Enter the login details from your provider.'
+                              ? AppLocalizations.of(context).wizardCredsSubXtream
                               : fromFile
-                                  ? 'Choose the playlist file saved on this device.'
-                                  : 'Paste the playlist link your provider gave you.',
+                                  ? AppLocalizations.of(context).wizardCredsSubFile
+                                  : AppLocalizations.of(context).wizardCredsSubM3u,
                           style:
                               const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
                         ),
@@ -1467,35 +1481,37 @@ class _CredentialsPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _WizardField(
-                      label: fromFile ? 'Nickname (optional)' : 'Nickname',
+                label: fromFile
+                          ? AppLocalizations.of(context).wizardNicknameOptional
+                          : AppLocalizations.of(context).wizardNickname,
                       ctrl: nicknameCtrl,
                       hint: fromFile
-                          ? 'Uses the file name if left blank'
-                          : 'e.g. Home Server',
+                          ? AppLocalizations.of(context).wizardNicknameHintFile
+                          : AppLocalizations.of(context).wizardNicknameHintExample,
                       accentColor: accentColor,
                       focusNode: nicknameFocusNode,
                     ),
                     const SizedBox(height: 16),
                     if (isXtream) ...[
                       _WizardField(
-                        label: 'Server Address',
+                        label: AppLocalizations.of(context).wizardServerAddressLabel,
                         ctrl: xtreamHostCtrl,
-                        hint: 'http://your-provider.com:8080',
+                        hint: AppLocalizations.of(context).wizardServerAddressHint,
                         type: TextInputType.url,
                         accentColor: accentColor,
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
-                        label: 'Username',
+                        label: AppLocalizations.of(context).wizardUsernameLabel,
                         ctrl: xtreamUserCtrl,
-                        hint: 'your_username',
+                        hint: AppLocalizations.of(context).wizardUsernameHint,
                         accentColor: accentColor,
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
-                        label: 'Password',
+                        label: AppLocalizations.of(context).wizardPasswordLabel,
                         ctrl: xtreamPassCtrl,
-                        hint: 'your_password',
+                        hint: AppLocalizations.of(context).wizardPasswordHint,
                         obscure: !passVisible,
                         accentColor: accentColor,
                         suffix: IconButton(
@@ -1505,7 +1521,9 @@ class _CredentialsPage extends StatelessWidget {
                                 : Icons.visibility,
                             color: AppTheme.mutedTextColor,
                           ),
-                          tooltip: passVisible ? 'Hide password' : 'Show password',
+                          tooltip: passVisible
+                              ? AppLocalizations.of(context).wizardPasswordHide
+                              : AppLocalizations.of(context).wizardPasswordShow,
                           onPressed: onTogglePass,
                         ),
                       ),
@@ -1517,25 +1535,25 @@ class _CredentialsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
-                        label: 'TV Guide URL (optional)',
+                        label: AppLocalizations.of(context).wizardGuideUrlLabel,
                         ctrl: epgUrlCtrl,
-                        hint: 'https://example.com/epg.xml',
+                        hint: AppLocalizations.of(context).wizardGuideUrlHint,
                         type: TextInputType.url,
                         accentColor: accentColor,
                       ),
                     ] else ...[
                       _WizardField(
-                        label: 'M3U URL',
+                        label: AppLocalizations.of(context).wizardM3uUrlLabel,
                         ctrl: m3uUrlCtrl,
-                        hint: 'https://example.com/playlist.m3u',
+                        hint: AppLocalizations.of(context).wizardM3uUrlHint,
                         type: TextInputType.url,
                         accentColor: accentColor,
                       ),
                       const SizedBox(height: 16),
                       _WizardField(
-                        label: 'TV Guide URL (optional)',
+                        label: AppLocalizations.of(context).wizardGuideUrlLabel,
                         ctrl: epgUrlCtrl,
-                        hint: 'https://example.com/epg.xml',
+                        hint: AppLocalizations.of(context).wizardGuideUrlHint,
                         type: TextInputType.url,
                         accentColor: accentColor,
                       ),
@@ -1568,7 +1586,7 @@ class _CredentialsPage extends StatelessWidget {
                     ],
                     const SizedBox(height: 28),
                     _GradientButton(
-                      label: 'Load My Playlist',
+                      label: AppLocalizations.of(context).wizardLoadMyPlaylist,
                       icon: Icons.download,
                       accentColor: accentColor,
                       onTap: onSubmit,
@@ -1605,9 +1623,9 @@ class _FilePickerField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Playlist file',
-          style: TextStyle(
+        Text(
+          AppLocalizations.of(context).wizardFileFieldLabel,
+          style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
               fontWeight: FontWeight.w500),
@@ -1643,7 +1661,7 @@ class _FilePickerField extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        fileName ?? 'Choose a file…',
+                        fileName ?? AppLocalizations.of(context).wizardFileChoose,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1655,7 +1673,9 @@ class _FilePickerField extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      picked ? 'Change' : 'Browse',
+                      picked
+                          ? AppLocalizations.of(context).wizardFileChange
+                          : AppLocalizations.of(context).wizardFileBrowse,
                       style: TextStyle(
                         color: accentColor,
                         fontSize: 14,
@@ -1758,11 +1778,11 @@ class _LoadingPage extends StatefulWidget {
   const _LoadingPage({
     required this.message,
     required this.accentColor,
-    this.title = 'Setting up your playlist…',
+    this.title,
   });
   final String message;
   final Color accentColor;
-  final String title;
+  final String? title;
 
   @override
   State<_LoadingPage> createState() => _LoadingPageState();
@@ -1833,7 +1853,7 @@ class _LoadingPageState extends State<_LoadingPage>
               ),
               const SizedBox(height: 40),
               Text(
-                widget.title,
+                widget.title ?? AppLocalizations.of(context).wizardLoadingSettingUp,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
@@ -1990,10 +2010,10 @@ class _AllSetPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Your playlist is ready.\nEnjoy the show.',
+              Text(
+                AppLocalizations.of(context).wizardAllSetBody,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.mutedTextColor, fontSize: 16, height: 1.6),
+                style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 16, height: 1.6),
               ),
             ],
           ),

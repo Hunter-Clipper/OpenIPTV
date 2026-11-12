@@ -29,6 +29,7 @@ import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/shared/utils/pull_refresh.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -138,7 +139,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const AppLogo(),
-        title: const Text('Movies'),
+        title: Text(AppLocalizations.of(context).moviesTitle),
         actions: [
           HomeLayoutToggleAction(
             provider: homeLayoutMoviesProvider,
@@ -151,7 +152,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
       body: moviesAsync.when(
         loading: () => const SkeletonList(leadingSize: 28),
         error: (_, __) => ErrorStateView(
-          message: "Couldn't load movies. Try again.",
+          message: AppLocalizations.of(context).moviesLoadError,
           onRetry: () => _refreshMovies(context, ref),
         ),
         data: (all) {
@@ -189,7 +190,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                 if (inProgress.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
-                      title: 'Continue Watching',
+                      title: AppLocalizations.of(context).detailContinueWatching,
                       movies: inProgress,
                       profileId: profileId,
                       showProgress: true,
@@ -200,7 +201,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                 if (favorites.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _HorizontalPosterRow(
-                      title: 'Favorites',
+                      title: AppLocalizations.of(context).detailFavorites,
                       movies: favorites,
                       profileId: profileId,
                       showProgress: false,
@@ -247,7 +248,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
       return [
         SliverToBoxAdapter(
           child: _HorizontalPosterRow(
-            title: 'All Movies',
+            title: AppLocalizations.of(context).moviesAll,
             movies: all.take(_railLength).toList(),
             profileId: profileId,
             showProgress: false,
@@ -301,7 +302,8 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
   }) {
     final genreCounts = buildGenreCounts(all, (m) => m.genre);
     return [
-      const SliverToBoxAdapter(child: RailHeader(title: 'Browse by Genre')),
+      SliverToBoxAdapter(
+          child: RailHeader(title: AppLocalizations.of(context).detailBrowseByGenre)),
       SliverToBoxAdapter(
         child: _GenreTileList(
           genres: genres.isEmpty ? ['All'] : genres,
@@ -351,7 +353,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.genre == 'All'
-            ? 'All Movies'
+            ? AppLocalizations.of(context).moviesAll
             : context.displayName(widget.genre)),
         actions: [
           ViewModeToggleAction(
@@ -365,7 +367,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
       body: moviesAsync.when(
         loading: () => const SkeletonList(leadingSize: 48),
         error: (_, __) => ErrorStateView(
-          message: "Couldn't load movies. Try again.",
+          message: AppLocalizations.of(context).moviesLoadError,
           onRetry: () => _refreshMovies(context, ref),
         ),
         data: (all) {
@@ -379,10 +381,10 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
               key: ValueKey('${widget.genre}_${sort}_$viewMode'),
               slivers: [
                 if (filtered.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     child: EmptyStateView(
                       icon: Icons.movie_outlined,
-                      message: 'No movies found.',
+                      message: AppLocalizations.of(context).moviesNoneFound,
                     ),
                   )
                 else if (viewMode == 'list')
@@ -459,7 +461,7 @@ class _GenreTileList extends StatelessWidget {
       children: [
         for (var i = 0; i < genres.length; i++)
           CategoryTile(
-            label: genres[i],
+            label: genres[i] == 'All' ? AppLocalizations.of(context).detailAllGenre : genres[i],
             count: movieCounts[genres[i]] ?? 0,
             icon: genres[i] == 'All'
                 ? Icons.movie_outlined
@@ -516,7 +518,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
               ListTile(
                 autofocus: true,
                 leading: const Icon(Icons.star_border),
-                title: const Text('Remove from Favorites'),
+                title: Text(AppLocalizations.of(sheetContext).detailRemoveFromFavorites),
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   if (profileId != null) {
@@ -532,7 +534,8 @@ class _HorizontalPosterRow extends ConsumerWidget {
                 autofocus: !isFavoritesRow,
                 leading: Icon(Icons.remove_circle_outline,
                     color: Theme.of(context).colorScheme.error),
-                title: const Text('Remove from Continue Watching'),
+                title: Text(
+                    AppLocalizations.of(sheetContext).detailRemoveFromContinueWatching),
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   final profileId =
@@ -604,7 +607,9 @@ void _showMovieOptions(
           ListTile(
             autofocus: true,
             leading: Icon(isFav ? Icons.star_border : Icons.star),
-            title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+            title: Text(isFav
+                ? AppLocalizations.of(context).detailRemoveFromFavorites
+                : AppLocalizations.of(context).detailAddToFavorites),
             onTap: () async {
               Navigator.pop(sheetContext);
               await ref
@@ -667,7 +672,9 @@ class _MovieListTile extends ConsumerWidget {
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             size: 20,
           ),
-          tooltip: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+          tooltip: isFav
+              ? AppLocalizations.of(context).detailRemoveFromFavorites
+              : AppLocalizations.of(context).detailAddToFavorites,
           onPressed: profileId == null
               ? null
               : () async {

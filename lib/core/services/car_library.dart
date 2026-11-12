@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:open_iptv/core/models/channel.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:open_iptv/core/models/episode.dart';
@@ -9,6 +10,8 @@ import 'package:open_iptv/core/models/series.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/l10n/app_languages.dart';
+import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 
 /// Something playable picked in the car: what to open and how.
@@ -84,6 +87,17 @@ class CarLibrary {
     AndroidContentStyle.playableHintKey: AndroidContentStyle.listItemHintValue,
   };
 
+  /// The browse tree has no BuildContext (Android Auto can start the app
+  /// without its screen), so the labels follow the saved app language, or
+  /// the system's when it is on automatic.
+  Future<AppLocalizations> _l10n() async {
+    final pref = (await loadPrefs()).language;
+    final locale = localeForPref(pref) ??
+        basicLocaleListResolution(
+            PlatformDispatcher.instance.locales, AppLocalizations.supportedLocales);
+    return lookupAppLocalizations(locale);
+  }
+
   Future<_Ctx?> _ctx() async {
     final profile = await loadProfile();
     if (profile == null) return null;
@@ -94,11 +108,12 @@ class CarLibrary {
   /// hasn't been set up on the phone yet.
   Future<List<MediaItem>> children(String parentId) async {
     final c = await _ctx();
+    final l10n = await _l10n();
     if (c == null) {
-      return const [
+      return [
         MediaItem(
           id: 'setup',
-          title: 'Open OpenIPTV on your phone to get started',
+          title: l10n.carLibrarySetup,
           playable: false,
         ),
       ];
@@ -107,14 +122,14 @@ class CarLibrary {
     switch (parts.first) {
       case AudioService.browsableRootId:
         return [
-          _folder(live, 'Live TV'),
-          _folder(movies, 'Movies'),
-          _folder(series, 'Series'),
+          _folder(live, l10n.carLibraryLiveTv),
+          _folder(movies, l10n.carLibraryMovies),
+          _folder(series, l10n.carLibrarySeries),
         ];
       case live:
         return [
-          _folder('live/fav', 'Favorites'),
-          _folder('live/recent', 'Recently Watched'),
+          _folder('live/fav', l10n.carLibraryFavorites),
+          _folder('live/recent', l10n.carLibraryRecentlyWatched),
           for (final cat in await _channelCategories(c))
             _folder('live/cat|$cat', c.name(cat)),
         ];
@@ -133,8 +148,8 @@ class CarLibrary {
             .where((ch) => ch.categories.contains(cat)));
       case movies:
         return [
-          _folder('mov/cw', 'Continue Watching'),
-          _folder('mov/fav', 'Favorites'),
+          _folder('mov/cw', l10n.carLibraryContinueWatching),
+          _folder('mov/fav', l10n.carLibraryFavorites),
           for (final g in _genres(c, (await _movies(c)).map((m) => m.genre)))
             _folder('mov/genre|$g', c.name(g)),
         ];
@@ -153,8 +168,8 @@ class CarLibrary {
             (m) => splitGenres(m.genre).any((x) => x.toLowerCase() == g)));
       case series:
         return [
-          _folder('ser/cw', 'Continue Watching'),
-          _folder('ser/fav', 'Favorites'),
+          _folder('ser/cw', l10n.carLibraryContinueWatching),
+          _folder('ser/fav', l10n.carLibraryFavorites),
           for (final g in _genres(c, (await _series(c)).map((s) => s.genre)))
             _folder('ser/genre|$g', c.name(g)),
         ];
