@@ -2,6 +2,8 @@
 /// smart guide assignment (#40). Pure Dart: no database, no network.
 library;
 
+import 'local_stations.dart';
+
 /// One channel listed at the top of an XMLTV file.
 class GuideChannel {
   const GuideChannel({
@@ -205,7 +207,9 @@ double scoreNames(NormalisedName a, NormalisedName b) {
 /// Finds the guide channel for a playlist channel.
 class GuideMatcher {
   GuideMatcher(Iterable<GuideChannel> channels, {this.threshold = 0.85}) {
-    for (final c in channels) {
+    final list = channels.toList();
+    _locals = LocalStationIndex(list);
+    for (final c in list) {
       // The id often says the region ("...uk") when the display name does not.
       final idRegion = normaliseChannelName(nameFromGuideId(c.xmltvId)).region;
       final variants = [
@@ -236,6 +240,7 @@ class GuideMatcher {
   final _entries = <_Entry>[];
   final _byId = <String, GuideChannel>{};
   final _postings = <String, Set<int>>{};
+  late final LocalStationIndex _locals;
 
   int get length => _entries.length;
 
@@ -251,6 +256,17 @@ class GuideMatcher {
   GuideMatch? match(String name, {String? tvgId, String? tvgName}) {
     final byId = matchById(tvgId);
     if (byId != null) return byId;
+
+    // Local stations are keyed by call sign. A name that looks local but
+    // cannot be resolved safely gets no guide at all rather than the
+    // national guide of the same network.
+    for (final n in [name, if (tvgName != null) tvgName]) {
+      final local = _locals.resolve(n);
+      if (local.kind == LocalKind.resolved) {
+        return GuideMatch(local.channel!, local.byCallSign ? 0.98 : 0.9);
+      }
+      if (local.kind == LocalKind.unresolved) return null;
+    }
 
     final queries = <NormalisedName>[
       for (final n in [name, if (tvgName != null) tvgName])

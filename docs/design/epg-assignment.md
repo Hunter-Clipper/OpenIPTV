@@ -40,10 +40,27 @@ for one channel by hand (hold OK / long-press → Change Guide).
   stable id, `<sourceId>_ch_<streamId>`).
 - Nothing is sent anywhere except the guide URLs the user typed.
 - Backup includes extra guides and manual links; auto links are recomputed.
-- No guide URLs are built into the app copy (no-content policy); the user
-  types them. Candidates used for testing: iptv-epg.org (`epg-us.xml`,
+- **No guide URLs are offered or built into the app** (no-content policy; owner
+  decision 2026-11-11). The Extra Guides screen carries only a knowing hint
+  that guide files are published by community sites and a web search for
+  "XMLTV EPG" is a good place to start, and says it accepts XML, XML.GZ and
+  zipped files as long as they unpack to XML.
+- Candidates Candidates used for testing: iptv-epg.org (`epg-us.xml`,
   `epg-gb.xml`) and epgshare01.online (small per-country files, e.g.
   `epg_ripper_UK1.xml.gz` 2.9 MB, `epg_ripper_US2.xml.gz` 6.6 MB).
+
+## Local stations (US)
+
+epgshare01's locals file is keyed by call sign (4,471 stations). `local_stations.dart`
+resolves in two tiers, precision first: (1) a call sign in the name that the
+guide has; (2) network + city through a small market table (only stations
+verified against the guide's own programming on 2026-11-11; Atlanta's CBS/CW
+were dropped when the guide showed the affiliation had moved). Never linked:
+sub-channels (`2.2`, "Telemundo KNSD"), ordinary channels containing a call
+sign ("WOW Kidz", "King TV"), cable cousins (FOX News), or a name that looks
+local but cannot be resolved (it must not fall back to the national guide).
+Checked on 620 generated provider-style names for every table entry: 620
+right, 0 wrong; and on 11,461 real playlist names: no false local links left.
 
 ## What the test feeds taught us
 
