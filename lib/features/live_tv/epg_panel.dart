@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:intl/intl.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -487,8 +488,5 @@ class _ProgrammeCard extends StatelessWidget {
 
   // Follows the device's 12/24-hour setting, matching the player overlay.
   String _formatTime(BuildContext context, DateTime dt) =>
-      MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(dt),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
+      formatSystemTime(context, dt);
 }

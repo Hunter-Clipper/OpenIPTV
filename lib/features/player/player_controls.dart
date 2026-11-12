@@ -877,10 +877,7 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
   }
 
   String _time(BuildContext context, DateTime t) =>
-      MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(t),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
+      formatSystemTime(context, t);
 
   @override
   Widget build(BuildContext context) {
@@ -1280,10 +1277,7 @@ class PlayerClock extends StatefulWidget {
   final double fontSize;
 
   static String label(BuildContext context) =>
-      MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.now(),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
+      formatSystemTime(context, DateTime.now());
 
   static TextStyle style(double fontSize) => TextStyle(
         color: Colors.white,

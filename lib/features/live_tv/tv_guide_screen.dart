@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1226,10 +1227,7 @@ class _ProgrammeInfoState extends State<_ProgrammeInfo> {
 }
 
 String _hm(BuildContext context, DateTime t) =>
-    MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(t),
-      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
+    formatSystemTime(context, t);
 
 class _GuideMessage extends StatelessWidget {
   const _GuideMessage({required this.icon, required this.text});

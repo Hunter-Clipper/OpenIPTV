@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/features/live_tv/change_guide_screen.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
@@ -679,10 +680,7 @@ class LogoTile extends StatelessWidget {
 }
 
 String _hm(BuildContext context, DateTime t) =>
-    MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(t),
-      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
+    formatSystemTime(context, t);
 
 // ---------------------------------------------------------------------------
 // Channel long-press options sheet

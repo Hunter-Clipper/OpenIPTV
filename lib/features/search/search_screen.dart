@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -585,7 +586,7 @@ class _ResultsList extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     String when(DateTime t) {
       final loc = MaterialLocalizations.of(context);
-      final time = loc.formatTimeOfDay(TimeOfDay.fromDateTime(t));
+      final time = formatSystemTime(context, t);
       final today = DateTime(now.year, now.month, now.day);
       final day = DateTime(t.year, t.month, t.day).difference(today).inDays;
       if (day == 0) return time;

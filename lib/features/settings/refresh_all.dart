@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
@@ -242,10 +243,7 @@ class RefreshNowTile extends ConsumerWidget {
     if (state.isRunning) {
       subtitle = _runningLine(l10n, state);
     } else if (state.last != null && state.finishedAt != null) {
-      final time = MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(state.finishedAt!),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
+      final time = formatSystemTime(context, state.finishedAt!);
       subtitle = l10n.refreshAllLastRun(
           time, refreshSummary(l10n, state.last!, state.lastResults));
     } else {
@@ -327,10 +325,7 @@ class _RefreshTile extends ConsumerWidget {
     if (runningThis) {
       subtitle = _runningLine(l10n, state);
     } else if (state.last == scope && state.finishedAt != null) {
-      final time = MaterialLocalizations.of(context).formatTimeOfDay(
-        TimeOfDay.fromDateTime(state.finishedAt!),
-        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-      );
+      final time = formatSystemTime(context, state.finishedAt!);
       subtitle = l10n.refreshAllLastRun(
           time, refreshSummary(l10n, scope, state.lastResults));
     } else {

@@ -1,4 +1,5 @@
-import 'dart:ui' show Locale;
+
+import 'package:flutter/material.dart';
 
 import 'package:intl/intl.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
@@ -51,4 +52,20 @@ String formatYmd(DateTime d) =>
 String formatRating(String rating) {
   final value = double.tryParse(rating.trim());
   return value == null ? rating : value.toStringAsFixed(1);
+}
+
+/// A clock time that follows the device's 12/24-hour setting, whatever the
+/// app language is. Flutter's own formatter falls back to the *language's*
+/// habit (24-hour for Spanish) when the flag is off, so the 12-hour layout
+/// is forced here.
+String formatSystemTime(BuildContext context, DateTime t) {
+  final loc = MaterialLocalizations.of(context);
+  final tod = TimeOfDay.fromDateTime(t);
+  if (MediaQuery.alwaysUse24HourFormatOf(context)) {
+    return loc.formatTimeOfDay(tod, alwaysUse24HourFormat: true);
+  }
+  final h = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
+  final m = tod.minute.toString().padLeft(2, '0');
+  final suffix = tod.period == DayPeriod.am ? loc.anteMeridiemAbbreviation : loc.postMeridiemAbbreviation;
+  return '$h:$m $suffix';
 }
