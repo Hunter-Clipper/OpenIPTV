@@ -3,6 +3,20 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.113)
+
+**New**
+- **Language support, with Spanish first.** Settings → Appearance → Language lets you pick *Auto-detect from system*, English or Español. Auto follows your device language and switches by itself if you change it, falling back to English when we don't have your language yet. The choice applies to the whole app (it is not per profile), takes effect at once with no restart, and is saved in backups. On a fresh install the setup wizard's welcome page has a language button too.
+- About 1,000 pieces of text (menus, settings, the player, the guide, messages and errors) are now translated. Channel, movie and programme names are shown exactly as your provider sends them.
+- Want to help translate? Translations are plain text files in `lib/l10n/`, so anyone can add or fix a language with a pull request. More languages are planned.
+
+**Improved**
+- Times and dates follow the chosen language, and clock times keep following your device's 12-hour or 24-hour setting.
+
+**Known gaps**
+- A few things are still English for now: background progress messages while refreshing, some system text (notifications, Android Auto) and release notes.
+- The Spanish is a first draft and a native speaker should review it.
+
 ## 0.14.111 — 2026-11-12
 
 **New**
