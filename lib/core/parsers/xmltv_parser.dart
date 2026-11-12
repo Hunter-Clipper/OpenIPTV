@@ -17,6 +17,16 @@ class XmltvParser {
     bool keepDescriptions = true,
     Set<String>? onlyChannels,
   }) async* {
+    // Asked for a few channels out of a big guide: find their blocks by a
+    // plain text scan and parse only those (a full XML pass over hundreds
+    // of megabytes takes minutes on a TV).
+    if (onlyChannels != null) {
+      yield* _parseWanted(chunks, onlyChannels,
+          windowDays: windowDays,
+          pastWindow: pastWindow,
+          keepDescriptions: keepDescriptions);
+      return;
+    }
     final cutoffEnd = DateTime.now().add(Duration(days: windowDays));
     final cutoffStart = DateTime.now().subtract(pastWindow);
 
@@ -106,6 +116,107 @@ class XmltvParser {
       }
     }
 
+  }
+
+  /// The `channel` attribute of the `<programme ...>` tag spanning
+  /// [from]..[to] in [text], found without building a substring (this runs
+  /// for every programme of a guide that can hold millions).
+  static String? _channelOf(String text, int from, int to) {
+    for (final quote in const ['"', "'"]) {
+      final key = ' channel=$quote';
+      final at = text.indexOf(key, from);
+      if (at < 0 || at > to) {
+        // Also "\nchannel=" / "\tchannel=" after a line break.
+        continue;
+      }
+      final start = at + key.length;
+      final end = text.indexOf(quote, start);
+      if (end < 0 || end > to) return null;
+      return _unescape(text.substring(start, end));
+    }
+    return _channelOfSlow(text.substring(from, to));
+  }
+
+  // Attributes split over lines, or written with spaces around "=".
+  static final _reChannelAttr = RegExp(
+      r'\bchannel\s*=\s*(?:"([^"]*)"|' "'" r'([^' "'" r']*)' "'" r')');
+
+  static String? _channelOfSlow(String tag) {
+    final m = _reChannelAttr.firstMatch(tag);
+    return m == null ? null : _unescape(m.group(1) ?? m.group(2) ?? '');
+  }
+
+  static String _unescape(String v) => v.contains('&')
+      ? v
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&apos;', "'")
+          .replaceAll('&amp;', '&')
+      : v;
+
+  /// Pulls the `<programme>` blocks of [wanted] channels out of the text and
+  /// parses just those, in batches.
+  static Stream<Programme> _parseWanted(
+    Stream<String> chunks,
+    Set<String> wanted, {
+    required int windowDays,
+    required Duration pastWindow,
+    required bool keepDescriptions,
+  }) async* {
+    var buf = '';
+    final batch = StringBuffer();
+    var batchSize = 0;
+
+    Stream<Programme> flush() {
+      final xml = '<tv>${batch.toString()}</tv>';
+      batch.clear();
+      batchSize = 0;
+      return parse(Stream.value(xml),
+          windowDays: windowDays,
+          pastWindow: pastWindow,
+          keepDescriptions: keepDescriptions);
+    }
+
+    await for (final chunk in chunks) {
+      buf = buf.isEmpty ? chunk : buf + chunk;
+      var pos = 0;
+      while (true) {
+        final i = buf.indexOf('<programme', pos);
+        if (i < 0) {
+          // Keep a little in case "<programme" is split across chunks.
+          pos = buf.length > 12 ? buf.length - 12 : 0;
+          break;
+        }
+        final gt = buf.indexOf('>', i);
+        if (gt < 0) {
+          pos = i;
+          break;
+        }
+        final selfClosing = buf.codeUnitAt(gt - 1) == 0x2f; // "/>"
+        final int blockEnd;
+        if (selfClosing) {
+          blockEnd = gt + 1;
+        } else {
+          final close = buf.indexOf('</programme>', gt);
+          if (close < 0) {
+            pos = i;
+            break;
+          }
+          blockEnd = close + 12;
+        }
+        final id = _channelOf(buf, i, gt);
+        if (id != null && wanted.contains(id)) {
+          final block = buf.substring(i, blockEnd);
+          batch.write(block);
+          batchSize += block.length;
+          if (batchSize > 262144) yield* flush();
+        }
+        pos = blockEnd;
+      }
+      buf = buf.substring(pos);
+    }
+    if (batchSize > 0) yield* flush();
   }
 
   /// The channels a guide lists (id and first display-name). XMLTV puts them
