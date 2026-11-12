@@ -140,6 +140,7 @@ class GuideAssignmentService {
       return GuideSyncResult(guides: guides.length, errors: errors);
     }
 
+    debugPrint('[Guides] lists read: ${sw.elapsedMilliseconds} ms');
     // 2. Smart assignment.
     final order = {for (final (i, g) in guides.indexed) g.ref: i};
     final rows = [
@@ -190,6 +191,7 @@ class GuideAssignmentService {
               score: f.$4),
       ];
     }
+    debugPrint('[Guides] matched ${auto.length}: ${sw.elapsedMilliseconds} ms');
     await db.replaceAutoLinks(auto);
 
     // 3. Programmes for every linked channel, one pass per guide.

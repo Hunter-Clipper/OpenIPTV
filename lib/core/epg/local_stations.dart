@@ -51,14 +51,24 @@ class _Station {
 
 _Station? _stationOf(GuideChannel c) {
   // "WNBC-DT.us_locals1", "WNBC.us", or "Name.(WNBC-DT).City,.ST.us_locals1".
-  final fromId = RegExp(r'^([KW][A-Z]{2,3})(?:-([A-Z]{1,2}))?(\d)?(?:\.|$)')
+  final fromId = _reStationId
           .firstMatch(c.xmltvId.toUpperCase()) ??
-      RegExp(r'\(([KW][A-Z]{2,3})(?:-([A-Z]{1,2}))?(\d)?\)')
+      _reStationParen
           .firstMatch(c.xmltvId.toUpperCase());
   if (fromId == null) return null;
   return _Station(
       c, fromId.group(1)!, fromId.group(2) ?? '', fromId.group(3) ?? '');
 }
+
+final _reStationId =
+    RegExp(r'^([KW][A-Z]{2,3})(?:-([A-Z]{1,2}))?(\d)?(?:\.|$)');
+final _reStationParen =
+    RegExp(r'\(([KW][A-Z]{2,3})(?:-([A-Z]{1,2}))?(\d)?\)');
+final _reTags = RegExp(r'\[[^\]]*\]');
+final _reTokens = RegExp(r'[^a-z0-9\-]+');
+final _reVirtual = RegExp(r'\b\d{1,3}\.(\d{1,2})\b');
+final _reAlnum = RegExp(r'[^a-z0-9]+');
+final _reNumberish = RegExp(r'^\d+[pi]?$');
 
 // Words after a network name that make it a cable channel, not a local one.
 const _cousinWords = {
@@ -162,16 +172,16 @@ class LocalStationIndex {
     final lower = name
         .toLowerCase()
         .replaceAll('&', ' and ')
-        .replaceAll(RegExp(r'\[[^\]]*\]'), ' ');
+        .replaceAll(_reTags, ' ');
     final tokens = lower
-        .split(RegExp(r'[^a-z0-9\-]+'))
+        .split(_reTokens)
         .where((t) => t.isNotEmpty)
         .toList();
     if (tokens.any(_notLocalWords.contains)) return LocalResult.notLocal;
 
     // "WKAQ-TV 2.2": a virtual channel other than .1 is a sub-channel with
     // programming of its own, not the station's main schedule.
-    final virtual = RegExp(r'\b\d{1,3}\.(\d{1,2})\b').firstMatch(lower);
+    final virtual = _reVirtual.firstMatch(lower);
     final isSubChannel = virtual != null && virtual.group(1) != '1';
 
     final plain = tokens.map((t) => t.replaceAll('-', '')).toList();
@@ -209,7 +219,7 @@ class LocalStationIndex {
           for (final st in _byBase[b]!)
             ...st.channel.name
                 .toLowerCase()
-                .split(RegExp(r'[^a-z0-9]+'))
+                .split(_reAlnum)
                 .where((t) => t.isNotEmpty),
       };
       if (_hasUnexplainedWords(plain, {...signIndexes, ...netIndexes},
@@ -266,7 +276,7 @@ class LocalStationIndex {
     for (var i = 0; i < plain.length; i++) {
       if (explained.contains(i)) continue;
       final t = plain[i];
-      if (RegExp(r'^\d+[pi]?$').hasMatch(t)) continue;
+      if (_reNumberish.hasMatch(t)) continue;
       if (_allowedWords.contains(t) ||
           _marketWords.contains(t) ||
           also.contains(t)) {

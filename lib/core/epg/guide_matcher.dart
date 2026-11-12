@@ -22,6 +22,20 @@ class GuideChannel {
   final String name;
 }
 
+// Compiled once: matching runs over tens of thousands of channels.
+final _reDot = RegExp(r'[._]+');
+final _reIdRegion = RegExp(r'^([a-z]{2,3})(?:\d+|_[a-z0-9_]+)?$');
+final _reSplit = RegExp(r'[^a-z0-9À-ɏ]+');
+final _reTrailDigit = RegExp(r'\d$');
+final _reLetterDigit = RegExp(r'^[a-z]+\d+$');
+final _reParts = RegExp(r'[a-z]+|\d+');
+final _reAllDigits = RegExp(r'^\d+$');
+final _reThe = RegExp(r'^the');
+final _reTail = RegExp(r'(tv|channel|network)$');
+final _reHasDigit = RegExp(r'\d');
+final _reNameParts = RegExp(r'\s+/\s+|\s*\|\s*(?=\S+\s*\|)');
+final _reSpace = RegExp(r'\s+');
+
 /// What to call a guide channel that has no `display-name` (some feeds only
 /// have ids like "BBC.One.HD.uk"): the id with its dots read as spaces.
 String nameFromGuideId(String id) {
@@ -29,7 +43,7 @@ String nameFromGuideId(String id) {
   // "BBC.One.HD.uk", "WNBC-DT.us_locals1": the region is said separately.
   final dot = id.lastIndexOf('.');
   if (dot > 0 && regionOfGuideId(id) != null) base = id.substring(0, dot);
-  return base.replaceAll(RegExp(r'[._]+'), ' ').trim();
+  return base.replaceAll(_reDot, ' ').trim();
 }
 
 /// A guide channel judged to be the same station as a playlist channel.
@@ -47,7 +61,7 @@ class GuideMatch {
 
 /// A name broken into what matters for comparing it: words and a region.
 class NormalisedName {
-  const NormalisedName(this.tokens, this.region,
+  NormalisedName(this.tokens, this.region,
       [this.ordered = const [],
       this.orderedStem = const [],
       this.keys = const {}]);
@@ -69,6 +83,12 @@ class NormalisedName {
   /// leading "the" or trailing "tv" / "channel" ("MAV TV" = "MAVTV"). Two
   /// names sharing one are the same name.
   final Set<String> keys;
+
+  /// Words holding a digit: BBC 1 and BBC 2 differ here.
+  late final Set<String> numbers = {
+    for (final t in tokens)
+      if (_reHasDigit.hasMatch(t)) t,
+  };
 
   String get squashed => ordered.join();
   String get squashedStem => orderedStem.join();
@@ -115,7 +135,7 @@ String? regionOfGuideId(String id) {
   final dot = id.lastIndexOf('.');
   if (dot < 0) return null;
   final last = id.substring(dot + 1).toLowerCase();
-  final m = RegExp(r'^([a-z]{2,3})(?:\d+|_[a-z0-9_]+)?$').firstMatch(last);
+  final m = _reIdRegion.firstMatch(last);
   return m == null ? null : regionOfCode(m.group(1)!);
 }
 
@@ -210,7 +230,7 @@ NormalisedName normaliseChannelName(String raw) {
   s = s.replaceAll('+', ' plus ');
 
   var tokens = s
-      .split(RegExp(r'[^a-z0-9À-ɏ]+'))
+      .split(_reSplit)
       .where((t) => t.isNotEmpty)
       .map((t) => _numberWords[t] ?? t)
       .toList();
@@ -219,7 +239,7 @@ NormalisedName normaliseChannelName(String raw) {
   // Feeds also end ids with a number ("us2", "uk1").
   final lastRegion = tokens.isEmpty
       ? null
-      : _regionWords[tokens.last.replaceFirst(RegExp(r'\d$'), '')];
+      : _regionWords[tokens.last.replaceFirst(_reTrailDigit, '')];
   if (tokens.length >= 2 && lastRegion != null) {
     region ??= lastRegion;
     tokens = tokens.sublist(0, tokens.length - 1);
@@ -234,13 +254,13 @@ NormalisedName normaliseChannelName(String raw) {
   // "ITV1" and "ITV 1" are the same name.
   tokens = [
     for (final t in tokens)
-      if (RegExp(r'^[a-z]+\d+$').hasMatch(t) && !t.startsWith('plus'))
-        ...RegExp(r'[a-z]+|\d+').allMatches(t).map((m) => m[0]!)
+      if (_reLetterDigit.hasMatch(t) && !t.startsWith('plus'))
+        ..._reParts.allMatches(t).map((m) => m[0]!)
       else
         t,
   ];
   final strong = tokens.where((t) => !_weakWords.contains(t)).toList();
-  if (strong.any((t) => !RegExp(r'^\d+$').hasMatch(t))) tokens = strong;
+  if (strong.any((t) => !_reAllDigits.hasMatch(t))) tokens = strong;
 
   // Plurals fold together ("sport" / "sports", "kid" / "kids").
   String stem(String t) => t.length > 3 &&
@@ -257,8 +277,8 @@ NormalisedName normaliseChannelName(String raw) {
     if (joined.length < 4) return;
     keys.add(joined);
     final core = joined
-        .replaceFirst(RegExp(r'^the'), '')
-        .replaceFirst(RegExp(r'(tv|channel|network)$'), '');
+        .replaceFirst(_reThe, '')
+        .replaceFirst(_reTail, '');
     if (core.length >= 3) keys.add(core);
   }
 
@@ -285,8 +305,8 @@ List<String> _nameVariants(String raw) {
 double scoreNames(NormalisedName a, NormalisedName b) {
   if (a.isEmpty || b.isEmpty) return 0;
   // BBC 1 and BBC 2, or a +1 channel and its parent, are never the same.
-  final numA = a.tokens.where((t) => RegExp(r'\d').hasMatch(t)).toSet();
-  final numB = b.tokens.where((t) => RegExp(r'\d').hasMatch(t)).toSet();
+  final numA = a.numbers;
+  final numB = b.numbers;
   if (numA.length != numB.length || !numA.containsAll(numB)) return 0;
 
   double score;
@@ -303,6 +323,8 @@ double scoreNames(NormalisedName a, NormalisedName b) {
   }
   return score > 1 ? 1 : score;
 }
+
+String _setKey(NormalisedName n) => (n.tokens.toList()..sort()).join(' ');
 
 /// Finds the guide channel for a playlist channel.
 class GuideMatcher {
@@ -330,6 +352,7 @@ class GuideMatcher {
         for (final k in v.keys) {
           (_bySquashed[k] ??= <int>{}).add(index);
         }
+        (_bySet[_setKey(v)] ??= <int>{}).add(index);
       }
     }
   }
@@ -349,6 +372,8 @@ class GuideMatcher {
   final _postings = <String, Set<int>>{};
   // Entries by their words joined: "SkySportNews" is found from "SKY SPORT NEWS".
   final _bySquashed = <String, Set<int>>{};
+  // Entries by their sorted word set: "Sky Sport News" = "News Sky Sport".
+  final _bySet = <String, Set<int>>{};
   late final LocalStationIndex _locals;
 
   int get length => _entries.length;
@@ -363,6 +388,15 @@ class GuideMatcher {
   /// The best guide channel for a playlist channel, or null when nothing is
   /// good enough or two guide channels fit equally well.
   GuideMatch? match(String name, {String? tvgId, String? tvgName}) {
+    // Playlists repeat names (the same channel in two playlists): answer once.
+    final key = '$name\u0000${tvgId ?? ''}\u0000${tvgName ?? ''}';
+    if (_memo.containsKey(key)) return _memo[key];
+    return _memo[key] = _match(name, tvgId, tvgName);
+  }
+
+  final _memo = <String, GuideMatch?>{};
+
+  GuideMatch? _match(String name, String? tvgId, String? tvgName) {
     final byId = matchById(tvgId);
     if (byId != null) return byId;
 
@@ -377,27 +411,43 @@ class GuideMatcher {
       if (local.kind == LocalKind.unresolved) return null;
     }
 
-    final queries = <NormalisedName>[
+    // "BBC 3 / CBBC (UK)": either half may be the guide's name. Each distinct
+    // spelling is normalised once.
+    final spellings = <String>{
       for (final n in [name, if (tvgName != null) tvgName])
-        // "BBC 3 / CBBC (UK)": either half may be the guide's name.
-        for (final part in n.split(RegExp(r'\s+/\s+|\s*\|\s*(?=\S+\s*\|)')))
-          normaliseChannelName(part),
-      normaliseChannelName(name),
+        ...n.split(_reNameParts),
+      name,
+    };
+    final queries = [
+      for (final t in spellings) normaliseChannelName(t),
     ].where((q) => !q.isEmpty).toList();
 
     final scores = <int, double>{};
+    // Exact names only (the default) need no scanning of near neighbours:
+    // look the name up under every spelling it has.
+    final exactOnly = threshold >= 0.99;
     for (final q in queries) {
       final candidates = <int>{};
-      for (final t in q.tokens) {
-        final posting = _postings[t];
-        if (posting == null || posting.length > _commonLimit) continue;
-        candidates.addAll(posting);
-      }
-      candidates
-        ..addAll(_bySquashed[q.squashed] ?? const <int>{})
-        ..addAll(_bySquashed[q.squashedStem] ?? const <int>{});
-      for (final k in q.keys) {
-        candidates.addAll(_bySquashed[k] ?? const <int>{});
+      if (exactOnly) {
+        candidates
+          ..addAll(_bySet[_setKey(q)] ?? const <int>{})
+          ..addAll(_bySquashed[q.squashed] ?? const <int>{})
+          ..addAll(_bySquashed[q.squashedStem] ?? const <int>{});
+        for (final k in q.keys) {
+          candidates.addAll(_bySquashed[k] ?? const <int>{});
+        }
+      } else {
+        for (final t in q.tokens) {
+          final posting = _postings[t];
+          if (posting == null || posting.length > _commonLimit) continue;
+          candidates.addAll(posting);
+        }
+        candidates
+          ..addAll(_bySquashed[q.squashed] ?? const <int>{})
+          ..addAll(_bySquashed[q.squashedStem] ?? const <int>{});
+        for (final k in q.keys) {
+          candidates.addAll(_bySquashed[k] ?? const <int>{});
+        }
       }
       for (final i in candidates) {
         var best = 0.0;
@@ -491,7 +541,7 @@ class GuideMatcher {
   /// manual picker. Best matches first.
   List<GuideChannel> search(String query, {int limit = 50}) {
     final q =
-        query.toLowerCase().split(RegExp(r'\s+')).where((t) => t.isNotEmpty);
+        query.toLowerCase().split(_reSpace).where((t) => t.isNotEmpty);
     if (q.isEmpty) return const [];
     final hits = <(double, GuideChannel)>[];
     final qn = normaliseChannelName(query);
