@@ -1035,7 +1035,10 @@ class SettingsScreen extends ConsumerWidget {
                   final swatch = entry.value;
                   final selected = swatch.color == current;
                   return TvFocusable(
-                    autofocus: i == 0,
+                    // The remote starts on the current colour.
+                    autofocus: AppTheme.accentSwatches.any((w) => w.color == current)
+                        ? selected
+                        : i == 0,
                     borderRadius: BorderRadius.circular(12),
                     onTap: () async {
                       Navigator.of(ctx).pop();
@@ -1210,7 +1213,7 @@ class _SubPage extends StatelessWidget {
       controller: InfoTooltipController(),
       child: Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: TvFollowFocus(child: ListView(
+        body: TvFollowFocus(focusFirst: true, child: ListView(
           padding: EdgeInsets.only(
               bottom: 32 + MediaQuery.paddingOf(context).bottom),
           children: [
@@ -1242,14 +1245,16 @@ class _ToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TvActivatable(
-      onTap: () => onChanged(!value),
-      builder: (_) => SwitchListTile(
-        secondary: IconBadge(icon: icon),
-        title: Text(title),
-        value: value,
-        onChanged: onChanged,
-        focusNode: null,
+    return InfoGutter(
+      child: TvActivatable(
+        onTap: () => onChanged(!value),
+        builder: (_) => SwitchListTile(
+          secondary: IconBadge(icon: icon),
+          title: Text(title),
+          value: value,
+          onChanged: onChanged,
+          focusNode: null,
+        ),
       ),
     );
   }
@@ -1276,17 +1281,19 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TvActivatable(
-      onTap: onTap,
-      autofocus: autofocus,
-      builder: (onTap) => ListTile(
-        leading: leading is Icon
-            ? IconBadge(icon: (leading as Icon).icon!)
-            : leading,
-        title: Text(title),
-        subtitle: subtitle,
-        trailing: showChevron ? const Icon(Icons.chevron_right) : null,
+    return InfoGutter(
+      child: TvActivatable(
         onTap: onTap,
+        autofocus: autofocus,
+        builder: (onTap) => ListTile(
+          leading: leading is Icon
+              ? IconBadge(icon: (leading as Icon).icon!)
+              : leading,
+          title: Text(title),
+          subtitle: subtitle,
+          trailing: showChevron ? const Icon(Icons.chevron_right) : null,
+          onTap: onTap,
+        ),
       ),
     );
   }

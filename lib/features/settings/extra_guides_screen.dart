@@ -313,7 +313,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
       appBar: AppBar(title: const Text('Extra Guides')),
       body: prefs == null
           ? const Center(child: CircularProgressIndicator())
-          : TvFollowFocus(child: SingleChildScrollView(
+          : TvFollowFocus(focusFirst: true, child: SingleChildScrollView(
               padding: EdgeInsets.only(
                   bottom: 32 + MediaQuery.paddingOf(context).bottom),
               child: Column(
@@ -595,7 +595,7 @@ class _GuideLinksScreenState extends ConsumerState<_GuideLinksScreen> {
                       'guide and let OpenIPTV match channels for you.',
                       textAlign: TextAlign.center),
                 ))
-              : TvFollowFocus(child: ListView.builder(
+              : TvFollowFocus(focusFirst: true, child: ListView.builder(
                   padding: EdgeInsets.only(
                       bottom: 32 + MediaQuery.paddingOf(context).bottom),
                   itemCount: links.length,

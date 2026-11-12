@@ -975,25 +975,57 @@ class _TvCaretState extends State<_TvCaret> {
 /// only reacts to focus inside this list's own scrollable (dialogs, the app
 /// bar and other lists are left alone).
 class TvFollowFocus extends StatefulWidget {
-  const TvFollowFocus({super.key, required this.child, this.alignment = 0.5});
+  const TvFollowFocus({
+    super.key,
+    required this.child,
+    this.alignment = 0.5,
+    this.focusFirst = false,
+  });
 
   final Widget child;
   final double alignment;
+
+  /// On TV, start with the first row focused (a pushed page that has no row
+  /// of its own to autofocus; otherwise the first Down press lands on the
+  /// back arrow).
+  final bool focusFirst;
 
   @override
   State<TvFollowFocus> createState() => _TvFollowFocusState();
 }
 
 class _TvFollowFocusState extends State<TvFollowFocus> {
+  final _scope = FocusNode(
+      debugLabel: 'TvFollowFocus', canRequestFocus: false, skipTraversal: true);
+
   @override
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_follow);
+    if (widget.focusFirst) {
+      // After the list has built its first rows.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _focusFirst());
+      });
+    }
+  }
+
+  void _focusFirst() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    // Something inside already has focus (the person got there first).
+    if (_scope.hasFocus) return;
+    for (final n in _scope.descendants) {
+      if (n.canRequestFocus && !n.skipTraversal) {
+        n.requestFocus();
+        return;
+      }
+    }
   }
 
   @override
   void dispose() {
     FocusManager.instance.removeListener(_follow);
+    _scope.dispose();
     super.dispose();
   }
 
@@ -1026,5 +1058,10 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => Focus(
+        focusNode: _scope,
+        canRequestFocus: false,
+        skipTraversal: true,
+        child: widget.child,
+      );
 }

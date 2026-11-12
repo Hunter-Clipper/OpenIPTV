@@ -133,7 +133,7 @@ class _ChangeGuideScreenState extends ConsumerState<ChangeGuideScreen> {
       appBar: AppBar(title: const Text('Change Guide')),
       body: picker == null
           ? const Center(child: CircularProgressIndicator())
-          : TvFollowFocus(child: ListView(
+          : TvFollowFocus(focusFirst: true, child: ListView(
               padding: EdgeInsets.fromLTRB(
                   16, 8, 16, 32 + MediaQuery.paddingOf(context).bottom),
               children: [

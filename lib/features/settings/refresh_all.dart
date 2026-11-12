@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
@@ -229,49 +230,51 @@ class RefreshNowTile extends ConsumerWidget {
     }
     // While one runs the row stays focusable (a no-op) so a TV remote keeps
     // its place.
-    return TvActivatable(
-      onTap: state.isRunning
-          ? () {}
-          : () async {
-              final scope = await showDialog<RefreshScope>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Refresh'),
-                  scrollable: true,
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final (i, c) in _choices.indexed)
-                        TvActivatable(
-                          autofocus: i == 0,
-                          onTap: () => Navigator.of(ctx).pop(c.$1),
-                          builder: (tap) => ListTile(
-                            leading: IconBadge(icon: c.$2),
-                            title: Text(c.$3),
-                            subtitle: Text(c.$4),
-                            onTap: tap,
+    return InfoGutter(
+      child: TvActivatable(
+        onTap: state.isRunning
+            ? () {}
+            : () async {
+                final scope = await showDialog<RefreshScope>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Refresh'),
+                    scrollable: true,
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final (i, c) in _choices.indexed)
+                          TvActivatable(
+                            autofocus: i == 0,
+                            onTap: () => Navigator.of(ctx).pop(c.$1),
+                            builder: (tap) => ListTile(
+                              leading: IconBadge(icon: c.$2),
+                              title: Text(c.$3),
+                              subtitle: Text(c.$4),
+                              onTap: tap,
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-              if (scope != null) {
-                await ref.read(refreshAllProvider.notifier).run(scope);
-              }
-            },
-      builder: (onTap) => ListTile(
-        leading: const IconBadge(icon: Icons.sync_rounded),
-        title: const Text('Refresh Now'),
-        subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
-        trailing: state.isRunning
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              )
-            : null,
-        onTap: onTap,
+                );
+                if (scope != null) {
+                  await ref.read(refreshAllProvider.notifier).run(scope);
+                }
+              },
+        builder: (onTap) => ListTile(
+          leading: const IconBadge(icon: Icons.sync_rounded),
+          title: const Text('Refresh Now'),
+          subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+          trailing: state.isRunning
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              : null,
+          onTap: onTap,
+        ),
       ),
     );
   }
