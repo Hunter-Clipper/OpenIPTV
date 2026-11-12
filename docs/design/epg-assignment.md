@@ -124,6 +124,12 @@ Evaluated against the real iptv-epg files in tests and by a throwaway harness.
 - Matching 34,000 channels takes about 14 s on the Chromecast (was 182 s);
   a full sync with two extra guides takes about two minutes.
 
+## Matching modes (pref `guide_match_mode`, backed up)
+
+- `explicit`: guide id equals the channel's tvg-id, nothing else (no names, no locals).
+- `standard` (default): id, then exact name, locals by call sign (threshold 0.99).
+- `optimistic`: as standard, then name likeness (threshold 0.8, region mismatch halves the score, runner-up margin still applies). Not audited against real guides yet; expect wrong guesses, fixable via Review Guide Matches.
+
 ## Known limits
 
 - The first extra-guide read of a very large guide still has to download it

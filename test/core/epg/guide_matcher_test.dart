@@ -39,6 +39,32 @@ void main() {
     });
   });
 
+  group('GuideMatchMode', () {
+    final guide = [
+      g('a', 'BBCOne.uk', 'BBC One'),
+      g('a', 'SkySportsMainEvent.uk', 'Sky Sports Main Event'),
+    ];
+
+    test('explicit matches the guide id only, never a name', () {
+      final m = GuideMatcher(guide, idOnly: true);
+      expect(m.match('Whatever', tvgId: 'bbcone.uk')?.channel.xmltvId,
+          'BBCOne.uk');
+      expect(m.match('BBC One'), isNull);
+      expect(m.match('BBC One', tvgId: 'nope.uk'), isNull);
+    });
+
+    test('standard needs the exact name, optimistic accepts alike names', () {
+      final standard = GuideMatcher(guide, threshold: GuideMatchMode.standard.threshold);
+      final optimistic =
+          GuideMatcher(guide, threshold: GuideMatchMode.optimistic.threshold);
+      expect(standard.match('Sky Sports Main Event HD'), isNotNull);
+      expect(standard.match('Sky Sports Main'), isNull);
+      expect(optimistic.match('Sky Sports Main'), isNotNull);
+      expect(optimistic.match('Sky Sports Cricket'), isNull);
+      expect(GuideMatchMode.parse('bogus'), GuideMatchMode.standard);
+    });
+  });
+
   group('GuideMatcher', () {
     final matcher = GuideMatcher([
       g('a', 'BBCOne.uk', 'UK - BBC One'),

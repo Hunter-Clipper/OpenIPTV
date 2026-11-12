@@ -197,7 +197,9 @@ class GuideAssignmentService {
       final guideRows = [
         for (final r in rows) (r.guideRef, r.xmltvId, r.name),
       ];
-      final found = await Isolate.run(() => _matchAll(guideRows, candidates));
+      final mode = GuideMatchMode.parse(prefs.guideMatchMode);
+      final found =
+          await Isolate.run(() => _matchAll(guideRows, candidates, mode));
       auto = [
         for (final f in found)
           GuideLinksCompanionArgs(
@@ -377,8 +379,9 @@ final guideRevisionProvider = StateProvider<int>((ref) => 0);
 List<(String, String, String, double)> _matchAll(
   List<(String, String, String)> guideRows,
   List<(String, String, String?, String?)> candidates,
+  GuideMatchMode mode,
 ) {
-  final matcher = GuideMatcher([
+  final matcher = GuideMatcher(threshold: mode.threshold, idOnly: mode == GuideMatchMode.explicit, [
     for (final r in guideRows)
       GuideChannel(
         guideId: r.$1,

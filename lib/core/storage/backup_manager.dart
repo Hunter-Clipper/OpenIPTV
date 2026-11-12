@@ -601,6 +601,13 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
+      key: 'guideMatchMode',
+      encode: (p) => p.guideMatchMode,
+      decode: (p, v) async {
+        if (v is String) await p.setGuideMatchMode(v);
+      },
+    ),
+    PreferenceEntry(
       key: 'guideDescriptions',
       encode: (p) => p.guideDescriptions,
       decode: (p, v) async {

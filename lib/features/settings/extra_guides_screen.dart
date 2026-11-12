@@ -52,6 +52,61 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     });
   }
 
+  static const _modes = <(String, String, String)>[
+    (
+      'explicit',
+      'Explicit',
+      'Only when the channel\'s guide ID is exactly the same as the guide\'s. '
+          'Safest; channels without an ID are left alone.'
+    ),
+    (
+      'standard',
+      'Standard',
+      'The guide ID, or exactly the same channel name. US local stations '
+          'are matched by call sign.'
+    ),
+    (
+      'optimistic',
+      'Optimistic',
+      'Also channels whose names are only alike. Finds more, but some '
+          'guesses will be wrong; you can fix any in Review Guide Matches.'
+    ),
+  ];
+
+  String _modeTitle(String mode) =>
+      _modes.firstWhere((m) => m.$1 == mode, orElse: () => _modes[1]).$2;
+
+  Future<void> _pickMode(AppPreferences prefs) async {
+    final current = prefs.guideMatchMode;
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Matching Mode'),
+        scrollable: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final m in _modes)
+              TvActivatable(
+                onTap: () => Navigator.of(ctx).pop(m.$1),
+                builder: (tap) => ListTile(
+                  leading: Icon(m.$1 == current
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded),
+                  title: Text(m.$2),
+                  subtitle: Text(m.$3),
+                  onTap: tap,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null || chosen == current) return;
+    await prefs.setGuideMatchMode(chosen);
+    await _update(refreshLists: false);
+  }
+
   Future<void> _update({bool refreshLists = true}) async {
     if (_status != null) return;
     setState(() => _status = 'Starting…');
@@ -308,6 +363,17 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                               style: theme.textTheme.bodySmall),
                           value: prefs.smartGuideAssign,
                           onChanged: tap == null ? null : (_) => tap(),
+                        ),
+                      ),
+                      TvActivatable(
+                        onTap: () => _pickMode(prefs),
+                        builder: (tap) => ListTile(
+                          leading: const IconBadge(icon: Icons.tune_rounded),
+                          title: const Text('Matching Mode'),
+                          subtitle: Text(_modeTitle(prefs.guideMatchMode),
+                              style: theme.textTheme.bodySmall),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: tap,
                         ),
                       ),
                       TvActivatable(

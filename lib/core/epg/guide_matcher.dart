@@ -326,9 +326,28 @@ double scoreNames(NormalisedName a, NormalisedName b) {
 
 String _setKey(NormalisedName n) => (n.tokens.toList()..sort()).join(' ');
 
+/// How strictly automatic matching links a channel to a guide entry.
+enum GuideMatchMode {
+  /// Only a guide entry whose id equals the channel's own guide id.
+  explicit,
+
+  /// The id, then an exact channel name (and US local stations by call sign).
+  standard,
+
+  /// As standard, then names that are merely alike (best guess, may be wrong).
+  optimistic;
+
+  /// Lowest name score this mode accepts.
+  double get threshold => this == optimistic ? 0.8 : 0.99;
+
+  static GuideMatchMode parse(String? v) => GuideMatchMode.values
+      .firstWhere((m) => m.name == v, orElse: () => GuideMatchMode.standard);
+}
+
 /// Finds the guide channel for a playlist channel.
 class GuideMatcher {
-  GuideMatcher(Iterable<GuideChannel> channels, {this.threshold = 0.99}) {
+  GuideMatcher(Iterable<GuideChannel> channels,
+      {this.threshold = 0.99, this.idOnly = false}) {
     final list = channels.toList();
     _locals = LocalStationIndex(list);
     for (final c in list) {
@@ -359,6 +378,9 @@ class GuideMatcher {
 
   /// Lowest score accepted as a match.
   final double threshold;
+
+  /// Match by guide id alone (explicit mode); names are never looked at.
+  final bool idOnly;
 
   /// How much better the best match must be than the runner-up for the
   /// match to be trusted.
@@ -398,7 +420,7 @@ class GuideMatcher {
 
   GuideMatch? _match(String name, String? tvgId, String? tvgName) {
     final byId = matchById(tvgId);
-    if (byId != null) return byId;
+    if (byId != null || idOnly) return byId;
 
     // Local stations are keyed by call sign. A name that looks local but
     // cannot be resolved safely gets no guide at all rather than the
