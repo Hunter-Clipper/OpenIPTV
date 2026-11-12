@@ -14,6 +14,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - Extra guides and the guides you picked by hand are included in backups.
 
 **Fixed**
+- **Picking a guide for one channel no longer waits for a full guide update.** Before, choosing a guide in Change Guide re-ran the whole matching and re-read every guide (minutes on a TV), and a pick made while an update was already running could be missed, leaving the channel empty. Now only that channel is loaded from its one guide, the message stays up while it loads and it says when it is done. Reading big guides is also about 20% quicker.
 - **TV guide missing for some or all channels after a refresh.** When a provider answered a guide refresh with an empty guide (busy or rate-limited), OpenIPTV treated it as a success and cleared out part of the guide it already had. It now keeps your current guide and says the provider sent an empty one.
 - **Stations listed more than once** (for example HD and SD versions of the same channel) now all get the guide. Before, only the first one did.
 
