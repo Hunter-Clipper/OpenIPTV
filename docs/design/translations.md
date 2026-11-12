@@ -57,8 +57,9 @@ carried by backup/restore. It is not a per-profile setting.
   (`format.dart`: `formatClock`, `formatRuntime`, `formatYmd`) so they follow
   the locale. The TV guide's 12/24-hour handling must keep honouring the
   system clock setting.
-- **Font.** Google Sans is bundled as a *subset* (Latin). Cyrillic, Greek,
-  Arabic, Hebrew, CJK, Thai, etc. fall back to the system font; confirm each
+- **Font.** Google Sans is bundled as a *subset* (Latin, Greek and
+  Cyrillic, per pubspec). Arabic, Hebrew, CJK, Thai, Devanagari etc. fall back
+  to the system font; confirm each
   language we ship renders properly on the Chromecast and Mi TV before
   claiming it. Extending the subset costs APK size.
 - **Right-to-left** (Arabic, Hebrew): not in the first batch. Flutter flips
@@ -95,8 +96,8 @@ carried by backup/restore. It is not a per-profile setting.
 
 - **Batch 1 (Latin scripts, covered by the bundled font):** Spanish,
   Portuguese (Brazil), French, German, Italian, Dutch, Polish, Turkish.
-- **Batch 2 (needs the font check):** Russian, Ukrainian, Greek (Cyrillic and
-  Greek glyphs are missing from the Google Sans subset).
+- **Batch 2:** Russian, Ukrainian, Greek (the bundled font already has
+  Cyrillic and Greek; only an on-device check is needed).
 - **Batch 3 (needs the font check and the RTL pass):** Arabic, plus Hindi and
   Chinese/Japanese/Korean if there is demand (large fonts, APK size).
 
