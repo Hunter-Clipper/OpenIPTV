@@ -58,6 +58,17 @@ class GuideAssignmentService {
   final Future<String> Function()? tempDir;
 
   static Future<GuideSyncResult>? _running;
+  /// Whether a sync is running now (started from anywhere, e.g. after a
+  /// playlist refresh), so screens can hold their own triggers.
+  static bool get isRunning => _running != null;
+
+  /// Completes when the running sync ends (or at once if none runs).
+  static Future<void> whenIdle() async {
+    try {
+      await _running;
+    } catch (_) {}
+  }
+
   static bool _again = false;
   static bool _againLists = false;
   static bool _againForce = false;

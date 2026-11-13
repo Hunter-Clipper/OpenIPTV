@@ -34,7 +34,22 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   void initState() {
     super.initState();
     unawaited(_load());
+    // An update started elsewhere (after a playlist refresh, say) counts too:
+    // hold the buttons until it ends.
+    if (GuideAssignmentService.isRunning) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _status = AppLocalizations.of(context).extraGuidesStarting);
+        GuideAssignmentService.whenIdle().then((_) {
+          if (!mounted) return;
+          setState(() => _status = null);
+          unawaited(_load());
+        });
+      });
+    }
   }
+
+  bool get _busy => _status != null;
 
   Future<void> _load() async {
     // Also called when an update finishes, which may be after leaving.
@@ -353,8 +368,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                       children: [
                         for (final g in guides) _guideTile(g, theme),
                         TvActivatable(
-                          onTap: _status == null ? _add : null,
+                          onTap: _busy ? null : _add,
                           builder: (tap) => ListTile(
+                            enabled: !_busy,
                             leading: const IconBadge(icon: Icons.add_rounded),
                             title: Text(l10n.extraGuidesAddTitle),
                             subtitle: Text(l10n.extraGuidesAddSubtitle,
@@ -368,11 +384,14 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                       title: l10n.extraGuidesMatchingGroup,
                       children: [
                         TvActivatable(
-                          onTap: () async {
-                            await prefs
-                                .setSmartGuideAssign(!prefs.smartGuideAssign);
-                            await _update(refreshLists: false, force: false);
-                          },
+                          onTap: _busy
+                              ? null
+                              : () async {
+                                  await prefs.setSmartGuideAssign(
+                                      !prefs.smartGuideAssign);
+                                  await _update(
+                                      refreshLists: false, force: false);
+                                },
                           builder: (tap) => SwitchListTile(
                             secondary: const IconBadge(
                                 icon: Icons.auto_fix_high_rounded),
@@ -384,8 +403,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                           ),
                         ),
                         TvActivatable(
-                          onTap: () => _pickMode(prefs),
+                          onTap: _busy ? null : () => _pickMode(prefs),
                           builder: (tap) => ListTile(
+                            enabled: !_busy,
                             leading: const IconBadge(icon: Icons.tune_rounded),
                             title: Text(l10n.extraGuidesMatchingModeTitle),
                             subtitle: Text(
@@ -396,8 +416,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                           ),
                         ),
                         TvActivatable(
-                          onTap: _status == null ? () => _update() : null,
+                          onTap: _busy ? null : () => _update(),
                           builder: (tap) => ListTile(
+                            enabled: !_busy,
                             leading: const IconBadge(icon: Icons.sync_rounded),
                             title: Text(l10n.extraGuidesMatchAndUpdate),
                             onTap: tap,
@@ -454,8 +475,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           : l10n.extraGuidesTileLineOff(g.channelCount, auto + manual, when);
     }
     return TvActivatable(
-      onTap: () => _options(g),
+      onTap: _busy ? null : () => _options(g),
       builder: (tap) => ListTile(
+        enabled: !_busy,
         leading: g.lastError != null
             ? Icon(Icons.error_outline, color: theme.colorScheme.error)
             : IconBadge(
