@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.114)
+## Unreleased (0.14.115)
 
 **New**
 - **Language support, with Spanish first.** Settings → Appearance → Language lets you pick *Auto-detect from system*, English or Español. Auto follows your device language and switches by itself if you change it, falling back to English when we don't have your language yet. The choice applies to the whole app (it is not per profile), takes effect at once with no restart, and is saved in backups. On a fresh install the setup wizard's welcome page has a language button too.
