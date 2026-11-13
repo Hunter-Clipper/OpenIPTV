@@ -80,11 +80,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
         context, AppLocalizations.of(context).extraGuidesWorkingToast);
   }
 
-  /// A greyed-out look for controls that are off while an update runs.
-  Widget _dim(Widget child) => AnimatedOpacity(
-      opacity: _busy ? 0.38 : 1,
-      duration: const Duration(milliseconds: 150),
-      child: child);
+  Widget _dim(Widget child) => DimWhen(dimmed: _busy, child: child);
 
   Future<void> _load() async {
     // Also called when an update finishes, which may be after leaving.
@@ -242,6 +238,52 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     }
   }
 
+  /// Changes a guide's name and/or address. A new address is read first (so
+  /// a typo is caught before it replaces a working guide), then the guide is
+  /// re-read and the channels re-matched.
+  Future<void> _edit(ExtraGuideRow g) async {
+    final l10n = AppLocalizations.of(context);
+    final entry = await showDialog<({String name, String url})>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _AddGuideDialog(initialName: g.name, initialUrl: g.url),
+    );
+    if (entry == null || !mounted) return;
+    final db = ref.read(appDatabaseProvider);
+    final addressChanged = entry.url.trim() != g.url.trim();
+    if (!addressChanged && entry.name == g.name) return;
+    try {
+      if (!addressChanged) {
+        await db.upsertExtraGuide(ExtraGuidesCompanion(
+            id: Value(g.id), name: Value(entry.name), url: Value(g.url)));
+        if (mounted) showSnackBarMessage(context, l10n.extraGuidesEdited(entry.name));
+        return;
+      }
+      final others = await db.getExtraGuides();
+      if (others.any((o) => o.id != g.id && o.url.trim() == entry.url.trim())) {
+        if (mounted) showSnackBarMessage(context, l10n.extraGuidesAlreadyAdded);
+        return;
+      }
+      setState(() => _status = l10n.extraGuidesChecking);
+      final tmp = (await getTemporaryDirectory()).path;
+      final list = await fetchGuideChannels(entry.url, tmp);
+      await db.upsertExtraGuide(ExtraGuidesCompanion(
+          id: Value(g.id), name: Value(entry.name), url: Value(entry.url)));
+      await db.replaceGuideChannels('ext:${g.id}', list);
+      await db.setExtraGuideStatus(g.id,
+          updated: DateTime.now(), count: list.length);
+      if (!mounted) return;
+      setState(() => _status = null);
+      showSnackBarMessage(context, l10n.extraGuidesEdited(entry.name));
+      // The channels this guide covers have changed: match again.
+      await _update(refreshLists: false, force: true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = null);
+      showSnackBarMessage(context, friendlyGuideError(e));
+    }
+  }
+
   Future<void> _move(ExtraGuideRow g, int delta) async {
     final db = ref.read(appDatabaseProvider);
     final all = await db.getExtraGuides();
@@ -314,6 +356,14 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_update());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l10n.extraGuidesEditTitle),
+              onTap: () {
+                Navigator.of(sheet).pop();
+                unawaited(_edit(g));
               },
             ),
             ListTile(
@@ -534,16 +584,21 @@ final _extraGuidesProvider = StreamProvider.autoDispose<List<ExtraGuideRow>>(
     (ref) => ref.watch(appDatabaseProvider).watchExtraGuides());
 
 class _AddGuideDialog extends StatefulWidget {
-  const _AddGuideDialog();
+  const _AddGuideDialog({this.initialName, this.initialUrl});
+
+  /// Set when editing an existing guide.
+  final String? initialName;
+  final String? initialUrl;
 
   @override
   State<_AddGuideDialog> createState() => _AddGuideDialogState();
 }
 
 class _AddGuideDialogState extends State<_AddGuideDialog> {
-  final _name = TextEditingController();
-  final _url = TextEditingController();
+  late final _name = TextEditingController(text: widget.initialName);
+  late final _url = TextEditingController(text: widget.initialUrl);
   String? _problem;
+  bool get _editing => widget.initialUrl != null;
 
   @override
   void dispose() {
@@ -570,7 +625,7 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text(l10n.extraGuidesAddTitle),
+      title: Text(_editing ? l10n.extraGuidesEditTitle : l10n.extraGuidesAddTitle),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -608,7 +663,10 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
         TvActivatable(
           onTap: _add,
           builder: (t) => FilledButton(
-              onPressed: t, child: Text(l10n.extraGuidesAddButton)),
+              onPressed: t,
+              child: Text(_editing
+                  ? l10n.extraGuidesSaveButton
+                  : l10n.extraGuidesAddButton)),
         ),
       ],
     );

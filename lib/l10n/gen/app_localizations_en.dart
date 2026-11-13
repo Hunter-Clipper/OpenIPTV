@@ -2125,6 +2125,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Will apply this as soon as the current update finishes.';
 
   @override
+  String get refreshAllStartedToast =>
+      'Refreshing. This can take a few minutes; the other refresh buttons are off until it\'s done.';
+
+  @override
   String get extraGuidesWorkingToast =>
       'Updating your guides. This can take a few minutes; the buttons come back when it\'s done.';
 
@@ -2205,6 +2209,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get extraGuidesListHintEmpty =>
       'None yet. Guides higher in the list are used first.';
+
+  @override
+  String get extraGuidesEditTitle => 'Edit Guide';
+
+  @override
+  String get extraGuidesSaveButton => 'Save';
+
+  @override
+  String extraGuidesEdited(String name) {
+    return 'Saved $name.';
+  }
 
   @override
   String get extraGuidesAddTitle => 'Add a Guide';

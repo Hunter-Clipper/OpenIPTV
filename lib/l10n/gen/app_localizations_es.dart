@@ -2155,6 +2155,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se aplicará en cuanto termine la actualización en curso.';
 
   @override
+  String get refreshAllStartedToast =>
+      'Actualizando. Puede tardar unos minutos; los demás botones de actualizar están desactivados hasta que termine.';
+
+  @override
   String get extraGuidesWorkingToast =>
       'Actualizando tus guías. Puede tardar unos minutos; los botones vuelven cuando termine.';
 
@@ -2236,6 +2240,17 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get extraGuidesListHintEmpty =>
       'Aún no hay ninguna. Las guías más arriba en la lista se usan primero.';
+
+  @override
+  String get extraGuidesEditTitle => 'Editar guía';
+
+  @override
+  String get extraGuidesSaveButton => 'Guardar';
+
+  @override
+  String extraGuidesEdited(String name) {
+    return 'Se guardó $name.';
+  }
 
   @override
   String get extraGuidesAddTitle => 'Agregar una guía';

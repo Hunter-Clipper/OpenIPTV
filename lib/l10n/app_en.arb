@@ -2778,6 +2778,10 @@
   "@extraGuidesQueued": {
     "description": "Snackbar when the user changes a setting while a guide update is already running"
   },
+  "refreshAllStartedToast": "Refreshing. This can take a few minutes; the other refresh buttons are off until it's done.",
+  "@refreshAllStartedToast": {
+    "description": "Snackbar when a playlist or guide refresh starts in Settings"
+  },
   "extraGuidesWorkingToast": "Updating your guides. This can take a few minutes; the buttons come back when it's done.",
   "@extraGuidesWorkingToast": {
     "description": "Snackbar when a guide update starts on the Extra Guides page"
@@ -2875,6 +2879,23 @@
   "extraGuidesListHintEmpty": "None yet. Guides higher in the list are used first.",
   "@extraGuidesListHintEmpty": {
     "description": "Hint under the Your Guides heading when no guide was added yet"
+  },
+  "extraGuidesEditTitle": "Edit Guide",
+  "@extraGuidesEditTitle": {
+    "description": "Title of the dialog for changing an extra guide's name or address; also its menu item"
+  },
+  "extraGuidesSaveButton": "Save",
+  "@extraGuidesSaveButton": {
+    "description": "Button that saves changes to an extra guide"
+  },
+  "extraGuidesEdited": "Saved {name}.",
+  "@extraGuidesEdited": {
+    "description": "Snackbar after an extra guide was edited",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "extraGuidesAddTitle": "Add a Guide",
   "@extraGuidesAddTitle": {

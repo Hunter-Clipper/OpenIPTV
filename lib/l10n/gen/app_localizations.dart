@@ -3730,6 +3730,12 @@ abstract class AppLocalizations {
   /// **'Will apply this as soon as the current update finishes.'**
   String get extraGuidesQueued;
 
+  /// Snackbar when a playlist or guide refresh starts in Settings
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing. This can take a few minutes; the other refresh buttons are off until it\'s done.'**
+  String get refreshAllStartedToast;
+
   /// Snackbar when a guide update starts on the Extra Guides page
   ///
   /// In en, this message translates to:
@@ -3849,6 +3855,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'None yet. Guides higher in the list are used first.'**
   String get extraGuidesListHintEmpty;
+
+  /// Title of the dialog for changing an extra guide's name or address; also its menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Guide'**
+  String get extraGuidesEditTitle;
+
+  /// Button that saves changes to an extra guide
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get extraGuidesSaveButton;
+
+  /// Snackbar after an extra guide was edited
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {name}.'**
+  String extraGuidesEdited(String name);
 
   /// Row title and dialog title for adding a guide
   ///

@@ -461,8 +461,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           child: DisplayNames(
             enabled: ref.watch(cleanNamesProvider),
             child: TvKeyboardInset(
-              child:
-                  TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+              child: TvAppBarScroll(
+                child: TvTextFieldEscape(
+                    child: child ?? const SizedBox.shrink()),
+              ),
             ),
           ),
         ),

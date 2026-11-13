@@ -1203,7 +1203,9 @@ String streamDetailsLabel({
   if (width > 0 && height > 0) parts.add('$width×$height');
   if (frameRate >= 1) {
     final r = frameRate.roundToDouble();
-    parts.add('${(frameRate - r).abs() < 0.05 ? r.toInt() : frameRate.toStringAsFixed(2)} FPS');
+    // Only a measurement that is a whole number give or take rounding noise
+    // shows as one; 29.97 and 23.976 are real broadcast rates and stay.
+    parts.add('${(frameRate - r).abs() < 0.01 ? r.toInt() : frameRate.toStringAsFixed(2)} FPS');
   }
   final codec = _audioCodecName(audioMime);
   final audio = switch (audioChannels) {

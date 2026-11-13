@@ -1071,10 +1071,7 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
       }
       return true;
     });
-    if (!inside) {
-      _scrollToTopForAppBar(ctx);
-      return;
-    }
+    if (!inside) return;
     final scrollable = Scrollable.maybeOf(ctx);
     if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
       return;
@@ -1088,29 +1085,6 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
     });
   }
 
-  /// Focus moved up onto the page's own app bar (the back arrow): bring the
-  /// list back to the top too, so the headings above the first row show
-  /// instead of staying scrolled away. Other screens' and dialogs' focus is
-  /// left alone (only the same Scaffold counts).
-  void _scrollToTopForAppBar(BuildContext focused) {
-    final scaffold = Scaffold.maybeOf(context);
-    if (scaffold == null || !identical(Scaffold.maybeOf(focused), scaffold)) {
-      return;
-    }
-    for (final n in _scope.descendants) {
-      final c = n.context;
-      if (c == null || !c.mounted) continue;
-      final position = Scrollable.maybeOf(c)?.position;
-      if (position == null || position.pixels <= position.minScrollExtent) {
-        return;
-      }
-      position.animateTo(position.minScrollExtent,
-          duration: motionDuration(const Duration(milliseconds: 200)),
-          curve: Curves.easeOut);
-      return;
-    }
-  }
-
   @override
   Widget build(BuildContext context) => Focus(
         focusNode: _scope,
@@ -1118,4 +1092,73 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
         skipTraversal: true,
         child: widget.child,
       );
+}
+
+
+/// TV, app wide: when the remote moves focus up onto a page's app bar (the
+/// back arrow and its buttons), the page's list scrolls back to the top, so
+/// the headings above the first row show instead of staying scrolled away.
+/// Fires once as focus arrives on the bar, only for that bar's own Scaffold,
+/// and leaves horizontal lists, dialogs and the nav rail alone. Put it once
+/// above the Navigator.
+class TvAppBarScroll extends StatefulWidget {
+  const TvAppBarScroll({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<TvAppBarScroll> createState() => _TvAppBarScrollState();
+}
+
+class _TvAppBarScrollState extends State<TvAppBarScroll> {
+  bool _onBar = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    final onBar = ctx != null &&
+        ctx.mounted &&
+        ctx.findAncestorWidgetOfExactType<AppBar>() != null;
+    final arrived = onBar && !_onBar;
+    _onBar = onBar;
+    if (!arrived) return;
+    final scaffold = ctx.findAncestorStateOfType<ScaffoldState>();
+    if (scaffold == null) return;
+    // The page's own vertical list: the first (outermost) one in its body.
+    ScrollPosition? found;
+    void walk(Element e) {
+      if (found != null) return;
+      if (e is StatefulElement && e.state is ScrollableState) {
+        final st = e.state as ScrollableState;
+        if (st.axisDirection == AxisDirection.down ||
+            st.axisDirection == AxisDirection.up) {
+          found = st.position;
+          return;
+        }
+      }
+      e.visitChildren(walk);
+    }
+
+    (scaffold.context as Element).visitChildren(walk);
+    final position = found;
+    if (position == null || position.pixels <= position.minScrollExtent) return;
+    position.animateTo(position.minScrollExtent,
+        duration: motionDuration(const Duration(milliseconds: 220)),
+        curve: Curves.easeOut);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
