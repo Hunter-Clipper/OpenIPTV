@@ -2125,6 +2125,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Will apply this as soon as the current update finishes.';
 
   @override
+  String get extraGuidesWorkingToast =>
+      'Updating your guides. This can take a few minutes; the buttons come back when it\'s done.';
+
+  @override
   String get extraGuidesStarting => 'Starting…';
 
   @override

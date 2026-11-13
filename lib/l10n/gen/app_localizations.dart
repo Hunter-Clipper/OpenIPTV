@@ -3730,6 +3730,12 @@ abstract class AppLocalizations {
   /// **'Will apply this as soon as the current update finishes.'**
   String get extraGuidesQueued;
 
+  /// Snackbar when a guide update starts on the Extra Guides page
+  ///
+  /// In en, this message translates to:
+  /// **'Updating your guides. This can take a few minutes; the buttons come back when it\'s done.'**
+  String get extraGuidesWorkingToast;
+
   /// Status line shown when a guide update begins
   ///
   /// In en, this message translates to:

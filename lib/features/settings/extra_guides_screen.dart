@@ -30,26 +30,61 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   Map<String, (int, int)> _links = const {};
   String? _status; // what a running update is doing
 
+  final _scroll = ScrollController();
+  bool _wasBusy = false;
+
   @override
   void initState() {
     super.initState();
     unawaited(_load());
-    // An update started elsewhere (after a playlist refresh, say) counts too:
-    // hold the buttons until it ends.
-    if (GuideAssignmentService.isRunning) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _status = AppLocalizations.of(context).extraGuidesStarting);
-        GuideAssignmentService.whenIdle().then((_) {
-          if (!mounted) return;
-          setState(() => _status = null);
-          unawaited(_load());
-        });
-      });
+    // Any update counts, including one started elsewhere (after a playlist
+    // refresh, say): hold the buttons while it runs, release them at the end.
+    GuideAssignmentService.busy.addListener(_onBusyChanged);
+    if (GuideAssignmentService.busy.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onBusyChanged());
     }
   }
 
-  bool get _busy => _status != null;
+  @override
+  void dispose() {
+    GuideAssignmentService.busy.removeListener(_onBusyChanged);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  bool get _busy => _status != null || GuideAssignmentService.busy.value;
+
+  void _onBusyChanged() {
+    if (!mounted) return;
+    final running = GuideAssignmentService.busy.value;
+    if (running && !_wasBusy) {
+      _wasBusy = true;
+      setState(() {});
+      _announceWork();
+    } else if (!running && _wasBusy) {
+      _wasBusy = false;
+      // Never stay stuck on a leftover progress message.
+      setState(() => _status = null);
+      unawaited(_load());
+    }
+  }
+
+  /// Makes it plain something is happening: back to the top of the page,
+  /// where the progress line is, and a message.
+  void _announceWork() {
+    if (_scroll.hasClients) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+    showSnackBarMessage(
+        context, AppLocalizations.of(context).extraGuidesWorkingToast);
+  }
+
+  /// A greyed-out look for controls that are off while an update runs.
+  Widget _dim(Widget child) => AnimatedOpacity(
+      opacity: _busy ? 0.38 : 1,
+      duration: const Duration(milliseconds: 150),
+      child: child);
 
   Future<void> _load() async {
     // Also called when an update finishes, which may be after leaving.
@@ -144,7 +179,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             refreshLists: refreshLists,
             force: force,
             onProgress: (m) {
-              if (mounted) setState(() => _status = m);
+              if (mounted && GuideAssignmentService.busy.value) {
+                setState(() => _status = m);
+              }
             },
           );
       ref.read(guideRevisionProvider.notifier).state++;
@@ -342,18 +379,19 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           : TvFollowFocus(
               focusFirst: true,
               child: SingleChildScrollView(
+                controller: _scroll,
                 padding: EdgeInsets.only(
                     bottom: 32 + MediaQuery.paddingOf(context).bottom),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (_status != null)
+                    if (_busy)
                       ListTile(
                         leading: const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 3)),
-                        title: Text(_status!),
+                        title: Text(_status ?? l10n.extraGuidesStarting),
                       ),
                     SettingsGroup(
                       title: l10n.extraGuidesFillTitle,
@@ -367,7 +405,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                           : l10n.extraGuidesListHint,
                       children: [
                         for (final g in guides) _guideTile(g, theme),
-                        TvActivatable(
+                        _dim(TvActivatable(
                           onTap: _busy ? null : _add,
                           builder: (tap) => ListTile(
                             enabled: !_busy,
@@ -377,13 +415,13 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                                 style: theme.textTheme.bodySmall),
                             onTap: tap,
                           ),
-                        ),
+                        )),
                       ],
                     ),
                     SettingsGroup(
                       title: l10n.extraGuidesMatchingGroup,
                       children: [
-                        TvActivatable(
+                        _dim(TvActivatable(
                           onTap: _busy
                               ? null
                               : () async {
@@ -401,8 +439,8 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                             value: prefs.smartGuideAssign,
                             onChanged: tap == null ? null : (_) => tap(),
                           ),
-                        ),
-                        TvActivatable(
+                        )),
+                        _dim(TvActivatable(
                           onTap: _busy ? null : () => _pickMode(prefs),
                           builder: (tap) => ListTile(
                             enabled: !_busy,
@@ -414,8 +452,8 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                             trailing: const Icon(Icons.chevron_right_rounded),
                             onTap: tap,
                           ),
-                        ),
-                        TvActivatable(
+                        )),
+                        _dim(TvActivatable(
                           onTap: _busy ? null : () => _update(),
                           builder: (tap) => ListTile(
                             enabled: !_busy,
@@ -423,7 +461,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                             title: Text(l10n.extraGuidesMatchAndUpdate),
                             onTap: tap,
                           ),
-                        ),
+                        )),
                         TvActivatable(
                           onTap: () async {
                             await Navigator.of(context).push(
@@ -474,7 +512,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           ? l10n.extraGuidesTileLine(g.channelCount, auto + manual, when)
           : l10n.extraGuidesTileLineOff(g.channelCount, auto + manual, when);
     }
-    return TvActivatable(
+    return _dim(TvActivatable(
       onTap: _busy ? null : () => _options(g),
       builder: (tap) => ListTile(
         enabled: !_busy,
@@ -488,7 +526,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
         subtitle: Text(line, style: theme.textTheme.bodySmall),
         onTap: tap,
       ),
-    );
+    ));
   }
 }
 

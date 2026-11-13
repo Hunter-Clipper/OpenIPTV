@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.116)
+## Unreleased (0.14.117)
 
 **New**
 - **Language support, with Spanish first.** Settings → Appearance → Language lets you pick *Auto-detect from system*, English or Español. Auto follows your device language and switches by itself if you change it, falling back to English when we don't have your language yet. The choice applies to the whole app (it is not per profile), takes effect at once with no restart, and is saved in backups. On a fresh install the setup wizard's welcome page has a language button too.
@@ -19,6 +19,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - **Stray spaces are ignored.** A space typed before or after your text by accident is now removed when you press Enter, Search, Go or Done on the TV keyboard, and on the VPN username. Passwords and PINs are left exactly as typed.
 - **Crashes found in the anonymous reports.** Opening a movie or show on a short screen (a phone held sideways, split screen) no longer crashes. Fixed a crash from the multi-view tile menu, two from leaving Extra Guides or a Movies/Series refresh while it was still working, and one on some TVs when a remote button is pressed while a page is still sliding in.
 - **Extra Guides: no more clicking while it works.** While guides are being matched or updated, everything that could start another update (Add a guide, a guide's menu, Auto-match, Matching Mode, Match and Update) is greyed out, and comes back by itself the moment it finishes. This also applies when an update was started elsewhere, such as after a playlist refresh.
+- **Extra Guides: it's clear when it's working.** When an update starts, the page scrolls back to the top, where the progress line is, and a message tells you it's working. Controls that are off during the update now look greyed out, and they come back by themselves when it finishes. On a TV, moving up to the back arrow also scrolls the page back to the top.
 
 **Anonymous reports (only if you turned them on)**
 - The same crash is now reported once, not once per press or per launch.

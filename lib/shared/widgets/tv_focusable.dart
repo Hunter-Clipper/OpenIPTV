@@ -1061,10 +1061,6 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
     if (!mounted || !PlatformHelper.isTV(context)) return;
     final ctx = FocusManager.instance.primaryFocus?.context;
     if (ctx == null || !ctx.mounted) return;
-    final scrollable = Scrollable.maybeOf(ctx);
-    if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
-      return;
-    }
     // Only focus that lives inside this widget.
     var inside = false;
     final mine = context;
@@ -1075,7 +1071,14 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
       }
       return true;
     });
-    if (!inside) return;
+    if (!inside) {
+      _scrollToTopForAppBar(ctx);
+      return;
+    }
+    final scrollable = Scrollable.maybeOf(ctx);
+    if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !ctx.mounted) return;
       Scrollable.ensureVisible(ctx,
@@ -1083,6 +1086,29 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
           duration: motionDuration(const Duration(milliseconds: 200)),
           curve: Curves.easeOut);
     });
+  }
+
+  /// Focus moved up onto the page's own app bar (the back arrow): bring the
+  /// list back to the top too, so the headings above the first row show
+  /// instead of staying scrolled away. Other screens' and dialogs' focus is
+  /// left alone (only the same Scaffold counts).
+  void _scrollToTopForAppBar(BuildContext focused) {
+    final scaffold = Scaffold.maybeOf(context);
+    if (scaffold == null || !identical(Scaffold.maybeOf(focused), scaffold)) {
+      return;
+    }
+    for (final n in _scope.descendants) {
+      final c = n.context;
+      if (c == null || !c.mounted) continue;
+      final position = Scrollable.maybeOf(c)?.position;
+      if (position == null || position.pixels <= position.minScrollExtent) {
+        return;
+      }
+      position.animateTo(position.minScrollExtent,
+          duration: motionDuration(const Duration(milliseconds: 200)),
+          curve: Curves.easeOut);
+      return;
+    }
   }
 
   @override

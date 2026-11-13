@@ -605,6 +605,7 @@
   "extraGuidesModeOptimisticDesc": "También canales con nombres solo parecidos. Encuentra más, pero algunas coincidencias serán erróneas; puedes corregirlas en Revisar coincidencias de guía.",
   "extraGuidesMatchingModeTitle": "Modo de emparejamiento",
   "extraGuidesQueued": "Se aplicará en cuanto termine la actualización en curso.",
+  "extraGuidesWorkingToast": "Actualizando tus guías. Puede tardar unos minutos; los botones vuelven cuando termine.",
   "extraGuidesStarting": "Iniciando…",
   "extraGuidesUpdated": "{count, plural, =1{Guías actualizadas: 1 canal vinculado.} other{Guías actualizadas: {count} canales vinculados.}}",
   "extraGuidesUpdateFailed": "No se pudieron actualizar las guías.",

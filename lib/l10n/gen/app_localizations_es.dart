@@ -2155,6 +2155,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se aplicará en cuanto termine la actualización en curso.';
 
   @override
+  String get extraGuidesWorkingToast =>
+      'Actualizando tus guías. Puede tardar unos minutos; los botones vuelven cuando termine.';
+
+  @override
   String get extraGuidesStarting => 'Iniciando…';
 
   @override

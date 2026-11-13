@@ -62,6 +62,9 @@ class GuideAssignmentService {
   /// playlist refresh), so screens can hold their own triggers.
   static bool get isRunning => _running != null;
 
+  /// True while any sync runs; screens listen to hold their buttons.
+  static final ValueNotifier<bool> busy = ValueNotifier(false);
+
   /// Completes when the running sync ends (or at once if none runs).
   static Future<void> whenIdle() async {
     try {
@@ -93,9 +96,11 @@ class GuideAssignmentService {
       _againForce = _againForce || force;
       return running;
     }
+    busy.value = true;
     return _running = _runQueued(onProgress, refreshLists, force)
         .whenComplete(() {
       _running = null;
+      busy.value = false;
     });
   }
 

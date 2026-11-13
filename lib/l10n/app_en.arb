@@ -2778,6 +2778,10 @@
   "@extraGuidesQueued": {
     "description": "Snackbar when the user changes a setting while a guide update is already running"
   },
+  "extraGuidesWorkingToast": "Updating your guides. This can take a few minutes; the buttons come back when it's done.",
+  "@extraGuidesWorkingToast": {
+    "description": "Snackbar when a guide update starts on the Extra Guides page"
+  },
   "extraGuidesStarting": "Starting…",
   "@extraGuidesStarting": {
     "description": "Status line shown when a guide update begins"
