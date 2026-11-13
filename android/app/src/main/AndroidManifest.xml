@@ -22,11 +22,11 @@
     <!-- The "OpenIPTV Video" car add-on (same signing key) shows the
          player's picture on the Android Auto screen. -->
     <permission
-        android:name="com.openiptv.app.permission.CAR_VIDEO"
+        android:name="com.openiptv.app.diagnostic.permission.CAR_VIDEO"
         android:protectionLevel="signature" />
 
     <application
-        android:label="OpenIPTV"
+        android:label="OpenIPTV Test"
         android:name=".OpenIptvApplication"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
@@ -65,6 +65,11 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Advertises the explicit resume bridge to compatible launchers. -->
+            <intent-filter>
+                <action android:name="com.openiptv.app.EDTV_RESUME"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
             <!-- Same activity, second entry point: lets the Android TV
                  Leanback launcher discover and tile the app. -->
             <intent-filter>
@@ -86,7 +91,7 @@
         <service
             android:name=".CarVideoService"
             android:exported="true"
-            android:permission="com.openiptv.app.permission.CAR_VIDEO" />
+            android:permission="com.openiptv.app.diagnostic.permission.CAR_VIDEO" />
         <!-- Disconnects the built-in VPN when the app is swiped away (#41). -->
         <service
             android:name=".VpnCloseWatcher"
