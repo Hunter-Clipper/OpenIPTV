@@ -131,7 +131,7 @@ Future<GuideSource> openGuide(String url,
     final xmlFile = File('${dir.path}/guide.xml');
     final input = InputFileStream(zipFile.path);
     try {
-      final archive = ZipDecoder().decodeBuffer(input);
+      final archive = ZipDecoder().decodeStream(input, throwOnError: true);
       ArchiveFile? best;
       for (final f in archive.files) {
         if (f.isFile && f.name.toLowerCase().endsWith('.xml')) {
