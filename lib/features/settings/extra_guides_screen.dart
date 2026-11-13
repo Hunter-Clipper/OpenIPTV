@@ -30,14 +30,63 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   Map<String, (int, int)> _links = const {};
   String? _status; // what a running update is doing
 
+  final _scroll = ScrollController();
+  bool _wasBusy = false;
+
   @override
   void initState() {
     super.initState();
     unawaited(_load());
+    // Any update counts, including one started elsewhere (after a playlist
+    // refresh, say): hold the buttons while it runs, release them at the end.
+    GuideAssignmentService.busy.addListener(_onBusyChanged);
+    if (GuideAssignmentService.busy.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onBusyChanged());
+    }
   }
 
+  @override
+  void dispose() {
+    GuideAssignmentService.busy.removeListener(_onBusyChanged);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  bool get _busy => _status != null || GuideAssignmentService.busy.value;
+
+  void _onBusyChanged() {
+    if (!mounted) return;
+    final running = GuideAssignmentService.busy.value;
+    if (running && !_wasBusy) {
+      _wasBusy = true;
+      setState(() {});
+      _announceWork();
+    } else if (!running && _wasBusy) {
+      _wasBusy = false;
+      // Never stay stuck on a leftover progress message.
+      setState(() => _status = null);
+      unawaited(_load());
+    }
+  }
+
+  /// Makes it plain something is happening: back to the top of the page,
+  /// where the progress line is, and a message.
+  void _announceWork() {
+    if (_scroll.hasClients) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+    showSnackBarMessage(
+        context, AppLocalizations.of(context).extraGuidesWorkingToast);
+  }
+
+  Widget _dim(Widget child) => DimWhen(dimmed: _busy, child: child);
+
   Future<void> _load() async {
+    // Also called when an update finishes, which may be after leaving.
+    if (!mounted) return;
     final prefs = await ref.read(appPreferencesProvider.future);
+    if (!mounted) return;
     final links = await ref.read(appDatabaseProvider).getGuideLinks();
     final counts = <String, (int, int)>{};
     for (final l in links) {
@@ -126,7 +175,9 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             refreshLists: refreshLists,
             force: force,
             onProgress: (m) {
-              if (mounted) setState(() => _status = m);
+              if (mounted && GuideAssignmentService.busy.value) {
+                setState(() => _status = m);
+              }
             },
           );
       ref.read(guideRevisionProvider.notifier).state++;
@@ -180,6 +231,52 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
       showSnackBarMessage(
           context, l10n.extraGuidesAdded(entry.name, list.length));
       await _update(refreshLists: false, force: false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = null);
+      showSnackBarMessage(context, friendlyGuideError(e));
+    }
+  }
+
+  /// Changes a guide's name and/or address. A new address is read first (so
+  /// a typo is caught before it replaces a working guide), then the guide is
+  /// re-read and the channels re-matched.
+  Future<void> _edit(ExtraGuideRow g) async {
+    final l10n = AppLocalizations.of(context);
+    final entry = await showDialog<({String name, String url})>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _AddGuideDialog(initialName: g.name, initialUrl: g.url),
+    );
+    if (entry == null || !mounted) return;
+    final db = ref.read(appDatabaseProvider);
+    final addressChanged = entry.url.trim() != g.url.trim();
+    if (!addressChanged && entry.name == g.name) return;
+    try {
+      if (!addressChanged) {
+        await db.upsertExtraGuide(ExtraGuidesCompanion(
+            id: Value(g.id), name: Value(entry.name), url: Value(g.url)));
+        if (mounted) showSnackBarMessage(context, l10n.extraGuidesEdited(entry.name));
+        return;
+      }
+      final others = await db.getExtraGuides();
+      if (others.any((o) => o.id != g.id && o.url.trim() == entry.url.trim())) {
+        if (mounted) showSnackBarMessage(context, l10n.extraGuidesAlreadyAdded);
+        return;
+      }
+      setState(() => _status = l10n.extraGuidesChecking);
+      final tmp = (await getTemporaryDirectory()).path;
+      final list = await fetchGuideChannels(entry.url, tmp);
+      await db.upsertExtraGuide(ExtraGuidesCompanion(
+          id: Value(g.id), name: Value(entry.name), url: Value(entry.url)));
+      await db.replaceGuideChannels('ext:${g.id}', list);
+      await db.setExtraGuideStatus(g.id,
+          updated: DateTime.now(), count: list.length);
+      if (!mounted) return;
+      setState(() => _status = null);
+      showSnackBarMessage(context, l10n.extraGuidesEdited(entry.name));
+      // The channels this guide covers have changed: match again.
+      await _update(refreshLists: false, force: true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = null);
@@ -248,8 +345,13 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
+      // Six rows no longer fit the default 9/16-height sheet on a TV; let it
+      // grow, and scroll if the screen is still too short.
+      isScrollControlled: true,
       builder: (sheet) => SafeArea(
-        child: Column(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
@@ -259,6 +361,14 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
               onTap: () {
                 Navigator.of(sheet).pop();
                 unawaited(_update());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l10n.extraGuidesEditTitle),
+              onTap: () {
+                Navigator.of(sheet).pop();
+                unawaited(_edit(g));
               },
             ),
             ListTile(
@@ -299,6 +409,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -324,18 +435,19 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           : TvFollowFocus(
               focusFirst: true,
               child: SingleChildScrollView(
+                controller: _scroll,
                 padding: EdgeInsets.only(
                     bottom: 32 + MediaQuery.paddingOf(context).bottom),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (_status != null)
+                    if (_busy)
                       ListTile(
                         leading: const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 3)),
-                        title: Text(_status!),
+                        title: Text(_status ?? l10n.extraGuidesStarting),
                       ),
                     SettingsGroup(
                       title: l10n.extraGuidesFillTitle,
@@ -349,27 +461,31 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                           : l10n.extraGuidesListHint,
                       children: [
                         for (final g in guides) _guideTile(g, theme),
-                        TvActivatable(
-                          onTap: _status == null ? _add : null,
+                        _dim(TvActivatable(
+                          onTap: _busy ? null : _add,
                           builder: (tap) => ListTile(
+                            enabled: !_busy,
                             leading: const IconBadge(icon: Icons.add_rounded),
                             title: Text(l10n.extraGuidesAddTitle),
                             subtitle: Text(l10n.extraGuidesAddSubtitle,
                                 style: theme.textTheme.bodySmall),
                             onTap: tap,
                           ),
-                        ),
+                        )),
                       ],
                     ),
                     SettingsGroup(
                       title: l10n.extraGuidesMatchingGroup,
                       children: [
-                        TvActivatable(
-                          onTap: () async {
-                            await prefs
-                                .setSmartGuideAssign(!prefs.smartGuideAssign);
-                            await _update(refreshLists: false, force: false);
-                          },
+                        _dim(TvActivatable(
+                          onTap: _busy
+                              ? null
+                              : () async {
+                                  await prefs.setSmartGuideAssign(
+                                      !prefs.smartGuideAssign);
+                                  await _update(
+                                      refreshLists: false, force: false);
+                                },
                           builder: (tap) => SwitchListTile(
                             secondary: const IconBadge(
                                 icon: Icons.auto_fix_high_rounded),
@@ -379,10 +495,11 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                             value: prefs.smartGuideAssign,
                             onChanged: tap == null ? null : (_) => tap(),
                           ),
-                        ),
-                        TvActivatable(
-                          onTap: () => _pickMode(prefs),
+                        )),
+                        _dim(TvActivatable(
+                          onTap: _busy ? null : () => _pickMode(prefs),
                           builder: (tap) => ListTile(
+                            enabled: !_busy,
                             leading: const IconBadge(icon: Icons.tune_rounded),
                             title: Text(l10n.extraGuidesMatchingModeTitle),
                             subtitle: Text(
@@ -391,15 +508,16 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
                             trailing: const Icon(Icons.chevron_right_rounded),
                             onTap: tap,
                           ),
-                        ),
-                        TvActivatable(
-                          onTap: _status == null ? () => _update() : null,
+                        )),
+                        _dim(TvActivatable(
+                          onTap: _busy ? null : () => _update(),
                           builder: (tap) => ListTile(
+                            enabled: !_busy,
                             leading: const IconBadge(icon: Icons.sync_rounded),
                             title: Text(l10n.extraGuidesMatchAndUpdate),
                             onTap: tap,
                           ),
-                        ),
+                        )),
                         TvActivatable(
                           onTap: () async {
                             await Navigator.of(context).push(
@@ -450,9 +568,10 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
           ? l10n.extraGuidesTileLine(g.channelCount, auto + manual, when)
           : l10n.extraGuidesTileLineOff(g.channelCount, auto + manual, when);
     }
-    return TvActivatable(
-      onTap: () => _options(g),
+    return _dim(TvActivatable(
+      onTap: _busy ? null : () => _options(g),
       builder: (tap) => ListTile(
+        enabled: !_busy,
         leading: g.lastError != null
             ? Icon(Icons.error_outline, color: theme.colorScheme.error)
             : IconBadge(
@@ -463,7 +582,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
         subtitle: Text(line, style: theme.textTheme.bodySmall),
         onTap: tap,
       ),
-    );
+    ));
   }
 }
 
@@ -471,16 +590,21 @@ final _extraGuidesProvider = StreamProvider.autoDispose<List<ExtraGuideRow>>(
     (ref) => ref.watch(appDatabaseProvider).watchExtraGuides());
 
 class _AddGuideDialog extends StatefulWidget {
-  const _AddGuideDialog();
+  const _AddGuideDialog({this.initialName, this.initialUrl});
+
+  /// Set when editing an existing guide.
+  final String? initialName;
+  final String? initialUrl;
 
   @override
   State<_AddGuideDialog> createState() => _AddGuideDialogState();
 }
 
 class _AddGuideDialogState extends State<_AddGuideDialog> {
-  final _name = TextEditingController();
-  final _url = TextEditingController();
+  late final _name = TextEditingController(text: widget.initialName);
+  late final _url = TextEditingController(text: widget.initialUrl);
   String? _problem;
+  bool get _editing => widget.initialUrl != null;
 
   @override
   void dispose() {
@@ -507,7 +631,7 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text(l10n.extraGuidesAddTitle),
+      title: Text(_editing ? l10n.extraGuidesEditTitle : l10n.extraGuidesAddTitle),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -545,7 +669,10 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
         TvActivatable(
           onTap: _add,
           builder: (t) => FilledButton(
-              onPressed: t, child: Text(l10n.extraGuidesAddButton)),
+              onPressed: t,
+              child: Text(_editing
+                  ? l10n.extraGuidesSaveButton
+                  : l10n.extraGuidesAddButton)),
         ),
       ],
     );

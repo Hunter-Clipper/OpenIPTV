@@ -423,6 +423,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         supportedLocales: AppLocalizations.supportedLocales,
         locale: locale,
         shortcuts: appShortcuts,
+        actions: appActions,
         theme: AppTheme.dark(accent),
         darkTheme: AppTheme.dark(accent),
         themeMode: ThemeMode.dark,
@@ -445,6 +446,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         supportedLocales: AppLocalizations.supportedLocales,
         locale: locale,
         shortcuts: appShortcuts,
+        actions: appActions,
         builder: (context, child) => MediaQuery(
           // Text size from Settings → Appearance, on top of the system's.
           data: MediaQuery.of(context).copyWith(
@@ -459,8 +461,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           child: DisplayNames(
             enabled: ref.watch(cleanNamesProvider),
             child: TvKeyboardInset(
-              child:
-                  TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
+              child: TvAppBarScroll(
+                child: TvTextFieldEscape(
+                    child: child ?? const SizedBox.shrink()),
+              ),
             ),
           ),
         ),

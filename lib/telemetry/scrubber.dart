@@ -6,6 +6,7 @@ final _url = RegExp(r'[a-zA-Z][a-zA-Z0-9+.-]*://');
 final _ipv4 = RegExp(r'\b\d{1,3}(?:\.\d{1,3}){3}\b');
 final _ipv6 = RegExp(r'\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b');
 final _email = RegExp(r'[^\s@]+@[^\s@]+\.[^\s@]+');
+final _nativeLib = RegExp(r'^native lib[A-Za-z0-9_.+-]{1,60}\.so$');
 final _typeName = RegExp(r'^[A-Za-z_][A-Za-z0-9_$.]*');
 
 /// Most stack lines kept, and the longest one.
@@ -18,10 +19,13 @@ bool _looksPrivate(String s) =>
     _ipv6.hasMatch(s) ||
     _email.hasMatch(s);
 
-/// A stack line is kept only if it is code: a Dart `package:` or `dart:`
+/// A stack line is kept only if it is code: a native library name, a Dart `package:` or `dart:`
 /// frame, or a Java/Kotlin frame in an Android or OpenIPTV package. File
 /// paths, URLs, addresses and anything else are dropped.
 bool _isCodeFrame(String line) {
+  // A native library name (`native libflutter.so`) from a native crash: the
+  // library only, never a path.
+  if (_nativeLib.hasMatch(line)) return true;
   final isDart = line.contains('package:') || line.contains('dart:');
   final isJvm = RegExp(r'^\s*(?:at\s+)?(?:com\.openiptv\.|androidx\.|android\.|'
           r'java\.|javax\.|kotlin\.|kotlinx\.|io\.flutter\.|com\.google\.android\.)')
