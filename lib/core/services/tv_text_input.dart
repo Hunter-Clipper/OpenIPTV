@@ -75,11 +75,18 @@ class TvTextInput {
     switch (call.method) {
       case 'changed':
         final text = args['text'] as String? ?? '';
+        final old = session.controller.text;
+        // The keyboard's own caret (its arrow keys move it without changing
+        // the text); fall back to the end for older messages.
+        final start = ((args['start'] as int?) ?? text.length)
+            .clamp(0, text.length);
+        final end =
+            ((args['end'] as int?) ?? start).clamp(0, text.length);
         session.controller.value = TextEditingValue(
           text: text,
-          selection: TextSelection.collapsed(offset: text.length),
+          selection: TextSelection(baseOffset: start, extentOffset: end),
         );
-        session.onChanged?.call(text);
+        if (text != old) session.onChanged?.call(text);
       case 'action':
         session.onAction?.call();
       case 'closed':

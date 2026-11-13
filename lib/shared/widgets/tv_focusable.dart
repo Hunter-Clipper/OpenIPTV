@@ -703,7 +703,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
               ?.maxLength,
       onChanged: tf.onChanged,
       onAction: () {
-        tf.onSubmitted?.call(controller.text);
+        tf.onSubmitted?.call(controller.text.trim());
         if (tf.textInputAction != TextInputAction.next) return;
         // The keyboard stays up on "Next" (native): carry on in the next
         // field, or put it away if the next stop isn't a field.
@@ -937,8 +937,11 @@ class _TvCaretState extends State<_TvCaret> {
       stack.visitChildren(find);
       final e = editable;
       if (e == null || !e.hasSize) return;
-      final local = e.getLocalRectForCaret(
-          TextPosition(offset: widget.controller.text.length));
+      final value = widget.controller.value;
+      final caret = value.selection.isValid
+          ? value.selection.extentOffset.clamp(0, value.text.length)
+          : value.text.length;
+      final local = e.getLocalRectForCaret(TextPosition(offset: caret));
       final topLeft = e.localToGlobal(local.topLeft, ancestor: stack);
       // Long text runs past the end of an unfocused field: keep the cursor
       // inside the box.

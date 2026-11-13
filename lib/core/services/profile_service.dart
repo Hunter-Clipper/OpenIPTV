@@ -19,6 +19,10 @@ ProfileService profileService(ProfileServiceRef ref) {
   return ProfileService(
     db: db,
     prefsGetter: () => ref.read(appPreferencesProvider).valueOrNull,
+    // Favorites are cached on the active profile. Refreshing here (not in
+    // each screen after its await) means it still happens when the screen
+    // that toggled has already been closed.
+    onFavoritesChanged: () => ref.invalidate(activeProfileProvider),
   );
 }
 
@@ -38,7 +42,15 @@ Future<Profile?> activeProfile(ActiveProfileRef ref) async {
 }
 
 class ProfileService {
-  ProfileService({required this.db, this.prefsSnapshot, this.prefsGetter});
+  ProfileService({
+    required this.db,
+    this.prefsSnapshot,
+    this.prefsGetter,
+    this.onFavoritesChanged,
+  });
+
+  /// Called after a favorite is added or removed.
+  final void Function()? onFavoritesChanged;
 
   final AppDatabase db;
   final AppPreferences? prefsSnapshot;
@@ -173,6 +185,7 @@ class ProfileService {
     await db.upsertProfile(
       profile.copyWith(favoriteChannelIds: favs, updatedAt: DateTime.now()),
     );
+    onFavoritesChanged?.call();
   }
 
   Future<void> toggleFavoriteMovie(String profileId, String movieId) async {
@@ -187,6 +200,7 @@ class ProfileService {
     await db.upsertProfile(
       profile.copyWith(favoriteMovieIds: favs, updatedAt: DateTime.now()),
     );
+    onFavoritesChanged?.call();
   }
 
   Future<void> toggleFavoriteSeries(String profileId, String seriesId) async {
@@ -201,6 +215,7 @@ class ProfileService {
     await db.upsertProfile(
       profile.copyWith(favoriteSeriesIds: favs, updatedAt: DateTime.now()),
     );
+    onFavoritesChanged?.call();
   }
 
   Future<void> hideCategory(String profileId, String category) async {
