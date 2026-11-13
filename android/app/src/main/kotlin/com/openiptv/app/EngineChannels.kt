@@ -60,6 +60,28 @@ object EngineChannels {
                         }
                     }
                 }
+                "publishQueueSnapshot" -> {
+                    val raw = call.arguments as? String
+                    if (raw.isNullOrBlank()) {
+                        result.error("bad_arguments", "Queue snapshot missing", null)
+                    } else {
+                        try {
+                            val data = org.json.JSONObject(raw)
+                            if (data.optInt("apiVersion") != 1) {
+                                result.error("bad_version", "Unsupported queue snapshot", null)
+                            } else {
+                                context.getSharedPreferences("edtv_bridge", Context.MODE_PRIVATE)
+                                    .edit()
+                                    .putString("queue_snapshot", raw)
+                                    .putLong("queue_snapshot_updated_at", data.optLong("updatedAt", 0L))
+                                    .apply()
+                                result.success(null)
+                            }
+                        } catch (_: Exception) {
+                            result.error("bad_arguments", "Invalid queue snapshot", null)
+                        }
+                    }
+                }
                 "publishPlayback" -> {
                     val data = call.arguments as? Map<*, *>
                     if (data == null) {

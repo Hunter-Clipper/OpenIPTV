@@ -11,6 +11,7 @@ class Movie {
     this.description,
     this.watchedDuration,
     this.totalDuration,
+    this.lastWatchedAt,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class Movie {
   final String? description;
   final Duration? watchedDuration;
   final Duration? totalDuration;
+  final DateTime? lastWatchedAt;
 
   bool get isWatched {
     if (watchedDuration == null || totalDuration == null) return false;
@@ -32,14 +34,16 @@ class Movie {
   }
 
   bool get isInProgress {
-    if (watchedDuration == null || watchedDuration!.inSeconds == 0) return false;
+    if (watchedDuration == null || watchedDuration!.inSeconds == 0)
+      return false;
     return !isWatched;
   }
 
   double get watchProgress {
     if (watchedDuration == null || totalDuration == null) return 0;
     if (totalDuration!.inSeconds == 0) return 0;
-    return (watchedDuration!.inSeconds / totalDuration!.inSeconds).clamp(0.0, 1.0);
+    return (watchedDuration!.inSeconds / totalDuration!.inSeconds)
+        .clamp(0.0, 1.0);
   }
 
   Movie copyWith({
@@ -54,6 +58,7 @@ class Movie {
     String? description,
     Duration? watchedDuration,
     Duration? totalDuration,
+    DateTime? lastWatchedAt,
   }) {
     return Movie(
       id: id ?? this.id,
@@ -67,6 +72,7 @@ class Movie {
       description: description ?? this.description,
       watchedDuration: watchedDuration ?? this.watchedDuration,
       totalDuration: totalDuration ?? this.totalDuration,
+      lastWatchedAt: lastWatchedAt ?? this.lastWatchedAt,
     );
   }
 }

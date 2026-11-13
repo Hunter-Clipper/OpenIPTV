@@ -21,6 +21,7 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/now_playing_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/core/services/edtv_queue_bridge.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/features/player/channel_switcher.dart';
 import 'package:open_iptv/features/player/multi_view.dart';
@@ -261,8 +262,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         default:
           categories = (await db.getChannelById(id))?.categories;
       }
-      _lockedContent =
-          categories != null && isLockedContent(categories, prefs);
+      _lockedContent = categories != null && isLockedContent(categories, prefs);
     } catch (e) {
       debugPrint('[OTV-save] lock check failed: $e');
     }
@@ -946,8 +946,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         !_lockedContent &&
         widget.contentId != null &&
         profileId != null) {
-      unawaited(_playbackService.db
-          .updateChannelLastWatched(profileId, widget.contentId!));
+      unawaited(() async {
+        await _playbackService.db
+            .updateChannelLastWatched(profileId, widget.contentId!);
+        final prefs = ref.read(appPreferencesProvider).valueOrNull;
+        if (prefs != null) {
+          await EdtvQueueBridge.publishForProfile(
+              _playbackService.db, profileId, prefs);
+        }
+      }());
     }
 
     // Show resume dialog if there is a saved position and user didn't
@@ -985,15 +992,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // app's own screens through the media session — notification, lock
   // screen, Android Auto — and the cast receiver, which can't apply the
   // setting themselves, so it's cleaned here.
-  String get _shownTitle => _customTitle ?? (ref.read(cleanNamesProvider)
-      ? cleanDisplayName(widget.title)
-      : widget.title);
+  String get _shownTitle =>
+      _customTitle ??
+      (ref.read(cleanNamesProvider)
+          ? cleanDisplayName(widget.title)
+          : widget.title);
 
   // A channel's own name, when the user gave it one (hold OK → Rename).
-  String? get _customTitle => widget.contentType == 'live' &&
-          widget.contentId != null
-      ? ref.read(channelCustomProvider).names[widget.contentId]
-      : null;
+  String? get _customTitle =>
+      widget.contentType == 'live' && widget.contentId != null
+          ? ref.read(channelCustomProvider).names[widget.contentId]
+          : null;
 
   // The channel name for the on-screen controls.
   String get _titleForControls => _customTitle ?? widget.title;
@@ -1120,7 +1129,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           final episode = await _playbackService.db.getEpisodeById(id);
           sourceId = episode?.sourceId;
           if (episode != null) {
-            final series = await _playbackService.db.getSeriesById(episode.seriesId);
+            final series =
+                await _playbackService.db.getSeriesById(episode.seriesId);
             artist = series?.title;
             artUri = Uri.tryParse(episode.stillUrl ?? series?.posterUrl ?? '');
           }
@@ -1146,24 +1156,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<Uri?> _safeEdtvArtwork(String? raw, String? sourceId) async {
     final uri = Uri.tryParse(raw ?? '');
-    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https') ||
-        uri.host.isEmpty || uri.userInfo.isNotEmpty || uri.fragment.isNotEmpty) {
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.fragment.isNotEmpty) {
       return null;
     }
     const sensitiveKeys = {
-      'username', 'user', 'password', 'pass', 'token', 'auth',
-      'apikey', 'api_key', 'access_token', 'key',
+      'username',
+      'user',
+      'password',
+      'pass',
+      'token',
+      'auth',
+      'apikey',
+      'api_key',
+      'access_token',
+      'key',
     };
-    if (uri.queryParameters.keys.any(
-        (key) => sensitiveKeys.contains(key.toLowerCase()))) {
+    if (uri.queryParameters.keys
+        .any((key) => sensitiveKeys.contains(key.toLowerCase()))) {
       return null;
     }
     if (sourceId != null) {
       try {
         final source = await _playbackService.db.getSourceById(sourceId);
-        final providerUrl = Uri.tryParse(
-            source?.xtreamHost ?? source?.m3uUrl ?? '');
-        if (providerUrl != null && providerUrl.host.isNotEmpty &&
+        final providerUrl =
+            Uri.tryParse(source?.xtreamHost ?? source?.m3uUrl ?? '');
+        if (providerUrl != null &&
+            providerUrl.host.isNotEmpty &&
             uri.host.toLowerCase() == providerUrl.host.toLowerCase()) {
           return null;
         }
@@ -1172,8 +1194,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             .where((value) => value.isNotEmpty)
             .toList();
         final fullUrl = uri.toString().toLowerCase();
-        if (secrets.any((secret) => secret.length >= 3 &&
-            fullUrl.contains(secret.toLowerCase()))) {
+        if (secrets.any((secret) =>
+            secret.length >= 3 && fullUrl.contains(secret.toLowerCase()))) {
           return null;
         }
       } catch (_) {
@@ -1364,7 +1386,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   // TVs show the main player's picture on a real video layer (#162).
   bool get _useLayer =>
-      videoLayerActive && PlatformHelper.isTV(context) && !_casting && !ref.read(pipActiveProvider);
+      videoLayerActive &&
+      PlatformHelper.isTV(context) &&
+      !_casting &&
+      !ref.read(pipActiveProvider);
 
   Widget _buildCueOverlay({bool liftForControls = true}) {
     if (_cueText.isEmpty) return const SizedBox.shrink();
@@ -1457,206 +1482,220 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           skipTraversal: true,
           onKeyEvent: _handleKeyEvent,
           child: Semantics(
-            button: true,
-            label: AppLocalizations.of(context).playerVideoSemantics,
-            hint: AppLocalizations.of(context).playerVideoSemanticsHint,
-            child: GestureDetector(
-            onTap: _onTap,
-            // Swipe left (from anywhere) for the channel list on Live TV.
-            onHorizontalDragEnd: _isChannelPlayback
-                ? (d) {
-                    if ((d.primaryVelocity ?? 0) < -400) {
-                      unawaited(_openChannels());
-                    }
-                  }
-                : null,
-            behavior: HitTestBehavior.opaque,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _buildVideoSurface(),
-                // Everything but the picture fades in with the zoom out of
-                // the guide's pane (#162).
-                ZoomFade(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                _buildCueOverlay(),
-                // Buffering / recovery overlay.
-                AnimatedOpacity(
-                  opacity: _isBuffering ? 1.0 : 0.0,
-                  duration: motionDuration(const Duration(milliseconds: 300)),
-                  child: IgnorePointer(
-                    ignoring: !_isBuffering,
-                    child: Container(
-                      // Before the first picture: solid, hiding decoder
-                      // warm-up. Reconnecting mid-stream: the last frame
-                      // stays visible, dimmed.
-                      color: _watchdog.everPlayed && !_playbackGaveUp
-                          ? Colors.black54
-                          : Colors.black,
-                      child: Center(
-                        child: _playbackGaveUp
-                            ? _ErrorOverlay(
+              button: true,
+              label: AppLocalizations.of(context).playerVideoSemantics,
+              hint: AppLocalizations.of(context).playerVideoSemanticsHint,
+              child: GestureDetector(
+                onTap: _onTap,
+                // Swipe left (from anywhere) for the channel list on Live TV.
+                onHorizontalDragEnd: _isChannelPlayback
+                    ? (d) {
+                        if ((d.primaryVelocity ?? 0) < -400) {
+                          unawaited(_openChannels());
+                        }
+                      }
+                    : null,
+                behavior: HitTestBehavior.opaque,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildVideoSurface(),
+                    // Everything but the picture fades in with the zoom out of
+                    // the guide's pane (#162).
+                    ZoomFade(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildCueOverlay(),
+                          // Buffering / recovery overlay.
+                          AnimatedOpacity(
+                            opacity: _isBuffering ? 1.0 : 0.0,
+                            duration: motionDuration(
+                                const Duration(milliseconds: 300)),
+                            child: IgnorePointer(
+                              ignoring: !_isBuffering,
+                              child: Container(
+                                // Before the first picture: solid, hiding decoder
+                                // warm-up. Reconnecting mid-stream: the last frame
+                                // stays visible, dimmed.
+                                color: _watchdog.everPlayed && !_playbackGaveUp
+                                    ? Colors.black54
+                                    : Colors.black,
+                                child: Center(
+                                  child: _playbackGaveUp
+                                      ? _ErrorOverlay(
+                                          title: _titleForControls,
+                                          message: _errorMessage,
+                                          onBack: () => context.pop(),
+                                          onChannels: _isChannelPlayback &&
+                                                  widget.contentId != null
+                                              ? _openChannels
+                                              : null,
+                                          onRetry: () {
+                                            _watchdog.reset();
+                                            setState(() {
+                                              _gaveUp = false;
+                                              _isRecovering = false;
+                                              _errorMessage = null;
+                                              _playbackFailed = false;
+                                            });
+                                            _startPlayback();
+                                          },
+                                        )
+                                      : _LoadingView(
+                                          // The controls already show the title and a
+                                          // spinner on the play button.
+                                          visible: !_controlsVisible,
+                                          title: _titleForControls,
+                                          status: _isRecovering
+                                              ? _watchdog.everPlayed
+                                                  ? AppLocalizations.of(context)
+                                                      .playerReconnecting
+                                                  : AppLocalizations.of(context)
+                                                      .playerReconnectingAttempt(
+                                                          _watchdog.attempts,
+                                                          _watchdog
+                                                              .maxAttemptsBeforePlaying)
+                                              : null,
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Controls overlay
+                          AnimatedOpacity(
+                            opacity: _showOverlayControls ? 1.0 : 0.0,
+                            duration: motionDuration(
+                                const Duration(milliseconds: 250)),
+                            child: IgnorePointer(
+                              ignoring: !_showOverlayControls,
+                              child: ExcludeFocus(
+                                excluding: !_showOverlayControls,
+                                // Touch presses on the overlay restart the countdown, the
+                                // same as D-pad presses do via _onAnyKeyEvent.
+                                child: Listener(
+                                  onPointerDown: (_) {
+                                    if (_controlsVisible) _resetHideTimer();
+                                  },
+                                  child: Focus(
+                                    focusNode: _controlsFocusNode,
+                                    child: Actions(
+                                      actions: {
+                                        DirectionalFocusIntent:
+                                            EdgeAwareDirectionalFocusAction(
+                                          directions: {
+                                            TraversalDirection.up,
+                                            TraversalDirection.left,
+                                          },
+                                          // TV has no on-screen Back (the remote's
+                                          // Back key does it) — nothing to move to.
+                                          onNoMove: () {
+                                            if (_backFocusNode.context !=
+                                                null) {
+                                              _backFocusNode.requestFocus();
+                                            }
+                                          },
+                                        ),
+                                      },
+                                      child: PlayerControls(
+                                        title: _shownTitle,
+                                        handBackTo: widget.handBackTo,
+                                        contentType: _isChannelPlayback
+                                            ? (_liveDvrActive
+                                                ? 'catchup'
+                                                : 'live')
+                                            : widget.contentType,
+                                        contentId: widget.contentId,
+                                        isLive: _isChannelPlayback &&
+                                            !_liveDvrActive,
+                                        isLiveDvr: _liveDvrActive,
+                                        onLivePlayPause: _onLivePlayPause,
+                                        onLiveRewind: _onLiveRewind,
+                                        onLiveForward: _onLiveForward,
+                                        onGoLive: _liveDvrActive
+                                            ? _goLive
+                                            : _goLiveLocal,
+                                        isBehindLive: _isBehindLive,
+                                        playPauseFocusNode: _playPauseFocusNode,
+                                        backFocusNode: _backFocusNode,
+                                        buffering:
+                                            _isBuffering && !_playbackGaveUp,
+                                        onChannels: _isChannelPlayback &&
+                                                widget.contentId != null
+                                            ? _openChannels
+                                            : null,
+                                        // Plain live only (not catch-up), once the
+                                        // channel is known.
+                                        onAddChannel:
+                                            _isPlainLive && _liveChannel != null
+                                                ? _addChannel
+                                                : null,
+                                        // Casting is a phone/tablet feature (a TV is
+                                        // itself the screen), shown once a device is
+                                        // on the network.
+                                        onCast: castAvailable &&
+                                                !PlatformHelper.isTV(context)
+                                            ? () => showCastPicker(context)
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // The one clock (#56): with the controls on TV, or always on
+                          // when the setting is set. Same spot as the controls' layout.
+                          if (!_casting)
+                            Builder(builder: (context) {
+                              final tv = PlatformHelper.isTV(context);
+                              final always =
+                                  ref.watch(playerClockAlwaysProvider);
+                              final m = PlayerMetrics.of(context);
+                              return Positioned(
+                                top: tv ? m.tvEdge * 0.6 : 16,
+                                right: tv ? m.tvEdge : 20,
+                                child: IgnorePointer(
+                                  child: AnimatedOpacity(
+                                    opacity:
+                                        always || (tv && _showOverlayControls)
+                                            ? 1
+                                            : 0,
+                                    duration: motionDuration(
+                                        const Duration(milliseconds: 250)),
+                                    child: PlayerClock(fontSize: tv ? 20 : 15),
+                                  ),
+                                ),
+                              );
+                            }),
+                          // Up Next banner — shown when an episode finishes and a next one exists.
+                          if (_showUpNext && _nextEpisode != null)
+                            _UpNextBanner(
+                              episode: _nextEpisode!,
+                              onPlay: _playNextEpisode,
+                              onDismiss: () =>
+                                  setState(() => _showUpNext = false),
+                            ),
+                          if (_casting)
+                            Positioned.fill(
+                              child: CastRemoteView(
                                 title: _titleForControls,
-                                message: _errorMessage,
+                                subtitle: _castSubtitle,
+                                isLive: _isPlainLive,
+                                message: _castMessage,
                                 onBack: () => context.pop(),
                                 onChannels: _isChannelPlayback &&
                                         widget.contentId != null
                                     ? _openChannels
                                     : null,
-                                onRetry: () {
-                                  _watchdog.reset();
-                                  setState(() {
-                                    _gaveUp = false;
-                                    _isRecovering = false;
-                                    _errorMessage = null;
-                                    _playbackFailed = false;
-                                  });
-                                  _startPlayback();
-                                },
-                              )
-                            : _LoadingView(
-                                // The controls already show the title and a
-                                // spinner on the play button.
-                                visible: !_controlsVisible,
-                                title: _titleForControls,
-                                status: _isRecovering
-                                    ? _watchdog.everPlayed
-                                        ? AppLocalizations.of(context)
-                                            .playerReconnecting
-                                        : AppLocalizations.of(context)
-                                            .playerReconnectingAttempt(
-                                                _watchdog.attempts,
-                                                _watchdog
-                                                    .maxAttemptsBeforePlaying)
-                                    : null,
                               ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Controls overlay
-                AnimatedOpacity(
-                  opacity: _showOverlayControls ? 1.0 : 0.0,
-                  duration: motionDuration(const Duration(milliseconds: 250)),
-                  child: IgnorePointer(
-                    ignoring: !_showOverlayControls,
-                    child: ExcludeFocus(
-                      excluding: !_showOverlayControls,
-                      // Touch presses on the overlay restart the countdown, the
-                      // same as D-pad presses do via _onAnyKeyEvent.
-                      child: Listener(
-                        onPointerDown: (_) {
-                          if (_controlsVisible) _resetHideTimer();
-                        },
-                        child: Focus(
-                          focusNode: _controlsFocusNode,
-                          child: Actions(
-                            actions: {
-                              DirectionalFocusIntent:
-                                  EdgeAwareDirectionalFocusAction(
-                                directions: {
-                                  TraversalDirection.up,
-                                  TraversalDirection.left,
-                                },
-                                // TV has no on-screen Back (the remote's
-                                // Back key does it) — nothing to move to.
-                                onNoMove: () {
-                                  if (_backFocusNode.context != null) {
-                                    _backFocusNode.requestFocus();
-                                  }
-                                },
-                              ),
-                            },
-                            child: PlayerControls(
-                              title: _shownTitle,
-                              handBackTo: widget.handBackTo,
-                              contentType: _isChannelPlayback
-                                  ? (_liveDvrActive ? 'catchup' : 'live')
-                                  : widget.contentType,
-                              contentId: widget.contentId,
-                              isLive: _isChannelPlayback && !_liveDvrActive,
-                              isLiveDvr: _liveDvrActive,
-                              onLivePlayPause: _onLivePlayPause,
-                              onLiveRewind: _onLiveRewind,
-                              onLiveForward: _onLiveForward,
-                              onGoLive: _liveDvrActive
-                                  ? _goLive
-                                  : _goLiveLocal,
-                              isBehindLive: _isBehindLive,
-                              playPauseFocusNode: _playPauseFocusNode,
-                              backFocusNode: _backFocusNode,
-                              buffering: _isBuffering && !_playbackGaveUp,
-                              onChannels:
-                                  _isChannelPlayback && widget.contentId != null
-                                      ? _openChannels
-                                      : null,
-                              // Plain live only (not catch-up), once the
-                              // channel is known.
-                              onAddChannel: _isPlainLive && _liveChannel != null
-                                  ? _addChannel
-                                  : null,
-                              // Casting is a phone/tablet feature (a TV is
-                              // itself the screen), shown once a device is
-                              // on the network.
-                              onCast:
-                                  castAvailable && !PlatformHelper.isTV(context)
-                                      ? () => showCastPicker(context)
-                                      : null,
                             ),
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                // The one clock (#56): with the controls on TV, or always on
-                // when the setting is set. Same spot as the controls' layout.
-                if (!_casting)
-                  Builder(builder: (context) {
-                    final tv = PlatformHelper.isTV(context);
-                    final always = ref.watch(playerClockAlwaysProvider);
-                    final m = PlayerMetrics.of(context);
-                    return Positioned(
-                      top: tv ? m.tvEdge * 0.6 : 16,
-                      right: tv ? m.tvEdge : 20,
-                      child: IgnorePointer(
-                        child: AnimatedOpacity(
-                          opacity:
-                              always || (tv && _showOverlayControls) ? 1 : 0,
-                          duration: motionDuration(const Duration(milliseconds: 250)),
-                          child: PlayerClock(fontSize: tv ? 20 : 15),
-                        ),
-                      ),
-                    );
-                  }),
-                // Up Next banner — shown when an episode finishes and a next one exists.
-                if (_showUpNext && _nextEpisode != null)
-                  _UpNextBanner(
-                    episode: _nextEpisode!,
-                    onPlay: _playNextEpisode,
-                    onDismiss: () => setState(() => _showUpNext = false),
-                  ),
-                if (_casting)
-                  Positioned.fill(
-                    child: CastRemoteView(
-                      title: _titleForControls,
-                      subtitle: _castSubtitle,
-                      isLive: _isPlainLive,
-                      message: _castMessage,
-                      onBack: () => context.pop(),
-                      onChannels: _isChannelPlayback && widget.contentId != null
-                          ? _openChannels
-                          : null,
-                    ),
-                  ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )),
+              )),
         ),
       ),
     );
@@ -1793,7 +1832,8 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                                   ],
                                 ),
                               ),
-                              label: Text(AppLocalizations.of(context).playerPlayNow),
+                              label: Text(
+                                  AppLocalizations.of(context).playerPlayNow),
                             ),
                           ),
                         ),
@@ -1802,7 +1842,8 @@ class _UpNextBannerState extends State<_UpNextBanner> {
                           onTap: widget.onDismiss,
                           builder: (onTap) => TextButton(
                             onPressed: onTap,
-                            child: Text(AppLocalizations.of(context).commonCancel),
+                            child:
+                                Text(AppLocalizations.of(context).commonCancel),
                           ),
                         ),
                       ],

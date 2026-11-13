@@ -17,6 +17,7 @@ import 'package:open_iptv/core/services/cast_service.dart';
 import 'package:open_iptv/core/services/auto_refresh_service.dart';
 import 'package:open_iptv/core/services/pip_service.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
+import 'package:open_iptv/core/services/edtv_queue_bridge.dart';
 import 'package:open_iptv/core/services/vpn_service.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
@@ -627,6 +628,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       _checkForUpdate();
       unawaited(resumeLastChannelOnStart(
           context, ProviderScope.containerOf(context)));
+      _publishEdtvQueueSnapshot();
     });
     // …and again when the app is brought back from the background (Android
     // usually keeps it running, so that isn't a fresh launch).
@@ -642,6 +644,26 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _checkForUpdate();
+    if (PlatformHelper.isTVDevice &&
+        (state == AppLifecycleState.resumed ||
+            state == AppLifecycleState.paused)) {
+      _publishEdtvQueueSnapshot();
+    }
+  }
+
+  void _publishEdtvQueueSnapshot() {
+    if (!mounted || !PlatformHelper.isTVDevice) return;
+    final container = ProviderScope.containerOf(context);
+    unawaited(() async {
+      final profile = await container.read(activeProfileProvider.future);
+      final prefs = await container.read(appPreferencesProvider.future);
+      if (profile == null) {
+        await EdtvQueueBridge.clear();
+      } else {
+        await EdtvQueueBridge.publish(
+            container.read(appDatabaseProvider), profile, prefs);
+      }
+    }());
   }
 
   void _checkForUpdate() {

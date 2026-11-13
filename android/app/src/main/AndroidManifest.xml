@@ -138,7 +138,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-            <!-- Shares downloaded update APKs with the package installer (AppUpdater.kt). -->
+            <!-- Read-only queue snapshot for the EDTV launcher. -->
+        <provider
+            android:name=".EdtvQueueProvider"
+            android:authorities="${applicationId}.edtv"
+            android:exported="true" />
+        <!-- Shares downloaded update APKs with the package installer (AppUpdater.kt). -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updates"
