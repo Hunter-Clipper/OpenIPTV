@@ -150,6 +150,25 @@ void main() {
       // Second movie uses .mkv
       expect(movies[1].streamUrl, endsWith('.mkv'));
     });
+
+    test('accepts numeric metadata fields from provider responses', () async {
+      final streams = (fixture['vod_streams'] as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      streams.first['year'] = 2014;
+      streams.first['rating'] = 8.6;
+      streams.first['container_extension'] = 123;
+
+      stubGetByAction({
+        'get_vod_categories': fixture['vod_categories'],
+        'get_vod_streams': streams,
+      });
+
+      final movies = await client.getVodStreams();
+      expect(movies.first.year, '2014');
+      expect(movies.first.rating, '8.6');
+      expect(movies.first.streamUrl, endsWith('.123'));
+    });
   });
 
   group('XtreamClient.getAllSeries', () {

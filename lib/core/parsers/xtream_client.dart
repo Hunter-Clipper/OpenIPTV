@@ -346,13 +346,15 @@ class XtreamClient {
         id: '${sourceId}_mov_$streamId',
         sourceId: sourceId,
         title: '${m['name'] ?? 'Unknown'}',
-        posterUrl: m['stream_icon'] as String?,
+        // Xtream panels vary the JSON types of metadata fields. In
+        // particular, year and rating are often numbers rather than strings.
+        posterUrl: _optionalString(m['stream_icon']),
         streamUrl: buildStreamUrl(streamId, 'movie',
-            ext: m['container_extension'] as String? ?? 'mp4'),
+            ext: _optionalString(m['container_extension']) ?? 'mp4'),
         genre: catMap[catId],
-        year: m['year'] as String?,
-        rating: m['rating'] as String?,
-        description: m['plot'] as String?,
+        year: _optionalString(m['year']),
+        rating: _optionalString(m['rating']),
+        description: _optionalString(m['plot']),
       );
     }).toList();
   }
@@ -414,6 +416,10 @@ class XtreamClient {
     }
     return result;
   }
+
+  /// Converts provider metadata to text without assuming its JSON type.
+  /// Xtream implementations commonly return numbers for string-like fields.
+  String? _optionalString(Object? value) => value?.toString();
 
   void dispose() => _http.close();
 }
