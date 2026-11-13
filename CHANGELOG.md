@@ -3,7 +3,7 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.118)
+## Unreleased (0.14.120)
 
 **New**
 - **Language support, with Spanish first.** Settings → Appearance → Language lets you pick *Auto-detect from system*, English or Español. Auto follows your device language and switches by itself if you change it, falling back to English when we don't have your language yet. The choice applies to the whole app (it is not per profile), takes effect at once with no restart, and is saved in backups. On a fresh install the setup wizard's welcome page has a language button too.
@@ -21,6 +21,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - **Extra Guides: no more clicking while it works.** While guides are being matched or updated, everything that could start another update (Add a guide, a guide's menu, Auto-match, Matching Mode, Match and Update) is greyed out, and comes back by itself the moment it finishes. This also applies when an update was started elsewhere, such as after a playlist refresh.
 - **Extra Guides: it's clear when it's working.** When an update starts, the page scrolls back to the top, where the progress line is, and a message tells you it's working. Controls that are off during the update now look greyed out, and they come back by themselves when it finishes. On a TV, moving up to the back arrow also scrolls the page back to the top.
 - **Edit an extra guide.** A guide's menu now has Edit, to change its name or address. A new address is checked first, so a typo can't replace a working guide, and then the guide is read again and channels are re-matched.
+- **Fixed:** a guide's menu on a TV had its bottom option cut off. The menu now grows to fit and scrolls if the screen is short.
 - **The same behaviour everywhere.** On a TV, moving up to any page's back arrow or top buttons now scrolls that page back to the top. The Refresh buttons in Settings now look greyed out while a refresh runs, and starting one scrolls it into view and shows a message.
 - **Frame rate in stream details.** 29.97 and 23.98 now show as such instead of being rounded to 30 and 24.
 

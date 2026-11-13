@@ -345,8 +345,13 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
+      // Six rows no longer fit the default 9/16-height sheet on a TV; let it
+      // grow, and scroll if the screen is still too short.
+      isScrollControlled: true,
       builder: (sheet) => SafeArea(
-        child: Column(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
@@ -403,6 +408,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
               },
             ),
           ],
+        ),
         ),
       ),
     );
