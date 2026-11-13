@@ -158,12 +158,14 @@ class MultiViewState extends State<MultiView> {
   Future<void> _openOptions(int i) async {
     _highlightTile(i);
     final t = _tiles[i];
+    // Read now: the sheet rebuilds later, possibly after this screen is gone.
+    final channelName = context.channelName(t.channel);
     final action = await showPlayerSheet<_TileAction>(
       context,
       (ctx) {
         final l10n = AppLocalizations.of(ctx);
         return PlayerSheet(
-        title: context.channelName(t.channel),
+        title: channelName,
         children: [
           _OptionTile(
             icon: Icons.fullscreen_rounded,

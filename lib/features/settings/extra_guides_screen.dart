@@ -37,7 +37,10 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
   }
 
   Future<void> _load() async {
+    // Also called when an update finishes, which may be after leaving.
+    if (!mounted) return;
     final prefs = await ref.read(appPreferencesProvider.future);
+    if (!mounted) return;
     final links = await ref.read(appDatabaseProvider).getGuideLinks();
     final counts = <String, (int, int)>{};
     for (final l in links) {
