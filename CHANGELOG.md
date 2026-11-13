@@ -17,6 +17,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 - **Favorites now update straight away.** Adding or removing a movie or show from favorites sometimes didn't refresh the Favorites row on the Movies and Series pages until you left and came back. It now always updates, even if you closed the page you favorited from.
 - **Typing on a TV: the cursor now moves.** In any text box on a TV, the left and right arrows on the on-screen keyboard now move the cursor (it used to stay at the end), so you can fix a mistake in the middle of what you typed.
 - **Stray spaces are ignored.** A space typed before or after your text by accident is now removed when you press Enter, Search, Go or Done on the TV keyboard, and on the VPN username. Passwords and PINs are left exactly as typed.
+- **Crashes found in the anonymous reports.** Opening a movie or show on a short screen (a phone held sideways, split screen) no longer crashes. Fixed a crash from the multi-view tile menu, two from leaving Extra Guides or a Movies/Series refresh while it was still working, and one on some TVs when a remote button is pressed while a page is still sliding in.
 
 **Known gaps**
 - A few things are still English for now: background progress messages while refreshing, some system text (notifications, Android Auto) and release notes.

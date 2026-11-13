@@ -299,6 +299,31 @@ class _TvFocusableState extends State<TvFocusable> {
 /// button has the same gap moving left past the (non-focusable) title text
 /// to that same Back button, and a content grid can have the equivalent gap
 /// moving left into a side nav rail.
+/// Moves focus in a direction, treating "a focus node is still being laid
+/// out" as "nowhere to go". Flutter's search reads every candidate's size, and
+/// one inside a page that is still sliding in (or just built) has none yet, so
+/// a D-pad press during a transition threw a StateError (TCL TV reports,
+/// 0.14.100). The next press, a moment later, works.
+bool focusInDirectionSafely(FocusNode? node, TraversalDirection direction) {
+  try {
+    return node?.focusInDirection(direction) ?? false;
+  } on StateError {
+    return false;
+  }
+}
+
+/// The app-wide D-pad action: Flutter's own, minus that crash.
+class SafeDirectionalFocusAction extends Action<DirectionalFocusIntent> {
+  @override
+  Object? invoke(DirectionalFocusIntent intent) =>
+      focusInDirectionSafely(primaryFocus, intent.direction);
+}
+
+/// The app's default actions (see [SafeDirectionalFocusAction]).
+final Map<Type, Action<Intent>> appActions = {
+  DirectionalFocusIntent: SafeDirectionalFocusAction(),
+};
+
 class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
   EdgeAwareDirectionalFocusAction({
     required this.directions,
@@ -310,7 +335,7 @@ class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
 
   @override
   Object? invoke(DirectionalFocusIntent intent) {
-    final moved = primaryFocus?.focusInDirection(intent.direction) ?? false;
+    final moved = focusInDirectionSafely(primaryFocus, intent.direction);
     if (!moved && directions.contains(intent.direction)) {
       onNoMove();
     }
