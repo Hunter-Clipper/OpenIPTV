@@ -4,7 +4,8 @@ publish_to: none
 version: 0.14.114+332
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  sdk: ">=3.14.0 <4.0.0"
+  flutter: ">=3.50.0"
 
 dependencies:
   flutter:
@@ -35,25 +36,25 @@ dependencies:
   crypto: ^3.0.3
 
   # Archive (.iptvprofile ZIP)
-  archive: ^3.6.1
+  archive: ^4.7.1
 
   # Background audio
   audio_service: ^0.18.12
 
   # File operations
-  file_picker: ^11.0.0
-  share_plus: ^12.0.0
+  file_picker: ^13.3.3
+  share_plus: ^13.3.1
   path: ^1.9.0
 
   # App metadata
-  package_info_plus: ^8.0.0
+  package_info_plus: ^10.2.2
 
   # Utilities
   uuid: ^4.4.0
   shared_preferences: ^2.2.3
 
   # Background auto-refresh
-  workmanager: ^0.9.0+3
+  workmanager: ^0.10.10
   flutter_local_notifications: ^18.0.1
   permission_handler: ^11.3.1
   sqlcipher_flutter_libs: ^0.6.8
@@ -77,7 +78,7 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   mocktail: ^1.0.4
   flutter_launcher_icons: ^0.14.3
-  flutter_native_splash: ^2.4.4
+  flutter_native_splash: ^2.4.8
 
 flutter_launcher_icons:
   android: true

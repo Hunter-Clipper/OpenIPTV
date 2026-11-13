@@ -575,6 +575,7 @@ class AppDatabase extends _$AppDatabase {
       'ON channels (source_id, sort_order, name, logo_url)',
     );
   }
+
   // catalog table. Without these, every delete scanned the whole table:
   // ~10 s on a TV for a 2-title playlist, holding the write lock throughout.
   Future<void> _createSourceIndexes() async {
@@ -789,6 +790,7 @@ class AppDatabase extends _$AppDatabase {
       totalDuration: p.totalDurationSeconds != null
           ? Duration(seconds: p.totalDurationSeconds!)
           : null,
+      lastWatchedAt: p.lastWatchedAt,
     );
   }
 
@@ -802,6 +804,7 @@ class AppDatabase extends _$AppDatabase {
       totalDuration: p.totalDurationSeconds != null
           ? Duration(seconds: p.totalDurationSeconds!)
           : null,
+      lastWatchedAt: p.lastWatchedAt,
     );
   }
 
@@ -1001,7 +1004,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Records which channels of a guide had programmes when it was read.
-  Future<void> markGuideProgrammes(String ref, Set<String> withProgrammes) async {
+  Future<void> markGuideProgrammes(
+      String ref, Set<String> withProgrammes) async {
     await transaction(() async {
       await customUpdate(
         'UPDATE guide_channels SET has_programmes = 0 WHERE guide_ref = ?',
@@ -1097,10 +1101,9 @@ class AppDatabase extends _$AppDatabase {
     return out;
   }
 
-  Future<GuideLinkRow?> getGuideLink(String channelId) => (select(
-          channelGuideLinks)
-        ..where((t) => t.channelId.equals(channelId)))
-      .getSingleOrNull();
+  Future<GuideLinkRow?> getGuideLink(String channelId) =>
+      (select(channelGuideLinks)..where((t) => t.channelId.equals(channelId)))
+          .getSingleOrNull();
 
   /// Channels whose guide the user chose by hand (including "no guide").
   Future<Set<String>> manualLinkedChannelIds() async {
@@ -1512,8 +1515,7 @@ class AppDatabase extends _$AppDatabase {
       String channelId, DateTime end) async {
     final row = await (select(programmes)
           ..where((t) =>
-              t.channelId.equals(channelId) &
-              t.start.isBiggerOrEqualValue(end))
+              t.channelId.equals(channelId) & t.start.isBiggerOrEqualValue(end))
           ..orderBy([(t) => OrderingTerm.asc(t.start)])
           ..limit(1))
         .getSingleOrNull();
@@ -1567,8 +1569,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<model.Programme>> searchProgrammes(String query) async {
-    final escaped = query.toLowerCase().replaceAllMapped(
-        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
+    final escaped = query
+        .toLowerCase()
+        .replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final q = '%$escaped%';
     final rows = await (select(programmes)
           ..where((t) => t.title.lower().like(q, escapeChar: '\\'))
@@ -1721,8 +1724,8 @@ class AppDatabase extends _$AppDatabase {
     int limit = 60,
     String? profileId,
   }) async {
-    final escapedGenre = genre.replaceAllMapped(
-        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
+    final escapedGenre =
+        genre.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final rows = await (select(movies)
           ..where((t) =>
               t.sourceId.equals(sourceId) &
@@ -1764,7 +1767,8 @@ class AppDatabase extends _$AppDatabase {
       final allMovieRows = <MovieRow>[];
       for (var i = 0; i < ids.length; i += 900) {
         final chunk = ids.sublist(i, (i + 900).clamp(0, ids.length));
-        final rows = await (select(movies)..where((t) => t.id.isIn(chunk))).get();
+        final rows =
+            await (select(movies)..where((t) => t.id.isIn(chunk))).get();
         allMovieRows.addAll(rows);
       }
       final byId = {for (final r in allMovieRows) r.id: r};
@@ -1849,7 +1853,8 @@ class AppDatabase extends _$AppDatabase {
       final allEpisodeRows = <EpisodeRow>[];
       for (var i = 0; i < ids.length; i += 900) {
         final chunk = ids.sublist(i, (i + 900).clamp(0, ids.length));
-        final rows = await (select(episodes)..where((t) => t.id.isIn(chunk))).get();
+        final rows =
+            await (select(episodes)..where((t) => t.id.isIn(chunk))).get();
         allEpisodeRows.addAll(rows);
       }
       final byId = {for (final r in allEpisodeRows) r.id: r};
@@ -1930,8 +1935,8 @@ class AppDatabase extends _$AppDatabase {
     required String excludeId,
     int limit = 60,
   }) async {
-    final escapedGenre = genre.replaceAllMapped(
-        RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
+    final escapedGenre =
+        genre.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}');
     final rows = await (select(seriesEntries)
           ..where((t) =>
               t.sourceId.equals(sourceId) &
@@ -2184,8 +2189,7 @@ class AppDatabase extends _$AppDatabase {
             List<String>.from(jsonDecode(row.hiddenCategories) as List),
         categoryNames:
             Map<String, String>.from(jsonDecode(row.categoryNames) as Map),
-        categoryOrder:
-            List<String>.from(jsonDecode(row.categoryOrder) as List),
+        categoryOrder: List<String>.from(jsonDecode(row.categoryOrder) as List),
         isKidsProfile: row.isKidsProfile,
         isAdmin: row.isAdmin,
         accentColor: row.accentColor,
@@ -2325,8 +2329,7 @@ void _dbSetup(Database db) {
 QueryExecutor _openConnection({bool migrate = true}) {
   return LazyDatabase(() async {
     final prefs = await SharedPreferences.getInstance();
-    final skipEncryption =
-        prefs.getBool(kSkipDbEncryptionKey) ?? false;
+    final skipEncryption = prefs.getBool(kSkipDbEncryptionKey) ?? false;
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'open_iptv.db'));
     if (skipEncryption) {

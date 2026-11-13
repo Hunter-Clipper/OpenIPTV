@@ -82,7 +82,7 @@ void main() {
           providerHits++;
           res.write(provider);
         case '/extra.xml.gz':
-          res.add(GZipEncoder().encode(utf8.encode(extra))!);
+          res.add(GZipEncoder().encode(utf8.encode(extra)));
         default:
           res.statusCode = 404;
       }

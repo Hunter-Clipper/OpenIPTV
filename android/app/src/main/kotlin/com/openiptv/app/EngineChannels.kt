@@ -35,6 +35,85 @@ object EngineChannels {
     private fun attach(binding: FlutterPlugin.FlutterPluginBinding) {
         val context = binding.applicationContext
         val messenger = binding.binaryMessenger
+        // EdTV integration: this channel is installed on every engine, including
+        // audio_service's headless playback engine. Only display metadata and
+        // progress cross the app boundary; stream URLs and provider credentials do not.
+        MethodChannel(messenger, "openiptv/edtv").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "takePendingResume" -> {
+                    val prefs = context.getSharedPreferences("edtv_bridge", Context.MODE_PRIVATE)
+                    val raw = prefs.getString("pending_resume", null)
+                    prefs.edit().remove("pending_resume").apply()
+                    if (raw == null) {
+                        result.success(null)
+                    } else {
+                        try {
+                            val data = org.json.JSONObject(raw)
+                            result.success(mapOf(
+                                "contentId" to data.optString("contentId"),
+                                "contentType" to data.optString("contentType"),
+                                "seriesId" to data.optString("seriesId").takeIf { it.isNotEmpty() },
+                                "resumePositionMs" to data.optLong("resumePositionMs", 0L),
+                            ))
+                        } catch (_: Exception) {
+                            result.success(null)
+                        }
+                    }
+                }
+                "publishQueueSnapshot" -> {
+                    val raw = call.arguments as? String
+                    if (raw.isNullOrBlank()) {
+                        result.error("bad_arguments", "Queue snapshot missing", null)
+                    } else {
+                        try {
+                            val data = org.json.JSONObject(raw)
+                            if (data.optInt("apiVersion") != 1) {
+                                result.error("bad_version", "Unsupported queue snapshot", null)
+                            } else {
+                                context.getSharedPreferences("edtv_bridge", Context.MODE_PRIVATE)
+                                    .edit()
+                                    .putString("queue_snapshot", raw)
+                                    .putLong("queue_snapshot_updated_at", data.optLong("updatedAt", 0L))
+                                    .apply()
+                                result.success(null)
+                            }
+                        } catch (_: Exception) {
+                            result.error("bad_arguments", "Invalid queue snapshot", null)
+                        }
+                    }
+                }
+                "publishPlayback" -> {
+                    val data = call.arguments as? Map<*, *>
+                    if (data == null) {
+                        result.error("bad_arguments", "Playback metadata missing", null)
+                    } else {
+                        val broadcast = Intent("tv.edtv.home.IPTV_PLAYBACK")
+                            .setClassName("tv.edtv.home", "tv.edtv.home.IptvPlaybackReceiver")
+                        for ((key, value) in data) {
+                            if (key is String && (value is String || value is Number ||
+                                value is Boolean)) {
+                                // Android's getLongExtra() does not widen an Integer
+                                // extra. Flutter encodes Dart ints as Integer when
+                                // they fit, so persist all millisecond/timestamp fields
+                                // as Long regardless of their original numeric type.
+                                when {
+                                    key in setOf("positionMs", "durationMs", "timestamp") && value is Number ->
+                                        broadcast.putExtra(key, value.toLong())
+                                    value is String -> broadcast.putExtra(key, value)
+                                    value is Long -> broadcast.putExtra(key, value)
+                                    value is Int -> broadcast.putExtra(key, value)
+                                    value is Boolean -> broadcast.putExtra(key, value)
+                                }
+                            }
+                        }
+                        context.sendBroadcast(broadcast)
+                        result.success(null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         MethodChannel(messenger, "openiptv/device").setMethodCallHandler { call, result ->
             when (call.method) {
                 "isTelevision" -> result.success(isTelevision(context))

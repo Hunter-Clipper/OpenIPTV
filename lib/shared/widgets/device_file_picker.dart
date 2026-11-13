@@ -31,11 +31,9 @@ Future<PickedDeviceFile?> pickDeviceFile(
   required List<String> extensions,
 }) async {
   if (await hasDocumentPicker()) {
-    final result =
-        await FilePicker.pickFiles(type: FileType.any, withData: true);
-    final file = result?.files.firstOrNull;
-    if (file == null || file.bytes == null) return null;
-    return PickedDeviceFile(file.name, file.bytes!);
+    final file = await FilePicker.pickFile(type: FileType.any);
+    if (file == null) return null;
+    return PickedDeviceFile(file.name, await file.readAsBytes());
   }
   final files = await _localFiles(extensions);
   if (!context.mounted) return null;

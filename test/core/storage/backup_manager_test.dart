@@ -320,7 +320,7 @@ void main() {
           'manifest.json', utf8.encode(manifest).length, utf8.encode(manifest)))
       ..addFile(ArchiveFile(
           'data.json', utf8.encode(payload).length, utf8.encode(payload)));
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
     final db = AppDatabase(NativeDatabase.memory());
     final prefs = AppPreferences(await SharedPreferences.getInstance());
     await BackupManager(db: db, prefs: prefs).importAll(bytes);
@@ -377,5 +377,5 @@ Uint8List _buildOldSchemaBackup(Map<String, dynamic> settings) {
     ..addFile(ArchiveFile(
         'data.json', utf8.encode(payload).length, utf8.encode(payload)));
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
