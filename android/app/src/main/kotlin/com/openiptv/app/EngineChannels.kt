@@ -35,9 +35,9 @@ object EngineChannels {
     private fun attach(binding: FlutterPlugin.FlutterPluginBinding) {
         val context = binding.applicationContext
         val messenger = binding.binaryMessenger
-        // EdTV integration: this channel is installed on every engine, including
-        // audio_service's headless playback engine. Only display metadata and
-        // progress cross the app boundary; stream URLs and provider credentials do not.
+        // EDTV launcher bridge: a pending "open this item" request, and a read-only queue
+        // snapshot (titles, artwork, progress; never stream URLs or credentials) that
+        // EdtvQueueProvider serves to tv.edtv.home.
         MethodChannel(messenger, "openiptv/edtv").setMethodCallHandler { call, result ->
             when (call.method) {
                 "takePendingResume" -> {
@@ -80,34 +80,6 @@ object EngineChannels {
                         } catch (_: Exception) {
                             result.error("bad_arguments", "Invalid queue snapshot", null)
                         }
-                    }
-                }
-                "publishPlayback" -> {
-                    val data = call.arguments as? Map<*, *>
-                    if (data == null) {
-                        result.error("bad_arguments", "Playback metadata missing", null)
-                    } else {
-                        val broadcast = Intent("tv.edtv.home.IPTV_PLAYBACK")
-                            .setClassName("tv.edtv.home", "tv.edtv.home.IptvPlaybackReceiver")
-                        for ((key, value) in data) {
-                            if (key is String && (value is String || value is Number ||
-                                value is Boolean)) {
-                                // Android's getLongExtra() does not widen an Integer
-                                // extra. Flutter encodes Dart ints as Integer when
-                                // they fit, so persist all millisecond/timestamp fields
-                                // as Long regardless of their original numeric type.
-                                when {
-                                    key in setOf("positionMs", "durationMs", "timestamp") && value is Number ->
-                                        broadcast.putExtra(key, value.toLong())
-                                    value is String -> broadcast.putExtra(key, value)
-                                    value is Long -> broadcast.putExtra(key, value)
-                                    value is Int -> broadcast.putExtra(key, value)
-                                    value is Boolean -> broadcast.putExtra(key, value)
-                                }
-                            }
-                        }
-                        context.sendBroadcast(broadcast)
-                        result.success(null)
                     }
                 }
                 else -> result.notImplemented()

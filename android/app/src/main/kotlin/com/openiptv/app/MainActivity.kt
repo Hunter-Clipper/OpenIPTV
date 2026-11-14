@@ -72,6 +72,10 @@ class MainActivity : AudioServiceActivity() {
         edtvChannel?.invokeMethod("pendingResumeAvailable", null)
     }
 
+    /**
+     * EDTV launcher: keeps an "open this item" request (identity and resume hint only, never a
+     * stream URL) for the app to resolve and play itself. Playback stays fully with OpenIPTV.
+     */
     private fun captureEdtvResume(intent: Intent?) {
         if (intent?.action != "com.openiptv.app.EDTV_RESUME") return
         val id = intent.getStringExtra("contentId") ?: return
@@ -205,12 +209,7 @@ class MainActivity : AudioServiceActivity() {
     // while it's in the foreground.
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (videoLayerDevice) {
-            // Fire TV's launcher Home key should return to EdTV, not leave a
-            // silent/background player running or create a PiP session.
-            NativeVideoPlayerManager.stopAll()
-            pipChannel?.invokeMethod("userLeft", true)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && pipAvailable) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && pipAvailable) {
             val params = PictureInPictureParams.Builder()
                 .setAspectRatio(Rational(16, 9))
                 .build()

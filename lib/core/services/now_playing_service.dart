@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:open_iptv/core/services/car_library.dart';
 import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
@@ -73,15 +72,6 @@ class NowPlayingHandler extends BaseAudioHandler {
   Duration _carLastPosition = Duration.zero;
 
   bool _enabled = true;
-  static const MethodChannel _edtvChannel = MethodChannel('openiptv/edtv');
-  String? _edtvContentId;
-  String? _edtvContentType;
-  String? _edtvSeriesId;
-  String? _edtvArtwork;
-  String? _edtvSubtitle;
-  DateTime _lastEdtvPublish = DateTime.fromMillisecondsSinceEpoch(0);
-  Duration _lastEdtvPosition = const Duration(days: -1);
-  Timer? _edtvProgressTimer;
 
   // The car needs the session to know what's playing — without it Android
   // Auto shows "Could not load your selection". So playback started from
@@ -113,21 +103,10 @@ class NowPlayingHandler extends BaseAudioHandler {
     }
   }
 
-  void setNowPlaying(String title, {String? artist, Uri? artUri,
-      String? contentId, String? contentType, String? seriesId,
-      String? edtvArtwork}) {
+  void setNowPlaying(String title, {String? artist, Uri? artUri}) {
     // The phone's player took over: the car session's queue no longer applies.
     _endCarSession();
     _stopped = false;
-    _edtvContentId = contentId;
-    _edtvContentType = contentType;
-    _edtvSeriesId = seriesId;
-    _edtvArtwork = edtvArtwork;
-    _edtvSubtitle = artist;
-    _lastEdtvPosition = const Duration(days: -1);
-    _edtvProgressTimer?.cancel();
-    _edtvProgressTimer = Timer.periodic(
-        const Duration(seconds: 10), (_) => _publishEdtv(force: true));
     final duration = _playbackService.lastState.duration;
     final item = MediaItem(
       id: title,
@@ -137,7 +116,6 @@ class NowPlayingHandler extends BaseAudioHandler {
       duration: duration == Duration.zero ? null : duration,
     );
     _lastMediaItem = item;
-    _publishEdtv(force: true);
     if (!_enabled) return;
     mediaItem.add(item);
     _broadcastState();
@@ -156,9 +134,8 @@ class NowPlayingHandler extends BaseAudioHandler {
   }
 
   void _broadcastState() {
-    final state = _playbackService.lastState;
-    _publishEdtv();
     if (!_publishing || _stopped || _carError != null) return;
+    final state = _playbackService.lastState;
     // A movie / episode's length is only known once it starts playing:
     // update the item so the car shows the real total time.
     final item = _lastMediaItem;
@@ -224,9 +201,6 @@ class NowPlayingHandler extends BaseAudioHandler {
   Future<void> endSession() => _end(stopPlayback: false);
 
   Future<void> _end({required bool stopPlayback}) async {
-    _publishEdtv(force: true, playing: false);
-    _edtvProgressTimer?.cancel();
-    _edtvProgressTimer = null;
     await _saveCarProgress();
     _endCarSession();
     _stopped = true;
@@ -242,39 +216,6 @@ class NowPlayingHandler extends BaseAudioHandler {
       playing: false,
     ));
     await super.stop();
-  }
-
-  /// Publishes display metadata and progress to EdTV; never a provider URL.
-  void _publishEdtv({bool force = false, bool? playing}) {
-    final id = _edtvContentId;
-    final type = _edtvContentType;
-    if (id == null || id.isEmpty || type == null ||
-        !const {'live', 'movie', 'episode'}.contains(type)) {
-      return;
-    }
-    final state = _playbackService.lastState;
-    final now = DateTime.now();
-    if (!force && now.difference(_lastEdtvPublish).inSeconds < 10 &&
-        (state.position - _lastEdtvPosition).abs() <
-            const Duration(seconds: 10)) {
-      return;
-    }
-    _lastEdtvPublish = now;
-    _lastEdtvPosition = state.position;
-    unawaited(_edtvChannel.invokeMethod<void>('publishPlayback', {
-      'contentId': id,
-      'contentType': type,
-      'seriesId': _edtvSeriesId,
-      'title': _lastMediaItem?.title ?? id,
-      'subtitle': _edtvSubtitle,
-      'artwork': _edtvArtwork,
-      'positionMs': type == 'live' ? 0 : state.position.inMilliseconds,
-      'durationMs': type == 'live' ? 0 : state.duration.inMilliseconds,
-      'playing': playing ?? state.playWhenReady,
-      'timestamp': now.millisecondsSinceEpoch,
-    }).catchError((Object error) {
-      debugPrint('[OTV-edtv] bridge unavailable: $error');
-    }));
   }
 
   // ---------------------------------------------------------------------------

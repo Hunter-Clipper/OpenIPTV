@@ -63,6 +63,7 @@ class OpenIPTVApp extends ConsumerStatefulWidget {
 }
 
 class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
+  // EDTV launcher bridge: "open this item" requests (see MainActivity).
   static const MethodChannel _edtvBridge = MethodChannel('openiptv/edtv');
   late final GoRouter _router;
   final _tooltipController = InfoTooltipController();
@@ -145,14 +146,13 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           ref.read(pipActiveProvider.notifier).state = isInPip,
       // The PiP window was closed: stop what was playing in it.
       onPipDismissed: () => ref.read(homeLeaveProvider.notifier).state++,
-      onUserLeft: (forceStop) {
+      onUserLeft: () {
         // Picture-in-Picture off: Home stops playback. With PiP on and no
         // overlay open, native enters PiP and never reports this.
         // But when a transient overlay (channel switcher, multi-view) is
         // open PiP is suppressed — fall through to normal Home behavior so
         // the stream is killed instead of playing silently in the background.
-        if (!forceStop &&
-            ref.read(pipEnabledProvider) &&
+        if (ref.read(pipEnabledProvider) &&
             !ref.read(playerOverlayOpenProvider)) {
           return;
         }
@@ -182,12 +182,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         .stateStream
         .listen((_) => pushPipAvailability());
     // Re-evaluate PiP eligibility when the user toggles the setting.
-    ref.listenManual<bool>(
-        pipEnabledProvider, (_, __) => pushPipAvailability());
+    ref.listenManual<bool>(pipEnabledProvider, (_, __) => pushPipAvailability());
     // Re-evaluate when a transient overlay (channel switcher, multi-view)
     // opens or closes — opening suppresses PiP, closing re-enables it.
-    ref.listenManual<bool>(
-        playerOverlayOpenProvider, (_, __) => pushPipAvailability());
+    ref.listenManual<bool>(playerOverlayOpenProvider, (_, __) => pushPipAvailability());
 
     // Well after start (counting the big tables takes seconds on a TV):
     // report storage, then the one-time rebuild of an older, bloated file.
@@ -222,6 +220,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     }
   }
 
+  /// EDTV launcher: opens a requested item with OpenIPTV's own player. The
+  /// request carries only identity and a resume hint; the stream is resolved
+  /// here from OpenIPTV's database. The player is pushed over the normal menu,
+  /// so Back and Home behave exactly as they do for any other playback.
   Future<void> _consumeEdtvResume(AppDatabase db) async {
     if (_consumingEdtvResume) return;
     _consumingEdtvResume = true;
@@ -265,8 +267,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       if (!mounted || streamUrl == null || title == null || type == null) {
         return;
       }
-      debugPrint('[OTV-edtv] resume $type id=$id at ${positionMs}ms');
-      _router.go('/player', extra: {
+      debugPrint('[OTV-edtv] open $type id=$id at ${positionMs}ms');
+      final extra = {
         'streamUrl': streamUrl,
         'title': title,
         'contentId': id,
@@ -276,9 +278,16 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             ? null
             : Duration(milliseconds: positionMs),
         'confirmResume': false,
-      });
+      };
+      if (PlayerScreen.openCount > 0) {
+        // Already playing: hand the shared player to the new item.
+        ref.read(playbackServiceProvider).markTransitioning();
+        unawaited(_router.pushReplacement('/player', extra: extra));
+      } else {
+        unawaited(_router.push('/player', extra: extra));
+      }
     } catch (error) {
-      debugPrint('[OTV-edtv] resume request failed: $error');
+      debugPrint('[OTV-edtv] open request failed: $error');
     } finally {
       _consumingEdtvResume = false;
     }
@@ -541,18 +550,18 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                     ref.watch(fontScaleProvider)),
           ),
           child: ChannelNames(
-            names: ref.watch(channelCustomProvider.select((c) => c.names)),
-            child: ImageQuality(
-              full: ref.watch(fullResImagesProvider),
-              child: DisplayNames(
-                enabled: ref.watch(cleanNamesProvider),
-                child: TvKeyboardInset(
-                  child: TvTextFieldEscape(
-                      child: child ?? const SizedBox.shrink()),
-                ),
-              ),
+          names: ref.watch(channelCustomProvider.select((c) => c.names)),
+          child: ImageQuality(
+          full: ref.watch(fullResImagesProvider),
+          child: DisplayNames(
+            enabled: ref.watch(cleanNamesProvider),
+            child: TvKeyboardInset(
+              child:
+                  TvTextFieldEscape(child: child ?? const SizedBox.shrink()),
             ),
           ),
+        ),
+        ),
         ),
       ),
     );
@@ -651,6 +660,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     }
   }
 
+  /// EDTV launcher: refreshes the read-only Continue Watching snapshot.
   void _publishEdtvQueueSnapshot() {
     if (!mounted || !PlatformHelper.isTVDevice) return;
     final container = ProviderScope.containerOf(context);
@@ -842,8 +852,8 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
                 child: ValueListenableBuilder<bool>(
                   valueListenable: TvGuideScreen.railCompact,
                   builder: (context, compact, child) {
-                    final w =
-                        MediaQuery.sizeOf(context).width - (compact ? 64 : 96);
+                    final w = MediaQuery.sizeOf(context).width -
+                        (compact ? 64 : 96);
                     return ClipRect(
                       child: OverflowBox(
                         alignment: Alignment.centerLeft,
@@ -901,11 +911,14 @@ class _NavDestination {
 }
 
 const _kNavDestinations = [
-  _NavDestination(Icons.live_tv_outlined, '/live', selectedIcon: Icons.live_tv),
-  _NavDestination(Icons.movie_outlined, '/movies', selectedIcon: Icons.movie),
+  _NavDestination(Icons.live_tv_outlined, '/live',
+      selectedIcon: Icons.live_tv),
+  _NavDestination(Icons.movie_outlined, '/movies',
+      selectedIcon: Icons.movie),
   _NavDestination(Icons.video_library_outlined, '/series',
       selectedIcon: Icons.video_library),
-  _NavDestination(Icons.search, '/search', selectedIcon: Icons.search),
+  _NavDestination(Icons.search, '/search',
+      selectedIcon: Icons.search),
   _NavDestination(Icons.settings_outlined, '/settings',
       selectedIcon: Icons.settings),
 ];
@@ -1007,49 +1020,49 @@ class _TvNavRailState extends State<_TvNavRail> {
       skipTraversal: true,
       onKeyEvent: _onKey,
       child: ValueListenableBuilder<bool>(
-        valueListenable: TvGuideScreen.railCompact,
-        builder: (context, compact, _) => AnimatedContainer(
-          duration: motionDuration(TvGuideScreen.shiftDuration),
-          curve: TvGuideScreen.shiftCurve,
-          width: compact ? 64 : 96,
-          color: theme.colorScheme.surface,
-          child: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < _kNavDestinations.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: _TvNavRailItem(
-                      icon: _kNavDestinations[i].icon,
-                      label: _kNavDestinations[i]
-                          .label(AppLocalizations.of(context)),
-                      active: i == index,
-                      compact: compact,
-                      // Only the very first item auto-claims focus, and only on
-                      // the rail's initial mount (cold app start, landing on
-                      // Live TV) — NOT `i == index`, which would re-fire
-                      // autofocus on every navigation.
-                      autofocus: i == 0,
-                      focusNode: widget.nodes[i],
-                      onTap: () {
-                        // Picking a tab hands the remote to that page: drop
-                        // focus so its first item's autofocus takes it.
-                        widget.onSelect();
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        context.go(_kNavDestinations[i].path);
-                        if (i == 0) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            TvGuideScreen.requestCategoryFocus?.call();
-                          });
-                        }
-                      },
-                    ),
+       valueListenable: TvGuideScreen.railCompact,
+       builder: (context, compact, _) => AnimatedContainer(
+        duration: motionDuration(TvGuideScreen.shiftDuration),
+        curve: TvGuideScreen.shiftCurve,
+        width: compact ? 64 : 96,
+        color: theme.colorScheme.surface,
+        child: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < _kNavDestinations.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: _TvNavRailItem(
+                    icon: _kNavDestinations[i].icon,
+                    label: _kNavDestinations[i]
+                        .label(AppLocalizations.of(context)),
+                    active: i == index,
+                    compact: compact,
+                    // Only the very first item auto-claims focus, and only on
+                    // the rail's initial mount (cold app start, landing on
+                    // Live TV) — NOT `i == index`, which would re-fire
+                    // autofocus on every navigation.
+                    autofocus: i == 0,
+                    focusNode: widget.nodes[i],
+                    onTap: () {
+                      // Picking a tab hands the remote to that page: drop
+                      // focus so its first item's autofocus takes it.
+                      widget.onSelect();
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      context.go(_kNavDestinations[i].path);
+                      if (i == 0) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          TvGuideScreen.requestCategoryFocus?.call();
+                        });
+                      }
+                    },
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
+       ),
       ),
     );
   }

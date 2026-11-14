@@ -43,6 +43,7 @@ class PlaybackService {
   final AppDatabase db;
   final BufferPreset Function() _bufferPreset;
   final String? Function() _userAgent;
+  // EDTV launcher: refreshes its read-only Continue Watching snapshot after a save.
   final AppPreferences? Function() _prefsGetter;
 
   /// The user's own user agent for streams, or null for the app's (Power
@@ -188,8 +189,7 @@ class PlaybackService {
     _owner = owner;
     nowPlaying.value = (url: streamUrl, owner: owner);
     await ensureTexture();
-    debugPrint(
-        '[OTV-play] opening url=${redactUrl(streamUrl.split('?').first)}, '
+    debugPrint('[OTV-play] opening url=${redactUrl(streamUrl.split('?').first)}, '
         'startPosition=${startPosition?.inSeconds}s');
     // ExoPlayer starts at startPosition itself — no need to wait for the
     // duration and seek afterwards (an mpv-era workaround that briefly
@@ -237,7 +237,6 @@ class PlaybackService {
 
   /// Playback speed of the current stream; reset to 1 by every [play].
   double get speed => _speed;
-
   /// Lip-sync shift in milliseconds (see Settings → player menu).
   int audioDelayMs = 0;
   Future<void> setAudioDelay(int ms) async {
@@ -262,35 +261,32 @@ class PlaybackService {
   // Progress persistence (VOD)
   // ---------------------------------------------------------------------------
 
-  Future<void> saveMovieProgress(String profileId, String movieId,
-      Duration position, Duration total) async {
-    debugPrint(
-        '[OTV-save] saveMovieProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
+  Future<void> _publishEdtvQueue(String profileId) async {
+    final prefs = _prefsGetter();
+    if (prefs != null) await EdtvQueueBridge.publishForProfile(db, profileId, prefs);
+  }
+
+  Future<void> saveMovieProgress(
+      String profileId, String movieId, Duration position, Duration total) async {
+    debugPrint('[OTV-save] saveMovieProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
     if (position.inSeconds == 0 || total.inSeconds == 0) {
       debugPrint('[OTV-save] skipping — position or total is 0');
       return;
     }
     await db.updateMovieProgress(profileId, movieId, position, total);
-    final prefs = _prefsGetter();
-    if (prefs != null) {
-      await EdtvQueueBridge.publishForProfile(db, profileId, prefs);
-    }
+    await _publishEdtvQueue(profileId);
     debugPrint('[OTV-save] updateMovieProgress done');
   }
 
-  Future<void> saveEpisodeProgress(String profileId, String episodeId,
-      Duration position, Duration total) async {
-    debugPrint(
-        '[OTV-save] saveEpisodeProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
+  Future<void> saveEpisodeProgress(
+      String profileId, String episodeId, Duration position, Duration total) async {
+    debugPrint('[OTV-save] saveEpisodeProgress: pos=${position.inSeconds}s total=${total.inSeconds}s');
     if (position.inSeconds == 0 || total.inSeconds == 0) {
       debugPrint('[OTV-save] skipping — position or total is 0');
       return;
     }
     await db.updateEpisodeProgress(profileId, episodeId, position, total);
-    final prefs = _prefsGetter();
-    if (prefs != null) {
-      await EdtvQueueBridge.publishForProfile(db, profileId, prefs);
-    }
+    await _publishEdtvQueue(profileId);
     debugPrint('[OTV-save] updateEpisodeProgress done');
   }
 

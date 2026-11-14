@@ -175,7 +175,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         freezeLimit: preset.freezeLimit, connectLimit: preset.connectLimit);
   }();
   Timer? _watchdogTimer;
-  Timer? _progressSaveTimer;
   bool _reconnecting = false;
   // The watchdog stopped trying (a stream that never played).
   bool _gaveUp = false;
@@ -282,12 +281,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!ref.read(castServiceProvider).status.connected) _enterFullscreen();
 
     _playbackService = ref.read(playbackServiceProvider);
-    if (!_isLive) {
-      // Some TV decoders emit sparse state events. Poll the authoritative
-      // player clock as a fallback so VOD progress is never left at 0:00.
-      _progressSaveTimer = Timer.periodic(
-          const Duration(seconds: 10), (_) => _saveProgressIfNeeded());
-    }
     // Safety net for the zoom's "controls wait" rule: never hold them back
     // (or an error screen) for more than a moment.
     Future<void>.delayed(const Duration(milliseconds: 1500), () {
@@ -485,9 +478,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Reopens the current stream: live at the live edge, VOD/catch-up where
   // it was.
   Future<void> _reconnect() async {
-    if (_reconnecting || _stoppedByUser || !mounted || _casting || _takenOver) {
+    if (_reconnecting || _stoppedByUser || !mounted || _casting || _takenOver)
       return;
-    }
     if (_playbackService.owner != null &&
         !identical(_playbackService.owner, this)) {
       _onTakenOver();
@@ -877,7 +869,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     PlayerScreen.openCount--;
     _hideTimer?.cancel();
     _watchdogTimer?.cancel();
-    _progressSaveTimer?.cancel();
     _stateSub?.cancel();
     _errorSub?.cancel();
     _noticeSub?.cancel();
@@ -950,6 +941,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       unawaited(() async {
         await _playbackService.db
             .updateChannelLastWatched(profileId, widget.contentId!);
+        // EDTV launcher: its Live TV row reads recently watched channels.
         final prefs = ref.read(appPreferencesProvider).valueOrNull;
         if (prefs != null) {
           await EdtvQueueBridge.publishForProfile(
@@ -1105,13 +1097,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _updateNowPlayingMetadata() async {
     String? artist;
     Uri? artUri;
-    String? sourceId;
     try {
       final id = widget.contentId;
       if (id != null) {
         if (_isLive) {
           final channel = await _playbackService.db.getChannelById(id);
-          sourceId = channel?.sourceId;
           if (channel?.logoUrl != null) {
             artUri = Uri.tryParse(channel!.logoUrl!);
           }
@@ -1120,75 +1110,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           artist = programme?.title;
         } else if (widget.contentType == 'movie') {
           final movie = await _playbackService.db.watchMovieById(id).first;
-          sourceId = movie?.sourceId;
           if (movie?.posterUrl != null) {
             artUri = Uri.tryParse(movie!.posterUrl!);
           }
         } else if (widget.contentType == 'episode') {
           final episode = await _playbackService.db.getEpisodeById(id);
-          sourceId = episode?.sourceId;
-          if (episode != null) {
-            final series = await _playbackService.db.getSeriesById(episode.seriesId);
-            artist = series?.title;
-            artUri = Uri.tryParse(episode.stillUrl ?? series?.posterUrl ?? '');
+          if (episode?.stillUrl != null) {
+            artUri = Uri.tryParse(episode!.stillUrl!);
           }
         }
       }
     } catch (_) {
       // Ignore — fall back to bare title below.
     }
-    final edtvArtwork = await _safeEdtvArtwork(artUri?.toString(), sourceId);
     if (!mounted) return;
     setState(() {
       _castSubtitle = artist;
       _castImage = artUri?.toString();
     });
     nowPlayingHandler.setNowPlaying(_shownTitle,
-        artist: artist,
-        artUri: artUri,
-        contentId: widget.contentId,
-        contentType: widget.contentType ?? (_isLive ? 'live' : null),
-        seriesId: widget.seriesId,
-        edtvArtwork: edtvArtwork?.toString());
-  }
-
-  Future<Uri?> _safeEdtvArtwork(String? raw, String? sourceId) async {
-    final uri = Uri.tryParse(raw ?? '');
-    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https') ||
-        uri.host.isEmpty || uri.userInfo.isNotEmpty || uri.fragment.isNotEmpty) {
-      return null;
-    }
-    const sensitiveKeys = {
-      'username', 'user', 'password', 'pass', 'token', 'auth',
-      'apikey', 'api_key', 'access_token', 'key',
-    };
-    if (uri.queryParameters.keys.any(
-        (key) => sensitiveKeys.contains(key.toLowerCase()))) {
-      return null;
-    }
-    if (sourceId != null) {
-      try {
-        final source = await _playbackService.db.getSourceById(sourceId);
-        final providerUrl = Uri.tryParse(
-            source?.xtreamHost ?? source?.m3uUrl ?? '');
-        if (providerUrl != null && providerUrl.host.isNotEmpty &&
-            uri.host.toLowerCase() == providerUrl.host.toLowerCase()) {
-          return null;
-        }
-        final secrets = [source?.xtreamUsername, source?.xtreamPassword]
-            .whereType<String>()
-            .where((value) => value.isNotEmpty)
-            .toList();
-        final fullUrl = uri.toString().toLowerCase();
-        if (secrets.any((secret) => secret.length >= 3 &&
-            fullUrl.contains(secret.toLowerCase()))) {
-          return null;
-        }
-      } catch (_) {
-        return null;
-      }
-    }
-    return uri;
+        artist: artist, artUri: artUri);
   }
 
   // Returns true=resume, false=start over, null=dismissed (tap outside → exit).
@@ -1223,6 +1164,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // reading _playbackService.lastState.position directly — the latter can be zero
     // if a reconnection attempt called play() and the seek hasn't
     // completed yet.
+    // Some TV decoders send sparse state events: take the player's own clock
+    // too, so a resumed title is not saved at 0:00.
     final current = _playbackService.lastState;
     if (current.position > _lastKnownPosition) {
       _lastKnownPosition = current.position;
