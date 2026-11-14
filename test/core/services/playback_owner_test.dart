@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -19,17 +20,23 @@ void main() {
   late AppDatabase db;
   final opened = <String>[];
   final carScreen = <bool?>[];
+  final calls = <String>[];
+  Completer<void>? openGate;
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     opened.clear();
     carScreen.clear();
+    calls.clear();
+    openGate = null;
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
         const MethodChannel('openiptv/video_player'), (call) async {
+      calls.add(call.method);
       if (call.method == 'create') return 1;
       if (call.method == 'open') {
+        await openGate?.future;
         opened.add((call.arguments as Map)['url'] as String);
         carScreen.add((call.arguments as Map)['carScreen'] as bool?);
       }
@@ -71,5 +78,25 @@ void main() {
     await service.play('http://example.test/a.ts', owner: Object());
     await service.play('http://example.test/b.ts');
     expect(service.owner, isNull);
+  });
+
+  test('a stop while the stream opens keeps it from starting', () async {
+    final service = PlaybackService(db: db);
+    openGate = Completer<void>();
+    final playing = service.play('http://example.test/live/1.ts', owner: Object());
+    await Future<void>.delayed(Duration.zero);
+    // Home pressed before the stream was ready.
+    await service.stop();
+    openGate!.complete();
+    await playing;
+    expect(calls.where((c) => c == 'open'), hasLength(1));
+    expect(calls.contains('play'), isFalse);
+    expect(calls.last, 'stop');
+  });
+
+  test('a stream that is not stopped starts as before', () async {
+    final service = PlaybackService(db: db);
+    await service.play('http://example.test/live/2.ts', owner: Object());
+    expect(calls.last, 'play');
   });
 }

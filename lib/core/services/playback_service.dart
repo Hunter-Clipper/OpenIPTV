@@ -205,6 +205,13 @@ class PlaybackService {
         liveReconnect: isLiveTs(streamUrl),
         // Tunneled playback is only used for live channels.
         live: isLiveTs(streamUrl) || streamUrl.contains('/live/'));
+    // Stopped while opening (Home pressed before the stream was ready): do
+    // not start it, or it would play on with no screen.
+    if (nowPlaying.value == null) {
+      debugPrint('[OTV-play] stopped while opening — not starting');
+      await _player.stop();
+      return;
+    }
     await _player.play();
     debugPrint('[OTV-play] open()/play() done');
   }
