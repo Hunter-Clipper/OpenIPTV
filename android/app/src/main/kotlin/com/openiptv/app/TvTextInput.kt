@@ -121,6 +121,13 @@ class TvTextInput(
 
     private fun create(): EditText {
         val et = object : EditText(activity) {
+            // The keyboard's arrow keys move the caret without changing the
+            // text, so tell Dart about it or its caret stays at the end.
+            override fun onSelectionChanged(selStart: Int, selEnd: Int) {
+                super.onSelectionChanged(selStart, selEnd)
+                if (open && !mirroring) sendState()
+            }
+
             // Before the keyboard sees it: Back closes the keyboard *and*
             // hands the remote back, in one press — and never reaches the
             // app's own Back handling.
@@ -153,7 +160,7 @@ class TvTextInput(
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 if (!mirroring && open) {
-                    channel.invokeMethod("changed", mapOf("text" to (s?.toString() ?: "")))
+                    sendState()
                 }
             }
         })
@@ -175,6 +182,19 @@ class TvTextInput(
         }
         content().addView(et, FrameLayout.LayoutParams(1, 1))
         return et
+    }
+
+    private fun sendState() {
+        val et = field ?: return
+        val text = et.text?.toString() ?: ""
+        channel.invokeMethod(
+            "changed",
+            mapOf(
+                "text" to text,
+                "start" to et.selectionStart.coerceIn(0, text.length),
+                "end" to et.selectionEnd.coerceIn(0, text.length),
+            ),
+        )
     }
 
     private fun finish(reason: String?) {

@@ -299,6 +299,31 @@ class _TvFocusableState extends State<TvFocusable> {
 /// button has the same gap moving left past the (non-focusable) title text
 /// to that same Back button, and a content grid can have the equivalent gap
 /// moving left into a side nav rail.
+/// Moves focus in a direction, treating "a focus node is still being laid
+/// out" as "nowhere to go". Flutter's search reads every candidate's size, and
+/// one inside a page that is still sliding in (or just built) has none yet, so
+/// a D-pad press during a transition threw a StateError (TCL TV reports,
+/// 0.14.100). The next press, a moment later, works.
+bool focusInDirectionSafely(FocusNode? node, TraversalDirection direction) {
+  try {
+    return node?.focusInDirection(direction) ?? false;
+  } on StateError {
+    return false;
+  }
+}
+
+/// The app-wide D-pad action: Flutter's own, minus that crash.
+class SafeDirectionalFocusAction extends Action<DirectionalFocusIntent> {
+  @override
+  Object? invoke(DirectionalFocusIntent intent) =>
+      focusInDirectionSafely(primaryFocus, intent.direction);
+}
+
+/// The app's default actions (see [SafeDirectionalFocusAction]).
+final Map<Type, Action<Intent>> appActions = {
+  DirectionalFocusIntent: SafeDirectionalFocusAction(),
+};
+
 class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
   EdgeAwareDirectionalFocusAction({
     required this.directions,
@@ -310,7 +335,7 @@ class EdgeAwareDirectionalFocusAction extends Action<DirectionalFocusIntent> {
 
   @override
   Object? invoke(DirectionalFocusIntent intent) {
-    final moved = primaryFocus?.focusInDirection(intent.direction) ?? false;
+    final moved = focusInDirectionSafely(primaryFocus, intent.direction);
     if (!moved && directions.contains(intent.direction)) {
       onNoMove();
     }
@@ -703,7 +728,7 @@ class _TvTextFieldGateState extends State<TvTextFieldGate> {
               ?.maxLength,
       onChanged: tf.onChanged,
       onAction: () {
-        tf.onSubmitted?.call(controller.text);
+        tf.onSubmitted?.call(controller.text.trim());
         if (tf.textInputAction != TextInputAction.next) return;
         // The keyboard stays up on "Next" (native): carry on in the next
         // field, or put it away if the next stop isn't a field.
@@ -937,8 +962,11 @@ class _TvCaretState extends State<_TvCaret> {
       stack.visitChildren(find);
       final e = editable;
       if (e == null || !e.hasSize) return;
-      final local = e.getLocalRectForCaret(
-          TextPosition(offset: widget.controller.text.length));
+      final value = widget.controller.value;
+      final caret = value.selection.isValid
+          ? value.selection.extentOffset.clamp(0, value.text.length)
+          : value.text.length;
+      final local = e.getLocalRectForCaret(TextPosition(offset: caret));
       final topLeft = e.localToGlobal(local.topLeft, ancestor: stack);
       // Long text runs past the end of an unfocused field: keep the cursor
       // inside the box.
@@ -1033,10 +1061,6 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
     if (!mounted || !PlatformHelper.isTV(context)) return;
     final ctx = FocusManager.instance.primaryFocus?.context;
     if (ctx == null || !ctx.mounted) return;
-    final scrollable = Scrollable.maybeOf(ctx);
-    if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
-      return;
-    }
     // Only focus that lives inside this widget.
     var inside = false;
     final mine = context;
@@ -1048,6 +1072,10 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
       return true;
     });
     if (!inside) return;
+    final scrollable = Scrollable.maybeOf(ctx);
+    if (scrollable == null || scrollable.axisDirection != AxisDirection.down) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !ctx.mounted) return;
       Scrollable.ensureVisible(ctx,
@@ -1064,4 +1092,73 @@ class _TvFollowFocusState extends State<TvFollowFocus> {
         skipTraversal: true,
         child: widget.child,
       );
+}
+
+
+/// TV, app wide: when the remote moves focus up onto a page's app bar (the
+/// back arrow and its buttons), the page's list scrolls back to the top, so
+/// the headings above the first row show instead of staying scrolled away.
+/// Fires once as focus arrives on the bar, only for that bar's own Scaffold,
+/// and leaves horizontal lists, dialogs and the nav rail alone. Put it once
+/// above the Navigator.
+class TvAppBarScroll extends StatefulWidget {
+  const TvAppBarScroll({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<TvAppBarScroll> createState() => _TvAppBarScrollState();
+}
+
+class _TvAppBarScrollState extends State<TvAppBarScroll> {
+  bool _onBar = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (!mounted || !PlatformHelper.isTV(context)) return;
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    final onBar = ctx != null &&
+        ctx.mounted &&
+        ctx.findAncestorWidgetOfExactType<AppBar>() != null;
+    final arrived = onBar && !_onBar;
+    _onBar = onBar;
+    if (!arrived) return;
+    final scaffold = ctx.findAncestorStateOfType<ScaffoldState>();
+    if (scaffold == null) return;
+    // The page's own vertical list: the first (outermost) one in its body.
+    ScrollPosition? found;
+    void walk(Element e) {
+      if (found != null) return;
+      if (e is StatefulElement && e.state is ScrollableState) {
+        final st = e.state as ScrollableState;
+        if (st.axisDirection == AxisDirection.down ||
+            st.axisDirection == AxisDirection.up) {
+          found = st.position;
+          return;
+        }
+      }
+      e.visitChildren(walk);
+    }
+
+    (scaffold.context as Element).visitChildren(walk);
+    final position = found;
+    if (position == null || position.pixels <= position.minScrollExtent) return;
+    position.animateTo(position.minScrollExtent,
+        duration: motionDuration(const Duration(milliseconds: 220)),
+        curve: Curves.easeOut);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

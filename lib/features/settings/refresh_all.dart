@@ -162,6 +162,13 @@ class RefreshAllTiles extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(refreshAllProvider);
     ref.listen(refreshAllProvider, (prev, next) {
+      if (prev?.isRunning != true && next.isRunning) {
+        // Make it plain something started: bring this row into view.
+        Scrollable.ensureVisible(context,
+            alignment: 0.2, duration: const Duration(milliseconds: 250));
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text(l10n.refreshAllStartedToast)));
+      }
       if (prev?.isRunning == true && !next.isRunning && next.last != null) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
           content: Text(
@@ -232,6 +239,13 @@ class RefreshNowTile extends ConsumerWidget {
     final state = ref.watch(refreshAllProvider);
     final theme = Theme.of(context);
     ref.listen(refreshAllProvider, (prev, next) {
+      if (prev?.isRunning != true && next.isRunning) {
+        // Make it plain something started: bring this row into view.
+        Scrollable.ensureVisible(context,
+            alignment: 0.2, duration: const Duration(milliseconds: 250));
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text(l10n.refreshAllStartedToast)));
+      }
       if (prev?.isRunning == true && !next.isRunning && next.last != null) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
           content: Text(
@@ -339,7 +353,9 @@ class _RefreshTile extends ConsumerWidget {
         : state.isRunning
             ? null
             : () => ref.read(refreshAllProvider.notifier).run(scope);
-    return TvActivatable(
+    return DimWhen(
+      dimmed: action == null,
+      child: TvActivatable(
       onTap: action,
       builder: (onTap) => ListTile(
         enabled: onTap != null,
@@ -355,6 +371,6 @@ class _RefreshTile extends ConsumerWidget {
             : null,
         onTap: onTap,
       ),
-    );
+    ));
   }
 }

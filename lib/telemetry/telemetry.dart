@@ -32,6 +32,9 @@ class Telemetry {
   Telemetry._();
 
   static int _recorded = 0;
+  // What this run already reported, so one bug that fires on every frame or
+  // key press is one report, not five.
+  static final Set<String> _seen = {};
   static bool _busy = false;
   static bool _flushing = false;
   static DeviceFacts? _facts;
@@ -128,6 +131,19 @@ class Telemetry {
     return !type.contains('SocketException') && !type.contains('ClientException');
   }
 
+  /// Whether [report] is the same crash as one already reported this run
+  /// ([seen]) or still waiting in the queue ([queued]): same error, same top
+  /// frames. Adds it to [seen] either way.
+  @visibleForTesting
+  static bool isRepeat(Map<String, Object?> report, Set<String> seen,
+      List<Map<String, dynamic>> queued) {
+    String sig(Map<dynamic, dynamic> r) =>
+        '${r['error']}|${((r['stack'] as List?) ?? const []).take(4).join('|')}';
+    final mine = sig(report);
+    final fresh = seen.add(mine);
+    return !fresh || queued.any((q) => sig(q) == mine && q['app'] == report['app']);
+  }
+
   static Future<void> _record(
       Object error, StackTrace stack, ReportKind kind) async {
     if (_busy || _recorded >= _maxPerRun) return;
@@ -141,7 +157,9 @@ class Telemetry {
         errorType: error.runtimeType.toString(),
         rawStack: stack.toString(),
       );
-      await (await _queue()).add(report.toJson());
+      final queue = await _queue();
+      if (isRepeat(report.toJson(), _seen, await queue.read())) return;
+      await queue.add(report.toJson());
       _recorded++;
       debugPrint('[OTV-stats] queued a ${kind.wire} report');
     } catch (_) {

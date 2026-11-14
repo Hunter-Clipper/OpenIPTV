@@ -89,18 +89,59 @@ object NativeCrashReporter {
         for (e in exits.sortedBy { it.timestamp }) {
             when (e.reason) {
                 ApplicationExitInfo.REASON_ANR ->
-                    out += mapOf("kind" to "hang", "type" to "ANR", "stack" to anrMainThread(e))
+                    out += mapOf(
+                        "kind" to "hang",
+                        "type" to anrLabel(e.description),
+                        "stack" to anrMainThread(e),
+                    )
                 ApplicationExitInfo.REASON_CRASH_NATIVE -> {
-                    val signal = Regex("SIG[A-Z0-9]+").find(e.description ?: "")?.value
+                    val (signal, libs) = nativeCrashDetails(e)
                     out += mapOf(
                         "kind" to "native-crash",
                         "type" to if (signal != null) "NativeCrash.$signal" else "NativeCrash",
-                        "stack" to "",
+                        "stack" to libs.joinToString("\n") { "native $it" },
                     )
                 }
             }
         }
         return out.takeLast(3)
+    }
+
+    /**
+     * What Android was waiting for when it declared the freeze, as one of a
+     * few fixed labels (never the description text itself, which can name
+     * components).
+     */
+    private fun anrLabel(description: String?): String {
+        val d = (description ?: "").lowercase()
+        return when {
+            "input dispatching" in d -> "ANR.Input"
+            "broadcast" in d -> "ANR.Broadcast"
+            "executing service" in d || "service" in d -> "ANR.Service"
+            "provider" in d -> "ANR.Provider"
+            else -> "ANR"
+        }
+    }
+
+    /**
+     * Signal name and the native libraries involved in a native crash, from
+     * the tombstone Android keeps (API 31+ it is protobuf; the readable
+     * strings in it are enough). Library file names only, never paths, no
+     * memory contents. Best effort: anything unexpected gives (null, empty).
+     */
+    private fun nativeCrashDetails(e: ApplicationExitInfo): Pair<String?, List<String>> = try {
+        val bytes = e.traceInputStream?.use { it.readBytes().take(2_000_000).toByteArray() }
+            ?: ByteArray(0)
+        val text = String(bytes, Charsets.ISO_8859_1).replace(Regex("[^\\x20-\\x7E]"), "\n")
+        val signal = Regex("SIG[A-Z0-9]+").find(text)?.value
+            ?: Regex("SIG[A-Z0-9]+").find(e.description ?: "")?.value
+        val libs = Regex("/(lib[A-Za-z0-9_.+-]{1,60}\\.so)").findAll(text)
+            .map { it.groupValues[1] }
+            .filter { !it.startsWith("libc.") && !it.startsWith("libm.") && !it.startsWith("libdl.") }
+            .distinct().take(8).toList()
+        Pair(signal, libs)
+    } catch (_: Throwable) {
+        Pair(null, emptyList())
     }
 
     /** The Java frames of the "main" thread from an ANR trace (text). */

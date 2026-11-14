@@ -60,12 +60,15 @@ final _episodesInProgressProvider = StreamProvider<List<Episode>>((ref) {
 });
 
 Future<void> _refreshSeries(BuildContext context, WidgetRef ref) async {
+  final container = ProviderScope.containerOf(context, listen: false);
   try {
     await refreshBrowsedPlaylists(
         context, ref, (manager, s) => manager.refreshSeries(s));
   } finally {
-    ref.invalidate(_allSeriesProvider);
-    await ref.read(_allSeriesProvider.future);
+    // The screen may have been left during a long refresh; using its ref
+    // then throws, so go through the app's container instead.
+    container.invalidate(_allSeriesProvider);
+    await container.read(_allSeriesProvider.future);
   }
 }
 

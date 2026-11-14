@@ -46,6 +46,15 @@ some random line about Channel BBC One
       ]);
     });
 
+    test('keeps a native library name but not a path', () {
+      expect(scrubStack('native libflutter.so\n/data/app/x/lib/libflutter.so'),
+          ['native libflutter.so']);
+    });
+
+    test('an ANR reason label is a plain identifier', () {
+      expect(scrubErrorType('ANR.Input'), 'ANR.Input');
+    });
+
     test('drops a code line that carries an address', () {
       expect(scrubStack('x (package:a/b.dart:1) 192.168.1.20'), isEmpty);
       expect(scrubStack('x (package:a/b.dart:1) fe80::1:2:3'), isEmpty);
@@ -74,6 +83,26 @@ some random line about Channel BBC One
       expect(scrubShortText('10.0.0.5'), 'unknown');
       expect(scrubShortText('a' * 200).length, 60);
       expect(scrubShortText(''), 'unknown');
+    });
+  });
+
+  group('repeats', () {
+    Map<String, Object?> r(String e, List<String> stack, [String app = 'a']) =>
+        {'error': e, 'stack': stack, 'app': app};
+
+    test('the same crash twice in a run is one report', () {
+      final seen = <String>{};
+      expect(Telemetry.isRepeat(r('E', ['x', 'y']), seen, const []), isFalse);
+      expect(Telemetry.isRepeat(r('E', ['x', 'y']), seen, const []), isTrue);
+      expect(Telemetry.isRepeat(r('E', ['z']), seen, const []), isFalse);
+    });
+
+    test('a crash already waiting in the queue is not queued again', () {
+      expect(
+          Telemetry.isRepeat(r('E', ['x']), <String>{}, [r('E', ['x'])]), isTrue);
+      expect(
+          Telemetry.isRepeat(r('E', ['x'], 'b'), <String>{}, [r('E', ['x'])]),
+          isFalse);
     });
   });
 

@@ -68,12 +68,15 @@ final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
 });
 
 Future<void> _refreshMovies(BuildContext context, WidgetRef ref) async {
+  final container = ProviderScope.containerOf(context, listen: false);
   try {
     await refreshBrowsedPlaylists(
         context, ref, (manager, s) => manager.refreshMovies(s));
   } finally {
-    ref.invalidate(_allMoviesProvider);
-    await ref.read(_allMoviesProvider.future);
+    // The screen may have been left during a long refresh; using its ref
+    // then throws, so go through the app's container instead.
+    container.invalidate(_allMoviesProvider);
+    await container.read(_allMoviesProvider.future);
   }
 }
 

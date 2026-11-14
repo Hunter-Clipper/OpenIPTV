@@ -212,8 +212,8 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
         ],
       ),
     );
-    final result = ok == true && user.text.isNotEmpty
-        ? (user.text, pass.text)
+    final result = ok == true && user.text.trim().isNotEmpty
+        ? (user.text.trim(), pass.text)
         : null;
     user.dispose();
     pass.dispose();

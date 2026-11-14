@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -49,7 +50,10 @@ class DetailHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final size = MediaQuery.sizeOf(context);
     final topPad = MediaQuery.paddingOf(context).top;
-    final imageHeight = (size.width * 9 / 16).clamp(200.0, size.height * 0.45);
+    final imageHeight = (size.width * 9 / 16)
+        // A short window (landscape phone, split screen) would make the
+        // upper limit smaller than the lower one, which throws.
+        .clamp(200.0, math.max(200.0, size.height * 0.45));
     // The poster overlaps the backdrop's bottom edge by ~60%.
     final expanded = imageHeight + _posterWidth * 1.5 * 0.4 + 8;
     final bg = theme.scaffoldBackgroundColor;

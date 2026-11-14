@@ -65,6 +65,22 @@ class SettingsGroup extends StatelessWidget {
 }
 
 /// A settings icon in a soft accent-tinted circle.
+/// Greys a control out while it is off (a refresh is running, say). A
+/// ListTile's own `enabled: false` leaves its icon badge and our theme's text
+/// colours bright, so the whole row is dimmed instead.
+class DimWhen extends StatelessWidget {
+  const DimWhen({super.key, required this.dimmed, required this.child});
+
+  final bool dimmed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedOpacity(
+      opacity: dimmed ? 0.38 : 1,
+      duration: const Duration(milliseconds: 150),
+      child: child);
+}
+
 class IconBadge extends StatelessWidget {
   const IconBadge({super.key, required this.icon});
 
