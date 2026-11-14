@@ -279,6 +279,17 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
             : Duration(milliseconds: positionMs),
         'confirmResume': false,
       };
+      // A cold start asks before the router has built its first page; a
+      // player pushed then is the only page, so Back closes the app with the
+      // stream still playing and Home has nothing to pop. Wait for the page.
+      for (var i = 0;
+          i < 50 &&
+              mounted &&
+              _router.routerDelegate.currentConfiguration.matches.isEmpty;
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      if (!mounted) return;
       if (PlayerScreen.openCount > 0) {
         // Already playing: hand the shared player to the new item.
         ref.read(playbackServiceProvider).markTransitioning();
