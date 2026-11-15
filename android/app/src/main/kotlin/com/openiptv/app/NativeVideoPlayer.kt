@@ -315,8 +315,10 @@ class NativeVideoPlayer(
         // navigation prompts pause or duck it.
         player.setAudioAttributes(mediaAudioAttributes, ownsFocus)
         // Pause when headphones / the car disconnect instead of blaring
-        // from the phone speaker.
-        player.setHandleAudioBecomingNoisy(on)
+        // from the phone speaker. Not on a TV: there is no speaker to blare from, and
+        // switching the screen's refresh rate re-syncs the HDMI link, which Android reports
+        // as the audio device going away; that paused playback for good (Match Frame Rate).
+        player.setHandleAudioBecomingNoisy(on && !EngineChannels.isTelevision(appContext))
         // Keep the CPU and Wi-Fi awake while playing with the screen off
         // (listening in the car with the phone locked).
         player.setWakeMode(if (on) C.WAKE_MODE_NETWORK else C.WAKE_MODE_NONE)
@@ -508,6 +510,16 @@ class NativeVideoPlayer(
                 emitState()
             }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                // Switching the screen's refresh rate re-syncs the HDMI link. Fire OS answers
+                // that with a pause a fraction of a second later, which nobody asked for and
+                // nothing ever undoes. A pause this soon after our own rate switch is not the
+                // viewer's: carry on playing.
+                if (!playWhenReady && rateSwitchAt != 0L &&
+                    android.os.SystemClock.elapsedRealtime() - rateSwitchAt < 6_000) {
+                    android.util.Log.i("OTV-fps", "pause (reason=$reason) right after a rate switch; resuming")
+                    exoPlayer.playWhenReady = true
+                    return
+                }
                 // A muted multi-view tile never holds audio focus, so a
                 // focus loss that still reaches it must not pause it for
                 // good (nothing would ever resume it).
@@ -1022,11 +1034,15 @@ class NativeVideoPlayer(
         val fps = streamFrameRate()
         if (fps > 0f && fps != matchedFps) {
             matchedFps = fps
+            rateSwitchAt = android.os.SystemClock.elapsedRealtime()
             FrameRateMatcher.match(fps)
         }
     }
 
     private var matchedFps = 0f
+
+    /** When we last asked the screen for another refresh rate (0 = never). */
+    private var rateSwitchAt = 0L
 
     fun dispose() {
         OutputModes.unregister(this)
