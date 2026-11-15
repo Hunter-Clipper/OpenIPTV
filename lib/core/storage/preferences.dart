@@ -168,10 +168,8 @@ class AppPreferences {
 
   Future<void> setPipEnabled(bool v) => _prefs.setBool(_kPipEnabled, v);
 
-  /// Match the screen's refresh rate to the video (#149). On by default on TVs, where a 24 fps
-  /// film on a 60 Hz mode judders (uneven 33/50 ms frame times); off by default elsewhere.
-  bool get autoFrameRate =>
-      _prefs.getBool(_kAutoFrameRate) ?? PlatformHelper.isTVDevice;
+  /// Match the screen's refresh rate to the video (#149). Off by default.
+  bool get autoFrameRate => _prefs.getBool(_kAutoFrameRate) ?? false;
   Future<void> setAutoFrameRate(bool v) => _prefs.setBool(_kAutoFrameRate, v);
 
   // Now Playing / media notification
