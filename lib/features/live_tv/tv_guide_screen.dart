@@ -1894,11 +1894,14 @@ class _GuideRow extends ConsumerWidget {
                                   color: guideStyle.channelText)),
                         ),
                       ],
+                      // Bare logos with a soft shadow in every look: a light
+                      // wash on dark looks so dark logos show, a dark shadow on
+                      // light ones.
                       LogoTile(
                           url: channel.logoUrl,
                           width: 58,
-                          transparent: guideStyle?.bareLogos ?? false,
-                          dropShadow: guideStyle?.logoShadow),
+                          transparent: true,
+                          dropShadow: _logoShadow(theme, guideStyle)),
                       const SizedBox(width: 8),
                       // Long names get a second line rather than being cut
                       // (or no name at all, if that is switched off).
@@ -2007,6 +2010,14 @@ class _GuideRow extends ConsumerWidget {
       ),
     ));
   }
+
+  // The shadow under a channel logo: the look's own, else a light wash on a
+  // dark page and a dark shadow on a light one.
+  static Color _logoShadow(ThemeData theme, GuideStyle? gs) =>
+      gs?.logoShadow ??
+      (theme.brightness == Brightness.dark
+          ? const Color(0x73FFFFFF)
+          : const Color(0x66101828));
 
   // The colour that marks the channel playing in the pane: the look's own,
   // chosen to show on its channel column.

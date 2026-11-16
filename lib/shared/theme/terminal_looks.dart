@@ -16,6 +16,7 @@ class TerminalLooks {
         edge: const Color(0xFF1F7A45),
         panel: const Color(0xFF04100A),
         high: const Color(0xFF0A2214),
+        wash: const Color(0x663DFF7F),
       );
 
   static ThemeData amber() => _build(
@@ -24,6 +25,7 @@ class TerminalLooks {
         edge: const Color(0xFF7A5600),
         panel: const Color(0xFF120C02),
         high: const Color(0xFF241804),
+        wash: const Color(0x66FFB000),
       );
 
   static ThemeData _build({
@@ -32,6 +34,7 @@ class TerminalLooks {
     required Color edge,
     required Color panel,
     required Color high,
+    required Color wash,
   }) {
     const black = Color(0xFF000000);
     final guide = GuideStyle(
@@ -46,7 +49,9 @@ class TerminalLooks {
       headerText: text,
       titleColor: text,
       nowColor: text,
-      bareLogos: false,
+      // Logos sit bare, lit by a wash of the phosphor colour so dark ones
+      // show on black.
+      logoShadow: wash,
       outlined: true,
       outlineColor: edge,
       airingOutline: text,

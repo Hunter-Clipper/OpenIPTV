@@ -3,10 +3,13 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.131)
+## Unreleased (0.14.133)
+
+**Fixed**
+- **Your look (and accent color) is now always remembered.** Changing it twice in a row could leave the profile with the older choice, which came back after restarting the app.
 
 **Improved**
-- **Bigger channel logos in the TV guide**, and the logo and name are vertically centered in each row.
+- **Cleaner, bigger channel logos in the TV guide, in every look.** Logos sit bare (no grey tile) with a soft shadow: a light wash on the dark looks so dark logos stay visible, a dark shadow on the light ones. They're also a little bigger, and the logo and name are vertically centered in each row.
 - **TV Guide Layout now lives under Appearance** in Settings, next to the looks, instead of under Watching.
 - **A cleaner preview in the TV guide.** The picture area at the top no longer shows the channel's logo or the "Press OK to preview" text while nothing is playing; it stays plain black. If a channel can't be played it still says so.
 
