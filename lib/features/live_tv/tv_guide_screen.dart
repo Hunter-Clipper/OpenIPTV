@@ -158,6 +158,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // The channel whose row had focus when the window moved; its cell takes
   // focus back once the row has loaded for the new window.
   String? _refocusChannelId;
+  final Map<String, List<Programme>> _rowCache = {};
   String? _focusedChannelId;
   // Where the timeline is heading while it animates.
   double _timeTarget = 0;
@@ -200,6 +201,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     ref.listenManual<int>(homeLeaveProvider, (_, __) => _pane.stopPreview());
     TvGuideScreen.requestCategoryFocus = () {
       if (!mounted) return;
+      // Backing out of the guide: next time it opens at the default spot,
+      // the current half hour on the left.
+      if (_gridNode.hasFocus) _resetToNow();
       _focusCategory(_focusedCategory ?? _shownCategory);
     };
     TvGuideScreen.requestGridFocus = () {
@@ -254,6 +258,28 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     _lastGridFocus = null;
     if (mounted) setState(() {});
     return true;
+  }
+
+  /// Back to the default view: the window on the clock, the current half hour
+  /// at the left edge, and the next visit to the grid starting at what's on.
+  void _resetToNow() {
+    final oldStart = _rangeStart;
+    final w = guideWindow(DateTime.now());
+    _rangeStart = w.$1;
+    _rangeEnd = w.$2;
+    _time.stop();
+    _time.value = guideReanchoredOffset(
+        offset: _time.value,
+        oldStart: oldStart,
+        newStart: _rangeStart,
+        maxOffset: double.infinity);
+    _timeTarget = _windowBefore.inMinutes * _pxPerMinute;
+    _time.animateTo(_timeTarget,
+        duration: motionDuration(const Duration(milliseconds: 300)),
+        curve: Curves.easeOutCubic);
+    _lastGridFocus = null;
+    _refocusChannelId = null;
+    if (mounted) setState(() {});
   }
 
   /// A key that can't move any further along the timeline: if the window is
@@ -320,7 +346,27 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       _rangeEnd.difference(_rangeStart).inMinutes * _pxPerMinute -
           _timelineWidth);
 
+  // How far ahead the guide can be scrolled (the guide data rarely goes
+  // further; past it the rows are simply empty).
+  static const _maxAhead = Duration(days: 7);
+
+  /// Grows the window as the timeline nears its end, so scrolling right
+  /// never runs out. Rows reload for the longer window but keep showing
+  /// what they had, so focus stays put.
+  void _extendFor(double x) {
+    final limit = guideWindow(DateTime.now()).$1.add(_maxAhead);
+    var grew = false;
+    while (_rangeEnd.isBefore(limit) &&
+        x + _timelineWidth + 90 * _pxPerMinute >
+            _rangeEnd.difference(_rangeStart).inMinutes * _pxPerMinute) {
+      _rangeEnd = _rangeEnd.add(const Duration(hours: 6));
+      grew = true;
+    }
+    if (grew && mounted) setState(() {});
+  }
+
   void _scrollTimeTo(double x) {
+    _extendFor(x);
     final target = x.clamp(0.0, _maxOffset);
     _timeTarget = target;
     // A muted ticker (the guide covered by another page) never advances an
@@ -335,7 +381,21 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   }
 
   // A programme cell came into focus: bring its start into view if it isn't.
+  // When the remote last moved the timeline on its own (no cell further on).
+  DateTime? _manualScrollAt;
+  double _manualDx = 0;
+
   void _revealTime(double x) {
+    // Putting focus back on the cell you were on (after a key that found no
+    // cell to move to) must not pull the timeline back to that cell: that
+    // pinned the guide in place at the end of a row.
+    final manual = _manualScrollAt;
+    if (manual != null &&
+        DateTime.now().difference(manual) < const Duration(milliseconds: 500)) {
+      final heading = _time.isAnimating ? _timeTarget : _time.value;
+      // Only the pull back against the way it was just moved is ignored.
+      if (_manualDx > 0 ? x < heading : x > heading) return;
+    }
     // Compared with where the timeline is heading, not where it is mid-move.
     final offset = _time.isAnimating ? _timeTarget : _time.value;
     if (x >= offset && x <= offset + _timelineWidth - 120) return;
@@ -361,6 +421,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (!mounted || key == _shownCategory) return;
     setState(() {
       _shownCategory = key;
+      _rowCache.clear();
       _rememberedCategory = key;
       _lastGridFocus = null;
     });
@@ -791,6 +852,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               columnNode: _columnNode,
               exitsLeft: () => _exitsLeft,
               scrollTimeBy: (dx) {
+                _manualScrollAt = DateTime.now();
+                _manualDx = dx;
                 // At the end of the window and it is out of date: slide it.
                 if (dx > 0 && _time.value >= _maxOffset - 0.5 && _refreshAtEdge()) {
                   return;
@@ -829,6 +892,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     onCellFocused: _onCellFocused,
                     onRevealTime: _revealTime,
                     onActivate: _activate,
+                    rowCache: _rowCache,
                     onLongPress: profileId == null
                         ? null
                         : () => showChannelOptions(context, ref, channel,
@@ -1617,12 +1681,16 @@ class _GuideRow extends ConsumerWidget {
     required this.onCellFocused,
     required this.onRevealTime,
     required this.onActivate,
+    required this.rowCache,
     this.onLongPress,
     this.entryNode,
     this.autofocus = false,
     this.playing = false,
   });
 
+  // The last programmes each channel loaded: shown while the row reloads for
+  // a longer window, so the cells (and focus) stay where they are.
+  final Map<String, List<Programme>> rowCache;
   // This channel is the one playing in the pane.
   final bool playing;
   final Channel channel;
@@ -1645,7 +1713,9 @@ class _GuideRow extends ConsumerWidget {
     final showNames = ref.watch(guideShowNamesProvider);
     final twoLineNames = ref.watch(guideTwoLineNamesProvider);
     final markPlaying = playing && ref.watch(guideHighlightPlayingProvider);
-    final programmes = loaded.valueOrNull ?? const <Programme>[];
+    final fresh = loaded.valueOrNull;
+    if (fresh != null) rowCache[channel.id] = fresh;
+    final programmes = fresh ?? rowCache[channel.id] ?? const <Programme>[];
     final totalMinutes = rowKey.end.difference(rowKey.start).inMinutes;
     double xOf(DateTime t) => (t.difference(rowKey.start).inSeconds / 60 *
             _pxPerMinute)

@@ -3,10 +3,13 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.121)
+## Unreleased (0.14.123)
 
 **Fixed**
 - **The TV guide no longer gets stuck after being left open for hours.** On a long day the guide's time window stayed where it was when you first opened it, so the timeline could stop following the highlight and only restarting the app fixed it. The window now moves along with the clock, keeping what you're looking at in place, and pressing Right at the end of an out-of-date guide brings it up to now.
+- **Pressing Right at the end of a channel's programmes no longer snaps the guide back.** The timeline now keeps moving instead of being pinned in place.
+- **You can keep scrolling the TV guide to the right** for as long as you like (up to a week ahead); it used to stop about five hours from now.
+- **Backing out of the TV guide to the categories puts it back to now**, so the next time you go in it opens at the current time, not wherever you had scrolled.
 
 ## 0.14.120 — 2026-11-13
 
