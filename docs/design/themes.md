@@ -98,6 +98,9 @@ neon, light mode (we have none today — also an accessibility win).
 | Retro Cable layout | **Skin plus retro touches**: same layout and navigation, plus small touches such as a "Today ◄ 3:30p ►" header strip and channel numbers. |
 | Fonts | Retro Cable: **Nunito Bold**. Terminal green and Amber: **JetBrains Mono**. All open licence (SIL OFL); bundle only the weights used and add their licence texts to the notices. |
 | Light theme | **Clean cool white**: near-white backgrounds, dark text, the user's accent as highlights. |
+| Terminal green / Amber | **Pure black, one colour**: black background, text and highlights all in the one phosphor colour. |
+| True-black OLED | **Pure black backgrounds, otherwise like Standard; the accent still applies.** |
+| CRT effect | One **Screen effects** page under the theme settings: **scan lines** (Light / Medium / Strong), plus separate on/off toggles for **soft glow/vignette** and **gentle flicker**. Everything off by default. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
 Notes from the decisions:
@@ -108,6 +111,16 @@ Notes from the decisions:
   (dialogs, sheets, chips, snackbars, nav rail, player controls), not just
   colours; component themes must name `fontFamily` or they fall back to
   Roboto (known gotcha).
+
+Consequences to handle:
+- Monochrome presets have no genre colours: cells need another way to tell
+  programmes apart (outline weight, inverse on focus, a marker for what's
+  airing) — to design.
+- **Flicker must obey Reduce Motion / system animation settings** and stay
+  very subtle; it is the one effect that can bother some viewers, so it
+  stays off by default and has its own toggle.
+- Glow/vignette costs raster time on the Chromecast: measure before
+  shipping, and keep it a separate toggle.
 
 ## Still open
 - Name and visual identity of each preset (palette, accent behaviour).
