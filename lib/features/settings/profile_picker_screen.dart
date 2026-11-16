@@ -8,6 +8,7 @@ import 'package:open_iptv/core/services/admin_biometric.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/theme/theme_preset.dart';
 import 'package:open_iptv/shared/widgets/loading_view.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
 import 'package:open_iptv/shared/widgets/pin_field.dart';
@@ -133,6 +134,9 @@ class ProfilePickerScreen extends ConsumerWidget {
           AppTheme.accentFromHex(newProfile.accentColor);
       final prefs = await ref.read(appPreferencesProvider.future);
       await prefs.setAccentColor(newProfile.accentColor);
+      ref.read(themePresetProvider.notifier).state =
+          ThemePreset.fromId(newProfile.themeId);
+      await prefs.setThemeId(newProfile.themeId);
     }
     onPicked();
   }

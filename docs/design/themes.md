@@ -1,6 +1,6 @@
 # Themes and screen effects (#178)
 
-Status: **brainstorm** — nothing built yet. This PR holds the discussion.
+Status: **phase 1 (plumbing) built** on this branch: per-profile theme setting, backup support, preview-card picker, two presets (Standard, True black). Phases 2-4 not started. Decisions below are the owner's answers to the Q&A.
 
 ## The ask
 
@@ -126,3 +126,12 @@ Consequences to handle:
 ## Still open
 - Name and visual identity of each preset (palette, accent behaviour).
 - Confirm each font's licence file and weight subset before bundling (APK size).
+
+## Phase 1 as built (0.14.125, test builds)
+
+- `ThemePreset` (`lib/shared/theme/theme_preset.dart`): `standard`, `trueBlack`; `fixedColours` is false for both (the retro presets will set it).
+- Stored on the profile (`Profile.themeId`, DB schema 17, backup profile map) and cached in prefs (`themeId`, in backups) like the accent; the runtime value is `themePresetProvider`, applied through `AppTheme.forPreset` in `app.dart`.
+- Settings → Appearance → Theme opens a picker with a mini guide preview per preset; hidden on kids profiles (an admin-sets-it screen is still to do).
+- Verified on the Chromecast: picker opens with the remote, True black applies at once and survives an app restart, accent kept.
+
+Still to do for kids profiles: let an admin set a child's theme from the profile screen.

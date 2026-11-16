@@ -4410,6 +4410,14 @@ class $ProfilesTable extends Profiles
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('0A84FF'));
+  static const VerificationMeta _themeIdMeta =
+      const VerificationMeta('themeId');
+  @override
+  late final GeneratedColumn<String> themeId = GeneratedColumn<String>(
+      'theme_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('standard'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -4444,6 +4452,7 @@ class $ProfilesTable extends Profiles
         isKidsProfile,
         isAdmin,
         accentColor,
+        themeId,
         createdAt,
         updatedAt
       ];
@@ -4572,6 +4581,10 @@ class $ProfilesTable extends Profiles
           accentColor.isAcceptableOrUnknown(
               data['accent_color']!, _accentColorMeta));
     }
+    if (data.containsKey('theme_id')) {
+      context.handle(_themeIdMeta,
+          themeId.isAcceptableOrUnknown(data['theme_id']!, _themeIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -4634,6 +4647,8 @@ class $ProfilesTable extends Profiles
           .read(DriftSqlType.bool, data['${effectivePrefix}is_admin'])!,
       accentColor: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}accent_color'])!,
+      themeId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}theme_id'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -4668,6 +4683,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
   final bool isKidsProfile;
   final bool isAdmin;
   final String accentColor;
+  final String themeId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const ProfileRow(
@@ -4691,6 +4707,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       required this.isKidsProfile,
       required this.isAdmin,
       required this.accentColor,
+      required this.themeId,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -4718,6 +4735,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
     map['is_kids_profile'] = Variable<bool>(isKidsProfile);
     map['is_admin'] = Variable<bool>(isAdmin);
     map['accent_color'] = Variable<String>(accentColor);
+    map['theme_id'] = Variable<String>(themeId);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4747,6 +4765,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       isKidsProfile: Value(isKidsProfile),
       isAdmin: Value(isAdmin),
       accentColor: Value(accentColor),
+      themeId: Value(themeId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4779,6 +4798,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       isKidsProfile: serializer.fromJson<bool>(json['isKidsProfile']),
       isAdmin: serializer.fromJson<bool>(json['isAdmin']),
       accentColor: serializer.fromJson<String>(json['accentColor']),
+      themeId: serializer.fromJson<String>(json['themeId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4807,6 +4827,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       'isKidsProfile': serializer.toJson<bool>(isKidsProfile),
       'isAdmin': serializer.toJson<bool>(isAdmin),
       'accentColor': serializer.toJson<String>(accentColor),
+      'themeId': serializer.toJson<String>(themeId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4833,6 +4854,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           bool? isKidsProfile,
           bool? isAdmin,
           String? accentColor,
+          String? themeId,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       ProfileRow(
@@ -4856,6 +4878,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
         isKidsProfile: isKidsProfile ?? this.isKidsProfile,
         isAdmin: isAdmin ?? this.isAdmin,
         accentColor: accentColor ?? this.accentColor,
+        themeId: themeId ?? this.themeId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -4909,6 +4932,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
       isAdmin: data.isAdmin.present ? data.isAdmin.value : this.isAdmin,
       accentColor:
           data.accentColor.present ? data.accentColor.value : this.accentColor,
+      themeId: data.themeId.present ? data.themeId.value : this.themeId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4937,6 +4961,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           ..write('isKidsProfile: $isKidsProfile, ')
           ..write('isAdmin: $isAdmin, ')
           ..write('accentColor: $accentColor, ')
+          ..write('themeId: $themeId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4965,6 +4990,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
         isKidsProfile,
         isAdmin,
         accentColor,
+        themeId,
         createdAt,
         updatedAt
       ]);
@@ -4992,6 +5018,7 @@ class ProfileRow extends DataClass implements Insertable<ProfileRow> {
           other.isKidsProfile == this.isKidsProfile &&
           other.isAdmin == this.isAdmin &&
           other.accentColor == this.accentColor &&
+          other.themeId == this.themeId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5017,6 +5044,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
   final Value<bool> isKidsProfile;
   final Value<bool> isAdmin;
   final Value<String> accentColor;
+  final Value<String> themeId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -5041,6 +5069,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     this.isKidsProfile = const Value.absent(),
     this.isAdmin = const Value.absent(),
     this.accentColor = const Value.absent(),
+    this.themeId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -5066,6 +5095,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     this.isKidsProfile = const Value.absent(),
     this.isAdmin = const Value.absent(),
     this.accentColor = const Value.absent(),
+    this.themeId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -5095,6 +5125,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     Expression<bool>? isKidsProfile,
     Expression<bool>? isAdmin,
     Expression<String>? accentColor,
+    Expression<String>? themeId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -5123,6 +5154,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       if (isKidsProfile != null) 'is_kids_profile': isKidsProfile,
       if (isAdmin != null) 'is_admin': isAdmin,
       if (accentColor != null) 'accent_color': accentColor,
+      if (themeId != null) 'theme_id': themeId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -5150,6 +5182,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       Value<bool>? isKidsProfile,
       Value<bool>? isAdmin,
       Value<String>? accentColor,
+      Value<String>? themeId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -5174,6 +5207,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
       isAdmin: isAdmin ?? this.isAdmin,
       accentColor: accentColor ?? this.accentColor,
+      themeId: themeId ?? this.themeId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -5244,6 +5278,9 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
     if (accentColor.present) {
       map['accent_color'] = Variable<String>(accentColor.value);
     }
+    if (themeId.present) {
+      map['theme_id'] = Variable<String>(themeId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5279,6 +5316,7 @@ class ProfilesCompanion extends UpdateCompanion<ProfileRow> {
           ..write('isKidsProfile: $isKidsProfile, ')
           ..write('isAdmin: $isAdmin, ')
           ..write('accentColor: $accentColor, ')
+          ..write('themeId: $themeId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -8500,6 +8538,7 @@ typedef $$ProfilesTableCreateCompanionBuilder = ProfilesCompanion Function({
   Value<bool> isKidsProfile,
   Value<bool> isAdmin,
   Value<String> accentColor,
+  Value<String> themeId,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> rowid,
@@ -8525,6 +8564,7 @@ typedef $$ProfilesTableUpdateCompanionBuilder = ProfilesCompanion Function({
   Value<bool> isKidsProfile,
   Value<bool> isAdmin,
   Value<String> accentColor,
+  Value<String> themeId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -8607,6 +8647,9 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<String> get accentColor => $composableBuilder(
       column: $table.accentColor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get themeId => $composableBuilder(
+      column: $table.themeId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -8697,6 +8740,9 @@ class $$ProfilesTableOrderingComposer
   ColumnOrderings<String> get accentColor => $composableBuilder(
       column: $table.accentColor, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get themeId => $composableBuilder(
+      column: $table.themeId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -8773,6 +8819,9 @@ class $$ProfilesTableAnnotationComposer
   GeneratedColumn<String> get accentColor => $composableBuilder(
       column: $table.accentColor, builder: (column) => column);
 
+  GeneratedColumn<String> get themeId =>
+      $composableBuilder(column: $table.themeId, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -8823,6 +8872,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             Value<bool> isKidsProfile = const Value.absent(),
             Value<bool> isAdmin = const Value.absent(),
             Value<String> accentColor = const Value.absent(),
+            Value<String> themeId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -8848,6 +8898,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             isKidsProfile: isKidsProfile,
             isAdmin: isAdmin,
             accentColor: accentColor,
+            themeId: themeId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -8873,6 +8924,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             Value<bool> isKidsProfile = const Value.absent(),
             Value<bool> isAdmin = const Value.absent(),
             Value<String> accentColor = const Value.absent(),
+            Value<String> themeId = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -8898,6 +8950,7 @@ class $$ProfilesTableTableManager extends RootTableManager<
             isKidsProfile: isKidsProfile,
             isAdmin: isAdmin,
             accentColor: accentColor,
+            themeId: themeId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

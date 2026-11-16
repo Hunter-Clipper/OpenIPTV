@@ -239,6 +239,7 @@ class Profiles extends Table {
       boolean().withDefault(const Constant(false))();
   BoolColumn get isAdmin => boolean().withDefault(const Constant(false))();
   TextColumn get accentColor => text().withDefault(const Constant('0A84FF'))();
+  TextColumn get themeId => text().withDefault(const Constant('standard'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -287,7 +288,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.background() : super(_openConnection(migrate: false));
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -410,6 +411,14 @@ class AppDatabase extends _$AppDatabase {
           if (from >= 15 && from < 16) {
             try {
               await m.addColumn(guideChannels, guideChannels.hasProgrammes);
+            } catch (e) {
+              if (!'$e'.contains('duplicate column name')) rethrow;
+            }
+          }
+          if (from < 17) {
+            // The look each profile uses (#178).
+            try {
+              await m.addColumn(profiles, profiles.themeId);
             } catch (e) {
               if (!'$e'.contains('duplicate column name')) rethrow;
             }
@@ -2189,6 +2198,7 @@ class AppDatabase extends _$AppDatabase {
         isKidsProfile: row.isKidsProfile,
         isAdmin: row.isAdmin,
         accentColor: row.accentColor,
+        themeId: row.themeId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       );
@@ -2296,6 +2306,7 @@ class AppDatabase extends _$AppDatabase {
         isKidsProfile: Value(p.isKidsProfile),
         isAdmin: Value(p.isAdmin),
         accentColor: Value(p.accentColor),
+        themeId: Value(p.themeId),
         createdAt: Value(p.createdAt),
         updatedAt: Value(p.updatedAt),
       );

@@ -1014,5 +1014,9 @@
   "formatStateNext": "Siguiente",
   "formatStateLive": "En vivo",
   "formatStateNotStarted": "No ha comenzado",
-  "formatGeoBlocked": "Bloqueado por región"
+  "formatGeoBlocked": "Bloqueado por región",
+  "themeTitle": "Tema",
+  "themeStandardName": "Estándar",
+  "themeTrueBlackName": "Negro puro",
+  "themePickerHint": "Se aplica a este perfil."
 }

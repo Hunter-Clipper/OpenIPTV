@@ -3631,4 +3631,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get formatGeoBlocked => 'Geo-blocked';
+
+  @override
+  String get themeTitle => 'Theme';
+
+  @override
+  String get themeStandardName => 'Standard';
+
+  @override
+  String get themeTrueBlackName => 'True black';
+
+  @override
+  String get themePickerHint => 'Applies to this profile.';
 }

@@ -30,7 +30,7 @@ void main() {
     expect(await db.getAllSources(), isEmpty); // forces open + upgrade
     final version =
         await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.data['user_version'], 16); // upgrades on to the latest
+    expect(version.data['user_version'], 17); // upgrades on to the latest
   });
 
   // Extra guides (#40): an upgrade from 14 creates the three tables, and a
@@ -87,5 +87,33 @@ void main() {
     db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
     expect((await db.getGuideChannels()).single.xmltvId, 'A');
+  });
+
+  // The look each profile uses (#178): an upgrade from 16 adds the column
+  // with Standard as the default, and finding it already there is harmless.
+  test('upgrading to 17 adds the theme column, and tolerates it being there',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('otv-mig17');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/test.db');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await db.customStatement('SELECT 1');
+    await db.customStatement('ALTER TABLE profiles DROP COLUMN theme_id');
+    await db.customStatement('PRAGMA user_version = 16');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    final cols = await db.customSelect('PRAGMA table_info(profiles)').get();
+    expect(cols.any((r) => r.data['name'] == 'theme_id'), isTrue);
+    await db.close();
+
+    final raw = AppDatabase(NativeDatabase(file));
+    await raw.customStatement('PRAGMA user_version = 16');
+    await raw.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final cols2 = await db.customSelect('PRAGMA table_info(profiles)').get();
+    expect(cols2.where((r) => r.data['name'] == 'theme_id').length, 1);
   });
 }
