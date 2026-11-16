@@ -423,13 +423,6 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
-      key: 'crtFlicker',
-      encode: (p) => p.crtFlicker,
-      decode: (p, v) async {
-        if (v is bool) await p.setCrtFlicker(v);
-      },
-    ),
-    PreferenceEntry(
       key: 'themeId',
       encode: (p) => p.themeId,
       decode: (p, v) async {

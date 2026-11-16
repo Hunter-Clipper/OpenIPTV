@@ -1,8 +1,4 @@
-import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:open_iptv/shared/utils/motion.dart';
 
 /// How dark the scan lines are.
 enum CrtStrength {
@@ -29,7 +25,6 @@ class ScreenEffects {
     this.lines = false,
     this.strength = CrtStrength.medium,
     this.glow = false,
-    this.flicker = false,
   });
 
   /// Horizontal scan lines.
@@ -39,18 +34,13 @@ class ScreenEffects {
   /// A soft dark vignette with a faint warm centre.
   final bool glow;
 
-  /// A barely-there brightness flutter (off with Reduce Motion).
-  final bool flicker;
+  bool get any => lines || glow;
 
-  bool get any => lines || glow || flicker;
-
-  ScreenEffects copyWith(
-          {bool? lines, CrtStrength? strength, bool? glow, bool? flicker}) =>
+  ScreenEffects copyWith({bool? lines, CrtStrength? strength, bool? glow}) =>
       ScreenEffects(
         lines: lines ?? this.lines,
         strength: strength ?? this.strength,
         glow: glow ?? this.glow,
-        flicker: flicker ?? this.flicker,
       );
 
   @override
@@ -58,17 +48,15 @@ class ScreenEffects {
       other is ScreenEffects &&
       other.lines == lines &&
       other.strength == strength &&
-      other.glow == glow &&
-      other.flicker == flicker;
+      other.glow == glow;
 
   @override
-  int get hashCode => Object.hash(lines, strength, glow, flicker);
+  int get hashCode => Object.hash(lines, strength, glow);
 }
 
 /// Draws [child] with the [effects] over it. The overlay ignores touches and
 /// the remote, and is drawn as one cheap gradient rectangle per effect in its
-/// own layer, so it costs next to nothing per frame (the flicker steps a few
-/// times a second, not every frame).
+/// own layer, so it costs next to nothing per frame.
 class ScreenEffectsOverlay extends StatelessWidget {
   const ScreenEffectsOverlay({
     super.key,
@@ -99,7 +87,6 @@ class ScreenEffectsOverlay extends StatelessWidget {
                       CustomPaint(
                         painter: _ScanLines(effects.strength.alpha, dpr),
                       ),
-                    if (effects.flicker && !reduceMotion) const _Flicker(),
                   ],
                 ),
               ),
@@ -154,37 +141,4 @@ class _Vignette extends StatelessWidget {
           ),
         ),
       );
-}
-
-/// A few brightness steps a second: very subtle, and stepped rather than
-/// smooth so it never forces a full-rate repaint.
-class _Flicker extends StatefulWidget {
-  const _Flicker();
-
-  @override
-  State<_Flicker> createState() => _FlickerState();
-}
-
-class _FlickerState extends State<_Flicker> {
-  final _random = math.Random();
-  Timer? _timer;
-  double _alpha = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 90), (_) {
-      if (mounted) setState(() => _alpha = _random.nextDouble() * 0.035);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      ColoredBox(color: Color.fromRGBO(0, 0, 0, _alpha));
 }

@@ -19,7 +19,6 @@ const _expectedBackupKeys = {
   'crtLines',
   'crtStrength',
   'crtGlow',
-  'crtFlicker',
   'contentSort',
   'channelListDensity',
   'viewModeLive',

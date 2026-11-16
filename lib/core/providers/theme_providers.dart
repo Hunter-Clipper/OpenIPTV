@@ -280,7 +280,6 @@ Future<void> setScreenEffects(
   await prefs.setCrtLines(fx.lines);
   await prefs.setCrtStrength(fx.strength.id);
   await prefs.setCrtGlow(fx.glow);
-  await prefs.setCrtFlicker(fx.flicker);
 }
 
 /// Switches the look and remembers it on the active profile (and in prefs for
@@ -380,7 +379,6 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
     lines: prefs.crtLines,
     strength: CrtStrength.fromId(prefs.crtStrength),
     glow: prefs.crtGlow,
-    flicker: prefs.crtFlicker,
   );
   ref.read(contentSortProvider.notifier).state = prefs.contentSort;
   ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;

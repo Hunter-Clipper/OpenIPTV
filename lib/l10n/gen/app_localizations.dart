@@ -6262,18 +6262,6 @@ abstract class AppLocalizations {
   /// **'Soft glow and vignette'**
   String get screenEffectsGlow;
 
-  /// Switch: a barely visible brightness flutter
-  ///
-  /// In en, this message translates to:
-  /// **'Gentle flicker'**
-  String get screenEffectsFlicker;
-
-  /// Note under the flicker switch when the system asks for no animation
-  ///
-  /// In en, this message translates to:
-  /// **'Off while Reduce Motion is on'**
-  String get screenEffectsFlickerReduced;
-
   /// Button that closes a settings dialog
   ///
   /// In en, this message translates to:

@@ -4,7 +4,6 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/theme/screen_effects.dart';
-import 'package:open_iptv/shared/utils/motion.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
 /// What the Screen effects row says underneath.
@@ -73,11 +72,6 @@ Future<void> showScreenEffectsDialog(BuildContext context, WidgetRef ref) {
                   ),
                 toggle(l10n.screenEffectsGlow, fx.glow,
                     (v) => change(fx.copyWith(glow: v))),
-                toggle(l10n.screenEffectsFlicker, fx.flicker,
-                    (v) => change(fx.copyWith(flicker: v)),
-                    note: reduceMotion
-                        ? l10n.screenEffectsFlickerReduced
-                        : null),
               ],
             ),
           ),
