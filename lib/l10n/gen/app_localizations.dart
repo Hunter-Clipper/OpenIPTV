@@ -5704,12 +5704,6 @@ abstract class AppLocalizations {
   /// **'This channel isn\'t available right now.'**
   String get tvGuideChannelUnavailable;
 
-  /// Hint over the guide preview area; OK is the remote button
-  ///
-  /// In en, this message translates to:
-  /// **'Press OK to preview'**
-  String get tvGuidePressOkToPreview;
-
   /// Guide cell / info line for a channel with no programme data
   ///
   /// In en, this message translates to:
@@ -6267,6 +6261,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get commonDone;
+
+  /// Name of the look inspired by old cable-box guides: deep blue, flat and chunky
+  ///
+  /// In en, this message translates to:
+  /// **'Retro Cable'**
+  String get themeRetroCableName;
+
+  /// Word at the left of the guide's time strip in looks that show it, like the old cable-box guides
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get tvGuideToday;
+
+  /// Shown under Accent Color when the chosen theme has its own colours, so the accent does not apply
+  ///
+  /// In en, this message translates to:
+  /// **'Set by the theme'**
+  String get settingsAccentSetByTheme;
 }
 
 class _AppLocalizationsDelegate

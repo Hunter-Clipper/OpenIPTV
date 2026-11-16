@@ -4,6 +4,7 @@ import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/theme/retro_cable_theme.dart';
 import 'package:open_iptv/shared/theme/theme_preset.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 
@@ -11,6 +12,7 @@ import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 String themeName(AppLocalizations l10n, ThemePreset preset) => switch (preset) {
       ThemePreset.standard => l10n.themeStandardName,
       ThemePreset.trueBlack => l10n.themeTrueBlackName,
+      ThemePreset.retroCable => l10n.themeRetroCableName,
     };
 
 /// Dialog with a small preview of each look; the choice applies at once to
@@ -106,21 +108,25 @@ class _ThemeCard extends StatelessWidget {
                   color: theme.background,
                   padding: const EdgeInsets.all(5),
                   child: Column(children: [
-                    Container(height: 10, color: theme.surface),
+                    Container(height: 10, color: theme.header),
                     const SizedBox(height: 4),
                     for (var i = 0; i < 3; i++) ...[
                       Expanded(
                         child: Row(children: [
-                          Container(width: 22, color: theme.surface),
+                          Container(width: 22, color: theme.channel),
                           const SizedBox(width: 3),
                           Expanded(
                             flex: 3,
                             child: Container(
-                                color: i == 0 ? accent : theme.surface),
+                                color:
+                                    i == 0 ? theme.cellHighlight : theme.cell),
                           ),
                           const SizedBox(width: 3),
                           Expanded(
-                              flex: 2, child: Container(color: theme.surface)),
+                              flex: 2,
+                              child: Container(
+                                  color:
+                                      i == 1 ? theme.cellOther : theme.cell)),
                         ]),
                       ),
                       if (i < 2) const SizedBox(height: 3),
@@ -146,9 +152,33 @@ class _ThemeCard extends StatelessWidget {
 }
 
 /// The colours a preview needs from a preset.
-({Color background, Color surface}) _presetLook(
-        ThemePreset preset, Color accent) =>
-    (
-      background: preset.background ?? AppTheme.backgroundColor,
-      surface: AppTheme.surfaceVariantColor,
-    );
+({
+  Color background,
+  Color header,
+  Color channel,
+  Color cell,
+  Color cellHighlight,
+  Color cellOther,
+}) _presetLook(ThemePreset preset, Color accent) {
+  switch (preset) {
+    case ThemePreset.retroCable:
+      return (
+        background: RetroCable.navy,
+        header: RetroCable.panelHigh,
+        channel: RetroCable.cream,
+        cell: RetroCable.cellBlue,
+        cellHighlight: RetroCable.sportsGreen,
+        cellOther: RetroCable.moviePurple,
+      );
+    case ThemePreset.standard:
+    case ThemePreset.trueBlack:
+      return (
+        background: preset.background ?? AppTheme.backgroundColor,
+        header: AppTheme.surfaceVariantColor,
+        channel: AppTheme.surfaceVariantColor,
+        cell: AppTheme.surfaceVariantColor,
+        cellHighlight: accent,
+        cellOther: AppTheme.surfaceVariantColor,
+      );
+  }
+}

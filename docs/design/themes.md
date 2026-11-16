@@ -144,3 +144,11 @@ Still to do for kids profiles: let an admin set a child's theme from the profile
 - Settings → Appearance → Screen effects (dialog with the switches; changes show at once).
 - Checked on the Chromecast: dialog works with the remote, lines and darker corners are visible in screenshots.
 - **Not verified: lines over live video.** The video layer is not captured by screenshots (the preview pane shows black), so whether the translucent lines blend over the picture on TVs with the video layer has to be checked by eye.
+
+## Phase 3 as built (0.14.128, test builds)
+
+- `ThemePreset.retroCable` (`fixedColours: true`, accent ignored and the accent row says "Set by the theme"). `RetroCable` (`lib/shared/theme/retro_cable_theme.dart`) re-colours and re-types the whole app: deep-blue page, blue panels, cream channel column, yellow titles/selection, Nunito (Regular + Bold bundled, SIL OFL), square-ish corners, flat components.
+- `GuideStyle` (`guide_style.dart`) is a `ThemeExtension` only Retro Cable provides; the TV guide uses it when present: genre-coloured flat cells (sports green, movies purple, kids yellow, news blue, else blue; `genre_colors.dart` keyword buckets, programme category first then the channel's categories), white focus block with dark text, cream channel column with channel numbers, blue gradient header strip with ticks and a "Today ◂" label, gradient top panel.
+- Owner feedback after the first look: channel logo + name centred in the cream column, logos transparent (no tile), and the preview pane's "Press OK to preview" text and channel logo removed **for every look** (only a "channel unavailable / denied" note remains).
+- Known trade-off: a white logo nearly vanishes on the cream column (transparent logos were requested). Options if it bothers: a subtle dark backing only for light logos, or a darker channel column.
+- Not done yet: the first-run wizard stays on the standard dark look; light/terminal/amber presets (phase 4); admin setting a child's theme.

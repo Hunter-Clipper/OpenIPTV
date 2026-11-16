@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.14.126+344
+version: 0.14.128+346
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -119,6 +119,13 @@ flutter:
         - asset: assets/fonts/google_sans/GoogleSans-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/google_sans/GoogleSans-Bold.ttf
+          weight: 700
+    # Nunito (SIL OFL 1.1 — assets/fonts/nunito/OFL.txt): the Retro Cable look.
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/nunito/Nunito-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/nunito/Nunito-Bold.ttf
           weight: 700
 
   assets:
