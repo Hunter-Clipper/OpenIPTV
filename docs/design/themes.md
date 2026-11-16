@@ -93,6 +93,9 @@ neon, light mode (we have none today — also an accessibility win).
 | Kids profiles | **Admin decides**: an admin sets a kids profile's theme, the child can't change it. |
 | Genre mapping | **Keyword buckets** (sports, movies, kids, news, other), matched on the programme category like the genre-icon logic (`genre_icons.dart`); unknown stays plain blue. |
 | Accent colour | **Ignored on fixed-colour presets** (Retro Cable, terminal green, amber): the theme owns its colours and the accent swatches are greyed out with a note. Normal themes (Standard, OLED, Light) keep the accent. |
+| Retro Cable palette | **Classic blue**: deep-blue gradient panels, cream channel column, white focus, genre colours on the cells. |
+| Retro Cable cells | **Flat blocks with thin gaps** (square corners, bold title). |
+| Retro Cable layout | **Skin plus retro touches**: same layout and navigation, plus small touches such as a "Today ◄ 3:30p ►" header strip and channel numbers. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
 Notes from the decisions:
