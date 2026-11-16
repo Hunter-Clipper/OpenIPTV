@@ -55,6 +55,31 @@ const _favorites = '\u0001favorites';
 const _recent = '\u0001recent';
 const _all = '\u0001all';
 
+/// The half hour [now] falls in: the guide's window hangs off it.
+@visibleForTesting
+DateTime guideSlot(DateTime now) =>
+    DateTime(now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
+
+/// The guide window for a clock reading: (start, end).
+@visibleForTesting
+(DateTime, DateTime) guideWindow(DateTime now) {
+  final slot = guideSlot(now);
+  return (slot.subtract(_windowBefore), slot.add(_windowAfter));
+}
+
+/// Scroll offset after the window moves from [oldStart] to [newStart]: the
+/// same moment stays under the same pixel, kept inside the new window.
+@visibleForTesting
+double guideReanchoredOffset({
+  required double offset,
+  required DateTime oldStart,
+  required DateTime newStart,
+  required double maxOffset,
+}) {
+  final shift = newStart.difference(oldStart).inMinutes * _pxPerMinute;
+  return (offset - shift).clamp(0.0, math.max(0.0, maxOffset));
+}
+
 typedef _RowKey = ({String channelId, DateTime start, DateTime end});
 
 // One row's programmes, loaded as the row comes into view.
@@ -125,8 +150,17 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // The category you were in, for the next visit (this run of the app).
   static String? _rememberedCategory;
 
-  late final DateTime _rangeStart;
-  late final DateTime _rangeEnd;
+  // The window the rows are loaded for. It follows the clock (see
+  // [_reanchor]): left alone, a guide kept open for hours ended up with "now"
+  // outside it and a timeline with nowhere left to scroll.
+  late DateTime _rangeStart;
+  late DateTime _rangeEnd;
+  // The channel whose row had focus when the window moved; its cell takes
+  // focus back once the row has loaded for the new window.
+  String? _refocusChannelId;
+  String? _focusedChannelId;
+  // Where the timeline is heading while it animates.
+  double _timeTarget = 0;
   // How far the timeline is scrolled, in pixels; every row follows it.
   late final AnimationController _time;
   double _timelineWidth = 0;
@@ -182,19 +216,53 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     _pane.onCatchupEnded = _continueAfterCatchup;
     _gridNode.addListener(_syncCollapsed);
     _columnNode.addListener(_syncCollapsed);
-    final now = DateTime.now();
-    // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
-    // with that half hour at the left edge.
-    final slot = DateTime(
-        now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
-    _rangeStart = slot.subtract(_windowBefore);
-    _rangeEnd = slot.add(_windowAfter);
+    // Opened with the current half hour at the left edge.
+    final w = guideWindow(DateTime.now());
+    _rangeStart = w.$1;
+    _rangeEnd = w.$2;
     _time = AnimationController.unbounded(
         vsync: this, value: _windowBefore.inMinutes * _pxPerMinute);
     _nowTicker = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      // Slides the window along once it is out of date, unless the remote is
+      // in the guide (that is left to the next edge press, so the cell you
+      // are on never disappears under you).
+      if (!_gridNode.hasFocus) _reanchor();
+      setState(() {});
     });
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// True once the half hour at the left edge is [by] or more behind now.
+  bool _windowOlderThan(Duration by) =>
+      guideWindow(DateTime.now()).$1.difference(_rangeStart) >= by;
+
+  /// Moves the window to the clock, keeping the same moment under the same
+  /// pixel so nothing jumps. Returns whether it moved.
+  bool _reanchor({Duration olderThan = const Duration(hours: 2)}) {
+    if (!_windowOlderThan(olderThan)) return false;
+    final oldStart = _rangeStart;
+    final w = guideWindow(DateTime.now());
+    _rangeStart = w.$1;
+    _rangeEnd = w.$2;
+    _time.stop();
+    _time.value = guideReanchoredOffset(
+        offset: _time.value,
+        oldStart: oldStart,
+        newStart: _rangeStart,
+        maxOffset: _maxOffset);
+    _lastGridFocus = null;
+    if (mounted) setState(() {});
+    return true;
+  }
+
+  /// A key that can't move any further along the timeline: if the window is
+  /// out of date, bring it up to now and put focus back on the same channel.
+  bool _refreshAtEdge() {
+    final id = _focusedChannelId;
+    if (!_reanchor(olderThan: const Duration(minutes: 30))) return false;
+    _refocusChannelId = id;
+    return true;
   }
 
   void _syncCollapsed() {
@@ -235,6 +303,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_gridNode.hasFocus) {
+      _reanchor();
+    }
     // The preview's stream is let go while the app is out of sight.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
@@ -249,12 +320,24 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       _rangeEnd.difference(_rangeStart).inMinutes * _pxPerMinute -
           _timelineWidth);
 
-  void _scrollTimeTo(double x) => _time.animateTo(x.clamp(0.0, _maxOffset),
-      duration: motionDuration(const Duration(milliseconds: 200)), curve: Curves.easeOut);
+  void _scrollTimeTo(double x) {
+    final target = x.clamp(0.0, _maxOffset);
+    _timeTarget = target;
+    // A muted ticker (the guide covered by another page) never advances an
+    // animation: jump, so the timeline can't be left behind the focus.
+    if (!mounted || !TickerMode.valuesOf(context).enabled) {
+      _time.value = target;
+      return;
+    }
+    _time.animateTo(target,
+        duration: motionDuration(const Duration(milliseconds: 200)),
+        curve: Curves.easeOut);
+  }
 
   // A programme cell came into focus: bring its start into view if it isn't.
   void _revealTime(double x) {
-    final offset = _time.value;
+    // Compared with where the timeline is heading, not where it is mid-move.
+    final offset = _time.isAnimating ? _timeTarget : _time.value;
     if (x >= offset && x <= offset + _timelineWidth - 120) return;
     _scrollTimeTo(x);
   }
@@ -369,6 +452,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   void _onCellFocused(Channel channel, Programme? programme,
       {required bool exitsLeft}) {
     _exitsLeft = exitsLeft;
+    _focusedChannelId = channel.id;
+    if (_refocusChannelId == channel.id) _refocusChannelId = null;
     // In the guide: no category switch still to come (entering the guide
     // shows the focused category straight away).
     _categoryDebounce?.cancel();
@@ -705,7 +790,13 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               gridNode: _gridNode,
               columnNode: _columnNode,
               exitsLeft: () => _exitsLeft,
-              scrollTimeBy: (dx) => _scrollTimeTo(_time.value + dx),
+              scrollTimeBy: (dx) {
+                // At the end of the window and it is out of date: slide it.
+                if (dx > 0 && _time.value >= _maxOffset - 0.5 && _refreshAtEdge()) {
+                  return;
+                }
+                _scrollTimeTo(_time.value + dx);
+              },
               canScrollBack: () => _time.value > 0.5,
               onExitLeft: _exitToCategories,
               nowX: () =>
@@ -732,7 +823,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     playing: playingId == channel.id,
                     time: _time,
                     entryNode: i == 0 ? _firstRowNode : null,
-                    autofocus: i == 0,
+                    autofocus: _refocusChannelId == null
+                        ? i == 0
+                        : _refocusChannelId == channel.id,
                     onCellFocused: _onCellFocused,
                     onRevealTime: _revealTime,
                     onActivate: _activate,
