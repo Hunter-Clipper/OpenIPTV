@@ -78,12 +78,30 @@ accent (so a kids profile can have its own), or one for the whole device.
 Terminal green, amber monochrome, "late-night" OLED black, high-contrast,
 neon, light mode (we have none today — also an accessibility win).
 
-## Questions for the owner
+## Decisions so far (owner Q&A, 2026-11-16)
 
-1. Whole app or guide only for Retro Cable?
-2. One theme per device or per profile?
-3. Should the CRT lines be allowed over the video picture, or interface
-   only?
-4. Any must-have first presets besides Retro Cable?
-5. Is a light theme in scope here, or separate?
-6. OK to bundle a new font for the retro look (licence permitting)?
+| Topic | Decision |
+|---|---|
+| Retro Cable scope | **Whole app** (guide, lists, settings, player controls), not only the guide. |
+| Who chooses | **Per profile**, like the accent colour; saved in backups. |
+| CRT over video | **Everything, including the video picture.** On TVs the video sits on a layer *behind* Flutter (`videoLayerActive`, #162) and Flutter draws on top of it, so semi-transparent lines should blend over the picture; **to verify on the Chromecast** before promising it. |
+| CRT controls | **On/off plus strength** (Light / Medium / Strong). |
+| First presets | Retro Cable, **terminal green, amber monochrome, true-black OLED, light theme**. |
+| Font | **A free open-licence font** (SIL OFL or similar); I shortlist 2-3 with previews, owner picks. |
+| Guide cell colours | **By genre** from `Programme.category`, unknown stays plain blue. |
+| Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
+
+Notes from the decisions:
+- A **light theme** touches every hard-coded dark colour in the app
+  (`AppTheme` constants and widgets that use them directly), so it is the
+  largest of the presets and should be audited before it is promised.
+- Whole-app Retro Cable means the preset must cover every component theme
+  (dialogs, sheets, chips, snackbars, nav rail, player controls), not just
+  colours; component themes must name `fontFamily` or they fall back to
+  Roboto (known gotcha).
+
+## Still open
+- Where the settings live and how the picker previews a theme.
+- How the genre-to-colour mapping is defined and how many colours.
+- Whether kids profiles can change theme.
+- Name and visual identity of each preset.
