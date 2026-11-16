@@ -37,6 +37,7 @@ class EdtvQueueBridge {
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
       'continue': <Object>[],
       'channels': <Object>[],
+      'favorites': <Object>[],
     });
     try {
       await _channel.invokeMethod<void>('publishQueueSnapshot', snapshot);
@@ -67,10 +68,17 @@ class EdtvQueueBridge {
       final movies = await db.watchMoviesInProgress(profile.id).first;
       final episodes = await db.watchEpisodesInProgress(profile.id).first;
       final channels = await db
-          .watchRecentChannels(profile.id,
-              limit: 20, sourceId: prefs.activeSourceId)
+          .watchRecentChannels(
+            profile.id,
+            limit: 20,
+            sourceId: prefs.activeSourceId,
+          )
           .first;
       final activeSourceId = prefs.activeSourceId;
+      final favoriteRows = await db.getChannelsByIds(
+        profile.favoriteChannelIds,
+        sourceId: activeSourceId,
+      );
 
       final seriesById = <String, Series>{};
       for (final episode in episodes) {
@@ -111,8 +119,9 @@ class EdtvQueueBridge {
         // Match Jellyfin's episode-card layout: the series is the main title,
         // while the episode name and SxxExx identifier sit on the second line.
         final episodeTitle = episode.displayTitle;
-        final seriesTitle =
-            series == null ? '' : cleanDisplayName(series.title);
+        final seriesTitle = series == null
+            ? ''
+            : cleanDisplayName(series.title);
         items.add({
           'id': episode.id,
           'type': 'episode',
@@ -125,16 +134,18 @@ class EdtvQueueBridge {
           'timestamp': episode.lastWatchedAt?.millisecondsSinceEpoch ?? 0,
         });
       }
-      items.sort((a, b) => ((b['timestamp'] as int?) ?? 0)
-          .compareTo((a['timestamp'] as int?) ?? 0));
+      items.sort(
+        (a, b) => ((b['timestamp'] as int?) ?? 0).compareTo(
+          (a['timestamp'] as int?) ?? 0,
+        ),
+      );
 
-      final recentChannels = <Map<String, Object?>>[];
-      for (final Channel channel in channels) {
+      Map<String, Object?>? channelItem(Channel channel) {
         if (isLockedContent(channel.categories, prefs) ||
             (profile.isKidsProfile && isAdultGenre(channel.groupTitle))) {
-          continue;
+          return null;
         }
-        recentChannels.add({
+        return {
           'id': channel.id,
           'type': 'live',
           'title': _stripCountryPrefix(channel.name),
@@ -145,14 +156,26 @@ class EdtvQueueBridge {
           'positionMs': 0,
           'durationMs': 0,
           'timestamp': channel.lastWatchedAt?.millisecondsSinceEpoch ?? 0,
-        });
+        };
       }
+
+      final recentChannels = [
+        for (final Channel channel in channels) channelItem(channel),
+      ].whereType<Map<String, Object?>>().toList();
+
+      // Favourites keep the order the viewer added them in.
+      final favoriteById = {for (final c in favoriteRows) c.id: c};
+      final favoriteChannels = [
+        for (final id in profile.favoriteChannelIds)
+          if (favoriteById[id] != null) channelItem(favoriteById[id]!),
+      ].whereType<Map<String, Object?>>().toList();
 
       final snapshot = jsonEncode({
         'apiVersion': 1,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
         'continue': items.take(20).toList(),
         'channels': recentChannels.take(20).toList(),
+        'favorites': favoriteChannels.take(30).toList(),
       });
       await _channel.invokeMethod<void>('publishQueueSnapshot', snapshot);
     } catch (error, stack) {
