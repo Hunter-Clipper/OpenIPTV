@@ -101,6 +101,7 @@ neon, light mode (we have none today — also an accessibility win).
 | Terminal green / Amber | **Pure black, one colour**: black background, text and highlights all in the one phosphor colour. |
 | True-black OLED | **Pure black backgrounds, otherwise like Standard; the accent still applies.** |
 | CRT effect | One **Screen effects** page under the theme settings: **scan lines** (Light / Medium / Strong), plus separate on/off toggles for **soft glow/vignette** and **gentle flicker**. Everything off by default. |
+| Mono cells | Outlined cells on black, **inverse (solid fill, black text) on focus**, a brighter outline for what's airing now. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
 Notes from the decisions:
