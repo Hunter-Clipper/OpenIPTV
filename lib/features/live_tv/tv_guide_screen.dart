@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
@@ -54,6 +55,31 @@ const _rowHeight = 48.0;
 const _favorites = '\u0001favorites';
 const _recent = '\u0001recent';
 const _all = '\u0001all';
+
+/// The half hour [now] falls in: the guide's window hangs off it.
+@visibleForTesting
+DateTime guideSlot(DateTime now) =>
+    DateTime(now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
+
+/// The guide window for a clock reading: (start, end).
+@visibleForTesting
+(DateTime, DateTime) guideWindow(DateTime now) {
+  final slot = guideSlot(now);
+  return (slot.subtract(_windowBefore), slot.add(_windowAfter));
+}
+
+/// Scroll offset after the window moves from [oldStart] to [newStart]: the
+/// same moment stays under the same pixel, kept inside the new window.
+@visibleForTesting
+double guideReanchoredOffset({
+  required double offset,
+  required DateTime oldStart,
+  required DateTime newStart,
+  required double maxOffset,
+}) {
+  final shift = newStart.difference(oldStart).inMinutes * _pxPerMinute;
+  return (offset - shift).clamp(0.0, math.max(0.0, maxOffset));
+}
 
 typedef _RowKey = ({String channelId, DateTime start, DateTime end});
 
@@ -125,8 +151,26 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // The category you were in, for the next visit (this run of the app).
   static String? _rememberedCategory;
 
-  late final DateTime _rangeStart;
-  late final DateTime _rangeEnd;
+  // The window the rows are loaded for. It follows the clock (see
+  // [_reanchor]): left alone, a guide kept open for hours ended up with "now"
+  // outside it and a timeline with nowhere left to scroll.
+  late DateTime _rangeStart;
+  late DateTime _rangeEnd;
+  // The channel whose row had focus when the window moved; its cell takes
+  // focus back once the row has loaded for the new window.
+  String? _refocusChannelId;
+  final Map<String, List<Programme>> _rowCache = {};
+  String? _focusedChannelId;
+  // What the guide's lists were last worked out from (see _buildGuide).
+  Object? _baseKey;
+  Object? _channelsKey;
+  List<Channel> _favorites_ = const [];
+  List<Channel> _recent_ = const [];
+  List<String> _realCategories = const [];
+  List<Channel> _channels = const [];
+  DateTime? _focusedStart;
+  // Where the timeline is heading while it animates.
+  double _timeTarget = 0;
   // How far the timeline is scrolled, in pixels; every row follows it.
   late final AnimationController _time;
   double _timelineWidth = 0;
@@ -166,6 +210,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     ref.listenManual<int>(homeLeaveProvider, (_, __) => _pane.stopPreview());
     TvGuideScreen.requestCategoryFocus = () {
       if (!mounted) return;
+      // Backing out of the guide: next time it opens at the default spot,
+      // the current half hour on the left.
+      if (_gridNode.hasFocus) _resetToNow();
       _focusCategory(_focusedCategory ?? _shownCategory);
     };
     TvGuideScreen.requestGridFocus = () {
@@ -182,19 +229,97 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     _pane.onCatchupEnded = _continueAfterCatchup;
     _gridNode.addListener(_syncCollapsed);
     _columnNode.addListener(_syncCollapsed);
-    final now = DateTime.now();
-    // Snapped to the half hour, so the times read 2:30 / 3:00, and opened
-    // with that half hour at the left edge.
-    final slot = DateTime(
-        now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
-    _rangeStart = slot.subtract(_windowBefore);
-    _rangeEnd = slot.add(_windowAfter);
+    // Opened with the current half hour at the left edge.
+    final w = guideWindow(DateTime.now());
+    _rangeStart = w.$1;
+    _rangeEnd = w.$2;
     _time = AnimationController.unbounded(
         vsync: this, value: _windowBefore.inMinutes * _pxPerMinute);
     _nowTicker = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      // Slides the window along once it is out of date, unless the remote is
+      // in the guide (that is left to the next edge press, so the cell you
+      // are on never disappears under you).
+      if (!_gridNode.hasFocus) _reanchor();
+      setState(() {});
     });
     WidgetsBinding.instance.addObserver(this);
+    if (_guidePerf) SchedulerBinding.instance.addTimingsCallback(_onTimings);
+  }
+
+  // Dev only (--dart-define=OPENIPTV_GUIDE_PERF=true): frame times in logcat.
+  static const _guidePerf = bool.fromEnvironment('OPENIPTV_GUIDE_PERF');
+  final List<FrameTiming> _timings = [];
+  void _onTimings(List<FrameTiming> t) {
+    _timings.addAll(t);
+    if (_timings.length < 60) return;
+    final build = [for (final f in _timings) f.buildDuration.inMicroseconds / 1000]
+      ..sort();
+    final raster = [for (final f in _timings) f.rasterDuration.inMicroseconds / 1000]
+      ..sort();
+    final total = [for (final f in _timings) f.totalSpan.inMicroseconds / 1000]
+      ..sort();
+    double pct(List<double> l, double p) => l[(l.length * p).floor().clamp(0, l.length - 1)];
+    final slow = total.where((x) => x > 33).length;
+    debugPrint('[OTV-perf] frames=${total.length} slow(>33ms)=$slow '
+        'build p50=${pct(build, .5).toStringAsFixed(1)} p95=${pct(build, .95).toStringAsFixed(1)} max=${build.last.toStringAsFixed(1)} '
+        'raster p50=${pct(raster, .5).toStringAsFixed(1)} p95=${pct(raster, .95).toStringAsFixed(1)} '
+        'total p95=${pct(total, .95).toStringAsFixed(1)} max=${total.last.toStringAsFixed(1)}');
+    _timings.clear();
+  }
+
+  /// True once the half hour at the left edge is [by] or more behind now.
+  bool _windowOlderThan(Duration by) =>
+      guideWindow(DateTime.now()).$1.difference(_rangeStart) >= by;
+
+  /// Moves the window to the clock, keeping the same moment under the same
+  /// pixel so nothing jumps. Returns whether it moved.
+  bool _reanchor({Duration olderThan = const Duration(hours: 2)}) {
+    if (!_windowOlderThan(olderThan)) return false;
+    final oldStart = _rangeStart;
+    final w = guideWindow(DateTime.now());
+    _rangeStart = w.$1;
+    _rangeEnd = w.$2;
+    _time.stop();
+    _time.value = guideReanchoredOffset(
+        offset: _time.value,
+        oldStart: oldStart,
+        newStart: _rangeStart,
+        maxOffset: _maxOffset);
+    _lastGridFocus = null;
+    if (mounted) setState(() {});
+    return true;
+  }
+
+  /// Back to the default view: the window on the clock, the current half hour
+  /// at the left edge, and the next visit to the grid starting at what's on.
+  void _resetToNow() {
+    final oldStart = _rangeStart;
+    final w = guideWindow(DateTime.now());
+    _rangeStart = w.$1;
+    _rangeEnd = w.$2;
+    _time.stop();
+    _time.value = guideReanchoredOffset(
+        offset: _time.value,
+        oldStart: oldStart,
+        newStart: _rangeStart,
+        maxOffset: double.infinity);
+    _timeTarget = _windowBefore.inMinutes * _pxPerMinute;
+    _time.animateTo(_timeTarget,
+        duration: motionDuration(const Duration(milliseconds: 300)),
+        curve: Curves.easeOutCubic);
+    _lastGridFocus = null;
+    _refocusChannelId = null;
+    if (mounted) setState(() {});
+  }
+
+  /// A key that can't move any further along the timeline: if the window is
+  /// out of date, bring it up to now and put focus back on the same channel.
+  bool _refreshAtEdge() {
+    final id = _focusedChannelId;
+    if (!_reanchor(olderThan: const Duration(minutes: 30))) return false;
+    _refocusChannelId = id;
+    return true;
   }
 
   void _syncCollapsed() {
@@ -210,6 +335,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   @override
   void dispose() {
+    if (_guidePerf) SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     _gridNode.removeListener(_syncCollapsed);
     _columnNode.removeListener(_syncCollapsed);
     TvGuideScreen.requestCategoryFocus = null;
@@ -235,6 +361,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_gridNode.hasFocus) {
+      _reanchor();
+    }
     // The preview's stream is let go while the app is out of sight.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
@@ -249,14 +378,75 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       _rangeEnd.difference(_rangeStart).inMinutes * _pxPerMinute -
           _timelineWidth);
 
-  void _scrollTimeTo(double x) => _time.animateTo(x.clamp(0.0, _maxOffset),
-      duration: motionDuration(const Duration(milliseconds: 200)), curve: Curves.easeOut);
+  // How far ahead the guide can be scrolled (the guide data rarely goes
+  // further; past it the rows are simply empty).
+  static const _maxAhead = Duration(days: 7);
+
+  /// Grows the window as the timeline nears its end, so scrolling right
+  /// never runs out. Rows reload for the longer window but keep showing
+  /// what they had, so focus stays put.
+  void _extendFor(double x) {
+    final limit = guideWindow(DateTime.now()).$1.add(_maxAhead);
+    var grew = false;
+    while (_rangeEnd.isBefore(limit) &&
+        x + _timelineWidth + 90 * _pxPerMinute >
+            _rangeEnd.difference(_rangeStart).inMinutes * _pxPerMinute) {
+      _rangeEnd = _rangeEnd.add(const Duration(hours: 6));
+      grew = true;
+    }
+    if (grew && mounted) setState(() {});
+  }
+
+  void _scrollTimeTo(double x) {
+    _extendFor(x);
+    final target = x.clamp(0.0, _maxOffset);
+    _timeTarget = target;
+    // A muted ticker (the guide covered by another page) never advances an
+    // animation: jump, so the timeline can't be left behind the focus.
+    if (!mounted || !TickerMode.valuesOf(context).enabled) {
+      _time.value = target;
+      return;
+    }
+    // Held key (presses close together): a short linear glide, so the
+    // timeline flows instead of restarting an ease on every press.
+    final now = DateTime.now();
+    final held = _lastScrollAt != null &&
+        now.difference(_lastScrollAt!) < const Duration(milliseconds: 260);
+    _lastScrollAt = now;
+    _time.animateTo(target,
+        duration: motionDuration(Duration(milliseconds: held ? 120 : 200)),
+        curve: held ? Curves.linear : Curves.easeOutCubic);
+  }
+
+  DateTime? _lastScrollAt;
 
   // A programme cell came into focus: bring its start into view if it isn't.
-  void _revealTime(double x) {
-    final offset = _time.value;
-    if (x >= offset && x <= offset + _timelineWidth - 120) return;
-    _scrollTimeTo(x);
+  // When the remote last moved the timeline on its own (no cell further on).
+  DateTime? _manualScrollAt;
+  double _manualDx = 0;
+
+  void _revealTime(double x, double end) {
+    // Putting focus back on the cell you were on (after a key that found no
+    // cell to move to) must not pull the timeline back to that cell: that
+    // pinned the guide in place at the end of a row.
+    final manual = _manualScrollAt;
+    if (manual != null &&
+        DateTime.now().difference(manual) < const Duration(milliseconds: 500)) {
+      final heading = _time.isAnimating ? _timeTarget : _time.value;
+      // Only the pull back against the way it was just moved is ignored.
+      if (_manualDx > 0 ? x < heading : x > heading) return;
+    }
+    // Compared with where the timeline is heading, not where it is mid-move.
+    final offset = _time.isAnimating ? _timeTarget : _time.value;
+    final w = _timelineWidth;
+    if (x < offset) {
+      // Behind the left edge: bring its start to the edge.
+      _scrollTimeTo(x);
+    } else if (end > offset + w) {
+      // Past the right edge: move just far enough to show all of it (or, for
+      // a cell wider than the screen, its start), not a whole screen.
+      _scrollTimeTo(math.min(x, end - w + 24));
+    }
   }
 
   // ---- Categories --------------------------------------------------------
@@ -278,6 +468,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (!mounted || key == _shownCategory) return;
     setState(() {
       _shownCategory = key;
+      _rowCache.clear();
       _rememberedCategory = key;
       _lastGridFocus = null;
     });
@@ -369,6 +560,9 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   void _onCellFocused(Channel channel, Programme? programme,
       {required bool exitsLeft}) {
     _exitsLeft = exitsLeft;
+    _focusedChannelId = channel.id;
+    _focusedStart = programme?.start;
+    if (_refocusChannelId == channel.id) _refocusChannelId = null;
     // In the guide: no category switch still to come (entering the guide
     // shows the focused category straight away).
     _categoryDebounce?.cancel();
@@ -503,20 +697,37 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final favIds = (profile?.favoriteChannelIds ?? const <String>[]).toSet();
     bool allowed(Channel c) => !isKid || !c.categories.any(isAdultCategory);
 
-    final favorites = [
-      for (final c in all)
-        if (favIds.contains(c.id) && allowed(c)) c
-    ];
-    final recent = [
-      for (final c in ref.watch(recentChannelsProvider).valueOrNull ??
-          const <Channel>[])
-        if (allowed(c)) c
-    ];
-    final realCategories = liveCategories(all,
-        hidden: (profile?.hiddenCategories ?? const []).toSet(),
-        isKid: isKid,
-        az: az,
-        order: profile?.categoryOrder ?? const []);
+    // These scan the whole catalogue (tens of thousands of channels): worked
+    // out again only when what they come from has changed, not on every
+    // rebuild (a rebuild took 70-240 ms on the Chromecast).
+    final recentRaw = ref.watch(recentChannelsProvider).valueOrNull;
+    final baseKey = (
+      identityHashCode(all),
+      identityHashCode(profile),
+      identityHashCode(recentRaw),
+      az,
+      isKid,
+    );
+    if (_baseKey != baseKey) {
+      _baseKey = baseKey;
+      _channelsKey = null;
+      _favorites_ = [
+        for (final c in all)
+          if (favIds.contains(c.id) && allowed(c)) c
+      ];
+      _recent_ = [
+        for (final c in recentRaw ?? const <Channel>[])
+          if (allowed(c)) c
+      ];
+      _realCategories = liveCategories(all,
+          hidden: (profile?.hiddenCategories ?? const []).toSet(),
+          isKid: isKid,
+          az: az,
+          order: profile?.categoryOrder ?? const []);
+    }
+    final favorites = _favorites_;
+    final recent = _recent_;
+    final realCategories = _realCategories;
     final showFavorites = ref.watch(showFavoritesCategoryProvider);
     final showRecent = ref.watch(showRecentCategoryProvider);
     final showAll = ref.watch(showAllCategoryProvider);
@@ -559,12 +770,16 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
       return out;
     }
 
-    final channels = switch (shown) {
-      _favorites => sorted(favorites),
-      _recent => recent,
-      _all => sorted(all.where(allowed)),
-      _ => sorted(all.where((c) => c.categories.contains(shown))),
-    };
+    if (_channelsKey != (baseKey, shown)) {
+      _channelsKey = (baseKey, shown);
+      _channels = switch (shown) {
+        _favorites => sorted(favorites),
+        _recent => recent,
+        _all => sorted(all.where(allowed)),
+        _ => sorted(all.where((c) => c.categories.contains(shown))),
+      };
+    }
+    final channels = _channels;
 
     final theme = Theme.of(context);
     return LayoutBuilder(builder: (context, outer) {
@@ -705,7 +920,15 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
               gridNode: _gridNode,
               columnNode: _columnNode,
               exitsLeft: () => _exitsLeft,
-              scrollTimeBy: (dx) => _scrollTimeTo(_time.value + dx),
+              scrollTimeBy: (dx) {
+                _manualScrollAt = DateTime.now();
+                _manualDx = dx;
+                // At the end of the window and it is out of date: slide it.
+                if (dx > 0 && _time.value >= _maxOffset - 0.5 && _refreshAtEdge()) {
+                  return;
+                }
+                _scrollTimeTo(_time.value + dx);
+              },
               canScrollBack: () => _time.value > 0.5,
               onExitLeft: _exitToCategories,
               nowX: () =>
@@ -732,10 +955,16 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     playing: playingId == channel.id,
                     time: _time,
                     entryNode: i == 0 ? _firstRowNode : null,
-                    autofocus: i == 0,
+                    autofocus: _refocusChannelId == null
+                        ? i == 0
+                        : _refocusChannelId == channel.id,
                     onCellFocused: _onCellFocused,
                     onRevealTime: _revealTime,
                     onActivate: _activate,
+                    rowCache: _rowCache,
+                    rowVersion: (favIds.contains(channel.id), profileId),
+                    focusedStart: () =>
+                        _focusedChannelId == channel.id ? _focusedStart : null,
                     onLongPress: profileId == null
                         ? null
                         : () => showChannelOptions(context, ref, channel,
@@ -1446,25 +1675,34 @@ class _TimeHeader extends StatelessWidget {
           ),
           Expanded(
             child: ClipRect(
-              child: AnimatedBuilder(
-                animation: time,
-                builder: (context, _) => Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    for (var m = 0; m <= minutes; m += 30)
-                      Positioned(
-                        left: m * _pxPerMinute - time.value,
-                        top: 0,
-                        bottom: 0,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            _hm(context, rangeStart.add(Duration(minutes: m))),
-                            style: style,
+              // Labels near the screen only, built once and slid along (a
+              // week-long window has hundreds of them).
+              child: LayoutBuilder(
+                builder: (context, box) => _RowCells(
+                  time: time,
+                  width: box.maxWidth,
+                  signature: rangeStart,
+                  cells: (cull, memo) {
+                    final from = math.max(0, ((cull - box.maxWidth) / _pxPerMinute / 30).floor());
+                    final to = math.min(minutes ~/ 30,
+                        ((cull + 2 * box.maxWidth) / _pxPerMinute / 30).ceil());
+                    return [
+                      for (var i = from; i <= to; i++)
+                        Positioned(
+                          left: i * 30 * _pxPerMinute,
+                          top: 0,
+                          bottom: 0,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _hm(context,
+                                  rangeStart.add(Duration(minutes: i * 30))),
+                              style: style,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ];
+                  },
                 ),
               ),
             ),
@@ -1524,12 +1762,24 @@ class _GuideRow extends ConsumerWidget {
     required this.onCellFocused,
     required this.onRevealTime,
     required this.onActivate,
+    required this.rowCache,
+    required this.focusedStart,
+    this.rowVersion,
     this.onLongPress,
     this.entryNode,
     this.autofocus = false,
     this.playing = false,
   });
 
+  // The last programmes each channel loaded: shown while the row reloads for
+  // a longer window, so the cells (and focus) stay where they are.
+  final Map<String, List<Programme>> rowCache;
+  // The start of this row's focused cell, if it has focus: always built, so
+  // scrolling it out of sight never loses the remote's place.
+  final DateTime? Function() focusedStart;
+  // What the row's long-press menu was built from (favourite, profile): when
+  // it changes the cells are rebuilt so they never hold a stale callback.
+  final Object? rowVersion;
   // This channel is the one playing in the pane.
   final bool playing;
   final Channel channel;
@@ -1537,7 +1787,7 @@ class _GuideRow extends ConsumerWidget {
   final Animation<double> time;
   final void Function(Channel, Programme?, {required bool exitsLeft})
       onCellFocused;
-  final void Function(double x) onRevealTime;
+  final void Function(double x, double end) onRevealTime;
   final void Function(Channel, Programme?) onActivate;
   final VoidCallback? onLongPress;
   // The cell Right from the categories lands on in this row.
@@ -1551,8 +1801,11 @@ class _GuideRow extends ConsumerWidget {
     // Display options (Settings → Live TV).
     final showNames = ref.watch(guideShowNamesProvider);
     final twoLineNames = ref.watch(guideTwoLineNamesProvider);
+    final twoLineTitles = ref.watch(guideTwoLineTitlesProvider);
     final markPlaying = playing && ref.watch(guideHighlightPlayingProvider);
-    final programmes = loaded.valueOrNull ?? const <Programme>[];
+    final fresh = loaded.valueOrNull;
+    if (fresh != null) rowCache[channel.id] = fresh;
+    final programmes = fresh ?? rowCache[channel.id] ?? const <Programme>[];
     final totalMinutes = rowKey.end.difference(rowKey.start).inMinutes;
     double xOf(DateTime t) => (t.difference(rowKey.start).inSeconds / 60 *
             _pxPerMinute)
@@ -1637,6 +1890,7 @@ class _GuideRow extends ConsumerWidget {
                 // reached and played from here.
                 ? _ProgrammeCell(
                     title: AppLocalizations.of(context).tvGuideNoInfo,
+                    twoLine: twoLineTitles,
                     muted: true,
                     focusNode: entryNode,
                     autofocus: autofocus,
@@ -1646,22 +1900,47 @@ class _GuideRow extends ConsumerWidget {
                     onLongPress: onLongPress,
                   )
                 : ClipRect(
-                    child: AnimatedBuilder(
-                      animation: time,
-                      builder: (context, _) {
-                        final offset = time.value;
-                        final entry = _entry(programmes);
-                        return Stack(
-                          clipBehavior: Clip.none,
-                          children: [
+                    child: LayoutBuilder(builder: (context, box) {
+                      // Only the cells near the screen are built (a row can
+                      // hold days of programmes): one screen of room each
+                      // side, so the next cell is always there to move to.
+                      // They are built once and slid with the timeline, so a
+                      // scroll frame costs a repaint, not a rebuild.
+                      final width = box.maxWidth;
+                      final entry = _entry(programmes);
+                      return _RowCells(
+                        time: time,
+                        width: width,
+                        phase: channel.id.hashCode,
+                        // Anything but the timeline's position that the
+                        // cells depend on: when it changes they are rebuilt.
+                        signature: (
+                          identityHashCode(programmes),
+                          twoLineTitles,
+                          channel.hasCatchup,
+                          autofocus,
+                          onLongPress == null,
+                          rowKey.start,
+                          rowVersion,
+                        ),
+                        cells: (cull, memo) {
+                          final keep = focusedStart();
+                          final from = cull - width;
+                          final to = cull + 2 * width;
+                          return [
                             for (final p in programmes)
-                              _positioned(context, p, xOf(p.start),
-                                  xOf(p.end), offset,
-                                  entry: identical(p, entry)),
-                          ],
-                        );
-                      },
-                    ),
+                              if (identical(p, entry) ||
+                                  p.start == keep ||
+                                  (xOf(p.end) > from && xOf(p.start) < to))
+                                _positioned(context, p, xOf(p.start),
+                                    xOf(p.end),
+                                    entry: identical(p, entry),
+                                    twoLine: twoLineTitles,
+                                    memo: memo),
+                          ];
+                        },
+                      );
+                    }),
                   ),
           ),
         ],
@@ -1678,11 +1957,16 @@ class _GuideRow extends ConsumerWidget {
   }
 
   Widget _positioned(BuildContext context, Programme p, double start,
-      double end, double offset, {required bool entry}) {
+      double end,
+      {required bool entry,
+      required bool twoLine,
+      required Widget Function(Object, Object, Widget Function()) memo}) {
     final now = DateTime.now();
-    return Positioned(
+    final past = !p.end.isAfter(now);
+    return memo(p.start, (p.end, p.title, p.isLive, past, entry, twoLine),
+        () => Positioned(
       key: ValueKey(p.start),
-      left: start - offset,
+      left: start,
       width: math.max(end - start, 6),
       top: 0,
       bottom: 0,
@@ -1693,17 +1977,20 @@ class _GuideRow extends ConsumerWidget {
         catchup: channel.hasCatchup && !p.end.isAfter(now),
         // Keeps the title in view while the programme's start is scrolled
         // past the left edge.
-        textInset: math.max(0, offset - start),
+        time: time,
+        startX: start,
+        maxInset: math.max(0, end - start - 60),
+        twoLine: twoLine,
         focusNode: entry ? entryNode : null,
         autofocus: entry && autofocus,
         onFocus: () {
           onCellFocused(channel, p, exitsLeft: false);
-          onRevealTime(start);
+          onRevealTime(start, end);
         },
         onTap: () => onActivate(channel, p),
         onLongPress: onLongPress,
       ),
-    );
+    ));
   }
 }
 
@@ -1739,7 +2026,10 @@ class _ProgrammeCell extends StatefulWidget {
     this.live = false,
     this.muted = false,
     this.catchup = false,
-    this.textInset = 0,
+    this.time,
+    this.startX = 0,
+    this.maxInset = 0,
+    this.twoLine = false,
     this.focusNode,
     this.autofocus = false,
     this.onLongPress,
@@ -1749,7 +2039,12 @@ class _ProgrammeCell extends StatefulWidget {
   final bool live;
   final bool muted;
   final bool catchup;
-  final double textInset;
+  // Set for a cell near the left edge: its title follows the timeline so it
+  // stays in view while the programme's start is scrolled past.
+  final Animation<double>? time;
+  final double startX;
+  final double maxInset;
+  final bool twoLine;
   final VoidCallback onFocus;
   final VoidCallback onTap;
   final FocusNode? focusNode;
@@ -1771,7 +2066,6 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
     final live = widget.live;
     final muted = widget.muted;
     final catchup = widget.catchup;
-    final textInset = widget.textInset;
     return Padding(
       padding: const EdgeInsets.fromLTRB(1, 3, 1, 3),
       child: TvFocusable(
@@ -1791,22 +2085,23 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
                 : theme.colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(6),
           ),
-          padding: EdgeInsets.only(left: 10 + textInset, right: 8),
           alignment: Alignment.centerLeft,
-          child: Row(
+          child: _TitleInset(
+            time: widget.time,
+            startX: widget.startX,
+            maxInset: widget.maxInset,
+            child: Row(
             children: [
               Expanded(
-                child: Consumer(
-                  builder: (context, ref, _) => MarqueeText(
-                    title,
-                    active: _focused,
-                    maxLines: ref.watch(guideTwoLineTitlesProvider) ? 2 : 1,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: muted
-                          ? theme.colorScheme.onSurfaceVariant
-                          : theme.colorScheme.onSurface,
-                      fontWeight: live ? FontWeight.w600 : null,
-                    ),
+                child: MarqueeText(
+                  title,
+                  active: _focused,
+                  maxLines: widget.twoLine ? 2 : 1,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: muted
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.onSurface,
+                    fontWeight: live ? FontWeight.w600 : null,
                   ),
                 ),
               ),
@@ -1815,8 +2110,130 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
                     size: 14, color: theme.colorScheme.primary),
             ],
           ),
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// The room left of a cell's title: 10 px, plus however far the cell's start
+/// has scrolled past the left edge (when [time] is given), so the title
+/// stays readable.
+class _TitleInset extends StatelessWidget {
+  const _TitleInset(
+      {this.time, this.startX = 0, this.maxInset = 0, required this.child});
+
+  final Animation<double>? time;
+  final double startX;
+  // The most it moves over: once a cell is mostly scrolled away its title
+  // stops (and so stops being laid out again every frame).
+  final double maxInset;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = time;
+    if (t == null) {
+      return Padding(
+          padding: const EdgeInsets.only(left: 10, right: 8), child: child);
+    }
+    return AnimatedBuilder(
+      animation: t,
+      child: child,
+      builder: (context, child) => Padding(
+        padding: EdgeInsets.only(
+            left: 10 + (t.value - startX).clamp(0.0, maxInset), right: 8),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// A row's programme cells, laid out at their own positions on the timeline
+/// and slid along with it. They are rebuilt only when the timeline has moved
+/// far enough that a different set is needed (a quarter of the width).
+class _RowCells extends StatefulWidget {
+  const _RowCells({
+    required this.time,
+    required this.width,
+    required this.cells,
+    required this.signature,
+    this.phase = 0,
+  });
+
+  final Animation<double> time;
+  final double width;
+  // Everything the cells depend on besides the timeline's position.
+  final Object signature;
+  // Spreads the rebuilds of different rows over different frames.
+  final int phase;
+  final List<Widget> Function(
+      double cullOffset, Widget Function(Object, Object, Widget Function()) memo)
+      cells;
+
+  @override
+  State<_RowCells> createState() => _RowCellsState();
+}
+
+class _RowCellsState extends State<_RowCells> {
+  late double _cull = widget.time.value;
+  // Cells already built, by key: a rebuild only makes the ones that are new.
+  // An identical widget is skipped by the framework, so a cell that stays on
+  // screen costs nothing (its title is not measured again).
+  final Map<Object, (Object, Widget)> _built = {};
+
+  @override
+  void initState() {
+    super.initState();
+    widget.time.addListener(_onTime);
+  }
+
+  @override
+  void didUpdateWidget(_RowCells old) {
+    super.didUpdateWidget(old);
+    if (old.signature != widget.signature) _built.clear();
+    if (old.time != widget.time) {
+      old.time.removeListener(_onTime);
+      widget.time.addListener(_onTime);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.time.removeListener(_onTime);
+    super.dispose();
+  }
+
+  void _onTime() {
+    final quantum = widget.width / 3 + (widget.phase.abs() % 8) * 12;
+    if ((widget.time.value - _cull).abs() > quantum) {
+      setState(() => _cull = widget.time.value);
+    }
+  }
+
+  List<Widget> _cells() {
+    final used = <Object>{};
+    final out = widget.cells(_cull, (key, sig, make) {
+      used.add(key);
+      final hit = _built[key];
+      if (hit != null && hit.$1 == sig) return hit.$2;
+      final w = make();
+      _built[key] = (sig, w);
+      return w;
+    });
+    _built.removeWhere((k, _) => !used.contains(k));
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.time,
+      // Built once per set of cells, not per frame.
+      child: Stack(clipBehavior: Clip.none, children: _cells()),
+      builder: (context, child) =>
+          Transform.translate(offset: Offset(-widget.time.value, 0), child: child),
     );
   }
 }
