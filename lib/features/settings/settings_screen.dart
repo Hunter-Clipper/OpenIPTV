@@ -35,6 +35,7 @@ import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/language_picker.dart';
+import 'package:open_iptv/shared/widgets/theme_picker.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -678,6 +679,19 @@ class SettingsScreen extends ConsumerWidget {
         subtitle: Text(languageLabel(context, pref),
             style: theme.textTheme.bodySmall),
         onTap: () => showLanguagePicker(context, ref),
+      );
+    }),
+    // A child can't change the look: the admin sets it for them.
+    Consumer(builder: (context, ref, _) {
+      final profile = ref.watch(activeProfileProvider).valueOrNull;
+      if (profile?.isKidsProfile ?? false) return const SizedBox.shrink();
+      final preset = ref.watch(themePresetProvider);
+      return _NavTile(
+        leading: const Icon(Icons.palette_outlined),
+        title: AppLocalizations.of(context).themeTitle,
+        subtitle: Text(themeName(AppLocalizations.of(context), preset),
+            style: theme.textTheme.bodySmall),
+        onTap: () => showThemePicker(context, ref),
       );
     }),
     Consumer(builder: (context, ref, _) {

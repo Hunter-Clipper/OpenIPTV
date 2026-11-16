@@ -46,6 +46,7 @@ import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/theme/theme_preset.dart';
 import 'package:open_iptv/shared/widgets/brand_splash.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -189,6 +190,9 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       await prefs.setAccentColor(profiles.first.accentColor);
       ref.read(accentColorProvider.notifier).state =
           AppTheme.accentFromHex(profiles.first.accentColor);
+      await prefs.setThemeId(profiles.first.themeId);
+      ref.read(themePresetProvider.notifier).state =
+          ThemePreset.fromId(profiles.first.themeId);
     }
 
     final needsPick = profiles.length > 1;
@@ -402,6 +406,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
   @override
   Widget build(BuildContext context) {
     final accent = ref.watch(accentColorProvider);
+    final preset = ref.watch(themePresetProvider);
     final locale = localeForPref(ref.watch(languageProvider));
 
     if (!_dbReady) {
@@ -424,8 +429,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         locale: locale,
         shortcuts: appShortcuts,
         actions: appActions,
-        theme: AppTheme.dark(accent),
-        darkTheme: AppTheme.dark(accent),
+        theme: AppTheme.forPreset(preset, accent),
+        darkTheme: AppTheme.forPreset(preset, accent),
         themeMode: ThemeMode.dark,
         home: ProfilePickerScreen(
           onPicked: () => setState(() => _needsProfilePick = false),
@@ -437,8 +442,8 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
       controller: _tooltipController,
       child: MaterialApp.router(
         title: 'OpenIPTV',
-        theme: AppTheme.dark(accent),
-        darkTheme: AppTheme.dark(accent),
+        theme: AppTheme.forPreset(preset, accent),
+        darkTheme: AppTheme.forPreset(preset, accent),
         themeMode: ThemeMode.dark,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,

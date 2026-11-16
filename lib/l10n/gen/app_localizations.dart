@@ -6189,6 +6189,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Geo-blocked'**
   String get formatGeoBlocked;
+
+  /// Name of the look setting (Settings → Appearance) and the heading of its picker
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themeTitle;
+
+  /// Name of the normal dark look
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get themeStandardName;
+
+  /// Name of the look with pure black backgrounds, good for OLED screens
+  ///
+  /// In en, this message translates to:
+  /// **'True black'**
+  String get themeTrueBlackName;
+
+  /// Note under the theme picker heading
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to this profile.'**
+  String get themePickerHint;
 }
 
 class _AppLocalizationsDelegate

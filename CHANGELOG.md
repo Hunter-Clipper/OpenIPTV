@@ -3,6 +3,11 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
+## Unreleased (0.14.125)
+
+**New**
+- **Themes, first step.** Settings → Appearance → Theme lets you pick a look for the current profile, with a small preview of each. Two looks to start: *Standard* (as before) and *True black* (pure black backgrounds, good for OLED screens). The choice is saved with the profile and in backups, and your accent color still applies. More looks are on the way. Children's profiles can't change it.
+
 ## 0.14.124 — 2026-11-16
 
 **Fixed**

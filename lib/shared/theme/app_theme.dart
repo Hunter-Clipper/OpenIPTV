@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
+import 'package:open_iptv/shared/theme/theme_preset.dart';
 
 class AppTheme {
   AppTheme._();
@@ -104,13 +105,19 @@ class AppTheme {
   // Dark theme (the app's only theme — see AppTheme.dark() usage in app.dart)
   // ---------------------------------------------------------------------------
 
-  static ThemeData dark([Color? accent]) {
+  /// The theme for a [ThemePreset] (#178), tinted with [accent] unless the
+  /// preset fixes its own colours.
+  static ThemeData forPreset(ThemePreset preset, [Color? accent]) =>
+      dark(preset.fixedColours ? null : accent, preset);
+
+  static ThemeData dark([Color? accent, ThemePreset preset = ThemePreset.standard]) {
     final primary = accent ?? defaultAccent;
+    final background = preset.background ?? _background;
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       fontFamily: fontFamily,
-      scaffoldBackgroundColor: _background,
+      scaffoldBackgroundColor: background,
       // Android's modern "fade forwards" route transition (the one Google's
       // own apps use) instead of the default zoom.
       pageTransitionsTheme: const PageTransitionsTheme(
@@ -130,19 +137,19 @@ class AppTheme {
         outline: _outline,
         outlineVariant: _surfaceVariant,
         inverseSurface: _onBackground,
-        onInverseSurface: _background,
+        onInverseSurface: background,
         surfaceTint: Colors.transparent,
         error: _error,
         onError: onAccent(_error),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: _background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
         foregroundColor: _onBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: _surface,
+        backgroundColor: preset.background ?? _surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         height: 72,

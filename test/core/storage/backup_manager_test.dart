@@ -15,6 +15,7 @@ import 'package:sqlite3/open.dart';
 /// All preference keys that should survive a backup/restore round-trip.
 const _expectedBackupKeys = {
   'accentColor',
+  'themeId',
   'contentSort',
   'channelListDensity',
   'viewModeLive',

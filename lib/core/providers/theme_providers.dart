@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/theme/theme_preset.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
 // Session-level providers — initialized in app.dart after prefs load.
@@ -19,6 +20,10 @@ import 'package:open_iptv/ui/platform_helper.dart';
 
 final accentColorProvider =
     StateProvider<Color>((ref) => AppTheme.defaultAccent);
+
+/// The look the active profile uses (#178).
+final themePresetProvider =
+    StateProvider<ThemePreset>((ref) => ThemePreset.standard);
 
 final contentSortProvider = StateProvider<String>((ref) => 'provider');
 
@@ -264,6 +269,20 @@ Future<void> setAccentColor(
   }
 }
 
+/// Switches the look and remembers it on the active profile (and in prefs for
+/// the next start), like [setAccentColor].
+Future<void> setThemePreset(
+    WidgetRef ref, ThemePreset preset, AppPreferences prefs) async {
+  ref.read(themePresetProvider.notifier).state = preset;
+  await prefs.setThemeId(preset.id);
+  final profile = ref.read(activeProfileProvider).valueOrNull;
+  if (profile != null) {
+    final db = ref.read(appDatabaseProvider);
+    await db.upsertProfile(profile.copyWith(themeId: preset.id));
+    ref.invalidate(activeProfileProvider);
+  }
+}
+
 Future<void> setContentSort(
     WidgetRef ref, String sort, AppPreferences prefs) async {
   ref.read(contentSortProvider.notifier).state = sort;
@@ -341,6 +360,8 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   final accentHex = activeProfile?.accentColor ?? prefs.accentColor;
   ref.read(accentColorProvider.notifier).state =
       AppTheme.accentFromHex(accentHex);
+  ref.read(themePresetProvider.notifier).state =
+      ThemePreset.fromId(activeProfile?.themeId ?? prefs.themeId);
   ref.read(contentSortProvider.notifier).state = prefs.contentSort;
   ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
   ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;

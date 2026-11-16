@@ -22,6 +22,7 @@ class Profile {
     this.isKidsProfile = false,
     this.isAdmin = false,
     this.accentColor = '0A84FF',
+    this.themeId = 'standard',
     });
 
   final String id;
@@ -47,6 +48,8 @@ class Profile {
   final bool isKidsProfile;
   final bool isAdmin;
   final String accentColor;
+  // The look the profile uses ([ThemePreset.id]).
+  final String themeId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -79,6 +82,7 @@ class Profile {
     bool? isKidsProfile,
     bool? isAdmin,
     String? accentColor,
+    String? themeId,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearPin = false,
@@ -104,6 +108,7 @@ class Profile {
       isKidsProfile: isKidsProfile ?? this.isKidsProfile,
       isAdmin: isAdmin ?? this.isAdmin,
       accentColor: accentColor ?? this.accentColor,
+      themeId: themeId ?? this.themeId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -274,6 +274,7 @@ class BackupManager {
         'isKidsProfile': p.isKidsProfile,
         'isAdmin': p.isAdmin,
         'accentColor': p.accentColor,
+        'themeId': p.themeId,
         'createdAt': p.createdAt.toIso8601String(),
         'updatedAt': p.updatedAt.toIso8601String(),
       };
@@ -306,6 +307,7 @@ class BackupManager {
         isKidsProfile: m['isKidsProfile'] as bool? ?? false,
         isAdmin: m['isAdmin'] as bool? ?? false,
         accentColor: m['accentColor'] as String? ?? '0A84FF',
+        themeId: m['themeId'] as String? ?? 'standard',
         createdAt: DateTime.parse(m['createdAt'] as String),
         updatedAt: DateTime.parse(m['updatedAt'] as String),
       );
@@ -397,6 +399,13 @@ class BackupManager {
       encode: (p) => p.accentColor,
       decode: (p, v) async {
         if (v is String) await p.setAccentColor(v);
+      },
+    ),
+    PreferenceEntry(
+      key: 'themeId',
+      encode: (p) => p.themeId,
+      decode: (p, v) async {
+        if (v is String) await p.setThemeId(v);
       },
     ),
     PreferenceEntry(

@@ -4801,5 +4801,21 @@
   "formatGeoBlocked": "Geo-blocked",
   "@formatGeoBlocked": {
     "description": "Shown in brackets after a channel name that the provider blocks outside certain countries"
+  },
+  "themeTitle": "Theme",
+  "@themeTitle": {
+    "description": "Name of the look setting (Settings \u2192 Appearance) and the heading of its picker"
+  },
+  "themeStandardName": "Standard",
+  "@themeStandardName": {
+    "description": "Name of the normal dark look"
+  },
+  "themeTrueBlackName": "True black",
+  "@themeTrueBlackName": {
+    "description": "Name of the look with pure black backgrounds, good for OLED screens"
+  },
+  "themePickerHint": "Applies to this profile.",
+  "@themePickerHint": {
+    "description": "Note under the theme picker heading"
   }
 }
