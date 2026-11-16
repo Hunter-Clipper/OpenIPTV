@@ -1853,7 +1853,10 @@ class _GuideRow extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ---- The channel ----
-          Container(
+          // Its own layer: while the programmes slide sideways the channel
+          // block does not change, so it is not drawn again each frame.
+          RepaintBoundary(
+          child: Container(
             width: _channelWidth,
             color: guideStyle?.channelColumn,
             // A label, not a stop for the remote: the programmes are.
@@ -1892,10 +1895,38 @@ class _GuideRow extends ConsumerWidget {
                                   color: guideStyle.channelText)),
                         ),
                       ],
-                      LogoTile(
-                          url: channel.logoUrl,
-                          width: 48,
-                          transparent: guideStyle != null),
+                      // With a look that centres the channel, the logo and
+                      // name form one block in the middle of what's left
+                      // after the number.
+                      if (guideStyle != null)
+                        Expanded(
+                          child: Center(
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              LogoTile(
+                                  url: channel.logoUrl,
+                                  width: 48,
+                                  transparent: true,
+                                  dropShadow: guideStyle.logoShadow),
+                              const SizedBox(width: 8),
+                              if (showNames)
+                                Flexible(
+                                  child: Text(
+                                    context.channelName(channel),
+                                    maxLines: twoLineNames ? 2 : 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodyMedium!.copyWith(
+                                        fontSize: 13,
+                                        height: 1.15,
+                                        fontWeight: FontWeight.w700,
+                                        color: guideStyle.channelText),
+                                  ),
+                                ),
+                            ]),
+                          ),
+                        )
+                      else ...[
+                      LogoTile(url: channel.logoUrl, width: 48),
                       const SizedBox(width: 8),
                       // Long names get a second line rather than being cut
                       // (or no name at all, if that is switched off).
@@ -1904,9 +1935,6 @@ class _GuideRow extends ConsumerWidget {
                             ? MarqueeText(
                                 context.channelName(channel),
                                 maxLines: twoLineNames ? 2 : 1,
-                                textAlign: guideStyle != null
-                                    ? TextAlign.center
-                                    : null,
                                 active: rowFocused,
                                 style: theme.textTheme.bodyMedium!.copyWith(
                                     fontSize: 13,
@@ -1923,6 +1951,7 @@ class _GuideRow extends ConsumerWidget {
                               )
                             : const SizedBox.shrink(),
                       ),
+                      ],
                       if (channel.hasCatchup) ...[
                         const SizedBox(width: 4),
                         Icon(Icons.history_rounded,
@@ -1940,6 +1969,7 @@ class _GuideRow extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
           ),
           // ---- Its programmes ----
           Expanded(

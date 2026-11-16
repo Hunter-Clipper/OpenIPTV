@@ -19,6 +19,7 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
     required this.headerText,
     required this.titleColor,
     required this.nowColor,
+    required this.logoShadow,
     this.cellRadius = 0,
   });
 
@@ -44,6 +45,10 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
   /// Programme title in the top panel, and the "now" line.
   final Color titleColor;
   final Color nowColor;
+
+  /// The raised shadow under a bare channel logo, so a light logo stands out
+  /// on the light channel column.
+  final Color logoShadow;
 
   final double cellRadius;
 

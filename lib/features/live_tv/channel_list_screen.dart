@@ -647,6 +647,7 @@ class LogoTile extends StatelessWidget {
     required this.url,
     required this.width,
     this.transparent = false,
+    this.dropShadow,
   });
 
   final String? url;
@@ -654,6 +655,30 @@ class LogoTile extends StatelessWidget {
 
   /// No tile behind the logo (the Retro Cable guide shows it bare).
   final bool transparent;
+
+  /// A raised, 3D shadow of this colour under a bare logo, so light logos
+  /// still stand out on a light background.
+  final Color? dropShadow;
+
+  // A raised shadow: the logo drawn again in the shadow colour, nudged down
+  // and to the right (twice, the nearer copy stronger), then the logo itself
+  // on top. Plain tinted draws, no blur or filter layer: those are not
+  // cached by the renderer and halved the guide's frame rate on the TV.
+  Widget _shadowed(Widget Function(Color? tint) logo) {
+    final color = dropShadow;
+    if (color == null) return logo(null);
+    final far = Offset(width * 0.05, width * 0.07);
+    final near = Offset(width * 0.025, width * 0.035);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Transform.translate(
+            offset: far, child: logo(color.withValues(alpha: color.a * 0.45))),
+        Transform.translate(offset: near, child: logo(color)),
+        logo(null),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -676,15 +701,18 @@ class LogoTile extends StatelessWidget {
             ),
       child: url == null || url!.isEmpty
           ? icon
-          : CachedNetworkImage(
-              imageUrl: url!,
-              cacheManager: ImageCacheManager(),
-              fit: BoxFit.contain,
-              memCacheWidth: context.imageDecodeWidth((width * 2).toInt()),
-              maxWidthDiskCache: (width * 2).toInt(),
-              maxHeightDiskCache: (width * 2).toInt(),
-              errorWidget: (_, __, ___) => icon,
-            ),
+          : _shadowed((tint) => CachedNetworkImage(
+                imageUrl: url!,
+                cacheManager: ImageCacheManager(),
+                fit: BoxFit.contain,
+                // A tint paints the logo's shape in one flat colour.
+                color: tint,
+                colorBlendMode: BlendMode.srcIn,
+                memCacheWidth: context.imageDecodeWidth((width * 2).toInt()),
+                maxWidthDiskCache: (width * 2).toInt(),
+                maxHeightDiskCache: (width * 2).toInt(),
+                errorWidget: (_, __, ___) => icon,
+              )),
     );
   }
 }

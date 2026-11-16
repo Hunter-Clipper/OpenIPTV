@@ -3,13 +3,13 @@
 What changed in each version of OpenIPTV, in plain English. Releases
 and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenIPTV/releases).
 
-## Unreleased (0.14.128)
+## Unreleased (0.14.129)
 
 **Improved**
 - **A cleaner preview in the TV guide.** The picture area at the top no longer shows the channel's logo or the "Press OK to preview" text while nothing is playing; it stays plain black. If a channel can't be played it still says so.
 
 **New**
-- **Retro Cable look.** A new theme in Settings → Appearance → Theme: deep blue, flat and chunky, with bold rounded type. In the TV guide it colors programmes by kind (sports green, movies purple, kids yellow, news blue), shows a cream channel column with channel numbers, a blue time strip, and a white block on what the remote is on. Channel logos sit bare on the cream, with each logo and name centered. It sets its own colors, so the accent color is greyed out while it's on.
+- **Retro Cable look.** A new theme in Settings → Appearance → Theme: deep blue, flat and chunky, with bold rounded type. In the TV guide it colors programmes by kind (sports green, movies purple, kids yellow, news blue), shows a cream channel column with channel numbers, a blue time strip, and a white block on what the remote is on. Channel logos sit bare on the cream with a raised shadow so light logos still show, and each logo and name is centered. It sets its own colors, so the accent color is greyed out while it's on.
 - **Themes, first step.** Settings → Appearance → Theme lets you pick a look for the current profile, with a small preview of each. Two looks to start: *Standard* (as before) and *True black* (pure black backgrounds, good for OLED screens). The choice is saved with the profile and in backups, and your accent color still applies. More looks are on the way. Children's profiles can't change it.
 - **Screen effects: an old-TV look.** Settings → Appearance → Screen effects adds scan lines (Light, Medium or Strong), and a soft glow with darker corners. Each one has its own switch, all are off by default, and they apply over everything including the video.
 
