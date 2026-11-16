@@ -20,7 +20,6 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
     required this.titleColor,
     required this.nowColor,
     this.logoShadow,
-    this.bareLogos = true,
     this.outlined = false,
     this.outlineColor = Colors.transparent,
     this.airingOutline = Colors.transparent,
@@ -50,12 +49,10 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
   final Color titleColor;
   final Color nowColor;
 
-  /// The raised shadow under a bare channel logo, so a light logo stands out
-  /// on the light channel column.
+  /// The soft shadow under a bare channel logo, so a light logo stands out on
+  /// a light column (or a dark one on a dark column). A look without one gets
+  /// a default from its brightness.
   final Color? logoShadow;
-
-  /// Whether channel logos sit bare (no tile) on the channel column.
-  final bool bareLogos;
 
   /// Cells drawn as outlines on the page colour (the terminal looks) rather
   /// than as filled blocks: [outlineColor] normally, [airingOutline] for what

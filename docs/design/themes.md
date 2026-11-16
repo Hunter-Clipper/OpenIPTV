@@ -168,3 +168,9 @@ Still to do for kids profiles: let an admin set a child's theme from the profile
 - **Retro Cable polish from owner feedback:** logos get a soft, feathered drop shadow composed once into a cached bitmap (`ShadowedLogo`: logo + blurred tinted copy drawn into a `ui.Image`, kept by url/size), so no blur filter runs per frame; logo and name left-aligned and vertically centred (`Positioned.fill` row); channel logos bigger in the guide (58 px, column 224 px); bare logos use less padding.
 - **Settings:** TV Guide Layout moved from Watching to the end of Appearance.
 - Not covered yet: the first-run wizard (still standard dark); a screen-by-screen audit of Light for hard-coded dark colours (Movies/Series/detail/player screens not reviewed); admin setting a child's theme; frame-time check of the terminal looks.
+
+### Logo style in every look (0.14.133)
+
+- Guide logos are bare with a soft cached shadow in **every** look (not only Retro Cable): the look's own `GuideStyle.logoShadow`, else a **light wash** (white, ~45 %) on dark looks so dark logos stay visible, and a dark shadow on light looks (Light). Terminal green and Amber use a wash of their phosphor colour. `GuideStyle.bareLogos` was removed (always bare in the guide).
+- **Bug found while testing and fixed:** `setThemePreset` (and `setAccentColor`) saved to the profile only if the cached active profile was already loaded; right after another invalidate it could still be loading, so a second change in a row was never written and the older look came back after a restart. Both now `await` the profile. Verified on the Chromecast: Amber → Standard → Light, restart, still Light.
+- Installs: the Chromecast silently failed to install 0.14.132/.133 once (tiny free space); always check `dumpsys package` for the version after `adb install`.

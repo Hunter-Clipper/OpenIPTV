@@ -263,7 +263,7 @@ Future<void> setAccentColor(
   ref.read(accentColorProvider.notifier).state = color;
   await prefs.setAccentColor(AppTheme.hexFromAccent(color));
   // Also persist on the active profile so the color is profile-specific.
-  final profile = ref.read(activeProfileProvider).valueOrNull;
+  final profile = await ref.read(activeProfileProvider.future);
   if (profile != null) {
     final db = ref.read(appDatabaseProvider);
     await db.upsertProfile(profile.copyWith(accentColor: AppTheme.hexFromAccent(color)));
@@ -288,7 +288,10 @@ Future<void> setThemePreset(
     WidgetRef ref, ThemePreset preset, AppPreferences prefs) async {
   ref.read(themePresetProvider.notifier).state = preset;
   await prefs.setThemeId(preset.id);
-  final profile = ref.read(activeProfileProvider).valueOrNull;
+  // Wait for the profile rather than peeking at it: right after another
+  // invalidate it can still be loading, and the choice was then never saved
+  // to the profile (it came back as the older look after a restart).
+  final profile = await ref.read(activeProfileProvider.future);
   if (profile != null) {
     final db = ref.read(appDatabaseProvider);
     await db.upsertProfile(profile.copyWith(themeId: preset.id));
