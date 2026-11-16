@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/theme/screen_effects.dart';
 import 'package:open_iptv/shared/theme/theme_preset.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
 
@@ -269,6 +270,19 @@ Future<void> setAccentColor(
   }
 }
 
+/// The old-TV screen effects (#178); device-wide, all off by default.
+final screenEffectsProvider =
+    StateProvider<ScreenEffects>((ref) => const ScreenEffects());
+
+Future<void> setScreenEffects(
+    WidgetRef ref, ScreenEffects fx, AppPreferences prefs) async {
+  ref.read(screenEffectsProvider.notifier).state = fx;
+  await prefs.setCrtLines(fx.lines);
+  await prefs.setCrtStrength(fx.strength.id);
+  await prefs.setCrtGlow(fx.glow);
+  await prefs.setCrtFlicker(fx.flicker);
+}
+
 /// Switches the look and remembers it on the active profile (and in prefs for
 /// the next start), like [setAccentColor].
 Future<void> setThemePreset(
@@ -362,6 +376,12 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
       AppTheme.accentFromHex(accentHex);
   ref.read(themePresetProvider.notifier).state =
       ThemePreset.fromId(activeProfile?.themeId ?? prefs.themeId);
+  ref.read(screenEffectsProvider.notifier).state = ScreenEffects(
+    lines: prefs.crtLines,
+    strength: CrtStrength.fromId(prefs.crtStrength),
+    glow: prefs.crtGlow,
+    flicker: prefs.crtFlicker,
+  );
   ref.read(contentSortProvider.notifier).state = prefs.contentSort;
   ref.read(viewModeLiveProvider.notifier).state = prefs.viewModeLive;
   ref.read(viewModeMoviesProvider.notifier).state = prefs.viewModeMovies;

@@ -16,6 +16,10 @@ import 'package:sqlite3/open.dart';
 const _expectedBackupKeys = {
   'accentColor',
   'themeId',
+  'crtLines',
+  'crtStrength',
+  'crtGlow',
+  'crtFlicker',
   'contentSort',
   'channelListDensity',
   'viewModeLive',

@@ -135,3 +135,12 @@ Consequences to handle:
 - Verified on the Chromecast: picker opens with the remote, True black applies at once and survives an app restart, accent kept.
 
 Still to do for kids profiles: let an admin set a child's theme from the profile screen.
+
+## Phase 2 as built (0.14.126, test builds)
+
+- `ScreenEffects` (`lib/shared/theme/screen_effects.dart`): scan lines (Light / Medium / Strong), soft glow and vignette, gentle flicker; each its own switch, all off by default. Stored device-wide in prefs (`crtLines`, `crtStrength`, `crtGlow`, `crtFlicker`), in backups.
+- Drawn by `ScreenEffectsOverlay` in the app builder, above every page, dialog and sheet, ignoring touches and the remote. The lines are ONE repeating-gradient rectangle (1 dark physical pixel in 3), so the cost is near zero; the flicker steps ~11 times a second, not every frame, and is off under Reduce Motion.
+- "Soft glow" is a vignette with a faint warm centre, **not a real bloom** (a blur over the whole screen is too costly for the Chromecast).
+- Settings → Appearance → Screen effects (dialog with the switches; changes show at once).
+- Checked on the Chromecast: dialog works with the remote, lines and darker corners are visible in screenshots.
+- **Not verified: lines over live video.** The video layer is not captured by screenshots (the preview pane shows black), so whether the translucent lines blend over the picture on TVs with the video layer has to be checked by eye.

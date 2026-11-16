@@ -1018,5 +1018,16 @@
   "themeTitle": "Tema",
   "themeStandardName": "Estándar",
   "themeTrueBlackName": "Negro puro",
-  "themePickerHint": "Se aplica a este perfil."
+  "themePickerHint": "Se aplica a este perfil.",
+  "screenEffectsTitle": "Efectos de pantalla",
+  "screenEffectsSubtitleOff": "Desactivado",
+  "screenEffectsSubtitleOn": "Activado",
+  "screenEffectsLines": "Líneas de escaneo",
+  "screenEffectsStrengthLight": "Suave",
+  "screenEffectsStrengthMedium": "Media",
+  "screenEffectsStrengthStrong": "Fuerte",
+  "screenEffectsGlow": "Brillo suave y viñeta",
+  "screenEffectsFlicker": "Parpadeo suave",
+  "screenEffectsFlickerReduced": "Desactivado mientras Reducir movimiento esté activo",
+  "commonDone": "Listo"
 }

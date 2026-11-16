@@ -3683,4 +3683,38 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get themePickerHint => 'Se aplica a este perfil.';
+
+  @override
+  String get screenEffectsTitle => 'Efectos de pantalla';
+
+  @override
+  String get screenEffectsSubtitleOff => 'Desactivado';
+
+  @override
+  String get screenEffectsSubtitleOn => 'Activado';
+
+  @override
+  String get screenEffectsLines => 'Líneas de escaneo';
+
+  @override
+  String get screenEffectsStrengthLight => 'Suave';
+
+  @override
+  String get screenEffectsStrengthMedium => 'Media';
+
+  @override
+  String get screenEffectsStrengthStrong => 'Fuerte';
+
+  @override
+  String get screenEffectsGlow => 'Brillo suave y viñeta';
+
+  @override
+  String get screenEffectsFlicker => 'Parpadeo suave';
+
+  @override
+  String get screenEffectsFlickerReduced =>
+      'Desactivado mientras Reducir movimiento esté activo';
+
+  @override
+  String get commonDone => 'Listo';
 }
