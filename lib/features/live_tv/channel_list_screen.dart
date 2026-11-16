@@ -32,6 +32,7 @@ import 'package:open_iptv/shared/widgets/empty_state_view.dart';
 import 'package:open_iptv/shared/widgets/error_state_view.dart';
 import 'package:open_iptv/shared/widgets/media_rail.dart';
 import 'package:open_iptv/shared/widgets/parental_pin_dialog.dart';
+import 'package:open_iptv/shared/widgets/shadowed_logo.dart';
 import 'package:open_iptv/shared/widgets/skeleton.dart';
 import 'package:open_iptv/shared/widgets/star_button.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
@@ -656,29 +657,12 @@ class LogoTile extends StatelessWidget {
   /// No tile behind the logo (the Retro Cable guide shows it bare).
   final bool transparent;
 
-  /// A raised, 3D shadow of this colour under a bare logo, so light logos
-  /// still stand out on a light background.
+  /// A soft, feathered drop shadow of this colour under a bare logo, so
+  /// light logos still stand out on a light background.
   final Color? dropShadow;
 
-  // A raised shadow: the logo drawn again in the shadow colour, nudged down
-  // and to the right (twice, the nearer copy stronger), then the logo itself
-  // on top. Plain tinted draws, no blur or filter layer: those are not
-  // cached by the renderer and halved the guide's frame rate on the TV.
-  Widget _shadowed(Widget Function(Color? tint) logo) {
-    final color = dropShadow;
-    if (color == null) return logo(null);
-    final far = Offset(width * 0.05, width * 0.07);
-    final near = Offset(width * 0.025, width * 0.035);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Transform.translate(
-            offset: far, child: logo(color.withValues(alpha: color.a * 0.45))),
-        Transform.translate(offset: near, child: logo(color)),
-        logo(null),
-      ],
-    );
-  }
+  // A bare logo needs less room around it than one on a tile.
+  double get _pad => transparent ? 0.04 : 0.1;
 
   @override
   Widget build(BuildContext context) {
@@ -688,7 +672,7 @@ class LogoTile extends StatelessWidget {
     return Container(
       width: width,
       height: width * 10 / 16,
-      padding: EdgeInsets.all(width * 0.1),
+      padding: EdgeInsets.all(width * _pad),
       decoration: transparent
           ? null
           : BoxDecoration(
@@ -701,18 +685,24 @@ class LogoTile extends StatelessWidget {
             ),
       child: url == null || url!.isEmpty
           ? icon
-          : _shadowed((tint) => CachedNetworkImage(
-                imageUrl: url!,
-                cacheManager: ImageCacheManager(),
-                fit: BoxFit.contain,
-                // A tint paints the logo's shape in one flat colour.
-                color: tint,
-                colorBlendMode: BlendMode.srcIn,
-                memCacheWidth: context.imageDecodeWidth((width * 2).toInt()),
-                maxWidthDiskCache: (width * 2).toInt(),
-                maxHeightDiskCache: (width * 2).toInt(),
-                errorWidget: (_, __, ___) => icon,
-              )),
+          : dropShadow != null
+              ? ShadowedLogo(
+                  url: url!,
+                  size: Size(width * (1 - 2 * _pad),
+                      width * 10 / 16 - width * 2 * _pad),
+                  shadow: dropShadow!,
+                  decodeWidth: context.imageDecodeWidth((width * 2).toInt()),
+                  fallback: icon,
+                )
+              : CachedNetworkImage(
+                  imageUrl: url!,
+                  cacheManager: ImageCacheManager(),
+                  fit: BoxFit.contain,
+                  memCacheWidth: context.imageDecodeWidth((width * 2).toInt()),
+                  maxWidthDiskCache: (width * 2).toInt(),
+                  maxHeightDiskCache: (width * 2).toInt(),
+                  errorWidget: (_, __, ___) => icon,
+                ),
     );
   }
 }

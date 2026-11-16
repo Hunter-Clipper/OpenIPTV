@@ -158,3 +158,13 @@ Still to do for kids profiles: let an admin set a child's theme from the profile
 - The logo and name now form one block centred in the cream column after the channel number (names centred).
 - **3D drop shadow under each bare logo** (`GuideStyle.logoShadow`): the logo drawn again in a navy tint, offset down-right, twice (far one lighter), then the logo on top. A first version used a blurred shadow (`ImageFiltered`) and **halved the guide's frame rate** on the Chromecast (raster ~17 ms vs ~8 ms; 50-70 % slow frames), because blur filter layers are not cached. Plain tinted draws (`CachedNetworkImage(color:, colorBlendMode: srcIn)`) have no filter layer. The channel column also sits in its own `RepaintBoundary` so it is not redrawn while programmes slide.
 - Measured with `tools/guide-stress`: Retro Cable is still a little heavier than Standard (roughly 10-20 % slow frames vs 5-10 %). Candidates if it matters: draw one shadow copy instead of two, or cache the composed logo as a bitmap.
+
+## Phase 4 as built (0.14.131, test builds)
+
+- **Shared builder:** `buildFlatTheme(FlatPalette)` (`flat_theme.dart`) now makes Retro Cable, Terminal green, Amber and Light from a palette (colours, font, corner size, brightness, optional `GuideStyle`).
+- **Terminal green / Amber** (`terminal_looks.dart`): pure black, one phosphor colour, JetBrains Mono (Regular + Bold, SIL OFL). Guide cells are outlines (brighter and thicker for what's on now); the focused cell fills solid with black text (`GuideStyle.outlined`). Channel logos keep their grey tile (`bareLogos: false`) so dark logos stay visible on black. Accent ignored.
+- **Light** (`light_look.dart`): near-white, cool, the normal font and corner size, the accent applies. No guide style (the standard guide, in light colours).
+- Picker lists all six looks; the focus/selection colour in the picker follows the theme.
+- **Retro Cable polish from owner feedback:** logos get a soft, feathered drop shadow composed once into a cached bitmap (`ShadowedLogo`: logo + blurred tinted copy drawn into a `ui.Image`, kept by url/size), so no blur filter runs per frame; logo and name left-aligned and vertically centred (`Positioned.fill` row); channel logos bigger in the guide (58 px, column 224 px); bare logos use less padding.
+- **Settings:** TV Guide Layout moved from Watching to the end of Appearance.
+- Not covered yet: the first-run wizard (still standard dark); a screen-by-screen audit of Light for hard-coded dark colours (Movies/Series/detail/player screens not reviewed); admin setting a child's theme; frame-time check of the terminal looks.

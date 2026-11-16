@@ -48,7 +48,7 @@ const _windowAfter = Duration(hours: 5, minutes: 30);
 const _categoryWidth = 200.0;
 // With focus in the guide the column shrinks to its icons (#148).
 const _categoryWidthCollapsed = 64.0;
-const _channelWidth = 210.0;
+const _channelWidth = 224.0;
 const _paneHeight = 164.0;
 const _headerHeight = 30.0;
 const _rowHeight = 48.0;
@@ -1871,18 +1871,17 @@ class _GuideRow extends ConsumerWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: markPlaying
-                          ? (guideStyle?.cellColor ?? theme.colorScheme.primary)
+                          ? _markColor(guideStyle, theme)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                Padding(
+                // Filling the block keeps the logo and name vertically centred.
+                Positioned.fill(
+                  child: Padding(
                   padding: const EdgeInsets.fromLTRB(10, 3, 8, 3),
                   child: Row(
-                    mainAxisAlignment: guideStyle != null
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.start,
                     children: [
                       if (guideStyle != null && number != null) ...[
                         SizedBox(
@@ -1895,38 +1894,11 @@ class _GuideRow extends ConsumerWidget {
                                   color: guideStyle.channelText)),
                         ),
                       ],
-                      // With a look that centres the channel, the logo and
-                      // name form one block in the middle of what's left
-                      // after the number.
-                      if (guideStyle != null)
-                        Expanded(
-                          child: Center(
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              LogoTile(
-                                  url: channel.logoUrl,
-                                  width: 48,
-                                  transparent: true,
-                                  dropShadow: guideStyle.logoShadow),
-                              const SizedBox(width: 8),
-                              if (showNames)
-                                Flexible(
-                                  child: Text(
-                                    context.channelName(channel),
-                                    maxLines: twoLineNames ? 2 : 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodyMedium!.copyWith(
-                                        fontSize: 13,
-                                        height: 1.15,
-                                        fontWeight: FontWeight.w700,
-                                        color: guideStyle.channelText),
-                                  ),
-                                ),
-                            ]),
-                          ),
-                        )
-                      else ...[
-                      LogoTile(url: channel.logoUrl, width: 48),
+                      LogoTile(
+                          url: channel.logoUrl,
+                          width: 58,
+                          transparent: guideStyle?.bareLogos ?? false,
+                          dropShadow: guideStyle?.logoShadow),
                       const SizedBox(width: 8),
                       // Long names get a second line rather than being cut
                       // (or no name at all, if that is switched off).
@@ -1951,7 +1923,6 @@ class _GuideRow extends ConsumerWidget {
                               )
                             : const SizedBox.shrink(),
                       ),
-                      ],
                       if (channel.hasCatchup) ...[
                         const SizedBox(width: 4),
                         Icon(Icons.history_rounded,
@@ -1961,11 +1932,10 @@ class _GuideRow extends ConsumerWidget {
                       ],
                       if (markPlaying)
                         Icon(Icons.graphic_eq_rounded,
-                            size: 18,
-                            color: guideStyle?.cellColor ??
-                                theme.colorScheme.primary),
+                            size: 18, color: _markColor(guideStyle, theme)),
                     ],
                   ),
+                ),
                 ),
               ],
             ),
@@ -2037,6 +2007,14 @@ class _GuideRow extends ConsumerWidget {
       ),
     ));
   }
+
+  // The colour that marks the channel playing in the pane: the look's own,
+  // chosen to show on its channel column.
+  static Color _markColor(GuideStyle? gs, ThemeData theme) => gs == null
+      ? theme.colorScheme.primary
+      : gs.outlined
+          ? gs.airingOutline
+          : gs.cellColor;
 
   // Where the remote enters the row: what's on now, else what's next.
   static Programme? _entry(List<Programme> programmes) {
@@ -2176,6 +2154,13 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
             : (muted
                 ? Color.lerp(colors!.fill, theme.scaffoldBackgroundColor, 0.5)!
                 : colors!.fill);
+    // The terminal looks draw cells as outlines (brighter for what's on now);
+    // under the remote the cell fills solid instead.
+    final border = gs != null && gs.outlined && !_focused
+        ? Border.all(
+            color: live ? gs.airingOutline : gs.outlineColor,
+            width: live ? 2 : 1)
+        : null;
     final textColor = gs == null
         ? (muted
             ? theme.colorScheme.onSurfaceVariant
@@ -2203,6 +2188,7 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
           decoration: BoxDecoration(
             color: fill,
             borderRadius: radius,
+            border: border,
           ),
           alignment: Alignment.centerLeft,
           child: _TitleInset(

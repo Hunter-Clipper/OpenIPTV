@@ -1029,5 +1029,8 @@
   "commonDone": "Listo",
   "themeRetroCableName": "Cable retro",
   "tvGuideToday": "Hoy",
-  "settingsAccentSetByTheme": "Definido por el tema"
+  "settingsAccentSetByTheme": "Definido por el tema",
+  "themeLightName": "Claro",
+  "themeTerminalGreenName": "Terminal verde",
+  "themeAmberName": "Ámbar"
 }

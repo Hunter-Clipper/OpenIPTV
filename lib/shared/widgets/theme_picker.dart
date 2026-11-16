@@ -13,6 +13,9 @@ String themeName(AppLocalizations l10n, ThemePreset preset) => switch (preset) {
       ThemePreset.standard => l10n.themeStandardName,
       ThemePreset.trueBlack => l10n.themeTrueBlackName,
       ThemePreset.retroCable => l10n.themeRetroCableName,
+      ThemePreset.light => l10n.themeLightName,
+      ThemePreset.terminalGreen => l10n.themeTerminalGreenName,
+      ThemePreset.amber => l10n.themeAmberName,
     };
 
 /// Dialog with a small preview of each look; the choice applies at once to
@@ -94,7 +97,9 @@ class _ThemeCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? accent : AppTheme.outlineColor,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
               width: selected ? 2 : 1,
             ),
           ),
@@ -141,7 +146,8 @@ class _ThemeCard extends StatelessWidget {
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 if (selected)
-                  Icon(Icons.check_circle_rounded, size: 18, color: accent),
+                  Icon(Icons.check_circle_rounded,
+                      size: 18, color: Theme.of(context).colorScheme.primary),
               ]),
             ],
           ),
@@ -169,6 +175,28 @@ class _ThemeCard extends StatelessWidget {
         cell: RetroCable.cellBlue,
         cellHighlight: RetroCable.sportsGreen,
         cellOther: RetroCable.moviePurple,
+      );
+    case ThemePreset.light:
+      return (
+        background: const Color(0xFFF5F7FA),
+        header: const Color(0xFFE6EAF0),
+        channel: const Color(0xFFE6EAF0),
+        cell: const Color(0xFFE6EAF0),
+        cellHighlight: accent,
+        cellOther: const Color(0xFFE6EAF0),
+      );
+    case ThemePreset.terminalGreen:
+    case ThemePreset.amber:
+      final c = preset == ThemePreset.amber
+          ? const Color(0xFFFFB000)
+          : const Color(0xFF3DFF7F);
+      return (
+        background: Colors.black,
+        header: c.withValues(alpha: 0.25),
+        channel: c.withValues(alpha: 0.18),
+        cell: c.withValues(alpha: 0.10),
+        cellHighlight: c,
+        cellOther: c.withValues(alpha: 0.10),
       );
     case ThemePreset.standard:
     case ThemePreset.trueBlack:
