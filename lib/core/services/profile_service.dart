@@ -187,10 +187,16 @@ class ProfileService {
     } else {
       favs.add(channelId);
     }
-    await db.upsertProfile(
-      profile.copyWith(favoriteChannelIds: favs, updatedAt: DateTime.now()),
-    );
+    final updated =
+        profile.copyWith(favoriteChannelIds: favs, updatedAt: DateTime.now());
+    await db.upsertProfile(updated);
     onFavoritesChanged?.call();
+    // EDTV shows these as its Live TV row: publish now, while the app is in
+    // front, instead of relying on the pause hook that runs as it leaves.
+    final currentPrefs = prefs;
+    if (currentPrefs != null) {
+      await EdtvQueueBridge.publish(db, updated, currentPrefs);
+    }
   }
 
   Future<void> toggleFavoriteMovie(String profileId, String movieId) async {
