@@ -54,3 +54,6 @@ coverage/
 
 # Hermes Agent local cache
 .hermes/
+
+# Flutter-generated per machine (holds local paths)
+**/macos/Flutter/ephemeral/
