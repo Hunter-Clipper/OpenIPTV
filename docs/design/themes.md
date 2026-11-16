@@ -96,6 +96,8 @@ neon, light mode (we have none today — also an accessibility win).
 | Retro Cable palette | **Classic blue**: deep-blue gradient panels, cream channel column, white focus, genre colours on the cells. |
 | Retro Cable cells | **Flat blocks with thin gaps** (square corners, bold title). |
 | Retro Cable layout | **Skin plus retro touches**: same layout and navigation, plus small touches such as a "Today ◄ 3:30p ►" header strip and channel numbers. |
+| Fonts | Retro Cable: **Nunito Bold**. Terminal green and Amber: **JetBrains Mono**. All open licence (SIL OFL); bundle only the weights used and add their licence texts to the notices. |
+| Light theme | **Clean cool white**: near-white backgrounds, dark text, the user's accent as highlights. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
 Notes from the decisions:
@@ -109,4 +111,4 @@ Notes from the decisions:
 
 ## Still open
 - Name and visual identity of each preset (palette, accent behaviour).
-- The font shortlist (2-3 open-licence candidates with previews).
+- Confirm each font's licence file and weight subset before bundling (APK size).
