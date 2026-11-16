@@ -707,6 +707,8 @@ class SettingsScreen extends ConsumerWidget {
     }),
     Consumer(builder: (context, ref, _) {
       final accent = ref.watch(accentColorProvider);
+      // Looks with their own colours (Retro Cable) ignore the accent.
+      final themeOwnsColours = ref.watch(themePresetProvider).fixedColours;
       return InfoTooltip(
         id: 'settings_accent_color',
         title: context.l10n.settingsAccentColorTitle,
@@ -719,15 +721,19 @@ class SettingsScreen extends ConsumerWidget {
           ),
           title: context.l10n.settingsAccentColorTitle,
           subtitle: Text(
-            _accentName(
-                context,
-                AppTheme.accentSwatches
-                    .firstWhere((s) => s.color == accent,
-                        orElse: () => (label: 'Custom', color: accent))
-                    .label),
+            themeOwnsColours
+                ? context.l10n.settingsAccentSetByTheme
+                : _accentName(
+                    context,
+                    AppTheme.accentSwatches
+                        .firstWhere((s) => s.color == accent,
+                            orElse: () => (label: 'Custom', color: accent))
+                        .label),
             style: theme.textTheme.bodySmall,
           ),
-          onTap: () => _showAccentColorPicker(context, ref, accent),
+          onTap: themeOwnsColours
+              ? () {}
+              : () => _showAccentColorPicker(context, ref, accent),
         ),
       );
     }),

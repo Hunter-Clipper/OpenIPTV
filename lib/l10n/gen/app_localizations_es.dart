@@ -3382,9 +3382,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Este canal no está disponible en este momento.';
 
   @override
-  String get tvGuidePressOkToPreview => 'Presiona OK para ver una vista previa';
-
-  @override
   String get tvGuideNoInfo => 'Sin información de la guía';
 
   @override
@@ -3710,4 +3707,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get commonDone => 'Listo';
+
+  @override
+  String get themeRetroCableName => 'Cable retro';
+
+  @override
+  String get tvGuideToday => 'Hoy';
+
+  @override
+  String get settingsAccentSetByTheme => 'Definido por el tema';
 }

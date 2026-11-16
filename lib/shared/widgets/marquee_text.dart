@@ -17,12 +17,16 @@ class MarqueeText extends StatefulWidget {
     this.style,
     this.active = true,
     this.maxLines = 1,
+    this.textAlign,
   });
 
   final String text;
   final TextStyle? style;
   final bool active;
   final int maxLines;
+
+  /// How a name that fits is aligned (a scrolling one always starts left).
+  final TextAlign? textAlign;
 
   @override
   State<MarqueeText> createState() => _MarqueeTextState();
@@ -102,6 +106,7 @@ class _MarqueeTextState extends State<MarqueeText> {
         return Text(
           widget.text,
           maxLines: widget.maxLines,
+          textAlign: widget.textAlign,
           overflow: TextOverflow.ellipsis,
           style: widget.style,
         );

@@ -934,7 +934,6 @@
   "tvGuideCategoryLocked": "Esta categoría está bloqueada. Presiona OK en ella para desbloquearla.",
   "tvGuideStreamDenied": "Tu proveedor no permitió esta transmisión.",
   "tvGuideChannelUnavailable": "Este canal no está disponible en este momento.",
-  "tvGuidePressOkToPreview": "Presiona OK para ver una vista previa",
   "tvGuideNoInfo": "Sin información de la guía",
   "searchLoadError": "No se pudieron cargar los resultados. Inténtalo de nuevo.",
   "searchNoResultsTitle": "Sin resultados para «{query}»",
@@ -1027,5 +1026,8 @@
   "screenEffectsStrengthMedium": "Media",
   "screenEffectsStrengthStrong": "Fuerte",
   "screenEffectsGlow": "Brillo suave y viñeta",
-  "commonDone": "Listo"
+  "commonDone": "Listo",
+  "themeRetroCableName": "Cable retro",
+  "tvGuideToday": "Hoy",
+  "settingsAccentSetByTheme": "Definido por el tema"
 }

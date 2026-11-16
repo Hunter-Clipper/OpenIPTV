@@ -8,9 +8,13 @@ enum ThemePreset {
   standard(id: 'standard'),
 
   /// Pure black backgrounds for OLED screens; otherwise like [standard].
-  trueBlack(id: 'trueBlack', background: Color(0xFF000000));
+  trueBlack(id: 'trueBlack', background: Color(0xFF000000)),
 
-  const ThemePreset({required this.id, this.background});
+  /// Deep blue, flat and chunky, in the spirit of old cable-box guides.
+  retroCable(id: 'retroCable', fixedColours: true);
+
+  const ThemePreset(
+      {required this.id, this.background, this.fixedColours = false});
 
   /// What is stored in a profile and in backups.
   final String id;
@@ -19,8 +23,7 @@ enum ThemePreset {
   final Color? background;
 
   /// Whether the preset owns all its colours (so the accent is ignored).
-  /// None of today's presets do; the retro presets will.
-  bool get fixedColours => false;
+  final bool fixedColours;
 
   static ThemePreset fromId(String? id) => values.firstWhere(
         (p) => p.id == id,

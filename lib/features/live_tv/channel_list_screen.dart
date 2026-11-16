@@ -642,10 +642,18 @@ class _ChannelRow extends ConsumerWidget {
 /// colour, and a uniform tile keeps the list tidy.
 
 class LogoTile extends StatelessWidget {
-  const LogoTile({super.key, required this.url, required this.width});
+  const LogoTile({
+    super.key,
+    required this.url,
+    required this.width,
+    this.transparent = false,
+  });
 
   final String? url;
   final double width;
+
+  /// No tile behind the logo (the Retro Cable guide shows it bare).
+  final bool transparent;
 
   @override
   Widget build(BuildContext context) {
@@ -656,14 +664,16 @@ class LogoTile extends StatelessWidget {
       width: width,
       height: width * 10 / 16,
       padding: EdgeInsets.all(width * 0.1),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: logoTileColors,
-        ),
-      ),
+      decoration: transparent
+          ? null
+          : BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: logoTileColors,
+              ),
+            ),
       child: url == null || url!.isEmpty
           ? icon
           : CachedNetworkImage(

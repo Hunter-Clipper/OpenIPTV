@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:open_iptv/shared/theme/guide_style.dart';
+import 'package:open_iptv/shared/utils/genre_colors.dart';
 import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
@@ -953,6 +955,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                     channel: channel,
                     rowKey: _rowKey(channel),
                     playing: playingId == channel.id,
+                    number: i + 1,
                     time: _time,
                     entryNode: i == 0 ? _firstRowNode : null,
                     autofocus: _refocusChannelId == null
@@ -1245,7 +1248,12 @@ class _TopPane extends ConsumerWidget {
             service.hasTexture &&
             service.nowPlaying.value != null;
         final previewing = (model.previewing || handedOver) && service.hasTexture;
-        return Padding(
+        final gs = Theme.of(context).extension<GuideStyle>();
+        return DecoratedBox(
+          decoration: gs == null
+              ? const BoxDecoration()
+              : BoxDecoration(gradient: gs.headerGradient),
+          child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 24, 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1273,8 +1281,7 @@ class _TopPane extends ConsumerWidget {
                             if (!model.showPicture && !handedOver)
                               ColoredBox(
                                 color: Colors.black,
-                                child:
-                                    _PreviewPlaceholder(channel: model.playing),
+                                child: const _PreviewPlaceholder(),
                               ),
                             if (!handedOver &&
                                 (model.loading || !model.showPicture))
@@ -1288,18 +1295,17 @@ class _TopPane extends ConsumerWidget {
                                 ),
                               ),
                           ])
+                        // Nothing to say until a channel is picked, except that
+                        // the one that was tried didn't work.
                         : _PreviewPlaceholder(
-                            channel: channel,
-                            hint: channel == null
-                                ? null
-                                : model.failed?.channelId == channel.id
-                                    ? (model.failed!.denied
-                                        ? AppLocalizations.of(context)
-                                            .tvGuideStreamDenied
-                                        : AppLocalizations.of(context)
-                                            .tvGuideChannelUnavailable)
+                            hint: channel != null &&
+                                    model.failed?.channelId == channel.id
+                                ? (model.failed!.denied
+                                    ? AppLocalizations.of(context)
+                                        .tvGuideStreamDenied
                                     : AppLocalizations.of(context)
-                                        .tvGuidePressOkToPreview,
+                                        .tvGuideChannelUnavailable)
+                                : null,
                           ),
                   ),
                 ),
@@ -1312,16 +1318,18 @@ class _TopPane extends ConsumerWidget {
               ),
             ],
           ),
+          ),
         );
       },
     );
   }
 }
 
+/// The empty black preview: no logo and no instruction (owner's choice),
+/// only a note when the channel that was tried could not be played.
 class _PreviewPlaceholder extends StatelessWidget {
-  const _PreviewPlaceholder({required this.channel, this.hint});
+  const _PreviewPlaceholder({this.hint});
 
-  final Channel? channel;
   final String? hint;
 
   @override
@@ -1329,12 +1337,6 @@ class _PreviewPlaceholder extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Center(
-          child: channel == null
-              ? const Icon(Icons.live_tv_rounded,
-                  color: Colors.white38, size: 40)
-              : LogoTile(url: channel!.logoUrl, width: 120),
-        ),
         if (hint != null) _PreviewLabel(text: hint!),
       ],
     );
@@ -1649,12 +1651,18 @@ class _TimeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.labelMedium!
-        .copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final gs = theme.extension<GuideStyle>();
+    final style = gs == null
+        ? theme.textTheme.labelMedium!
+            .copyWith(color: theme.colorScheme.onSurfaceVariant)
+        : theme.textTheme.labelLarge!.copyWith(
+            color: gs.headerText, fontSize: 14, fontWeight: FontWeight.w700);
     final minutes = rangeEnd.difference(rangeStart).inMinutes;
     final now = DateTime.now();
     final loc = MaterialLocalizations.of(context);
-    return SizedBox(
+    return DecoratedBox(
+      decoration: gs == null ? const BoxDecoration() : BoxDecoration(gradient: gs.headerGradient),
+      child: SizedBox(
       height: _headerHeight,
       child: Row(
         children: [
@@ -1665,7 +1673,9 @@ class _TimeHeader extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${loc.formatMediumDate(now)}, ${_hm(context, now)}',
+                  gs == null
+                      ? '${loc.formatMediumDate(now)}, ${_hm(context, now)}'
+                      : '${AppLocalizations.of(context).tvGuideToday} \u25C2',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: style,
@@ -1681,7 +1691,7 @@ class _TimeHeader extends StatelessWidget {
                 builder: (context, box) => _RowCells(
                   time: time,
                   width: box.maxWidth,
-                  signature: rangeStart,
+                  signature: (rangeStart, gs != null),
                   cells: (cull, memo) {
                     final from = math.max(0, ((cull - box.maxWidth) / _pxPerMinute / 30).floor());
                     final to = math.min(minutes ~/ 30,
@@ -1694,11 +1704,26 @@ class _TimeHeader extends StatelessWidget {
                           bottom: 0,
                           child: Align(
                             alignment: Alignment.centerLeft,
-                            child: Text(
-                              _hm(context,
-                                  rangeStart.add(Duration(minutes: i * 30))),
-                              style: style,
-                            ),
+                            child: gs == null
+                                ? Text(
+                                    _hm(context,
+                                        rangeStart.add(Duration(minutes: i * 30))),
+                                    style: style,
+                                  )
+                                // A tick before each time, like the old guides.
+                                : Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Container(
+                                        width: 2,
+                                        height: 16,
+                                        color: gs.headerText
+                                            .withValues(alpha: 0.6)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _hm(context,
+                                          rangeStart.add(Duration(minutes: i * 30))),
+                                      style: style,
+                                    ),
+                                  ]),
                           ),
                         ),
                     ];
@@ -1708,6 +1733,7 @@ class _TimeHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1764,6 +1790,7 @@ class _GuideRow extends ConsumerWidget {
     required this.onActivate,
     required this.rowCache,
     required this.focusedStart,
+    this.number,
     this.rowVersion,
     this.onLongPress,
     this.entryNode,
@@ -1771,6 +1798,8 @@ class _GuideRow extends ConsumerWidget {
     this.playing = false,
   });
 
+  // Where the channel sits in the list (shown by looks that number them).
+  final int? number;
   // The last programmes each channel loaded: shown while the row reloads for
   // a longer window, so the cells (and focus) stay where they are.
   final Map<String, List<Programme>> rowCache;
@@ -1797,6 +1826,7 @@ class _GuideRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final guideStyle = theme.extension<GuideStyle>();
     final loaded = ref.watch(_rowProgrammesProvider(rowKey));
     // Display options (Settings → Live TV).
     final showNames = ref.watch(guideShowNamesProvider);
@@ -1823,8 +1853,9 @@ class _GuideRow extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ---- The channel ----
-          SizedBox(
+          Container(
             width: _channelWidth,
+            color: guideStyle?.channelColumn,
             // A label, not a stop for the remote: the programmes are.
             child: Stack(
               children: [
@@ -1837,7 +1868,7 @@ class _GuideRow extends ConsumerWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: markPlaying
-                          ? theme.colorScheme.primary
+                          ? (guideStyle?.cellColor ?? theme.colorScheme.primary)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(2),
                     ),
@@ -1846,8 +1877,25 @@ class _GuideRow extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(10, 3, 8, 3),
                   child: Row(
+                    mainAxisAlignment: guideStyle != null
+                        ? MainAxisAlignment.center
+                        : MainAxisAlignment.start,
                     children: [
-                      LogoTile(url: channel.logoUrl, width: 48),
+                      if (guideStyle != null && number != null) ...[
+                        SizedBox(
+                          width: 26,
+                          child: Text('$number',
+                              maxLines: 1,
+                              style: theme.textTheme.bodyMedium!.copyWith(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: guideStyle.channelText)),
+                        ),
+                      ],
+                      LogoTile(
+                          url: channel.logoUrl,
+                          width: 48,
+                          transparent: guideStyle != null),
                       const SizedBox(width: 8),
                       // Long names get a second line rather than being cut
                       // (or no name at all, if that is switched off).
@@ -1856,15 +1904,22 @@ class _GuideRow extends ConsumerWidget {
                             ? MarqueeText(
                                 context.channelName(channel),
                                 maxLines: twoLineNames ? 2 : 1,
+                                textAlign: guideStyle != null
+                                    ? TextAlign.center
+                                    : null,
                                 active: rowFocused,
                                 style: theme.textTheme.bodyMedium!.copyWith(
                                     fontSize: 13,
                                     height: 1.15,
-                                    fontWeight:
-                                        markPlaying ? FontWeight.w700 : null,
-                                    color: markPlaying
-                                        ? theme.colorScheme.primary
-                                        : null),
+                                    fontWeight: markPlaying ||
+                                            guideStyle != null
+                                        ? FontWeight.w700
+                                        : null,
+                                    color: guideStyle != null
+                                        ? guideStyle.channelText
+                                        : markPlaying
+                                            ? theme.colorScheme.primary
+                                            : null),
                               )
                             : const SizedBox.shrink(),
                       ),
@@ -1872,11 +1927,14 @@ class _GuideRow extends ConsumerWidget {
                         const SizedBox(width: 4),
                         Icon(Icons.history_rounded,
                             size: 15,
-                            color: theme.colorScheme.onSurfaceVariant),
+                            color: guideStyle?.channelText ??
+                                theme.colorScheme.onSurfaceVariant),
                       ],
                       if (markPlaying)
                         Icon(Icons.graphic_eq_rounded,
-                            size: 18, color: theme.colorScheme.primary),
+                            size: 18,
+                            color: guideStyle?.cellColor ??
+                                theme.colorScheme.primary),
                     ],
                   ),
                 ),
@@ -1922,6 +1980,7 @@ class _GuideRow extends ConsumerWidget {
                           onLongPress == null,
                           rowKey.start,
                           rowVersion,
+                          guideStyle != null,
                         ),
                         cells: (cull, memo) {
                           final keep = focusedStart();
@@ -1936,6 +1995,7 @@ class _GuideRow extends ConsumerWidget {
                                     xOf(p.end),
                                     entry: identical(p, entry),
                                     twoLine: twoLineTitles,
+                                    guideStyle: guideStyle,
                                     memo: memo),
                           ];
                         },
@@ -1960,6 +2020,7 @@ class _GuideRow extends ConsumerWidget {
       double end,
       {required bool entry,
       required bool twoLine,
+      required GuideStyle? guideStyle,
       required Widget Function(Object, Object, Widget Function()) memo}) {
     final now = DateTime.now();
     final past = !p.end.isAfter(now);
@@ -1977,6 +2038,9 @@ class _GuideRow extends ConsumerWidget {
         catchup: channel.hasCatchup && !p.end.isAfter(now),
         // Keeps the title in view while the programme's start is scrolled
         // past the left edge.
+        genre: guideStyle == null
+            ? null
+            : genreBucket(p.category, channel.categories),
         time: time,
         startX: start,
         maxInset: math.max(0, end - start - 60),
@@ -2026,6 +2090,7 @@ class _ProgrammeCell extends StatefulWidget {
     this.live = false,
     this.muted = false,
     this.catchup = false,
+    this.genre,
     this.time,
     this.startX = 0,
     this.maxInset = 0,
@@ -2042,6 +2107,8 @@ class _ProgrammeCell extends StatefulWidget {
   // Set for a cell near the left edge: its title follows the timeline so it
   // stays in view while the programme's start is scrolled past.
   final Animation<double>? time;
+  // The kind of programme, for looks that colour cells by it.
+  final GenreBucket? genre;
   final double startX;
   final double maxInset;
   final bool twoLine;
@@ -2066,13 +2133,37 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
     final live = widget.live;
     final muted = widget.muted;
     final catchup = widget.catchup;
+    final gs = theme.extension<GuideStyle>();
+    // A look with its own guide colours the cell by kind of programme and
+    // fills it white under the remote; otherwise the normal cell.
+    final colors = gs?.colorsFor(widget.genre ?? GenreBucket.other);
+    final fill = gs == null
+        ? (live
+            ? theme.colorScheme.primary.withValues(alpha: 0.20)
+            : theme.colorScheme.surfaceContainerHigh)
+        : _focused
+            ? gs.focusFill
+            : (muted
+                ? Color.lerp(colors!.fill, theme.scaffoldBackgroundColor, 0.5)!
+                : colors!.fill);
+    final textColor = gs == null
+        ? (muted
+            ? theme.colorScheme.onSurfaceVariant
+            : theme.colorScheme.onSurface)
+        : _focused
+            ? gs.focusText
+            : colors!.text;
+    final radius = BorderRadius.circular(gs?.cellRadius ?? 6);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(1, 3, 1, 3),
+      padding: gs == null
+          ? const EdgeInsets.fromLTRB(1, 3, 1, 3)
+          : const EdgeInsets.fromLTRB(1, 2, 1, 2),
       child: TvFocusable(
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         onLongPress: widget.onLongPress,
-        borderRadius: BorderRadius.circular(6),
+        showFocusRing: gs == null,
+        borderRadius: radius,
         onFocusChange: (f) {
           setState(() => _focused = f);
           if (f) widget.onFocus();
@@ -2080,10 +2171,8 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
         onTap: widget.onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: live
-                ? theme.colorScheme.primary.withValues(alpha: 0.20)
-                : theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(6),
+            color: fill,
+            borderRadius: radius,
           ),
           alignment: Alignment.centerLeft,
           child: _TitleInset(
@@ -2098,16 +2187,15 @@ class _ProgrammeCellState extends State<_ProgrammeCell> {
                   active: _focused,
                   maxLines: widget.twoLine ? 2 : 1,
                   style: theme.textTheme.bodyMedium!.copyWith(
-                    color: muted
-                        ? theme.colorScheme.onSurfaceVariant
-                        : theme.colorScheme.onSurface,
-                    fontWeight: live ? FontWeight.w600 : null,
+                    color: textColor,
+                    fontWeight: live || gs != null ? FontWeight.w700 : null,
                   ),
                 ),
               ),
               if (catchup)
                 Icon(Icons.replay_rounded,
-                    size: 14, color: theme.colorScheme.primary),
+                    size: 14,
+                    color: gs == null ? theme.colorScheme.primary : textColor),
             ],
           ),
           ),
