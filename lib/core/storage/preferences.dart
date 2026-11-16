@@ -8,6 +8,10 @@ const _kActiveProfileId = 'active_profile_id';
 const _kActiveSourceId = 'active_source_id';
 const _kAccentColor = 'accent_color'; // hex string e.g. '0A84FF'
 const _kThemeId = 'theme_id'; // ThemePreset.id, e.g. 'standard'
+const _kCrtLines = 'crt_lines';
+const _kCrtStrength = 'crt_strength'; // CrtStrength.id
+const _kCrtGlow = 'crt_glow';
+const _kCrtFlicker = 'crt_flicker';
 const kSkipDbEncryptionKey = 'skip_db_encryption';
 const _kContentSort = 'content_sort'; // 'az' | 'provider'
 const _kChannelListDensity =
@@ -94,6 +98,16 @@ class AppPreferences {
       _prefs.setString(_kAccentColor, hex);
   String get themeId => _prefs.getString(_kThemeId) ?? 'standard';
   Future<void> setThemeId(String id) => _prefs.setString(_kThemeId, id);
+
+  // Screen effects (#178): device-wide, all off by default.
+  bool get crtLines => _prefs.getBool(_kCrtLines) ?? false;
+  Future<void> setCrtLines(bool v) => _prefs.setBool(_kCrtLines, v);
+  String get crtStrength => _prefs.getString(_kCrtStrength) ?? 'medium';
+  Future<void> setCrtStrength(String id) => _prefs.setString(_kCrtStrength, id);
+  bool get crtGlow => _prefs.getBool(_kCrtGlow) ?? false;
+  Future<void> setCrtGlow(bool v) => _prefs.setBool(_kCrtGlow, v);
+  bool get crtFlicker => _prefs.getBool(_kCrtFlicker) ?? false;
+  Future<void> setCrtFlicker(bool v) => _prefs.setBool(_kCrtFlicker, v);
 
   bool get skipDbEncryption => _prefs.getBool(kSkipDbEncryptionKey) ?? false;
   Future<void> setSkipDbEncryption(bool value) =>
