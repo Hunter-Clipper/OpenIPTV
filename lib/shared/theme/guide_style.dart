@@ -19,7 +19,11 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
     required this.headerText,
     required this.titleColor,
     required this.nowColor,
-    required this.logoShadow,
+    this.logoShadow,
+    this.bareLogos = true,
+    this.outlined = false,
+    this.outlineColor = Colors.transparent,
+    this.airingOutline = Colors.transparent,
     this.cellRadius = 0,
   });
 
@@ -48,7 +52,17 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
 
   /// The raised shadow under a bare channel logo, so a light logo stands out
   /// on the light channel column.
-  final Color logoShadow;
+  final Color? logoShadow;
+
+  /// Whether channel logos sit bare (no tile) on the channel column.
+  final bool bareLogos;
+
+  /// Cells drawn as outlines on the page colour (the terminal looks) rather
+  /// than as filled blocks: [outlineColor] normally, [airingOutline] for what
+  /// is on now, and the focus fill when the remote is on it.
+  final bool outlined;
+  final Color outlineColor;
+  final Color airingOutline;
 
   final double cellRadius;
 

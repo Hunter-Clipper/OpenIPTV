@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
+import 'package:open_iptv/shared/theme/light_look.dart';
 import 'package:open_iptv/shared/theme/retro_cable_theme.dart';
+import 'package:open_iptv/shared/theme/terminal_looks.dart';
 import 'package:open_iptv/shared/theme/theme_preset.dart';
 
 class AppTheme {
@@ -109,9 +111,13 @@ class AppTheme {
   /// The theme for a [ThemePreset] (#178), tinted with [accent] unless the
   /// preset fixes its own colours.
   static ThemeData forPreset(ThemePreset preset, [Color? accent]) =>
-      preset == ThemePreset.retroCable
-          ? RetroCable.theme()
-          : dark(preset.fixedColours ? null : accent, preset);
+      switch (preset) {
+        ThemePreset.retroCable => RetroCable.theme(),
+        ThemePreset.terminalGreen => TerminalLooks.green(),
+        ThemePreset.amber => TerminalLooks.amber(),
+        ThemePreset.light => LightLook.theme(accent),
+        ThemePreset.standard || ThemePreset.trueBlack => dark(accent, preset),
+      };
 
   static ThemeData dark([Color? accent, ThemePreset preset = ThemePreset.standard]) {
     final primary = accent ?? defaultAccent;

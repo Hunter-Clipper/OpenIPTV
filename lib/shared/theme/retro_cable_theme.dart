@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:open_iptv/shared/theme/app_theme.dart';
+import 'package:open_iptv/shared/theme/flat_theme.dart';
 import 'package:open_iptv/shared/theme/guide_style.dart';
 import 'package:open_iptv/shared/utils/genre_colors.dart';
 
@@ -55,168 +55,19 @@ class RetroCable {
 
   /// The whole app's theme: the normal component styling, re-coloured and
   /// re-typed, with square-ish corners.
-  static ThemeData theme() {
-    final base = AppTheme.dark(yellow);
-    TextStyle chunky(TextStyle? s, {FontWeight? weight}) => (s ?? const TextStyle())
-        .copyWith(fontFamily: fontFamily, fontWeight: weight ?? s?.fontWeight);
-    const surfaceLow = Color(0xFF0E2D80);
-    final scheme = base.colorScheme.copyWith(
-      primary: yellow,
-      onPrimary: navy,
-      secondary: yellow,
-      onSecondary: navy,
-      surface: panel,
-      onSurface: text,
-      onSurfaceVariant: textDim,
-      surfaceDim: navy,
-      surfaceBright: panelHigh,
-      surfaceContainerLowest: navy,
-      surfaceContainerLow: surfaceLow,
-      surfaceContainer: panel,
-      surfaceContainerHigh: panelHigh,
-      surfaceContainerHighest: panelHigh,
-      outline: edge,
-      outlineVariant: panelHigh,
-      inverseSurface: cream,
-      onInverseSurface: navy,
-      error: error,
-      onError: navy,
-    );
-    final t = base.textTheme.apply(
-      fontFamily: fontFamily,
-      bodyColor: text,
-      displayColor: text,
-    );
-    // Bold where the normal look is semi-bold: Nunito ships Regular and Bold.
-    TextStyle? bold(TextStyle? s) => s == null
-        ? null
-        : s.copyWith(
-            fontWeight: (s.fontWeight ?? FontWeight.w400).value >= 500
-                ? FontWeight.w700
-                : s.fontWeight);
-    final textTheme = t.copyWith(
-      displaySmall: bold(t.displaySmall),
-      headlineLarge: bold(t.headlineLarge),
-      headlineMedium: bold(t.headlineMedium),
-      headlineSmall: bold(t.headlineSmall),
-      titleLarge: bold(t.titleLarge)?.copyWith(color: yellow),
-      titleMedium: bold(t.titleMedium),
-      titleSmall: bold(t.titleSmall),
-      labelLarge: bold(t.labelLarge)?.copyWith(color: yellow),
-      labelMedium: bold(t.labelMedium),
-      labelSmall: bold(t.labelSmall),
-      bodySmall: t.bodySmall?.copyWith(color: textDim),
-    );
-    const flat = 4.0;
-    RoundedRectangleBorder shape([double r = flat]) =>
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(r));
-    return base.copyWith(
-      scaffoldBackgroundColor: navy,
-      colorScheme: scheme,
-      textTheme: textTheme,
-      primaryTextTheme: textTheme,
-      iconTheme: const IconThemeData(color: textDim),
-      focusColor: Colors.white.withValues(alpha: 0.30),
-      dividerTheme: const DividerThemeData(color: edge, thickness: 0.6),
-      listTileTheme: const ListTileThemeData(
-        iconColor: textDim,
-        textColor: text,
-        tileColor: Colors.transparent,
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: navy,
-        foregroundColor: text,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleTextStyle: chunky(textTheme.titleLarge, weight: FontWeight.w700),
-      ),
-      navigationBarTheme: base.navigationBarTheme.copyWith(
-        backgroundColor: panel,
-        indicatorColor: yellow.withValues(alpha: 0.28),
-        indicatorShape: shape(flat),
-        iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
-            color: s.contains(WidgetState.selected) ? yellow : textDim,
-            size: 24)),
-        labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
-            fontFamily: fontFamily,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: s.contains(WidgetState.selected) ? text : textDim)),
-      ),
-      cardTheme: CardThemeData(
-        color: panel,
-        elevation: 0,
-        shape: shape(),
-      ),
-      chipTheme: base.chipTheme.copyWith(
-        backgroundColor: panelHigh,
-        selectedColor: yellow.withValues(alpha: 0.30),
-        labelStyle:
-            const TextStyle(fontFamily: fontFamily, color: text, fontSize: 13),
-        shape: shape(),
-      ),
-      inputDecorationTheme: base.inputDecorationTheme.copyWith(
-        fillColor: panelHigh,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(flat),
-          borderSide: const BorderSide(color: edge),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(flat),
-          borderSide: const BorderSide(color: Colors.white, width: 2),
-        ),
-        hintStyle: const TextStyle(fontFamily: fontFamily, color: textDim),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: panel,
-        surfaceTintColor: Colors.transparent,
-        shape: shape(),
-        titleTextStyle: const TextStyle(
-            fontFamily: fontFamily,
-            color: yellow,
-            fontSize: 18,
-            fontWeight: FontWeight.w700),
-        contentTextStyle: const TextStyle(
-            fontFamily: fontFamily, color: text, fontSize: 14),
-      ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: panelHigh,
-        contentTextStyle:
-            const TextStyle(fontFamily: fontFamily, color: text),
-        actionTextColor: yellow,
-        behavior: SnackBarBehavior.floating,
-        shape: shape(),
-      ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: yellow,
-        linearTrackColor: Colors.white.withValues(alpha: 0.2),
-        circularTrackColor: Colors.transparent,
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: base.filledButtonTheme.style?.copyWith(
-          shape: WidgetStatePropertyAll(shape()),
-          textStyle: const WidgetStatePropertyAll(
-              TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w700)),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: base.textButtonTheme.style?.copyWith(
-          foregroundColor: const WidgetStatePropertyAll(text),
-          shape: WidgetStatePropertyAll(shape()),
-          textStyle: const WidgetStatePropertyAll(
-              TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w700)),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: base.outlinedButtonTheme.style?.copyWith(
-          foregroundColor: const WidgetStatePropertyAll(text),
-          side: const WidgetStatePropertyAll(BorderSide(color: edge)),
-          shape: WidgetStatePropertyAll(shape()),
-          textStyle: const WidgetStatePropertyAll(
-              TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w700)),
-        ),
-      ),
-      extensions: const [guide],
-    );
-  }
+  static ThemeData theme() => buildFlatTheme(const FlatPalette(
+        fontFamily: fontFamily,
+        background: navy,
+        panel: panel,
+        panelLow: Color(0xFF0E2D80),
+        panelHigh: panelHigh,
+        edge: edge,
+        text: text,
+        textDim: textDim,
+        primary: yellow,
+        onPrimary: navy,
+        title: yellow,
+        error: error,
+        guide: guide,
+      ));
 }

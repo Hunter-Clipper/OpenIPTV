@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.14.129+347
+version: 0.14.131+349
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -126,6 +126,14 @@ flutter:
         - asset: assets/fonts/nunito/Nunito-Regular.ttf
           weight: 400
         - asset: assets/fonts/nunito/Nunito-Bold.ttf
+          weight: 700
+    # JetBrains Mono (SIL OFL 1.1 — assets/fonts/jetbrains_mono/OFL.txt): the
+    # Terminal green and Amber looks.
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/jetbrains_mono/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/jetbrains_mono/JetBrainsMono-Bold.ttf
           weight: 700
 
   assets:

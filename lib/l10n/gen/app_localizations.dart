@@ -6279,6 +6279,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set by the theme'**
   String get settingsAccentSetByTheme;
+
+  /// Name of the near-white look
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLightName;
+
+  /// Name of the black look with green monitor-style text
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal green'**
+  String get themeTerminalGreenName;
+
+  /// Name of the black look with amber monitor-style text
+  ///
+  /// In en, this message translates to:
+  /// **'Amber'**
+  String get themeAmberName;
 }
 
 class _AppLocalizationsDelegate

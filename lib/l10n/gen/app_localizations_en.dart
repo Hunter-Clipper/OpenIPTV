@@ -3676,4 +3676,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAccentSetByTheme => 'Set by the theme';
+
+  @override
+  String get themeLightName => 'Light';
+
+  @override
+  String get themeTerminalGreenName => 'Terminal green';
+
+  @override
+  String get themeAmberName => 'Amber';
 }

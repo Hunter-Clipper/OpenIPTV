@@ -121,18 +121,23 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: context.l10n.settingsChannelListsSubtitle,
                 groups: [(null, _channelListTiles(context, theme, isAdmin))],
               ),
-              if (tv)
-                _pageTile(
-                  context,
-                  icon: Icons.grid_view_rounded,
-                  title: context.l10n.settingsGuideLayoutTitle,
-                  subtitle: context.l10n.settingsGuideLayoutSubtitle,
-                  groups: [(null, _guideLayoutTiles(context, theme, isAdmin))],
-                ),
             ]),
             SettingsGroup(
                 title: context.l10n.settingsGroupAppearance,
-                children: _appearanceTiles(context, theme, isAdmin)),
+                children: [
+                  ..._appearanceTiles(context, theme, isAdmin),
+                  // How the TV guide looks belongs with the other looks.
+                  if (tv)
+                    _pageTile(
+                      context,
+                      icon: Icons.grid_view_rounded,
+                      title: context.l10n.settingsGuideLayoutTitle,
+                      subtitle: context.l10n.settingsGuideLayoutSubtitle,
+                      groups: [
+                        (null, _guideLayoutTiles(context, theme, isAdmin))
+                      ],
+                    ),
+                ]),
             SettingsGroup(title: context.l10n.settingsGroupAboutAdvanced, children: [
               ..._aboutTiles(context, theme, isAdmin),
               _updatesTile(context),

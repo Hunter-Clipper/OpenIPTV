@@ -7,6 +7,7 @@ import 'package:open_iptv/shared/theme/theme_preset.dart';
 
 void main() {
   _retroTests();
+  _allLooksTests();
   test('ids round-trip and unknown ids fall back to Standard', () {
     for (final p in ThemePreset.values) {
       expect(ThemePreset.fromId(p.id), p);
@@ -34,6 +35,39 @@ void main() {
     final q = p.copyWith(themeId: ThemePreset.trueBlack.id);
     expect(q.themeId, 'trueBlack');
     expect(q.accentColor, p.accentColor);
+  });
+}
+
+void _allLooksTests() {
+  test('every look builds, with the right brightness and guide style', () {
+    for (final p in ThemePreset.values) {
+      final t = AppTheme.forPreset(p, const Color(0xFF0A84FF));
+      expect(t.colorScheme.brightness,
+          p == ThemePreset.light ? Brightness.light : Brightness.dark,
+          reason: p.id);
+    }
+    final green = AppTheme.forPreset(ThemePreset.terminalGreen);
+    final amber = AppTheme.forPreset(ThemePreset.amber);
+    expect(green.textTheme.bodyMedium!.fontFamily, 'JetBrainsMono');
+    expect(green.extension<GuideStyle>()!.outlined, isTrue);
+    expect(amber.colorScheme.primary, isNot(green.colorScheme.primary));
+    expect(AppTheme.forPreset(ThemePreset.light).extension<GuideStyle>(), isNull);
+  });
+
+  test('the accent applies to Light but not to the looks with their own colours',
+      () {
+    const accent = Color(0xFFFF9500);
+    expect(AppTheme.forPreset(ThemePreset.light, accent).colorScheme.primary,
+        accent);
+    expect(ThemePreset.light.fixedColours, isFalse);
+    for (final p in [
+      ThemePreset.retroCable,
+      ThemePreset.terminalGreen,
+      ThemePreset.amber
+    ]) {
+      expect(p.fixedColours, isTrue, reason: p.id);
+      expect(AppTheme.forPreset(p, accent).colorScheme.primary, isNot(accent));
+    }
   });
 }
 

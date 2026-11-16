@@ -11,7 +11,16 @@ enum ThemePreset {
   trueBlack(id: 'trueBlack', background: Color(0xFF000000)),
 
   /// Deep blue, flat and chunky, in the spirit of old cable-box guides.
-  retroCable(id: 'retroCable', fixedColours: true);
+  retroCable(id: 'retroCable', fixedColours: true),
+
+  /// Near-white and cool; the accent colour still applies.
+  light(id: 'light'),
+
+  /// Black with green phosphor text, outlined cells, a monospace font.
+  terminalGreen(id: 'terminalGreen', fixedColours: true),
+
+  /// Black with amber phosphor text, like an old monitor.
+  amber(id: 'amber', fixedColours: true);
 
   const ThemePreset(
       {required this.id, this.background, this.fixedColours = false});

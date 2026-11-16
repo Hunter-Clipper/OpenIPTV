@@ -4861,5 +4861,17 @@
   "settingsAccentSetByTheme": "Set by the theme",
   "@settingsAccentSetByTheme": {
     "description": "Shown under Accent Color when the chosen theme has its own colours, so the accent does not apply"
+  },
+  "themeLightName": "Light",
+  "@themeLightName": {
+    "description": "Name of the near-white look"
+  },
+  "themeTerminalGreenName": "Terminal green",
+  "@themeTerminalGreenName": {
+    "description": "Name of the black look with green monitor-style text"
+  },
+  "themeAmberName": "Amber",
+  "@themeAmberName": {
+    "description": "Name of the black look with amber monitor-style text"
   }
 }
