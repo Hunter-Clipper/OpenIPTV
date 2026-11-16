@@ -92,6 +92,7 @@ neon, light mode (we have none today — also an accessibility win).
 | Picker | **Preview cards**: Settings → Appearance → Theme shows a small mock guide per theme and applies the choice instantly. |
 | Kids profiles | **Admin decides**: an admin sets a kids profile's theme, the child can't change it. |
 | Genre mapping | **Keyword buckets** (sports, movies, kids, news, other), matched on the programme category like the genre-icon logic (`genre_icons.dart`); unknown stays plain blue. |
+| Accent colour | **Ignored on fixed-colour presets** (Retro Cable, terminal green, amber): the theme owns its colours and the accent swatches are greyed out with a note. Normal themes (Standard, OLED, Light) keep the accent. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
 Notes from the decisions:
@@ -106,4 +107,3 @@ Notes from the decisions:
 ## Still open
 - Name and visual identity of each preset (palette, accent behaviour).
 - The font shortlist (2-3 open-licence candidates with previews).
-- Whether the accent colour still applies on presets with fixed colours.
