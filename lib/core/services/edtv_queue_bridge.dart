@@ -178,6 +178,9 @@ class EdtvQueueBridge {
         'favorites': favoriteChannels.take(30).toList(),
       });
       await _channel.invokeMethod<void>('publishQueueSnapshot', snapshot);
+      debugPrint('[OTV-edtv] published: ${profile.favoriteChannelIds.length} '
+          'favourite ids, ${favoriteRows.length} found in the active '
+          'playlist, ${favoriteChannels.length} sent');
     } catch (error, stack) {
       debugPrint('[OTV-edtv] queue snapshot failed: $error');
       debugPrintStack(stackTrace: stack);
