@@ -89,6 +89,9 @@ neon, light mode (we have none today — also an accessibility win).
 | First presets | Retro Cable, **terminal green, amber monochrome, true-black OLED, light theme**. |
 | Font | **A free open-licence font** (SIL OFL or similar); I shortlist 2-3 with previews, owner picks. |
 | Guide cell colours | **By genre** from `Programme.category`, unknown stays plain blue. |
+| Picker | **Preview cards**: Settings → Appearance → Theme shows a small mock guide per theme and applies the choice instantly. |
+| Kids profiles | **Admin decides**: an admin sets a kids profile's theme, the child can't change it. |
+| Genre mapping | **Keyword buckets** (sports, movies, kids, news, other), matched on the programme category like the genre-icon logic (`genre_icons.dart`); unknown stays plain blue. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
 Notes from the decisions:
@@ -101,7 +104,6 @@ Notes from the decisions:
   Roboto (known gotcha).
 
 ## Still open
-- Where the settings live and how the picker previews a theme.
-- How the genre-to-colour mapping is defined and how many colours.
-- Whether kids profiles can change theme.
-- Name and visual identity of each preset.
+- Name and visual identity of each preset (palette, accent behaviour).
+- The font shortlist (2-3 open-licence candidates with previews).
+- Whether the accent colour still applies on presets with fixed colours.
