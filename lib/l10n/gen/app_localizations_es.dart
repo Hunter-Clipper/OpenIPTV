@@ -3709,12 +3709,5 @@ class AppLocalizationsEs extends AppLocalizations {
   String get screenEffectsGlow => 'Brillo suave y viñeta';
 
   @override
-  String get screenEffectsFlicker => 'Parpadeo suave';
-
-  @override
-  String get screenEffectsFlickerReduced =>
-      'Desactivado mientras Reducir movimiento esté activo';
-
-  @override
   String get commonDone => 'Listo';
 }

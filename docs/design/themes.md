@@ -100,7 +100,7 @@ neon, light mode (we have none today — also an accessibility win).
 | Light theme | **Clean cool white**: near-white backgrounds, dark text, the user's accent as highlights. |
 | Terminal green / Amber | **Pure black, one colour**: black background, text and highlights all in the one phosphor colour. |
 | True-black OLED | **Pure black backgrounds, otherwise like Standard; the accent still applies.** |
-| CRT effect | One **Screen effects** page under the theme settings: **scan lines** (Light / Medium / Strong), plus separate on/off toggles for **soft glow/vignette** and **gentle flicker**. Everything off by default. |
+| CRT effect | One **Screen effects** page under the theme settings: **scan lines** (Light / Medium / Strong), plus an on/off toggle for **soft glow/vignette**. Everything off by default. (Flicker was built, then **removed at the owner's request** — they didn't like it.) |
 | Mono cells | Outlined cells on black, **inverse (solid fill, black text) on focus**, a brighter outline for what's airing now. |
 | Build order | 1 plumbing + picker, 2 CRT overlay, 3 Retro Cable, 4 the other presets. |
 
@@ -138,8 +138,8 @@ Still to do for kids profiles: let an admin set a child's theme from the profile
 
 ## Phase 2 as built (0.14.126, test builds)
 
-- `ScreenEffects` (`lib/shared/theme/screen_effects.dart`): scan lines (Light / Medium / Strong), soft glow and vignette, gentle flicker; each its own switch, all off by default. Stored device-wide in prefs (`crtLines`, `crtStrength`, `crtGlow`, `crtFlicker`), in backups.
-- Drawn by `ScreenEffectsOverlay` in the app builder, above every page, dialog and sheet, ignoring touches and the remote. The lines are ONE repeating-gradient rectangle (1 dark physical pixel in 3), so the cost is near zero; the flicker steps ~11 times a second, not every frame, and is off under Reduce Motion.
+- `ScreenEffects` (`lib/shared/theme/screen_effects.dart`): scan lines (Light / Medium / Strong) and soft glow and vignette; each its own switch, all off by default. Stored device-wide in prefs (`crtLines`, `crtStrength`, `crtGlow`), in backups.
+- Drawn by `ScreenEffectsOverlay` in the app builder, above every page, dialog and sheet, ignoring touches and the remote. The lines are ONE repeating-gradient rectangle (1 dark physical pixel in 3), so the cost is near zero.
 - "Soft glow" is a vignette with a faint warm centre, **not a real bloom** (a blur over the whole screen is too costly for the Chromecast).
 - Settings → Appearance → Screen effects (dialog with the switches; changes show at once).
 - Checked on the Chromecast: dialog works with the remote, lines and darker corners are visible in screenshots.

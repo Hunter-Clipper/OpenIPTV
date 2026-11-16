@@ -4804,7 +4804,7 @@
   },
   "themeTitle": "Theme",
   "@themeTitle": {
-    "description": "Name of the look setting (Settings \u2192 Appearance) and the heading of its picker"
+    "description": "Name of the look setting (Settings → Appearance) and the heading of its picker"
   },
   "themeStandardName": "Standard",
   "@themeStandardName": {
@@ -4849,14 +4849,6 @@
   "screenEffectsGlow": "Soft glow and vignette",
   "@screenEffectsGlow": {
     "description": "Switch: darker corners with a faint warm centre"
-  },
-  "screenEffectsFlicker": "Gentle flicker",
-  "@screenEffectsFlicker": {
-    "description": "Switch: a barely visible brightness flutter"
-  },
-  "screenEffectsFlickerReduced": "Off while Reduce Motion is on",
-  "@screenEffectsFlickerReduced": {
-    "description": "Note under the flicker switch when the system asks for no animation"
   },
   "commonDone": "Done",
   "@commonDone": {

@@ -8,7 +8,7 @@ void main() {
     expect(fx.any, isFalse);
     expect(fx.copyWith(glow: true).any, isTrue);
     expect(fx.copyWith(lines: true).strength, CrtStrength.medium);
-    expect(fx.copyWith(flicker: true).lines, isFalse);
+    expect(fx.copyWith(glow: true).lines, isFalse);
   });
 
   test('strengths round-trip by id and unknown ids fall back to Medium', () {

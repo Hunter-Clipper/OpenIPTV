@@ -1027,7 +1027,5 @@
   "screenEffectsStrengthMedium": "Media",
   "screenEffectsStrengthStrong": "Fuerte",
   "screenEffectsGlow": "Brillo suave y viñeta",
-  "screenEffectsFlicker": "Parpadeo suave",
-  "screenEffectsFlickerReduced": "Desactivado mientras Reducir movimiento esté activo",
   "commonDone": "Listo"
 }

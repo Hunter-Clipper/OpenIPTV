@@ -3669,11 +3669,5 @@ class AppLocalizationsEn extends AppLocalizations {
   String get screenEffectsGlow => 'Soft glow and vignette';
 
   @override
-  String get screenEffectsFlicker => 'Gentle flicker';
-
-  @override
-  String get screenEffectsFlickerReduced => 'Off while Reduce Motion is on';
-
-  @override
   String get commonDone => 'Done';
 }
