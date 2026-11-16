@@ -152,3 +152,9 @@ Still to do for kids profiles: let an admin set a child's theme from the profile
 - Owner feedback after the first look: channel logo + name centred in the cream column, logos transparent (no tile), and the preview pane's "Press OK to preview" text and channel logo removed **for every look** (only a "channel unavailable / denied" note remains).
 - Known trade-off: a white logo nearly vanishes on the cream column (transparent logos were requested). Options if it bothers: a subtle dark backing only for light logos, or a darker channel column.
 - Not done yet: the first-run wizard stays on the standard dark look; light/terminal/amber presets (phase 4); admin setting a child's theme.
+
+### Retro Cable follow-up (0.14.129)
+
+- The logo and name now form one block centred in the cream column after the channel number (names centred).
+- **3D drop shadow under each bare logo** (`GuideStyle.logoShadow`): the logo drawn again in a navy tint, offset down-right, twice (far one lighter), then the logo on top. A first version used a blurred shadow (`ImageFiltered`) and **halved the guide's frame rate** on the Chromecast (raster ~17 ms vs ~8 ms; 50-70 % slow frames), because blur filter layers are not cached. Plain tinted draws (`CachedNetworkImage(color:, colorBlendMode: srcIn)`) have no filter layer. The channel column also sits in its own `RepaintBoundary` so it is not redrawn while programmes slide.
+- Measured with `tools/guide-stress`: Retro Cable is still a little heavier than Standard (roughly 10-20 % slow frames vs 5-10 %). Candidates if it matters: draw one shadow copy instead of two, or cache the composed logo as a bitmap.

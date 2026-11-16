@@ -50,6 +50,7 @@ class RetroCable {
     headerText: text,
     titleColor: yellow,
     nowColor: yellow,
+    logoShadow: Color(0xB30A2268),
   );
 
   /// The whole app's theme: the normal component styling, re-coloured and
