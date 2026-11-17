@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull;
@@ -8,7 +7,6 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqlite3/open.dart';
 
 String stamp(DateTime t) {
   String two(int n) => n.toString().padLeft(2, '0');
@@ -19,8 +17,6 @@ String stamp(DateTime t) {
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   late AppDatabase db;

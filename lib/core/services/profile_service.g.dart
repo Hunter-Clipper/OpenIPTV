@@ -10,12 +10,12 @@ part of 'profile_service.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(profileService)
-const profileServiceProvider = ProfileServiceProvider._();
+final profileServiceProvider = ProfileServiceProvider._();
 
 final class ProfileServiceProvider
     extends $FunctionalProvider<ProfileService, ProfileService, ProfileService>
     with $Provider<ProfileService> {
-  const ProfileServiceProvider._()
+  ProfileServiceProvider._()
       : super(
           from: null,
           argument: null,
@@ -48,15 +48,15 @@ final class ProfileServiceProvider
   }
 }
 
-String _$profileServiceHash() => r'0b5e77ea31df22d765fe9774a617db23f90d93f9';
+String _$profileServiceHash() => r'53c3d48ff7a6456ef54af98540437e759cdb439c';
 
 @ProviderFor(allProfiles)
-const allProfilesProvider = AllProfilesProvider._();
+final allProfilesProvider = AllProfilesProvider._();
 
 final class AllProfilesProvider extends $FunctionalProvider<
         AsyncValue<List<Profile>>, List<Profile>, Stream<List<Profile>>>
     with $FutureModifier<List<Profile>>, $StreamProvider<List<Profile>> {
-  const AllProfilesProvider._()
+  AllProfilesProvider._()
       : super(
           from: null,
           argument: null,
@@ -82,15 +82,15 @@ final class AllProfilesProvider extends $FunctionalProvider<
   }
 }
 
-String _$allProfilesHash() => r'6459a01309ddbc9c12c12471255782738a9240d4';
+String _$allProfilesHash() => r'6d7316636a118f33b5ccf9fa8317fda73c3efc0f';
 
 @ProviderFor(activeProfile)
-const activeProfileProvider = ActiveProfileProvider._();
+final activeProfileProvider = ActiveProfileProvider._();
 
 final class ActiveProfileProvider extends $FunctionalProvider<
         AsyncValue<Profile?>, Profile?, FutureOr<Profile?>>
     with $FutureModifier<Profile?>, $FutureProvider<Profile?> {
-  const ActiveProfileProvider._()
+  ActiveProfileProvider._()
       : super(
           from: null,
           argument: null,
@@ -115,15 +115,15 @@ final class ActiveProfileProvider extends $FunctionalProvider<
   }
 }
 
-String _$activeProfileHash() => r'eb22759cf2e92fdfc696da94e9a2e25d930fd364';
+String _$activeProfileHash() => r'006a0c046fadf4266b537a33af6f139a032b936f';
 
 @ProviderFor(appDatabase)
-const appDatabaseProvider = AppDatabaseProvider._();
+final appDatabaseProvider = AppDatabaseProvider._();
 
 final class AppDatabaseProvider
     extends $FunctionalProvider<AppDatabase, AppDatabase, AppDatabase>
     with $Provider<AppDatabase> {
-  const AppDatabaseProvider._()
+  AppDatabaseProvider._()
       : super(
           from: null,
           argument: null,
@@ -156,4 +156,4 @@ final class AppDatabaseProvider
   }
 }
 
-String _$appDatabaseHash() => r'3d3a397d2ea952fc020fce0506793a5564e93530';
+String _$appDatabaseHash() => r'8c69eb46d45206533c176c88a926608e79ca927d';

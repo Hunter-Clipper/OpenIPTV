@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -10,7 +9,6 @@ import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/shared/utils/friendly_error.dart';
-import 'package:sqlite3/open.dart';
 
 /// An Xtream panel whose catalog grows by one title per refresh, and whose
 /// movie list can be made to fail ([failMovies]) like a provider dropping
@@ -56,8 +54,6 @@ class _FakePanel {
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   late AppDatabase db;

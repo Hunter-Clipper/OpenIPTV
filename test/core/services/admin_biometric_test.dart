@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -9,7 +8,6 @@ import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqlite3/open.dart';
 
 /// Answers every scan with [outcome] and records the prompts shown.
 class _FakeBiometric extends AdminBiometric {
@@ -36,8 +34,6 @@ class _SlowBiometric extends AdminBiometric {
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   Future<AppPreferences> prefsWith({required bool biometricOn}) async {

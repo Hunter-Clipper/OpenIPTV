@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -8,7 +7,6 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/services/epg_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
 import 'package:open_iptv/core/storage/database.dart';
-import 'package:sqlite3/open.dart';
 
 /// A tiny local stand-in for a provider: an Xtream panel that only accepts
 /// [user]/[pass], and an M3U playlist at /list.m3u.
@@ -54,8 +52,6 @@ class _FakeProvider {
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   late AppDatabase db;

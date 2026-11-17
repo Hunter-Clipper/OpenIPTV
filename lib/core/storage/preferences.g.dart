@@ -10,12 +10,12 @@ part of 'preferences.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(appPreferences)
-const appPreferencesProvider = AppPreferencesProvider._();
+final appPreferencesProvider = AppPreferencesProvider._();
 
 final class AppPreferencesProvider extends $FunctionalProvider<
         AsyncValue<AppPreferences>, AppPreferences, FutureOr<AppPreferences>>
     with $FutureModifier<AppPreferences>, $FutureProvider<AppPreferences> {
-  const AppPreferencesProvider._()
+  AppPreferencesProvider._()
       : super(
           from: null,
           argument: null,
@@ -41,4 +41,4 @@ final class AppPreferencesProvider extends $FunctionalProvider<
   }
 }
 
-String _$appPreferencesHash() => r'3cc0fc458c7c88a922add6e9e74c001939a8df3d';
+String _$appPreferencesHash() => r'd88a2ceb7fbfe247c1e2de274b02215c72d4fd91';
