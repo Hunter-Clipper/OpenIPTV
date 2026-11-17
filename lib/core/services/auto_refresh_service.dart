@@ -76,7 +76,7 @@ Future<void> _initNotifications() async {
   const androidSettings =
       AndroidInitializationSettings('@drawable/ic_stat_open_iptv');
   const settings = InitializationSettings(android: androidSettings);
-  await _notifications.initialize(settings);
+  await _notifications.initialize(settings: settings);
 
   const channel = AndroidNotificationChannel(
     _kNotificationChannelId,
@@ -232,12 +232,12 @@ Future<void> _showRefreshNotification(List<SourceRefreshResult> results) async {
 
   if (failed.isEmpty) {
     await _notifications.show(
-      0,
-      'Playlists updated',
-      results.length == 1
+      id: 0,
+      title: 'Playlists updated',
+      body: results.length == 1
           ? '${results.first.nickname} refreshed.'
           : 'All ${results.length} playlists refreshed.',
-      details,
+      notificationDetails: details,
     );
     return;
   }
@@ -245,11 +245,11 @@ Future<void> _showRefreshNotification(List<SourceRefreshResult> results) async {
   final okCount = results.length - failed.length;
   final failedNames = failed.map((r) => r.nickname).join(', ');
   await _notifications.show(
-    0,
-    'Playlist refresh had problems',
-    results.length == 1
+    id: 0,
+    title: 'Playlist refresh had problems',
+    body: results.length == 1
         ? '${failed.first.nickname} failed to refresh — check the source in Settings.'
         : '$okCount of ${results.length} playlists refreshed. Failed: $failedNames.',
-    details,
+    notificationDetails: details,
   );
 }
