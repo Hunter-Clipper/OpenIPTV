@@ -11,6 +11,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
 import 'package:open_iptv/core/services/source_manager.dart';
+import 'package:open_iptv/core/services/tv_text_input.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:open_iptv/features/settings/backup_screen.dart';
@@ -55,6 +56,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   static const _playlistTypePage = 3;
   late final _pageController = PageController(initialPage: _firstPage);
 
+  // Native Back. On a first run the wizard is the root route, with no shell
+  // to take Back, and the system's own Back left the app from any page.
+  // Registering here (the same channel the shell uses) steps back a page
+  // instead. When the wizard is opened from Settings the shell is still
+  // alive underneath and already forwards Back to the route's PopScope.
+  static const _backChannel = MethodChannel('openiptv/back');
+
   int get _firstPage => widget.addPlaylistOnly ? _playlistTypePage : 0;
 
   // The page being shown — Back steps through these before leaving.
@@ -69,6 +77,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
   // doesn't work reliably on this PageView (every page is built up front,
   // so autofocus fires far too early and loses the initial-focus race to
   // whichever page happened to build first).
+  final _startFocusNode = FocusNode();
   final _pin1FocusNode = FocusNode();
   final _xtreamCardFocusNode = FocusNode();
   final _nicknameFocusNode = FocusNode();
@@ -121,6 +130,13 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     loopUnlessReduced(_sparkleCtrl);
     _sparkleAngle = Tween(begin: 0.0, end: 2 * pi).animate(_sparkleCtrl);
 
+    if (!widget.addPlaylistOnly) {
+      _backChannel.setMethodCallHandler((call) async {
+        if (call.method == 'backPressed') _onNativeBack();
+      });
+      unawaited(_backChannel.invokeMethod('setBlocked', true).catchError((_) {}));
+    }
+
     if (widget.addPlaylistOnly) {
       // Existing install — keep the user's accent, and give the D-pad its
       // starting point on the first page shown.
@@ -169,6 +185,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     _sparkleCtrl.dispose();
     _nameCtrl.dispose();
     _nameFocusNode.dispose();
+    _startFocusNode.dispose();
     _pin1FocusNode.dispose();
     _xtreamCardFocusNode.dispose();
     _nicknameFocusNode.dispose();
@@ -179,6 +196,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     _m3uUrlCtrl.dispose();
     _epgUrlCtrl.dispose();
     super.dispose();
+  }
+
+  void _onNativeBack() {
+    if (!mounted || _page >= 5) return;
+    if (_page <= _firstPage) {
+      // Nothing earlier: leave, as the system's Back would.
+      unawaited(_backChannel.invokeMethod('systemBack').catchError((_) {}));
+      return;
+    }
+    _goToPage(_page - 1);
   }
 
   void _goToPage(int page, {bool requestFocus = true}) {
@@ -193,6 +220,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     // actually shown — only request focus once we're actually navigating
     // to it, on whichever control should be the D-pad starting point there.
     final focusNode = switch (page) {
+      0 => _startFocusNode,
       1 => _nameFocusNode,
       2 => _pin1FocusNode,
       3 => _xtreamCardFocusNode,
@@ -201,7 +229,15 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
     };
     if (requestFocus && focusNode != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) focusNode.requestFocus();
+        if (!mounted) return;
+        focusNode.requestFocus();
+      });
+      // Once the slide has finished, make sure the D-pad has a starting
+      // point: a request made while the page was still being switched in can
+      // be dropped.
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted || _page != page || focusNode.hasFocus) return;
+        focusNode.requestFocus();
       });
     }
   }
@@ -321,6 +357,11 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           isAdmin: true,
           accentColor: AppTheme.hexFromAccent(_accentColor),
         );
+
+        // The active profile was cached as "none" before this one existed;
+        // refresh it so Settings shows the profile without an app restart.
+        ref.invalidate(activeProfileProvider);
+        ref.invalidate(allProfilesProvider);
 
         // Persist and apply the chosen accent colour immediately.
         await prefs.setAccentColor(AppTheme.hexFromAccent(_accentColor));
@@ -445,7 +486,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
-        children: [
+        // Only the page on show can take focus: all of them are built at
+        // once, and the D-pad would otherwise slide off into a neighbouring
+        // page (and the screen with it).
+        children: <Widget>[
           // Placeholders keep page indices stable in playlist-only mode
           // without building (and autofocusing) the profile pages.
           if (addOnly) ...[
@@ -456,6 +500,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
           _WelcomePage(
             onStart: () => _goToPage(1),
             onRestore: _restoreFromBackup,
+            startFocusNode: _startFocusNode,
           ),
           _NamePage(
             nameCtrl: _nameCtrl,
@@ -468,10 +513,12 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
               if (_nameCtrl.text.trim().isEmpty) return;
               _goToPage(2);
             },
+            onBack: () => _goToPage(0),
           ),
           _PinPage(
             accentColor: _accentColor,
             firstDigitFocusNode: _pin1FocusNode,
+            onBack: () => _goToPage(1),
             onSkip: () {
               setState(() => _pin = '');
               _goToPage(3);
@@ -488,7 +535,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             step: 2 - stepOffset,
             totalSteps: totalSteps,
             addingPlaylist: addOnly,
-            onBack: addOnly && context.canPop() ? () => context.pop() : null,
+            onBack: addOnly
+                ? (context.canPop() ? () => context.pop() : null)
+                : () => _goToPage(2),
             onSelected: (type) {
               setState(() {
                 _playlistType = type;
@@ -546,7 +595,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
             checkScale: _checkScale,
             sparkleAngle: _sparkleAngle,
           ),
-        ],
+        ].indexed
+            .map((e) => ExcludeFocus(excluding: e.$1 != _page, child: e.$2))
+            .toList(),
       ),
     ),
     );
@@ -558,11 +609,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen>
 // ---------------------------------------------------------------------------
 
 class _WelcomePage extends StatefulWidget {
-  const _WelcomePage({required this.onStart, required this.onRestore});
+  const _WelcomePage({
+    required this.onStart,
+    required this.onRestore,
+    required this.startFocusNode,
+  });
   final VoidCallback onStart;
   // Fresh install from an existing backup (reinstall, new Fire Stick) —
   // skips creating a profile and playlist by hand.
   final VoidCallback onRestore;
+  final FocusNode startFocusNode;
 
   @override
   State<_WelcomePage> createState() => _WelcomePageState();
@@ -603,10 +659,13 @@ class _WelcomePageState extends State<_WelcomePage>
     _slide = Tween(begin: 30.0, end: 0.0).animate(
       CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutCubic),
     );
-    _btnScale = Tween(begin: 0.0, end: 1.0).animate(
+    // A gentle ease-out rather than the old elastic overshoot: on TV the
+    // button is the first thing focused, and a bouncing focus target reads
+    // as jitter.
+    _btnScale = Tween(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(
         parent: _fadeCtrl,
-        curve: const Interval(0.5, 1.0, curve: Curves.elasticOut),
+        curve: const Interval(0.5, 1.0, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -622,154 +681,169 @@ class _WelcomePageState extends State<_WelcomePage>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final tv = PlatformHelper.isTV(context);
+    // The mark shrinks on TV, where the whole page has to fit in about 540
+    // logical pixels without scrolling.
+    final logo = tv ? 112.0 : 150.0;
+    // The strings carry a manual line break for the phone's narrow column; on
+    // TV there is room for one line.
+    String oneLine(String s) => tv ? s.replaceAll('\n', ' ') : s;
+    final side = tv ? 40.0 : 32.0;
+
     return _WizardBackground(
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: _WizardFocusGuard(
+          child: Padding(
+          padding: EdgeInsets.fromLTRB(side, tv ? 28 : 16, side, tv ? 28 : 20),
           child: Column(
             children: [
-              const Spacer(flex: 3),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedBuilder(
+                          animation: Listenable.merge([_fadeCtrl, _glowCtrl]),
+                          builder: (_, child) => Opacity(
+                            opacity: _fade.value,
+                            child: SizedBox(
+                              width: logo * 1.07,
+                              height: logo * 1.07,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    width: logo * 1.07,
+                                    height: logo * 1.07,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(
+                                        colors: [
+                                          Color.fromRGBO(91, 79, 255,
+                                              _glowPulse.value * 0.3),
+                                          Color.fromRGBO(58, 46, 204,
+                                              _glowPulse.value * 0.12),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: logo * 0.73,
+                                    height: logo * 0.73,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(
+                                        colors: [
+                                          Color.fromRGBO(123, 111, 255,
+                                              _glowPulse.value * 0.2),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  child!,
+                                ],
+                              ),
+                            ),
+                          ),
+                          child: Image.asset(
+                            'assets/images/logo_mark.png',
+                            width: logo,
+                            height: logo,
+                          ),
+                        ),
+                        SizedBox(height: tv ? 24 : 40),
+                        AnimatedBuilder(
+                          animation: _fadeCtrl,
+                          builder: (_, __) => Transform.translate(
+                            offset: Offset(0, _slide.value),
+                            child: Opacity(
+                              opacity: _fade.value,
+                              child: Column(
+                                children: [
+                                  ShaderMask(
+                                    shaderCallback: (bounds) =>
+                                        const LinearGradient(
+                                      colors: [
+                                        Colors.white,
+                                        Color(0xFFC0B8FF)
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ).createShader(bounds),
+                                    child: Text(
+                                      oneLine(l10n.wizardWelcomeTitle),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: tv ? 40 : 34,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: tv ? 10 : 16),
+                                  Text(
+                                    oneLine(l10n.wizardWelcomeSubtitle),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: AppTheme.mutedTextColor,
+                                      fontSize: tv ? 18 : 16,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: tv ? 16 : 24),
               AnimatedBuilder(
-                animation: Listenable.merge([_fadeCtrl, _glowCtrl]),
+                animation: _fadeCtrl,
                 builder: (_, child) => Opacity(
                   opacity: _fade.value,
-                  child: SizedBox(
-                    width: 160,
-                    height: 160,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                Color.fromRGBO(91, 79, 255, _glowPulse.value * 0.3),
-                                Color.fromRGBO(58, 46, 204, _glowPulse.value * 0.12),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                Color.fromRGBO(123, 111, 255, _glowPulse.value * 0.2),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                        child!,
-                      ],
-                    ),
-                  ),
+                  child: Transform.scale(scale: _btnScale.value, child: child),
                 ),
-                child: Image.asset(
-                  'assets/images/logo_mark.png',
-                  width: 150,
-                  height: 150,
-                ),
-              ),
-              const SizedBox(height: 48),
-              AnimatedBuilder(
-                animation: _fadeCtrl,
-                builder: (_, __) => Transform.translate(
-                  offset: Offset(0, _slide.value),
-                  child: Opacity(
-                    opacity: _fade.value,
-                    child: Column(
-                      children: [
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Colors.white, Color(0xFFC0B8FF)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ).createShader(bounds),
-                          child: Text(
-                            AppLocalizations.of(context).wizardWelcomeTitle,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                              height: 1.25,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          AppLocalizations.of(context).wizardWelcomeSubtitle,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppTheme.mutedTextColor,
-                            fontSize: 16,
-                            height: 1.6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(flex: 2),
-              AnimatedBuilder(
-                animation: _fadeCtrl,
-                builder: (_, child) =>
-                    Transform.scale(scale: _btnScale.value, child: child),
                 child: _GradientButton(
-                  label: AppLocalizations.of(context).wizardGetStarted,
+                  label: l10n.wizardGetStarted,
                   icon: Icons.arrow_forward,
                   accentColor: AppTheme.accentSwatches.first.color,
                   onTap: widget.onStart,
+                  focusNode: widget.startFocusNode,
+                  autofocus: true,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               FadeTransition(
                 opacity: _fade,
-                child: TvActivatable(
+                child: _TextAction(
+                  icon: Icons.settings_backup_restore,
+                  label: l10n.wizardRestoreFromBackup,
                   onTap: widget.onRestore,
-                  builder: (onTap) => TextButton.icon(
-                    onPressed: onTap,
-                    icon: const Icon(Icons.settings_backup_restore,
-                        color: AppTheme.mutedTextColor),
-                    label: Text(
-                      AppLocalizations.of(context).wizardRestoreFromBackup,
-                      style: const TextStyle(
-                          color: AppTheme.mutedTextColor, fontSize: 15),
-                    ),
-                  ),
                 ),
               ),
-              const SizedBox(height: 4),
               FadeTransition(
                 opacity: _fade,
                 child: Consumer(builder: (context, ref, _) {
                   final pref = ref.watch(languageProvider);
-                  return TvActivatable(
+                  return _TextAction(
+                    icon: Icons.language_rounded,
+                    label: languageLabel(context, pref),
                     onTap: () => showLanguagePicker(context, ref),
-                    builder: (onTap) => TextButton.icon(
-                      onPressed: onTap,
-                      icon: const Icon(Icons.language_rounded,
-                          color: AppTheme.mutedTextColor),
-                      label: Text(
-                        languageLabel(context, pref),
-                        style: const TextStyle(
-                            color: AppTheme.mutedTextColor, fontSize: 15),
-                      ),
-                    ),
                   );
                 }),
               ),
-              const SizedBox(height: 28),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -789,6 +863,7 @@ class _NamePage extends StatelessWidget {
     required this.selectedColor,
     required this.onColorSelected,
     required this.onContinue,
+    required this.onBack,
   });
 
   final TextEditingController nameCtrl;
@@ -798,6 +873,7 @@ class _NamePage extends StatelessWidget {
   final Color selectedColor;
   final ValueChanged<Color> onColorSelected;
   final VoidCallback onContinue;
+  final VoidCallback onBack;
 
   static const _avatars = [
     '👨', '👩', '🧒', '👦', '👧', '🧑', '👴', '👵',
@@ -807,142 +883,110 @@ class _NamePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTV = PlatformHelper.isTV(context);
-    // A modest bump, not a multiplier applied blindly — Android TV renders
-    // at a much higher density than a phone (this hardware reports 1920x1080
-    // physical but only ~960x540 *logical* px), so the actual usable height
-    // on TV is often SHORTER than a phone's, not taller. The scrollable
-    // wrapper below is the real safety net; this is just breathing room.
-    double v(double base) => isTV ? base * 1.15 : base;
+    final l10n = AppLocalizations.of(context);
+    final tv = PlatformHelper.isTV(context);
+    final tile = tv ? 52.0 : 54.0;
+    final swatch = tv ? 36.0 : 38.0;
 
-    return _WizardBackground(
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-              horizontal: 28, vertical: isTV ? 16 : 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-              SizedBox(height: v(24)),
-              _StepIndicator(current: 0, total: 4, accentColor: selectedColor),
-              SizedBox(height: v(36)),
-              Text(
-                AppLocalizations.of(context).wizardNameTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                ),
+    return _WizardFrame(
+      accentColor: selectedColor,
+      step: 0,
+      totalSteps: 4,
+      onBack: onBack,
+      title: l10n.wizardNameTitle,
+      subtitle: l10n.wizardPrivacyNote,
+      footer: _GradientButton(
+        label: l10n.wizardContinue,
+        icon: Icons.arrow_forward,
+        accentColor: selectedColor,
+        onTap: onContinue,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TvTextFieldGate(
+            focusNode: nameFocusNode,
+            borderRadius: _fieldRadius,
+            builder: (context, fieldNode) => TextField(
+              controller: nameCtrl,
+              focusNode: fieldNode,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onContinue(),
+              autofillHints: null,
+              style: _fieldTextStyle(tv),
+              decoration: _fieldDecoration(
+                accent: selectedColor,
+                hint: l10n.wizardNameHint,
               ),
-              SizedBox(height: v(8)),
-              Text(
-                AppLocalizations.of(context).wizardPrivacyNote,
-                style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
-              ),
-              SizedBox(height: v(32)),
-              TvTextFieldGate(
-                focusNode: nameFocusNode,
-                borderRadius: const BorderRadius.all(Radius.circular(14)),
-                builder: (context, fieldNode) => TextField(
-                controller: nameCtrl,
-                focusNode: fieldNode,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => onContinue(),
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-                decoration: InputDecoration(
-                  hintText: AppLocalizations.of(context).wizardNameHint,
-                  hintStyle: const TextStyle(color: AppTheme.mutedTextColor),
-                  filled: true,
-                  fillColor: AppTheme.surfaceVariantColor,
-                  border: OutlineInputBorder(
+            ),
+          ),
+          SizedBox(height: tv ? 22 : 28),
+          _SectionLabel(l10n.wizardPickAvatar),
+          const SizedBox(height: 10),
+          TvRowFocus(
+            child: SizedBox(
+            height: tile,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _avatars.length,
+              itemBuilder: (context, i) {
+                final emoji = _avatars[i];
+                final selected = emoji == selectedAvatar;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: TvFocusable(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: selectedColor, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 18),
-                ),
-              ),
-              ),
-              SizedBox(height: v(32)),
-              Text(
-                AppLocalizations.of(context).wizardPickAvatar,
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: v(12)),
-              SizedBox(
-                height: 62,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _avatars.length,
-                  itemBuilder: (context, i) {
-                    final emoji = _avatars[i];
-                    final selected = emoji == selectedAvatar;
-                    return TvFocusable(
-                      borderRadius: BorderRadius.circular(14),
-                      ensureVisibleOnFocus: true,
-                      onTap: () => onAvatarSelected(emoji),
-                      child: AnimatedContainer(
-                        duration: motionDuration(const Duration(milliseconds: 200)),
-                        margin: const EdgeInsets.only(right: 10),
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? selectedColor.withValues(alpha: 0.2)
-                              : AppTheme.surfaceVariantColor,
-                          border: Border.all(
-                            color: selected ? selectedColor : AppTheme.outlineColor,
-                            width: selected ? 2 : 1,
-                          ),
-                          borderRadius: BorderRadius.circular(14),
+                    ensureVisibleOnFocus: true,
+                    onTap: () => onAvatarSelected(emoji),
+                    child: AnimatedContainer(
+                      duration:
+                          motionDuration(const Duration(milliseconds: 200)),
+                      width: tile,
+                      height: tile,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? selectedColor.withValues(alpha: 0.2)
+                            : AppTheme.surfaceVariantColor,
+                        border: Border.all(
+                          color:
+                              selected ? selectedColor : AppTheme.outlineColor,
+                          width: selected ? 2 : 1,
                         ),
-                        child: Center(
-                          child: Text(emoji,
-                              style: const TextStyle(fontSize: 26)),
-                        ),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: v(28)),
-              Text(
-                AppLocalizations.of(context).wizardAccentColor,
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: v(12)),
-              Row(
-                children: AppTheme.accentSwatches.map((s) {
-                  final sel = s.color == selectedColor;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 14),
-                    child: TvFocusable(
-                      borderRadius: BorderRadius.circular(19),
-                      onTap: () => onColorSelected(s.color),
+                      child: Center(
+                        child:
+                            Text(emoji, style: const TextStyle(fontSize: 26)),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          ),
+          SizedBox(height: tv ? 22 : 28),
+          _SectionLabel(l10n.wizardAccentColor),
+          const SizedBox(height: 10),
+          TvRowFocus(
+            child: SizedBox(
+            height: swatch + 6,
+            child: Row(
+              children: AppTheme.accentSwatches.map((s) {
+                final sel = s.color == selectedColor;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 14),
+                  child: TvFocusable(
+                    borderRadius: BorderRadius.circular(swatch / 2 + 3),
+                    onTap: () => onColorSelected(s.color),
+                    child: Padding(
+                      padding: const EdgeInsets.all(3),
                       child: AnimatedContainer(
-                        duration: motionDuration(const Duration(milliseconds: 200)),
-                        width: 38,
-                        height: 38,
+                        duration:
+                            motionDuration(const Duration(milliseconds: 200)),
+                        width: swatch,
+                        height: swatch,
                         decoration: BoxDecoration(
                           color: s.color,
                           shape: BoxShape.circle,
@@ -966,28 +1010,13 @@ class _NamePage extends StatelessWidget {
                             : null,
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-                    ],
                   ),
-                ),
-              ),
-              // Continue is a sibling of the scrollable content above, not a
-              // child inside it — always visible and reachable regardless of
-              // how tall the content above ends up (scrolls instead of
-              // pushing this off-screen, unlike the old Spacer-based layout).
-              SizedBox(height: v(16)),
-              _GradientButton(
-                label: AppLocalizations.of(context).wizardContinue,
-                icon: Icons.arrow_forward,
-                accentColor: selectedColor,
-                onTap: onContinue,
-              ),
-              SizedBox(height: v(20)),
-            ],
+                );
+              }).toList(),
+            ),
           ),
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1002,11 +1031,13 @@ class _PinPage extends StatefulWidget {
     required this.accentColor,
     required this.onSkip,
     required this.onPinSet,
+    required this.onBack,
     required this.firstDigitFocusNode,
   });
   final Color accentColor;
   final VoidCallback onSkip;
   final ValueChanged<String> onPinSet;
+  final VoidCallback onBack;
   final FocusNode firstDigitFocusNode;
 
   @override
@@ -1033,88 +1064,53 @@ class _PinPageState extends State<_PinPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isTV = PlatformHelper.isTV(context);
-    // See _NamePage — a modest bump only, TV's usable height can be
-    // shorter than a phone's, not taller. The Expanded/SingleChildScrollView
-    // below is the real safety net against overflow.
-    double v(double base) => isTV ? base * 1.15 : base;
-
-    return _WizardBackground(
-      child: SafeArea(
-        child: Padding(
-          padding:
-              EdgeInsets.symmetric(horizontal: 28, vertical: isTV ? 16 : 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: v(24)),
-                      _StepIndicator(
-                          current: 1, total: 4, accentColor: widget.accentColor),
-                      SizedBox(height: v(36)),
-                      Text(
-                        AppLocalizations.of(context).wizardPinTitle,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800),
-                      ),
-                      SizedBox(height: v(8)),
-                      Text(
-                        AppLocalizations.of(context).wizardPinBody,
-                        style: const TextStyle(
-                            color: AppTheme.mutedTextColor, fontSize: 14, height: 1.5),
-                      ),
-                      SizedBox(height: v(40)),
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          child: Theme(
-                            data: Theme.of(context).copyWith(
-                              colorScheme: Theme.of(context)
-                                  .colorScheme
-                                  .copyWith(primary: widget.accentColor),
-                            ),
-                            // System number keyboard, opened when the page
-                            // is shown (the wizard focuses this node).
-                            child: PinField(
-                              controller: _controller,
-                              focusNode: widget.firstDigitFocusNode,
-                              autofocus: false,
-                              onChanged: (_) => setState(() {}),
-                              onSubmitted: (_) => _submit(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: v(16)),
-              _GradientButton(
-                label: AppLocalizations.of(context).wizardSetPin,
-                icon: Icons.lock,
-                accentColor: widget.accentColor,
-                onTap: _valid ? _submit : null,
-              ),
-              SizedBox(height: v(12)),
-              Center(
-                child: TextButton(
-                  onPressed: widget.onSkip,
-                  child: Text(
-                    AppLocalizations.of(context).wizardSkipForNow,
-                    style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 15),
-                  ),
-                ),
-              ),
-              SizedBox(height: v(16)),
-            ],
+    final l10n = AppLocalizations.of(context);
+    return _WizardFrame(
+      accentColor: widget.accentColor,
+      step: 1,
+      totalSteps: 4,
+      onBack: widget.onBack,
+      title: l10n.wizardPinTitle,
+      subtitle: l10n.wizardPinBody,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _GradientButton(
+            label: l10n.wizardSetPin,
+            icon: Icons.lock,
+            accentColor: widget.accentColor,
+            onTap: _valid ? _submit : null,
           ),
+          const SizedBox(height: 8),
+          _TextAction(
+            icon: Icons.skip_next_rounded,
+            label: l10n.wizardSkipForNow,
+            onTap: widget.onSkip,
+          ),
+        ],
+      ),
+      body: Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context)
+              .colorScheme
+              .copyWith(primary: widget.accentColor),
+        ),
+        // System number keyboard, opened when the page is shown (the wizard
+        // focuses this node).
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The box is empty until a digit is typed, so say what it is.
+            _FieldLabel('${l10n.profilePinBadge} · ${l10n.profilePinDigitsHint}'),
+            const SizedBox(height: 8),
+            PinField(
+              controller: _controller,
+              focusNode: widget.firstDigitFocusNode,
+              autofocus: false,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _submit(),
+            ),
+          ],
         ),
       ),
     );
@@ -1143,99 +1139,47 @@ class _PlaylistTypePage extends StatelessWidget {
   final int step;
   final int totalSteps;
   final bool addingPlaylist;
-  // Set when there's somewhere to go back to (playlist-only mode opened
-  // from Settings) — the first-run flow has no way back from here.
   final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
-    final isTV = PlatformHelper.isTV(context);
-    // See _NamePage — a modest bump only; the SingleChildScrollView below
-    // is what actually protects against overflow on TV's shorter viewport.
-    double v(double base) => isTV ? base * 1.15 : base;
-
-    return _WizardBackground(
-      child: SafeArea(
-        child: Padding(
-          padding:
-              EdgeInsets.symmetric(horizontal: 28, vertical: isTV ? 16 : 0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: v(24)),
-                // With a back arrow, the header is pulled left 12px to sit
-                // exactly where the credentials page's header does (that
-                // page has 12px less side padding), so it doesn't jump
-                // between steps.
-                Transform.translate(
-                  offset: Offset(onBack != null ? -12 : 0, 0),
-                  child: Row(
-                    children: [
-                      if (onBack != null) ...[
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: Colors.white70),
-                          tooltip: AppLocalizations.of(context).commonBack,
-                          onPressed: onBack,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      _StepIndicator(
-                          current: step,
-                          total: totalSteps,
-                          accentColor: accentColor),
-                    ],
-                  ),
-                ),
-                SizedBox(height: v(36)),
-                Text(
-                  addingPlaylist
-                      ? AppLocalizations.of(context).wizardTypeTitleAdd
-                      : AppLocalizations.of(context).wizardTypeTitleHave,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    height: 1.25,
-                  ),
-                ),
-                SizedBox(height: v(8)),
-                Text(
-                  AppLocalizations.of(context).wizardTypeHelp,
-                  style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
-                ),
-                SizedBox(height: v(40)),
-                _PlaylistTypeCard(
-                  icon: Icons.dns_rounded,
-                  title: AppLocalizations.of(context).wizardTypeXtreamTitle,
-                  description:
-                      AppLocalizations.of(context).wizardTypeXtreamDesc,
-                  accentColor: accentColor,
-                  onTap: () => onSelected(SourceType.xtream),
-                  focusNode: firstCardFocusNode,
-                ),
-                SizedBox(height: v(16)),
-                _PlaylistTypeCard(
-                  icon: Icons.link_rounded,
-                  title: AppLocalizations.of(context).wizardTypeM3uTitle,
-                  description: AppLocalizations.of(context).wizardTypeM3uDesc,
-                  accentColor: accentColor,
-                  onTap: () => onSelected(SourceType.m3u),
-                ),
-                SizedBox(height: v(16)),
-                _PlaylistTypeCard(
-                  icon: Icons.upload_file_rounded,
-                  title: AppLocalizations.of(context).wizardTypeFileTitle,
-                  description: AppLocalizations.of(context).wizardTypeFileDesc,
-                  accentColor: accentColor,
-                  onTap: onFileSelected,
-                ),
-                SizedBox(height: v(16)),
-              ],
-            ),
+    final l10n = AppLocalizations.of(context);
+    final gap = PlatformHelper.isTV(context) ? 12.0 : 16.0;
+    return _WizardFrame(
+      accentColor: accentColor,
+      step: step,
+      totalSteps: totalSteps,
+      onBack: onBack,
+      title: addingPlaylist ? l10n.wizardTypeTitleAdd : l10n.wizardTypeTitleHave,
+      subtitle: l10n.wizardTypeHelp,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PlaylistTypeCard(
+            icon: Icons.dns_rounded,
+            title: l10n.wizardTypeXtreamTitle,
+            description: l10n.wizardTypeXtreamDesc,
+            accentColor: accentColor,
+            onTap: () => onSelected(SourceType.xtream),
+            focusNode: firstCardFocusNode,
           ),
-        ),
+          SizedBox(height: gap),
+          _PlaylistTypeCard(
+            icon: Icons.link_rounded,
+            title: l10n.wizardTypeM3uTitle,
+            description: l10n.wizardTypeM3uDesc,
+            accentColor: accentColor,
+            onTap: () => onSelected(SourceType.m3u),
+          ),
+          SizedBox(height: gap),
+          _PlaylistTypeCard(
+            icon: Icons.upload_file_rounded,
+            title: l10n.wizardTypeFileTitle,
+            description: l10n.wizardTypeFileDesc,
+            accentColor: accentColor,
+            onTap: onFileSelected,
+          ),
+        ],
       ),
     );
   }
@@ -1289,77 +1233,80 @@ class _PlaylistTypeCardState extends State<_PlaylistTypeCard>
 
   @override
   Widget build(BuildContext context) {
+    final tv = PlatformHelper.isTV(context);
+    final badge = tv ? 48.0 : 56.0;
     // Only scrolls when a card is cut off (centring it pushed the page's
     // back arrow off the top of the screen).
     return TvRevealOnFocus(
       child: TvFocusable(
-      wrapsGesture: false,
-      focusNode: widget.focusNode,
-      borderRadius: BorderRadius.circular(20),
-      onTap: widget.onTap,
-      child: GestureDetector(
-      onTapDown: (_) => _pressCtrl.reverse(),
-      onTapUp: (_) {
-        _pressCtrl.forward();
-        widget.onTap();
-      },
-      onTapCancel: () => _pressCtrl.forward(),
-      child: AnimatedBuilder(
-        animation: _pressCtrl,
-        builder: (_, child) =>
-            Transform.scale(scale: _pressCtrl.value, child: child),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.outlineColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: widget.accentColor.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(widget.icon, color: widget.accentColor, size: 28),
+        wrapsGesture: false,
+        focusNode: widget.focusNode,
+        borderRadius: BorderRadius.circular(16),
+        onTap: widget.onTap,
+        child: GestureDetector(
+          onTapDown: (_) => _pressCtrl.reverse(),
+          onTapUp: (_) {
+            _pressCtrl.forward();
+            widget.onTap();
+          },
+          onTapCancel: () => _pressCtrl.forward(),
+          child: AnimatedBuilder(
+            animation: _pressCtrl,
+            builder: (_, child) =>
+                Transform.scale(scale: _pressCtrl.value, child: child),
+            child: Container(
+              padding: EdgeInsets.all(tv ? 14 : 18),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.outlineColor),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w600,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    width: badge,
+                    height: badge,
+                    decoration: BoxDecoration(
+                      color: widget.accentColor.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.description,
-                      style: const TextStyle(
-                        color: AppTheme.mutedTextColor,
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
+                    child: Icon(widget.icon,
+                        color: widget.accentColor, size: badge / 2),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: tv ? 20 : 19,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          widget.description,
+                          style: TextStyle(
+                            color: AppTheme.mutedTextColor,
+                            fontSize: tv ? 15 : 13,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.chevron_right,
+                      color: AppTheme.mutedTextColor, size: 24),
+                ],
               ),
-              const SizedBox(width: 12),
-              const Icon(Icons.chevron_right,
-                  color: AppTheme.mutedTextColor, size: 20),
-            ],
+            ),
           ),
         ),
       ),
-      ),
-    ),
     );
   }
 }
@@ -1413,195 +1360,182 @@ class _CredentialsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isXtream = playlistType == SourceType.xtream;
-    return _WizardBackground(
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 28, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back,
-                            color: Colors.white70),
-                        tooltip: AppLocalizations.of(context).commonBack,
-                        onPressed: onBack,
-                      ),
-                      const SizedBox(width: 4),
-                      _StepIndicator(
-                          current: step,
-                          total: totalSteps,
-                          accentColor: accentColor),
-                    ],
+
+    final nickname = _WizardField(
+      label: fromFile ? l10n.wizardNicknameOptional : l10n.wizardNickname,
+      ctrl: nicknameCtrl,
+      hint: fromFile
+          ? l10n.wizardNicknameHintFile
+          : l10n.wizardNicknameHintExample,
+      accentColor: accentColor,
+      focusNode: nicknameFocusNode,
+    );
+    final guide = _WizardField(
+      label: l10n.wizardGuideUrlLabel,
+      ctrl: epgUrlCtrl,
+      hint: l10n.wizardGuideUrlHint,
+      type: TextInputType.url,
+      accentColor: accentColor,
+    );
+
+    // On TV the short fields sit in pairs so the whole form fits on screen
+    // without scrolling; on a phone each is its own row.
+    final List<List<Widget>> rows = isXtream
+        ? [
+            [
+              nickname,
+              _WizardField(
+                label: l10n.wizardServerAddressLabel,
+                ctrl: xtreamHostCtrl,
+                hint: l10n.wizardServerAddressHint,
+                type: TextInputType.url,
+                accentColor: accentColor,
+              ),
+            ],
+            [
+              _WizardField(
+                label: l10n.wizardUsernameLabel,
+                ctrl: xtreamUserCtrl,
+                hint: l10n.wizardUsernameHint,
+                accentColor: accentColor,
+              ),
+              _WizardField(
+                label: l10n.wizardPasswordLabel,
+                ctrl: xtreamPassCtrl,
+                hint: l10n.wizardPasswordHint,
+                obscure: !passVisible,
+                accentColor: accentColor,
+                suffix: IconButton(
+                  icon: Icon(
+                    passVisible ? Icons.visibility_off : Icons.visibility,
+                    color: AppTheme.mutedTextColor,
                   ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isXtream
-                              ? AppLocalizations.of(context).wizardCredsTitleXtream
-                              : fromFile
-                                  ? AppLocalizations.of(context).wizardTypeFileTitle
-                                  : AppLocalizations.of(context).wizardTypeM3uTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          isXtream
-                              ? AppLocalizations.of(context).wizardCredsSubXtream
-                              : fromFile
-                                  ? AppLocalizations.of(context).wizardCredsSubFile
-                                  : AppLocalizations.of(context).wizardCredsSubM3u,
-                          style:
-                              const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
-                        ),
-                      ],
+                  tooltip: passVisible
+                      ? l10n.wizardPasswordHide
+                      : l10n.wizardPasswordShow,
+                  onPressed: onTogglePass,
+                ),
+              ),
+            ],
+          ]
+        : fromFile
+            ? [
+                [
+                  _FilePickerField(
+                    fileName: pickedFileName,
+                    accentColor: accentColor,
+                    onTap: onPickFile,
+                  ),
+                ],
+                [nickname],
+                [guide],
+              ]
+            : [
+                [nickname],
+                [
+                  _WizardField(
+                    label: l10n.wizardM3uUrlLabel,
+                    ctrl: m3uUrlCtrl,
+                    hint: l10n.wizardM3uUrlHint,
+                    type: TextInputType.url,
+                    accentColor: accentColor,
+                  ),
+                ],
+                [guide],
+              ];
+
+    return _WizardFrame(
+      accentColor: accentColor,
+      step: step,
+      totalSteps: totalSteps,
+      onBack: onBack,
+      title: isXtream
+          ? l10n.wizardCredsTitleXtream
+          : fromFile
+              ? l10n.wizardTypeFileTitle
+              : l10n.wizardTypeM3uTitle,
+      subtitle: isXtream
+          ? l10n.wizardCredsSubXtream
+          : fromFile
+              ? l10n.wizardCredsSubFile
+              : l10n.wizardCredsSubM3u,
+      // The error rides in the footer, beside the button that caused it, so
+      // it is never scrolled out of sight.
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (errorMessage != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: theme.colorScheme.error.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      color: theme.colorScheme.error, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      errorMessage!,
+                      style: TextStyle(
+                          color: theme.colorScheme.error, fontSize: 14),
                     ),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: _TopFade(
-                child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(28, 20, 28, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _WizardField(
-                label: fromFile
-                          ? AppLocalizations.of(context).wizardNicknameOptional
-                          : AppLocalizations.of(context).wizardNickname,
-                      ctrl: nicknameCtrl,
-                      hint: fromFile
-                          ? AppLocalizations.of(context).wizardNicknameHintFile
-                          : AppLocalizations.of(context).wizardNicknameHintExample,
-                      accentColor: accentColor,
-                      focusNode: nicknameFocusNode,
-                    ),
-                    const SizedBox(height: 16),
-                    if (isXtream) ...[
-                      _WizardField(
-                        label: AppLocalizations.of(context).wizardServerAddressLabel,
-                        ctrl: xtreamHostCtrl,
-                        hint: AppLocalizations.of(context).wizardServerAddressHint,
-                        type: TextInputType.url,
-                        accentColor: accentColor,
-                      ),
-                      const SizedBox(height: 16),
-                      _WizardField(
-                        label: AppLocalizations.of(context).wizardUsernameLabel,
-                        ctrl: xtreamUserCtrl,
-                        hint: AppLocalizations.of(context).wizardUsernameHint,
-                        accentColor: accentColor,
-                      ),
-                      const SizedBox(height: 16),
-                      _WizardField(
-                        label: AppLocalizations.of(context).wizardPasswordLabel,
-                        ctrl: xtreamPassCtrl,
-                        hint: AppLocalizations.of(context).wizardPasswordHint,
-                        obscure: !passVisible,
-                        accentColor: accentColor,
-                        suffix: IconButton(
-                          icon: Icon(
-                            passVisible
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: AppTheme.mutedTextColor,
-                          ),
-                          tooltip: passVisible
-                              ? AppLocalizations.of(context).wizardPasswordHide
-                              : AppLocalizations.of(context).wizardPasswordShow,
-                          onPressed: onTogglePass,
-                        ),
-                      ),
-                    ] else if (fromFile) ...[
-                      _FilePickerField(
-                        fileName: pickedFileName,
-                        accentColor: accentColor,
-                        onTap: onPickFile,
-                      ),
-                      const SizedBox(height: 16),
-                      _WizardField(
-                        label: AppLocalizations.of(context).wizardGuideUrlLabel,
-                        ctrl: epgUrlCtrl,
-                        hint: AppLocalizations.of(context).wizardGuideUrlHint,
-                        type: TextInputType.url,
-                        accentColor: accentColor,
-                      ),
-                    ] else ...[
-                      _WizardField(
-                        label: AppLocalizations.of(context).wizardM3uUrlLabel,
-                        ctrl: m3uUrlCtrl,
-                        hint: AppLocalizations.of(context).wizardM3uUrlHint,
-                        type: TextInputType.url,
-                        accentColor: accentColor,
-                      ),
-                      const SizedBox(height: 16),
-                      _WizardField(
-                        label: AppLocalizations.of(context).wizardGuideUrlLabel,
-                        ctrl: epgUrlCtrl,
-                        hint: AppLocalizations.of(context).wizardGuideUrlHint,
-                        type: TextInputType.url,
-                        accentColor: accentColor,
-                      ),
-                    ],
-                    if (errorMessage != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.error.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: theme.colorScheme.error.withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.error_outline,
-                                color: theme.colorScheme.error, size: 18),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                errorMessage!,
-                                style: TextStyle(
-                                    color: theme.colorScheme.error, fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
-                    _GradientButton(
-                      label: AppLocalizations.of(context).wizardLoadMyPlaylist,
-                      icon: Icons.download,
-                      accentColor: accentColor,
-                      onTap: onSubmit,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-              ),
-            ),
+            const SizedBox(height: 12),
           ],
-        ),
+          _GradientButton(
+            label: l10n.wizardLoadMyPlaylist,
+            icon: Icons.download,
+            accentColor: accentColor,
+            onTap: onSubmit,
+          ),
+        ],
       ),
+      // The server address is the long one: it gets the wider column.
+      body: _fieldRows(context, rows,
+          flex: isXtream ? const {0: [2, 3]} : const {}),
     );
   }
+}
+
+/// Lays out form [rows]: on TV, a row with several fields shares the width
+/// (so the form fits the screen); on a phone every field gets its own row.
+Widget _fieldRows(BuildContext context, List<List<Widget>> rows,
+    {Map<int, List<int>> flex = const {}}) {
+  final tv = PlatformHelper.isTV(context);
+  final children = <Widget>[];
+  for (final (r, row) in rows.indexed) {
+    if (children.isNotEmpty) children.add(const SizedBox(height: 16));
+    if (tv && row.length > 1) {
+      final weights = flex[r];
+      children.add(Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < row.length; i++) ...[
+            if (i > 0) const SizedBox(width: 16),
+            Expanded(flex: weights?[i] ?? 1, child: row[i]),
+          ],
+        ],
+      ));
+    } else {
+      for (var i = 0; i < row.length; i++) {
+        if (i > 0) children.add(const SizedBox(height: 16));
+        children.add(row[i]);
+      }
+    }
+  }
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
 }
 
 /// The "choose a file" control on the Playlist File page, styled like a
@@ -1619,70 +1553,65 @@ class _FilePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final tv = PlatformHelper.isTV(context);
     final picked = fileName != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          AppLocalizations.of(context).wizardFileFieldLabel,
-          style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500),
-        ),
+        _FieldLabel(l10n.wizardFileFieldLabel),
         const SizedBox(height: 6),
         TvFocusable(
           wrapsGesture: false,
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: _fieldRadius,
           child: Material(
             color: AppTheme.surfaceVariantColor,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: _fieldRadius,
               side: BorderSide(
-                color: picked ? accentColor : AppTheme.outlineColor,
+                color: picked ? accentColor : AppTheme.fieldBorderColor,
                 width: picked ? 1.5 : 1,
               ),
             ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: _fieldRadius,
               onTap: onTap,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    Icon(
-                      picked
-                          ? Icons.description_rounded
-                          : Icons.folder_open_rounded,
-                      color: picked ? accentColor : AppTheme.mutedTextColor,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        fileName ?? AppLocalizations.of(context).wizardFileChoose,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: picked
-                              ? Colors.white
-                              : AppTheme.mutedTextColor,
-                          fontSize: 15,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: tv ? 56 : 54,
+                  child: Row(
+                    children: [
+                      Icon(
+                        picked
+                            ? Icons.description_rounded
+                            : Icons.folder_open_rounded,
+                        color: picked ? accentColor : AppTheme.mutedTextColor,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          fileName ?? l10n.wizardFileChoose,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _fieldTextStyle(tv).copyWith(
+                            color: picked
+                                ? Colors.white
+                                : AppTheme.mutedTextColor,
+                          ),
                         ),
                       ),
-                    ),
-                    Text(
-                      picked
-                          ? AppLocalizations.of(context).wizardFileChange
-                          : AppLocalizations.of(context).wizardFileBrowse,
-                      style: TextStyle(
-                        color: accentColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                      Text(
+                        picked ? l10n.wizardFileChange : l10n.wizardFileBrowse,
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1718,52 +1647,35 @@ class _WizardField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tv = PlatformHelper.isTV(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500),
-        ),
+        _FieldLabel(label),
         const SizedBox(height: 6),
         TvTextFieldGate(
           focusNode: focusNode,
+          borderRadius: _fieldRadius,
           builder: (context, fieldNode) => TextField(
-          controller: ctrl,
-          focusNode: fieldNode,
-          keyboardType: type,
-          obscureText: obscure,
-          autocorrect: false,
-          // Playlist logins are never the device's saved logins: an empty hint
-          // list stops Android autofill from pairing the URL with a saved password.
-          autofillHints: const <String>[],
-          textInputAction: TextInputAction.next,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: AppTheme.mutedTextColor),
-            filled: true,
-            fillColor: AppTheme.surfaceVariantColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
+            controller: ctrl,
+            focusNode: fieldNode,
+            keyboardType: type,
+            obscureText: obscure,
+            autocorrect: false,
+            // No suggestion strip for addresses, logins or secrets.
+            enableSuggestions: !obscure && type != TextInputType.url,
+            // Not an autofill field. An empty hint list does NOT opt out: it
+            // leaves the system to guess, and next to a password box it
+            // guessed the server address was a password. null opts out.
+            autofillHints: null,
+            textInputAction: TextInputAction.next,
+            style: _fieldTextStyle(tv),
+            decoration: _fieldDecoration(
+              accent: accentColor,
+              hint: hint,
+              suffix: suffix,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.fieldBorderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: accentColor, width: 2),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            suffixIcon: suffix,
           ),
-        ),
         ),
       ],
     );
@@ -1814,6 +1726,7 @@ class _LoadingPageState extends State<_LoadingPage>
 
   @override
   Widget build(BuildContext context) {
+    final tv = PlatformHelper.isTV(context);
     return _WizardBackground(
       child: Center(
         child: Padding(
@@ -1851,13 +1764,14 @@ class _LoadingPageState extends State<_LoadingPage>
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+              SizedBox(height: tv ? 28 : 40),
               Text(
-                widget.title ?? AppLocalizations.of(context).wizardLoadingSettingUp,
+                widget.title ??
+                    AppLocalizations.of(context).wizardLoadingSettingUp,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: tv ? 26 : 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1868,7 +1782,9 @@ class _LoadingPageState extends State<_LoadingPage>
                   opacity: 0.5 + _pulse.value * 0.5,
                   child: Text(
                     widget.message,
-                    style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 14),
+                    style: TextStyle(
+                        color: AppTheme.mutedTextColor,
+                        fontSize: tv ? 17 : 14),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1900,6 +1816,7 @@ class _AllSetPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tv = PlatformHelper.isTV(context);
     return _WizardBackground(
       child: Center(
         child: Padding(
@@ -1992,7 +1909,7 @@ class _AllSetPage extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(height: 44),
+              SizedBox(height: tv ? 28 : 44),
               ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
                   colors: [Colors.white, Color(0xFFC0B8FF)],
@@ -2002,18 +1919,21 @@ class _AllSetPage extends StatelessWidget {
                 child: Text(
                   headline,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 30,
+                    fontSize: tv ? 36 : 30,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Text(
                 AppLocalizations.of(context).wizardAllSetBody,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 16, height: 1.6),
+                style: TextStyle(
+                    color: AppTheme.mutedTextColor,
+                    fontSize: tv ? 18 : 16,
+                    height: 1.5),
               ),
             ],
           ),
@@ -2027,26 +1947,118 @@ class _AllSetPage extends StatelessWidget {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
+const _fieldRadius = BorderRadius.all(Radius.circular(12));
+
+TextStyle _fieldTextStyle(bool tv) =>
+    TextStyle(color: Colors.white, fontSize: tv ? 17 : 16);
+
+/// One input look for every text field in the wizard (the name field used a
+/// different radius, text size and padding from the rest).
+InputDecoration _fieldDecoration({
+  required Color accent,
+  required String hint,
+  Widget? suffix,
+}) {
+  OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
+        borderRadius: _fieldRadius,
+        borderSide: BorderSide(color: c, width: w),
+      );
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: AppTheme.mutedTextColor),
+    filled: true,
+    fillColor: AppTheme.surfaceVariantColor,
+    border: border(AppTheme.fieldBorderColor),
+    enabledBorder: border(AppTheme.fieldBorderColor),
+    focusedBorder: border(accent, 2),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    suffixIcon: suffix,
+  );
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: TextStyle(
+          color: Colors.white70,
+          fontSize: PlatformHelper.isTV(context) ? 14 : 13,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+}
+
+/// A small heading above a group of controls (avatars, accent colours).
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: TextStyle(
+          color: Colors.white70,
+          fontSize: PlatformHelper.isTV(context) ? 15 : 14,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+}
+
+/// Keeps the D-pad on the page. Every wizard page is built at once, and a
+/// scrolling row builds a few items beyond its edge; Flutter's directional
+/// search will happily jump Right from a full-width button to one of those
+/// unseen items (or to a control on another row). A sideways move that leaves
+/// the row, or this page's own column, is undone, so Left/Right on a lone
+/// control simply stay put.
+class _WizardFocusGuard extends StatelessWidget {
+  const _WizardFocusGuard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Actions(
+        actions: {
+          DirectionalFocusIntent: CallbackAction<DirectionalFocusIntent>(
+            onInvoke: (intent) {
+              final before = FocusManager.instance.primaryFocus;
+              final moved = focusInDirectionSafely(before, intent.direction);
+              final sideways = intent.direction == TraversalDirection.left ||
+                  intent.direction == TraversalDirection.right;
+              final box = context.findRenderObject();
+              final after = FocusManager.instance.primaryFocus;
+              if (moved && sideways && box is RenderBox && after != null) {
+                final area = box.localToGlobal(Offset.zero) & box.size;
+                final from = before?.rect;
+                // Left/Right stay on the same row (a little slack for a
+                // scaled button) and inside the page's column.
+                final sameRow = from != null &&
+                    after.rect.center.dy >= from.top - 6 &&
+                    after.rect.center.dy <= from.bottom + 6;
+                if (!sameRow || !area.inflate(4).contains(after.rect.center)) {
+                  before?.requestFocus();
+                }
+              }
+              return null;
+            },
+          ),
+        },
+        child: child,
+      );
+}
+
 class _WizardBackground extends StatelessWidget {
   const _WizardBackground({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    // This wizard's pages are all designed at phone width (fixed 28px side
-    // padding, buttons/cards that stretch to fill whatever width they're
-    // given) — full-bleed on a TV screen stretches everything into an
-    // oversized, "mooshed"-looking layout. Capping and centering the width
-    // here, in the one shared background wrapper every page uses, fixes all
-    // of them at once without touching each page's own layout.
-    //
-    // Height is deliberately NOT force-fit here — Android TV renders at a
-    // much higher density than a phone (this hardware: 1920x1080 physical
-    // but only ~960x540 *logical* px, since TV UI is drawn bigger for
-    // 10-foot viewing), so the actual usable height on TV can be SHORTER
-    // than a phone's, not taller. Each page handles its own vertical
-    // overflow (scrolling the middle, pinning the action button) rather
-    // than this wrapper guessing at available height.
+    // Every page is laid out for a phone-width column; on a TV the column is
+    // capped and centred so nothing stretches across the screen. Height is
+    // left to each page: a TV's usable height (about 540 logical pixels) is
+    // shorter than a phone's, so pages fit it by design and scroll their
+    // middle rather than trusting a fixed size.
     Widget wrap(Widget page) {
       if (!PlatformHelper.isTV(context)) return page;
       return Align(
@@ -2069,6 +2081,189 @@ class _WizardBackground extends StatelessWidget {
       child: wrap(child),
     );
   }
+}
+
+/// The frame every page after the welcome shares, so the header, title,
+/// subtitle and button sit in exactly the same place from step to step:
+/// Back arrow + step dots, a title and subtitle, the page's own [body]
+/// (scrolls if it must) and a pinned [footer].
+class _WizardFrame extends StatelessWidget {
+  const _WizardFrame({
+    required this.accentColor,
+    required this.step,
+    required this.totalSteps,
+    required this.title,
+    required this.body,
+    this.subtitle,
+    this.footer,
+    this.onBack,
+  });
+
+  final Color accentColor;
+  final int step;
+  final int totalSteps;
+  final String title;
+  final String? subtitle;
+  final Widget body;
+  final Widget? footer;
+  // Null on the first page shown, where there is nowhere to go back to.
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: TvTextInput.showing,
+        builder: (context, keyboard, _) => _build(context, keyboard),
+      );
+
+  Widget _build(BuildContext context, bool keyboard) {
+    final tv = PlatformHelper.isTV(context);
+    final side = tv ? 40.0 : 24.0;
+    // With the TV keyboard up the page has about 300 logical pixels: the
+    // subtitle and the pinned button give way to the form (the keyboard's own
+    // action key moves on), instead of the button riding up over the field.
+    final compact = tv && keyboard;
+    return _WizardBackground(
+      child: SafeArea(
+        child: _WizardFocusGuard(
+          child: Padding(
+          padding: EdgeInsets.fromLTRB(side, tv ? 24 : 8, side, tv ? 24 : 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // A fixed-height header, with or without a Back arrow, so the
+              // title never jumps between steps.
+              SizedBox(
+                height: 44,
+                child: Row(
+                  children: [
+                    if (onBack != null) ...[
+                      _BackButton(onTap: onBack!),
+                      const SizedBox(width: 12),
+                    ],
+                    _StepIndicator(
+                        current: step,
+                        total: totalSteps,
+                        accentColor: accentColor),
+                  ],
+                ),
+              ),
+              SizedBox(height: tv ? 14 : 20),
+              Text(
+                // Titles carry a manual line break for the phone's narrow
+                // column; a TV has the width for one line.
+                tv ? title.replaceAll('\n', ' ') : title,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: tv ? 30 : 28,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              // Hidden, never removed, while the keyboard is up: taking a child
+              // out of this column would shift the form's place in the tree,
+              // rebuild its field and close the keyboard.
+              if (subtitle != null)
+                Offstage(
+                  offstage: compact,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: AppTheme.mutedTextColor,
+                        fontSize: tv ? 16 : 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              SizedBox(height: compact ? 12 : (tv ? 18 : 24)),
+              Expanded(
+                // Clipped to its own area: a form scrolled up for the keyboard
+                // must not draw over the title above it.
+                child: SingleChildScrollView(child: body),
+              ),
+              if (footer != null)
+                Offstage(
+                  offstage: compact,
+                  child: ExcludeFocus(
+                    excluding: compact,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: tv ? 14 : 16),
+                      child: footer!,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The round Back arrow in every page's header; a focus stop on TV (Up from
+/// the first control) and a tap target on phones.
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: AppLocalizations.of(context).commonBack,
+        excludeSemantics: true,
+        child: TvFocusable(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: const SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.arrow_back_rounded,
+                color: Colors.white70, size: 24),
+          ),
+        ),
+      );
+}
+
+/// A quiet, centred text button (Skip, Restore, Language) that takes the same
+/// focus pill as every other control.
+class _TextAction extends StatelessWidget {
+  const _TextAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: TvFocusable(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: SizedBox(
+            height: 44,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: AppTheme.mutedTextColor, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                        color: AppTheme.mutedTextColor, fontSize: 15),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class _StepIndicator extends StatelessWidget {
@@ -2106,97 +2301,104 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-class _GradientButton extends StatelessWidget {
+/// The wizard's main action. Its fill is the accent, so the usual accent pill
+/// would vanish on it; focused on TV it lightens and grows a touch instead.
+class _GradientButton extends StatefulWidget {
   const _GradientButton({
     required this.label,
     required this.icon,
     required this.accentColor,
     required this.onTap,
+    this.focusNode,
+    this.autofocus = false,
   });
 
   final String label;
   final IconData icon;
   final Color accentColor;
   final VoidCallback? onTap;
+  final FocusNode? focusNode;
+  final bool autofocus;
+
+  @override
+  State<_GradientButton> createState() => _GradientButtonState();
+}
+
+class _GradientButtonState extends State<_GradientButton> {
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return TvFocusable(
-      autofocus: enabled,
-      onTap: onTap ?? () {},
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedOpacity(
-        duration: motionDuration(const Duration(milliseconds: 200)),
-        opacity: enabled ? 1.0 : 0.45,
-        child: Container(
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: enabled
-                ? LinearGradient(
-                    colors: [accentColor, _lighten(accentColor)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  )
-                : null,
-            color: enabled ? null : AppTheme.surfaceVariantColor,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: enabled
-                      ? AppTheme.onAccent(accentColor)
-                      : Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+    final enabled = widget.onTap != null;
+    final tv = PlatformHelper.isTV(context);
+    final lit = _focused && tv;
+    final accent = widget.accentColor;
+    Color glow(Color c) => lit ? Color.lerp(c, Colors.white, 0.28)! : c;
+    // A disabled button takes no focus, so the D-pad skips it rather than
+    // stopping on something that does nothing.
+    return ExcludeFocus(
+      excluding: !enabled,
+      child: TvFocusable(
+        showFocusRing: false,
+        autofocus: widget.autofocus && enabled,
+        focusNode: widget.focusNode,
+        onFocusChange: (f) => setState(() => _focused = f),
+        onTap: widget.onTap ?? () {},
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedScale(
+          scale: lit ? 1.03 : 1.0,
+          duration: motionDuration(TvFocusStyle.duration),
+          curve: TvFocusStyle.curve,
+          child: AnimatedOpacity(
+            duration: motionDuration(const Duration(milliseconds: 200)),
+            opacity: enabled ? 1.0 : 0.45,
+            child: Container(
+              height: tv ? 54 : 56,
+              decoration: BoxDecoration(
+                gradient: enabled
+                    ? LinearGradient(
+                        colors: [glow(accent), glow(_lighten(accent))],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      )
+                    : null,
+                color: enabled ? null : AppTheme.surfaceVariantColor,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: enabled
+                    ? [
+                        BoxShadow(
+                          color: accent.withValues(alpha: lit ? 0.6 : 0.4),
+                          blurRadius: lit ? 22 : 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
               ),
-              const SizedBox(width: 10),
-              Icon(icon,
-                  color: enabled
-                      ? AppTheme.onAccent(accentColor)
-                      : Colors.white,
-                  size: 20),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: enabled
+                          ? AppTheme.onAccent(accent)
+                          : Colors.white,
+                      fontSize: tv ? 17 : 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(widget.icon,
+                      color: enabled
+                          ? AppTheme.onAccent(accent)
+                          : Colors.white,
+                      size: 20),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-/// Fades content out as it scrolls under the page header, instead of a
-/// hard cut (the TV keyboard scrolls the form under it). Only the top
-/// [height] fades, which the form's own top padding covers at rest.
-class _TopFade extends StatelessWidget {
-  const _TopFade({required this.child});
-
-  static const height = 20.0;
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => ShaderMask(
-        blendMode: BlendMode.dstIn,
-        shaderCallback: (rect) => LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: const [Colors.transparent, Colors.black],
-          stops: [0, height / rect.height],
-        ).createShader(rect),
-        child: child,
-      );
 }

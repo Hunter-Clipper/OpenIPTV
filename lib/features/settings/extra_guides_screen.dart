@@ -652,6 +652,9 @@ class _AddGuideDialogState extends State<_AddGuideDialog> {
               focusNode: node,
               controller: _url,
               keyboardType: TextInputType.url,
+              // Not an autofill field (an empty hint list would leave it to
+              // the system's guess).
+              autofillHints: null,
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                   labelText: l10n.extraGuidesAddressLabel, errorText: _problem),

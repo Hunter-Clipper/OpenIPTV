@@ -77,6 +77,8 @@ class _PinFieldState extends State<PinField> {
         autofocus: widget.autofocus && !tv,
         obscureText: true,
         obscuringCharacter: '●',
+        // An app PIN is not a saved login: keep it out of autofill.
+        autofillHints: null,
         keyboardType: TextInputType.number,
         textInputAction: TextInputAction.done,
         inputFormatters: [

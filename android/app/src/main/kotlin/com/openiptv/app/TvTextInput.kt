@@ -152,6 +152,12 @@ class TvTextInput(
             }
         }
         et.alpha = 0f
+        // Not for the system's autofill: this one box is reused for every
+        // field, so a password step would leave later fields looking like
+        // passwords to it.
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            et.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+        }
         et.isFocusable = true
         et.isFocusableInTouchMode = true
         et.setSingleLine(true)
