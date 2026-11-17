@@ -53,7 +53,7 @@ dependencies:
   shared_preferences: ^2.2.3
 
   # Background auto-refresh
-  workmanager: ^0.9.0+3
+  workmanager: ^0.10.10
   flutter_local_notifications: ^18.0.1
   permission_handler: ^11.3.1
   sqlcipher_flutter_libs: ^0.6.8
