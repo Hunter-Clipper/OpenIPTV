@@ -20,10 +20,6 @@ const _playlist = '#EXTM3U\n'
 Uint8List _bytes(String s) => Uint8List.fromList(utf8.encode(s));
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   late Directory tmp;
   late LocalPlaylists store;
 

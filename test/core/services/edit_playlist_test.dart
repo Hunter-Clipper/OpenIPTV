@@ -50,10 +50,6 @@ class _FakeProvider {
 }
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   late AppDatabase db;
   late SourceManager manager;
   final provider = _FakeProvider();

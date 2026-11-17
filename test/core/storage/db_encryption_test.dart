@@ -7,10 +7,6 @@ import 'package:open_iptv/shared/utils/redact.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   group('DbKeyStore', () {
     test('creates a 256-bit key once and reuses it', () async {
       FlutterSecureStorage.setMockInitialValues({});
@@ -130,6 +126,54 @@ void main() {
           retryDelay: Duration.zero);
       expect(state, DbOpenState.reset);
       expect(File('${db.path}$lostSuffix').lengthSync(), 4096);
+    });
+  });
+
+  group('safeguards against losing a database', () {
+    test('this build bundles SQLCipher, not plain SQLite', () {
+      // Guards the packaging: plain SQLite would ignore every key.
+      expect(sqlCipherAvailable(), isTrue);
+    });
+
+    test('a build without SQLCipher touches nothing and resets nothing',
+        () async {
+      final dir = Directory.systemTemp.createTempSync('otv_db');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final db = File('${dir.path}/open_iptv.db')
+        ..writeAsBytesSync(List<int>.generate(4096, (i) => (i * 37) % 251));
+      final before = db.readAsBytesSync();
+      final key = DbKeyStore.newKey();
+      FlutterSecureStorage.setMockInitialValues({'otv_db_key_v1': key});
+      await expectLater(
+        openEncryptedDatabase(db,
+            keys: DbKeyStore(),
+            setup: (_) {},
+            cipherAvailable: () => false,
+            keyOpensCallback: (_, __) async => false),
+        throwsA(isA<SqlCipherMissingException>()),
+      );
+      expect(db.readAsBytesSync(), before, reason: 'database untouched');
+      expect(File('${db.path}$lostSuffix').existsSync(), isFalse);
+      expect(await DbKeyStore().read(), key, reason: 'key untouched');
+    });
+
+    test('a genuine reset keeps the old key for the set-aside files',
+        () async {
+      final dir = Directory.systemTemp.createTempSync('otv_db');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final db = File('${dir.path}/open_iptv.db')
+        ..writeAsBytesSync(List<int>.generate(4096, (i) => (i * 37) % 251));
+      final oldKey = DbKeyStore.newKey();
+      FlutterSecureStorage.setMockInitialValues({'otv_db_key_v1': oldKey});
+      final (_, state) = await openEncryptedDatabase(db,
+          keys: DbKeyStore(),
+          setup: (_) {},
+          keyOpensCallback: (_, __) async => false,
+          retryDelay: Duration.zero);
+      expect(state, DbOpenState.reset);
+      expect(File('${db.path}$lostSuffix').existsSync(), isTrue);
+      expect(await DbKeyStore().readLost(), oldKey);
+      expect(await DbKeyStore().read(), isNot(oldKey));
     });
   });
 

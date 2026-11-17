@@ -31,10 +31,6 @@ String feed(Map<String, String> channels) {
 }
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   late AppDatabase db;
   late HttpServer server;
   late Directory tmp;

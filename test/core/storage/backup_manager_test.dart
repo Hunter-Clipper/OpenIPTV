@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -74,11 +73,6 @@ const _excludedPrefKeys = {
 };
 
 void main() {
-  // The host has no libsqlite3.so dev symlink; see database_test.dart.
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   group('BackupManager settings', () {
     late AppDatabase db;
 

@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,10 +9,6 @@ import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   late AppDatabase db;
   late ProfileService service;
   late String profileId;
