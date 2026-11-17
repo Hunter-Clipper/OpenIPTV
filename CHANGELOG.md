@@ -5,6 +5,8 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+## 0.15.0 — 2026-11-17
+
 **Fixed**
 - **The first profile shows up in Settings straight away.** After the setup wizard, Settings no longer shows no profile until you force-close and reopen the app.
 - **The server address is no longer treated as a password.** Fields in the setup wizard, Edit Playlist, Extra Guides and the PIN box now tell Android not to autofill them (an empty hint list didn't), and the TV keyboard's text box does the same.
