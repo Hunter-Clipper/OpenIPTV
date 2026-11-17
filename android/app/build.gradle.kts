@@ -19,7 +19,7 @@ val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.openiptv.app"
-    compileSdk = 36
+    compileSdk = 37
     // Pinned: the OpenVPN native build is tested with this NDK.
     ndkVersion = "28.2.13676358"
 
