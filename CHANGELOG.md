@@ -5,6 +5,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+**Fixed**
+- **Providers that send numbers where text is expected no longer stop a playlist from loading.** Some Xtream providers send a movie's year or rating, a plot, a logo or cover, or an episode's picture as a number instead of text, which the app couldn't read. All of these are now accepted. Thanks to **edrmundy** (Ed Mundy) for finding and fixing the movie case (#176), which the rest builds on.
+
 ## 0.15.0 — 2026-11-17
 
 **Fixed**
