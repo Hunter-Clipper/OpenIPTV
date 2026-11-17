@@ -6274,6 +6274,18 @@ abstract class AppLocalizations {
   /// **'Today'**
   String get tvGuideToday;
 
+  /// Day label at the left of the guide's time strip when the left edge is on the day before today
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get tvGuideYesterday;
+
+  /// Day label at the left of the guide's time strip when the left edge is on the day after today
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get tvGuideTomorrow;
+
   /// Shown under Accent Color when the chosen theme has its own colours, so the accent does not apply
   ///
   /// In en, this message translates to:

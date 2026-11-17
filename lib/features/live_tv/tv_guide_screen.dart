@@ -1,8 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:intl/intl.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/static_noise.dart';
+import 'package:open_iptv/shared/widgets/terminal_loading.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:open_iptv/shared/theme/guide_style.dart';
 import 'package:open_iptv/shared/utils/genre_colors.dart';
@@ -115,6 +120,46 @@ List<Programme> guideRow(List<Programme> programmes) {
   return kept;
 }
 
+/// A stretch of a row the guide has nothing for. Drawn as a muted cell that
+/// reads "No guide information", so the row never has a hole in it (and a
+/// channel with no guide at all can still be scrolled through time).
+class _NoGuide extends Programme {
+  const _NoGuide(
+      {required super.channelId,
+      required super.start,
+      required super.end,
+      required super.title});
+}
+
+final _gapCache = Expando<({DateTime from, DateTime to, String label, List<Programme> rows})>();
+
+/// [programmes] with a [_NoGuide] cell for every gap between [from] and [to].
+List<Programme> _withGaps(String channelId, List<Programme> programmes,
+    DateTime from, DateTime to, String label) {
+  final hit = _gapCache[programmes];
+  if (hit != null && hit.from == from && hit.to == to && hit.label == label) {
+    return hit.rows;
+  }
+  const minGap = Duration(minutes: 1);
+  final out = <Programme>[];
+  var at = from;
+  for (final p in programmes) {
+    if (p.start.difference(at) >= minGap) {
+      out.add(_NoGuide(channelId: channelId, start: at, end: p.start, title: label));
+    }
+    out.add(p);
+    if (p.end.isAfter(at)) at = p.end;
+  }
+  if (to.difference(at) >= minGap) {
+    out.add(_NoGuide(channelId: channelId, start: at, end: to, title: label));
+  }
+  // An empty list is const and shared: not a key worth remembering.
+  if (programmes.isNotEmpty) {
+    _gapCache[programmes] = (from: from, to: to, label: label, rows: out);
+  }
+  return out;
+}
+
 Programme? _airing(List<Programme> programmes) =>
     programmes.where((p) => p.isLive).firstOrNull;
 
@@ -202,6 +247,22 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   // straight to the categories.
   bool _exitsLeft = false;
 
+  // ---- Looking back (hold Left at the left edge) ----
+  // The default window start at the last anchor; [_rangeStart] sits earlier
+  // than this once the guide has been opened up to the past.
+  late DateTime _homeStart;
+  // How many days of the past can be browsed (the longest catch-up window).
+  int _backDays = 3;
+  bool _leftIsRepeat = false;
+  // Left reached the edge on a fresh press: leave on release, or open up the
+  // past if the key is held.
+  bool _pendingExit = false;
+  bool _holdingLeft = false;
+
+  /// Pixels from the window's start to the default (now) start.
+  double get _homeOffset =>
+      _homeStart.difference(_rangeStart).inMinutes * _pxPerMinute;
+
   late final _pane = _PaneModel(ref.read(playbackServiceProvider));
 
   _RowKey _rowKey(Channel c) =>
@@ -235,7 +296,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     // Opened with the current half hour at the left edge.
     final w = guideWindow(DateTime.now());
     _rangeStart = w.$1;
+    _homeStart = w.$1;
     _rangeEnd = w.$2;
+    ref.read(appDatabaseProvider).getMaxCatchupDays().then((d) {
+      if (mounted) _backDays = d.clamp(1, 7);
+    }).catchError((_) {});
     _time = AnimationController.unbounded(
         vsync: this, value: _windowBefore.inMinutes * _pxPerMinute);
     _nowTicker = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -273,7 +338,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   /// True once the half hour at the left edge is [by] or more behind now.
   bool _windowOlderThan(Duration by) =>
-      guideWindow(DateTime.now()).$1.difference(_rangeStart) >= by;
+      guideWindow(DateTime.now()).$1.difference(_homeStart) >= by;
 
   /// Moves the window to the clock, keeping the same moment under the same
   /// pixel so nothing jumps. Returns whether it moved.
@@ -281,7 +346,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (!_windowOlderThan(olderThan)) return false;
     final oldStart = _rangeStart;
     final w = guideWindow(DateTime.now());
-    _rangeStart = w.$1;
+    // Keeps any stretch of the past the remote has opened up.
+    final back = _homeStart.difference(_rangeStart);
+    _homeStart = w.$1;
+    _rangeStart = w.$1.subtract(back);
     _rangeEnd = w.$2;
     _time.stop();
     _time.value = guideReanchoredOffset(
@@ -300,6 +368,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     final oldStart = _rangeStart;
     final w = guideWindow(DateTime.now());
     _rangeStart = w.$1;
+    _homeStart = w.$1;
     _rangeEnd = w.$2;
     _time.stop();
     _time.value = guideReanchoredOffset(
@@ -400,8 +469,60 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     if (grew && mounted) setState(() {});
   }
 
+  /// Opens the window further into the past as the timeline nears its start
+  /// (up to the longest catch-up window). The view stays on the same moment:
+  /// the offset moves by what was added. Returns the pixels added.
+  double _extendBackFor(double x) {
+    final limit = _homeStart.subtract(Duration(days: _backDays));
+    var shift = 0.0;
+    while (_rangeStart.isAfter(limit) &&
+        x + shift < 90 * _pxPerMinute) {
+      _rangeStart = _rangeStart.subtract(const Duration(hours: 6));
+      shift += 6 * 60 * _pxPerMinute;
+    }
+    if (shift == 0) return 0;
+    _time.stop();
+    _time.value += shift;
+    _timeTarget += shift;
+    if (mounted) setState(() {});
+    return shift;
+  }
+
+  /// Left in the guide's first moments: a tap goes to the categories on
+  /// release, a hold opens up the past. Called as the key goes down, repeats
+  /// and comes up.
+  KeyEventResult _onGridKey(FocusNode node, KeyEvent e) {
+    if (e.logicalKey != LogicalKeyboardKey.arrowLeft) {
+      return KeyEventResult.ignored;
+    }
+    if (e is KeyDownEvent) {
+      _leftIsRepeat = false;
+    } else if (e is KeyRepeatEvent) {
+      _leftIsRepeat = true;
+      if (_pendingExit) {
+        _pendingExit = false;
+        _holdingLeft = true;
+        _extendBackFor(_time.value);
+      }
+    } else if (e is KeyUpEvent) {
+      final leave = _pendingExit;
+      _pendingExit = false;
+      _holdingLeft = false;
+      _leftIsRepeat = false;
+      if (leave) _exitToCategories();
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// The grid has nothing further left. A fresh press waits to see if the
+  /// key is held; a key already held on arrival just stops here.
+  void _edgeLeft() {
+    if (!_leftIsRepeat) _pendingExit = true;
+  }
+
   void _scrollTimeTo(double x) {
     _extendFor(x);
+    x += _extendBackFor(x);
     final target = x.clamp(0.0, _maxOffset);
     _timeTarget = target;
     // A muted ticker (the guide covered by another page) never advances an
@@ -428,7 +549,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
   DateTime? _manualScrollAt;
   double _manualDx = 0;
 
-  void _revealTime(double x, double end) {
+  void _revealTime(double x, double end, {bool gap = false}) {
     // Putting focus back on the cell you were on (after a key that found no
     // cell to move to) must not pull the timeline back to that cell: that
     // pinned the guide in place at the end of a row.
@@ -442,6 +563,11 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     // Compared with where the timeline is heading, not where it is mid-move.
     final offset = _time.isAnimating ? _timeTarget : _time.value;
     final w = _timelineWidth;
+    // A cell that already fills the view (a long gap, a very long show) is
+    // where the remote should be: never pull the timeline to its start. A
+    // "no guide" gap that shows at all is left where it is, too.
+    if (x <= offset && end >= offset + w) return;
+    if (gap && end > offset && x < offset + w) return;
     if (x < offset) {
       // Behind the left edge: bring its start to the edge.
       _scrollTimeTo(x);
@@ -917,12 +1043,14 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
         focusNode: _gridNode,
         canRequestFocus: false,
         skipTraversal: true,
+        onKeyEvent: _onGridKey,
         child: Actions(
           actions: {
             DirectionalFocusIntent: _GridDirectionalAction(
               gridNode: _gridNode,
               columnNode: _columnNode,
-              exitsLeft: () => _exitsLeft,
+              exitsLeft: () =>
+                  _exitsLeft && !_holdingLeft && _time.value <= _homeOffset + 0.5,
               scrollTimeBy: (dx) {
                 _manualScrollAt = DateTime.now();
                 _manualDx = dx;
@@ -932,8 +1060,10 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
                 }
                 _scrollTimeTo(_time.value + dx);
               },
-              canScrollBack: () => _time.value > 0.5,
-              onExitLeft: _exitToCategories,
+              canScrollBack: () =>
+                  _time.value > 0.5 &&
+                  (_holdingLeft || (_time.value - _homeOffset).abs() > 0.5),
+              onExitLeft: _edgeLeft,
               nowX: () =>
                   DateTime.now().difference(_rangeStart).inSeconds /
                       60 *
@@ -1284,10 +1414,18 @@ class _TopPane extends ConsumerWidget {
                                 color: Colors.black,
                                 child: Theme.of(context).extension<GuideStyle>()?.retroFlair == true
                                     ? const StaticNoise()
-                                    : const _PreviewPlaceholder(),
+                                    : Theme.of(context)
+                                                .extension<GuideStyle>()
+                                                ?.ownLoader ==
+                                            true
+                                        ? TuningScreen(
+                                            name: context.displayName(
+                                                model.channel?.name ?? ''))
+                                        : const _PreviewPlaceholder(),
                               ),
                             if (!handedOver &&
                                 Theme.of(context).extension<GuideStyle>()?.retroFlair != true &&
+                                Theme.of(context).extension<GuideStyle>()?.ownLoader != true &&
                                 (model.loading || !model.showPicture))
                               const Center(
                                 child: SizedBox(
@@ -1641,6 +1779,20 @@ class _ColumnDirectionalAction extends Action<DirectionalFocusIntent> {
 // Time header and "now" line
 // ---------------------------------------------------------------------------
 
+/// "Yesterday", "Today", "Tomorrow", else the date without the year.
+String _dayLabel(BuildContext context, DateTime at, DateTime now) {
+  final l10n = AppLocalizations.of(context);
+  final days = DateTime(at.year, at.month, at.day)
+      .difference(DateTime(now.year, now.month, now.day))
+      .inDays;
+  return switch (days) {
+    -1 => l10n.tvGuideYesterday,
+    0 => l10n.tvGuideToday,
+    1 => l10n.tvGuideTomorrow,
+    _ => DateFormat.MMMd(Localizations.localeOf(context).toString()).format(at),
+  };
+}
+
 class _TimeHeader extends StatelessWidget {
   const _TimeHeader({
     required this.rangeStart,
@@ -1676,14 +1828,24 @@ class _TimeHeader extends StatelessWidget {
               padding: const EdgeInsets.only(left: 10),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  gs == null
-                      ? '${loc.formatMediumDate(now)}, ${_hm(context, now)}'
-                      : '${AppLocalizations.of(context).tvGuideToday} \u25C2',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: style,
-                ),
+                child: gs == null
+                    ? Text(
+                        '${loc.formatMediumDate(now)}, ${_hm(context, now)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: style,
+                      )
+                    // The day under the strip's left edge, following the
+                    // timeline as it is scrolled through midnight.
+                    : AnimatedBuilder(
+                        animation: time,
+                        builder: (context, _) => Text(
+                          '${_dayLabel(context, rangeStart.add(Duration(minutes: (time.value / _pxPerMinute).round())), now)} \u25C2',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: style,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -1820,7 +1982,7 @@ class _GuideRow extends ConsumerWidget {
   final Animation<double> time;
   final void Function(Channel, Programme?, {required bool exitsLeft})
       onCellFocused;
-  final void Function(double x, double end) onRevealTime;
+  final void Function(double x, double end, {bool gap}) onRevealTime;
   final void Function(Channel, Programme?) onActivate;
   final VoidCallback? onLongPress;
   // The cell Right from the categories lands on in this row.
@@ -1839,7 +2001,14 @@ class _GuideRow extends ConsumerWidget {
     final markPlaying = playing && ref.watch(guideHighlightPlayingProvider);
     final fresh = loaded.valueOrNull;
     if (fresh != null) rowCache[channel.id] = fresh;
-    final programmes = fresh ?? rowCache[channel.id] ?? const <Programme>[];
+    final shown = fresh ?? rowCache[channel.id] ?? const <Programme>[];
+    // Gaps (or a whole row with no guide) become "No guide information"
+    // cells once the row has loaded; until then, and while a longer window
+    // is loading over cached rows, nothing is invented.
+    final programmes = loaded.hasValue
+        ? _withGaps(channel.id, shown, rowKey.start, rowKey.end,
+            AppLocalizations.of(context).tvGuideNoInfo)
+        : shown;
     final totalMinutes = rowKey.end.difference(rowKey.start).inMinutes;
     double xOf(DateTime t) => (t.difference(rowKey.start).inSeconds / 60 *
             _pxPerMinute)
@@ -1950,21 +2119,7 @@ class _GuideRow extends ConsumerWidget {
           ),
           // ---- Its programmes ----
           Expanded(
-            child: loaded.hasValue && programmes.isEmpty
-                // No guide data: one cell, so the channel can still be
-                // reached and played from here.
-                ? _ProgrammeCell(
-                    title: AppLocalizations.of(context).tvGuideNoInfo,
-                    twoLine: twoLineTitles,
-                    muted: true,
-                    focusNode: entryNode,
-                    autofocus: autofocus,
-                    onFocus: () =>
-                        onCellFocused(channel, null, exitsLeft: true),
-                    onTap: () => onActivate(channel, null),
-                    onLongPress: onLongPress,
-                  )
-                : ClipRect(
+            child: ClipRect(
                     child: LayoutBuilder(builder: (context, box) {
                       // Only the cells near the screen are built (a row can
                       // hold days of programmes): one screen of room each
@@ -2047,6 +2202,7 @@ class _GuideRow extends ConsumerWidget {
       required Widget Function(Object, Object, Widget Function()) memo}) {
     final now = DateTime.now();
     final past = !p.end.isAfter(now);
+    final gap = p is _NoGuide;
     return memo(p.start, (p.end, p.title, p.isLive, past, entry, twoLine),
         () => Positioned(
       key: ValueKey(p.start),
@@ -2056,12 +2212,12 @@ class _GuideRow extends ConsumerWidget {
       bottom: 0,
       child: _ProgrammeCell(
         title: p.title,
-        live: p.isLive,
-        muted: !p.end.isAfter(now),
-        catchup: channel.hasCatchup && !p.end.isAfter(now),
+        live: !gap && p.isLive,
+        muted: gap || !p.end.isAfter(now),
+        catchup: !gap && channel.hasCatchup && !p.end.isAfter(now),
         // Keeps the title in view while the programme's start is scrolled
         // past the left edge.
-        genre: guideStyle == null
+        genre: guideStyle == null || gap
             ? null
             : genreBucket(p.category, channel.categories),
         time: time,
@@ -2071,10 +2227,10 @@ class _GuideRow extends ConsumerWidget {
         focusNode: entry ? entryNode : null,
         autofocus: entry && autofocus,
         onFocus: () {
-          onCellFocused(channel, p, exitsLeft: false);
-          onRevealTime(start, end);
+          onCellFocused(channel, gap ? null : p, exitsLeft: false);
+          onRevealTime(start, end, gap: gap);
         },
-        onTap: () => onActivate(channel, p),
+        onTap: () => onActivate(channel, gap ? null : p),
         onLongPress: onLongPress,
       ),
     ));

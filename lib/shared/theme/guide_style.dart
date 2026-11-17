@@ -25,6 +25,8 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
     this.airingOutline = Colors.transparent,
     this.cellRadius = 0,
     this.retroFlair = false,
+    this.codeLoader = false,
+    this.amberLoader = false,
   });
 
   /// A plain cell, and the text on it.
@@ -67,6 +69,16 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
   /// Retro Cable's extras: fake static while a channel tunes in, and the
   /// colour-bar banner in the player.
   final bool retroFlair;
+
+  /// Terminal green's loading screen: scrolling console output while a
+  /// channel tunes in, instead of the spinner.
+  final bool codeLoader;
+
+  /// Amber's tuning screen (one of several being tried).
+  final bool amberLoader;
+
+  /// Either look draws its own tuning screen instead of the spinner.
+  bool get ownLoader => codeLoader || amberLoader;
 
   /// Fill and text for a programme of [bucket].
   ({Color fill, Color text}) colorsFor(GenreBucket bucket) =>

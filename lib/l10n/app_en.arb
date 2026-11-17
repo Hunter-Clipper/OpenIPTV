@@ -4858,6 +4858,14 @@
   "@tvGuideToday": {
     "description": "Word at the left of the guide's time strip in looks that show it, like the old cable-box guides"
   },
+  "tvGuideYesterday": "Yesterday",
+  "@tvGuideYesterday": {
+    "description": "Day label at the left of the guide's time strip when the left edge is on the day before today"
+  },
+  "tvGuideTomorrow": "Tomorrow",
+  "@tvGuideTomorrow": {
+    "description": "Day label at the left of the guide's time strip when the left edge is on the day after today"
+  },
   "settingsAccentSetByTheme": "Set by the theme",
   "@settingsAccentSetByTheme": {
     "description": "Shown under Accent Color when the chosen theme has its own colours, so the accent does not apply"

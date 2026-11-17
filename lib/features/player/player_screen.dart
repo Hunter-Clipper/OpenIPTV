@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:open_iptv/shared/widgets/static_noise.dart';
+import 'package:open_iptv/shared/widgets/terminal_loading.dart';
 import 'package:open_iptv/shared/theme/guide_style.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
@@ -1424,6 +1425,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     Theme.of(context).extension<GuideStyle>()?.retroFlair ==
                         true)
                   const IgnorePointer(child: StaticNoise()),
+                // Terminal green: console output while a channel tunes in.
+                if (_isBuffering &&
+                    !_watchdog.everPlayed &&
+                    !_playbackGaveUp &&
+                    Theme.of(context).extension<GuideStyle>()?.ownLoader ==
+                        true)
+                  IgnorePointer(
+                    child: TuningScreen(name: context.displayName(_titleForControls)),
+                  ),
                 // Buffering / recovery overlay.
                 AnimatedOpacity(
                   opacity: _isBuffering ? 1.0 : 0.0,
@@ -1440,6 +1450,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       .extension<GuideStyle>()
                                       ?.retroFlair ==
                                   true
+                              ? Colors.transparent
+                              : Theme.of(context)
+                                          .extension<GuideStyle>()
+                                          ?.ownLoader ==
+                                      true &&
+                                  !_watchdog.everPlayed
                               ? Colors.transparent
                               : Colors.black),
                       child: Center(
@@ -1464,6 +1480,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 },
                               )
                             : _LoadingView(
+                                quiet: !_watchdog.everPlayed &&
+                                    Theme.of(context)
+                                            .extension<GuideStyle>()
+                                            ?.ownLoader ==
+                                        true,
                                 // The controls already show the title and a
                                 // spinner on the play button.
                                 visible: !_controlsVisible,
@@ -1565,13 +1586,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     final tv = PlatformHelper.isTV(context);
                     final always = ref.watch(playerClockAlwaysProvider);
                     final m = PlayerMetrics.of(context);
+                    // A themed look carries the clock in its banner; only
+                    // the "Always on" clock stays in the corner.
+                    final inBanner =
+                        Theme.of(context).extension<GuideStyle>() != null;
                     return Positioned(
                       top: tv ? m.tvEdge * 0.6 : 16,
                       right: tv ? m.tvEdge : 20,
                       child: IgnorePointer(
                         child: AnimatedOpacity(
-                          opacity:
-                              always || (tv && _showOverlayControls) ? 1 : 0,
+                          opacity: always ||
+                                  (tv && _showOverlayControls && !inBanner)
+                              ? 1
+                              : 0,
                           duration: motionDuration(const Duration(milliseconds: 250)),
                           child: PlayerClock(fontSize: tv ? 20 : 15),
                         ),
@@ -1768,7 +1795,15 @@ class _UpNextBannerState extends State<_UpNextBanner> {
 // ---------------------------------------------------------------------------
 
 class _LoadingView extends StatelessWidget {
-  const _LoadingView({required this.title, this.status, this.visible = true});
+  const _LoadingView(
+      {required this.title,
+      this.status,
+      this.visible = true,
+      this.quiet = false});
+
+  /// The look draws its own tuning screen: no spinner or title here, only a
+  /// reconnect status.
+  final bool quiet;
 
   final bool visible;
   final String title;
@@ -1779,6 +1814,20 @@ class _LoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final look = theme.extension<GuideStyle>();
+    if (quiet && look != null) {
+      if (status == null) return const SizedBox.shrink();
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          border: Border.all(color: look.nowColor),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Text(status!,
+              style: TextStyle(color: look.titleColor, fontSize: 16)),
+        ),
+      );
+    }
     if (look != null && look.retroFlair) {
       // Over the static: a solid cream name block, like a station card.
       return AnimatedOpacity(

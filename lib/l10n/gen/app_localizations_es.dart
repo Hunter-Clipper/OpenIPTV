@@ -3715,6 +3715,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get tvGuideToday => 'Hoy';
 
   @override
+  String get tvGuideYesterday => 'Ayer';
+
+  @override
+  String get tvGuideTomorrow => 'Mañana';
+
+  @override
   String get settingsAccentSetByTheme => 'Definido por el tema';
 
   @override
