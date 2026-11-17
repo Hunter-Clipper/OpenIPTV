@@ -6,14 +6,24 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased (0.14.133)
 
 **Fixed**
+- **The first profile shows up in Settings straight away.** After the setup wizard, Settings no longer shows no profile until you force-close and reopen the app.
+- **The server address is no longer treated as a password.** Fields in the setup wizard, Edit Playlist, Extra Guides and the PIN box now tell Android not to autofill them (an empty hint list didn't), and the TV keyboard's text box does the same.
+- **The TV guide no longer jumps to the start of the timeline** when you move down onto a channel with no guide information.
 - **Your look (and accent color) is now always remembered.** Changing it twice in a row could leave the profile with the older choice, which came back after restarting the app.
 
 **Improved**
+- **A redesigned setup wizard.** Every page now shares one layout (back arrow, step dots, title, form, buttons at the bottom) so spacing is the same throughout. It fits a TV screen without scrolling, the remote's D-pad stays on the row you're on, Back steps back one page (it used to leave the app on a first run), and the keyboard no longer closes by itself while you type.
+- **Retro Cable player banner, reworked.** The stream details and the clock sit in the top-right corner of the banner (an "Always on" clock stays in the screen corner), and on TV the programme times and "Next" line have a full-width row of their own so they aren't cut off. The LIVE badge sits after the seek buttons. The banner shows on phones too.
+- **Channel logos in the guide glow on all sides** instead of casting a shadow down and to the right, so dark logos are easier to see on the dark looks.
+- **The guide's day label follows the timeline:** Yesterday, Today, Tomorrow, otherwise the date without the year.
 - **Cleaner, bigger channel logos in the TV guide, in every look.** Logos sit bare (no grey tile) with a soft shadow: a light wash on the dark looks so dark logos stay visible, a dark shadow on the light ones. They're also a little bigger, and the logo and name are vertically centered in each row.
 - **TV Guide Layout now lives under Appearance** in Settings, next to the looks, instead of under Watching.
 - **A cleaner preview in the TV guide.** The picture area at the top no longer shows the channel's logo or the "Press OK to preview" text while nothing is playing; it stays plain black. If a channel can't be played it still says so.
 
 **New**
+- **Look back in the TV guide.** Hold Left at the left edge of the guide to scroll into the past, up to your provider's longest catch-up window, so you can pick a past show to watch. A quick tap on Left still goes to the categories.
+- **"No guide information" cells.** A channel with no guide data, or a stretch with nothing scheduled, now shows a cell saying so (you can still play it), and can be scrolled through time like any other row.
+- **Loading screens that fit the look.** While a channel tunes in, Terminal green shows scrolling console output and Amber an old dial-up modem handshake. Retro Cable keeps its static; the other looks keep the spinner.
 - **Three more looks.** *Terminal green* and *Amber* are pure black with one monitor-style color and a monospace font; in the TV guide programmes are outlines (brighter for what's on now) and the cell under the remote fills solid, like a selection in a terminal. *Light* is a clean near-white look that still uses your accent color. Pick them in Settings → Appearance → Theme.
 - **Retro Cable look.** A new theme in Settings → Appearance → Theme: deep blue, flat and chunky, with bold rounded type. In the TV guide it colors programmes by kind (sports green, movies purple, kids yellow, news blue), shows a cream channel column with channel numbers, a blue time strip, and a white block on what the remote is on. Channel logos sit bare on the cream with a soft shadow so light logos still show. It sets its own colors, so the accent color is greyed out while it's on.
 - **Themes, first step.** Settings → Appearance → Theme lets you pick a look for the current profile, with a small preview of each. Two looks to start: *Standard* (as before) and *True black* (pure black backgrounds, good for OLED screens). The choice is saved with the profile and in backups, and your accent color still applies. More looks are on the way. Children's profiles can't change it.
