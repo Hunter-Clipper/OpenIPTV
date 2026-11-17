@@ -43,18 +43,18 @@ class _CastPickerSheetState extends ConsumerState<_CastPickerSheet> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final status = ref.watch(castStatusProvider).valueOrNull ?? _cast.status;
+    final status = ref.watch(castStatusProvider).value ?? _cast.status;
     // Close once a chosen device connects — the player switches over.
     ref.listen(castStatusProvider, (prev, next) {
-      final was = prev?.valueOrNull?.connected ?? false;
-      if (!was && (next.valueOrNull?.connected ?? false) && !_closing) {
+      final was = prev?.value?.connected ?? false;
+      if (!was && (next.value?.connected ?? false) && !_closing) {
         _closing = true;
         Navigator.of(context).pop();
       }
       // A failed attempt drops from connecting back to idle: let the user
       // pick again.
-      if (prev?.valueOrNull?.session == CastSessionState.connecting &&
-          next.valueOrNull?.session == CastSessionState.idle) {
+      if (prev?.value?.session == CastSessionState.connecting &&
+          next.value?.session == CastSessionState.idle) {
         setState(() => _pickedId = null);
       }
     });
@@ -174,7 +174,7 @@ class CastRemoteView extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final m = PlayerMetrics.of(context);
     final cast = ref.read(castServiceProvider);
-    final status = ref.watch(castStatusProvider).valueOrNull ?? cast.status;
+    final status = ref.watch(castStatusProvider).value ?? cast.status;
     final playing = status.playerState == CastPlayerState.playing;
     final loading = status.playerState == CastPlayerState.buffering ||
         (message == null && status.playerState == CastPlayerState.idle);
@@ -432,7 +432,7 @@ class _CastActionState extends ConsumerState<CastAction> {
   Widget build(BuildContext context) {
     if (_tv) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
-    final status = ref.watch(castStatusProvider).valueOrNull ?? _cast.status;
+    final status = ref.watch(castStatusProvider).value ?? _cast.status;
     if (!status.available && !status.connected) return const SizedBox.shrink();
     final connected = status.connected;
     return IconButton(
@@ -455,7 +455,7 @@ class CastMiniBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(castStatusProvider).valueOrNull;
+    final status = ref.watch(castStatusProvider).value;
     if (status == null || !status.hasMedia) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
@@ -536,9 +536,9 @@ class _CastRemotePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(castStatusProvider).valueOrNull;
+    final status = ref.watch(castStatusProvider).value;
     ref.listen(castStatusProvider, (_, next) {
-      if (!(next.valueOrNull?.hasMedia ?? false) &&
+      if (!(next.value?.hasMedia ?? false) &&
           Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }

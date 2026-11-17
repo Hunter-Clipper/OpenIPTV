@@ -38,8 +38,8 @@ class _ParentalScreenState extends ConsumerState<ParentalScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
-    final activeProfile = ref.watch(activeProfileProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
+    final activeProfile = ref.watch(activeProfileProvider).value;
 
     if (prefs == null || activeProfile == null) {
       return const Scaffold(

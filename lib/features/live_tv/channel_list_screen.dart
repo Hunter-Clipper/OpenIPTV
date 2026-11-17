@@ -49,7 +49,7 @@ final recentChannelsProvider = StreamProvider<List<Channel>>((ref) {
   final db = ref.watch(appDatabaseProvider);
   // Locked channels never show in history; hold everything back until the
   // lock settings are known.
-  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+  final prefs = ref.watch(appPreferencesProvider).value;
   if (profileId == null || prefs == null) return const Stream.empty();
   return db
       .watchRecentChannels(profileId,
@@ -118,7 +118,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final profileId =
-                    ref.read(activeProfileProvider).valueOrNull?.id;
+                    ref.read(activeProfileProvider).value?.id;
                 if (profileId == null) return;
                 await ref
                     .read(appDatabaseProvider)
@@ -144,14 +144,14 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
     if (PlatformHelper.isTV(context)) return const TvGuideScreen();
     final channelsAsync = ref.watch(allChannelsProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final profileId = profile?.id;
     final favIds = (profile?.favoriteChannelIds ?? []).toSet();
     final hiddenCats = (profile?.hiddenCategories ?? []).toSet();
     final isKid = profile?.isKidsProfile ?? false;
 
     final sort = ref.watch(contentSortProvider);
-    final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final parentalPrefs = ref.watch(appPreferencesProvider).value;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
     final l10n = AppLocalizations.of(context);
     return Scaffold(
@@ -181,7 +181,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
               .where((c) => !isKid || !c.categories.any(isAdultCategory))
               .toList();
           final recent = showRecent
-              ? ref.watch(recentChannelsProvider).valueOrNull ?? []
+              ? ref.watch(recentChannelsProvider).value ?? []
               : const <Channel>[];
           final catCounts = <String, int>{};
           for (final c in all) {
@@ -304,7 +304,7 @@ class _LiveCategoryScreenState extends ConsumerState<LiveCategoryScreen> {
   Widget build(BuildContext context) {
     final channelsAsync = ref.watch(allChannelsProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final profileId = profile?.id;
     final favIds = (profile?.favoriteChannelIds ?? []).toSet();
     final sort = ref.watch(contentSortProvider);
@@ -504,7 +504,7 @@ class _ChannelRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final guide = ref.watch(_nowNextProvider(channel.id)).valueOrNull;
+    final guide = ref.watch(_nowNextProvider(channel.id)).value;
     final now = guide?.$1;
     final next = guide?.$2;
     void onTap() => playLiveChannel(context, ref, channel);
@@ -934,7 +934,7 @@ class _LiveChannelCardState extends ConsumerState<_LiveChannelCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ch = widget.channel;
-    final prog = ref.watch(_nowProgrammeProvider(ch.id)).valueOrNull;
+    final prog = ref.watch(_nowProgrammeProvider(ch.id)).value;
     final lit = _focused && PlatformHelper.isTV(context);
     final radius = BorderRadius.circular(12);
     final logo = ch.logoUrl;

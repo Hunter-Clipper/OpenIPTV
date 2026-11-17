@@ -11,8 +11,8 @@ dependencies:
     sdk: flutter
 
   # State
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  flutter_riverpod: ^3.0.0
+  riverpod_annotation: ^3.0.0
 
   # Database
   drift: ^2.18.0
@@ -72,7 +72,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   drift_dev: ^2.18.0
-  riverpod_generator: ^2.4.0
+  riverpod_generator: ^3.0.0
   build_runner: ^2.4.9
   flutter_lints: ^4.0.0
   mocktail: ^1.0.4

@@ -839,7 +839,7 @@ List<Widget> _actionButtons({
   final l10n = AppLocalizations.of(context);
   final m = PlayerMetrics.of(context);
   final size = m.tv ? m.tvButton : m.actionSize;
-  final profile = ref.watch(activeProfileProvider).valueOrNull;
+  final profile = ref.watch(activeProfileProvider).value;
   final isFav =
       profile?.favoriteChannelIds.contains(favoriteChannelId) ?? false;
   return [

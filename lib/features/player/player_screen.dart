@@ -676,7 +676,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _changeChannel(int delta) async {
     final channel = _liveChannel;
     if (channel == null) return;
-    final channels = ref.read(allChannelsProvider).valueOrNull;
+    final channels = ref.read(allChannelsProvider).value;
     if (channels == null || channels.isEmpty) return;
     final index = channels.indexWhere((c) => c.id == channel.id);
     if (index == -1) return;
@@ -1330,7 +1330,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final castAvailable = ref.watch(
-        castStatusProvider.select((a) => a.valueOrNull?.available ?? false));
+        castStatusProvider.select((a) => a.value?.available ?? false));
     final inPip = ref.watch(pipActiveProvider);
     final added = _multiAdded;
     final main = _liveChannel;

@@ -132,7 +132,7 @@ Stream<List<int>> maybeGunzip(Stream<List<int>> bytes) async* {
 }
 
 @Riverpod(keepAlive: true)
-EpgService epgService(EpgServiceRef ref) {
+EpgService epgService(Ref ref) {
   return EpgService(db: ref.watch(appDatabaseProvider));
 }
 

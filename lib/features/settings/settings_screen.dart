@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/telemetry/consent.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -67,7 +68,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     // Derive active profile for the subtitle.
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
     final isAdmin = profile?.isAdmin ?? false;
     final tv = PlatformHelper.isTVDevice;
 
@@ -171,7 +172,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget _updatesTile(BuildContext context) {
     return StatefulBuilder(builder: (context, setLocal) {
       return Consumer(builder: (context, ref, _) {
-        final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+        final prefs = ref.watch(appPreferencesProvider).value;
         final auto = prefs?.autoUpdateCheck ?? true;
         return InfoTooltip(
           id: 'settings_check_updates',
@@ -251,7 +252,7 @@ class SettingsScreen extends ConsumerWidget {
     ),
     Consumer(builder: (context, ref, _) {
       final all = ref.watch(allProfilesProvider);
-      final count = all.valueOrNull?.length ?? 0;
+      final count = all.value?.length ?? 0;
       if (count <= 1) return const SizedBox.shrink();
       return InfoTooltip(
         id: 'settings_switch_profile',
@@ -689,7 +690,7 @@ class SettingsScreen extends ConsumerWidget {
     }),
     // A child can't change the look: the admin sets it for them.
     Consumer(builder: (context, ref, _) {
-      final profile = ref.watch(activeProfileProvider).valueOrNull;
+      final profile = ref.watch(activeProfileProvider).value;
       if (profile?.isKidsProfile ?? false) return const SizedBox.shrink();
       final preset = ref.watch(themePresetProvider);
       return _NavTile(
@@ -1123,7 +1124,7 @@ class SettingsScreen extends ConsumerWidget {
   /// Back to the provider's Live TV category names and order, for the
   /// active profile (hold OK / long-press on a category changes them).
   Future<void> _resetCategories(BuildContext context, WidgetRef ref) async {
-    final profile = ref.read(activeProfileProvider).valueOrNull;
+    final profile = ref.read(activeProfileProvider).value;
     if (profile == null) return;
     final ok = await showDialog<bool>(
       context: context,
@@ -1632,7 +1633,7 @@ class _SourcesSheetState extends ConsumerState<_SourcesSheet> {
               ],
             ),
           ),
-          if ((sourcesAsync.valueOrNull?.length ?? 0) > 1)
+          if ((sourcesAsync.value?.length ?? 0) > 1)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
@@ -2043,7 +2044,7 @@ class _HiddenCategoriesSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
     final hidden = profile?.hiddenCategories ?? [];
 
     return DraggableScrollableSheet(

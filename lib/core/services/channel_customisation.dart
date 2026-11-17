@@ -74,7 +74,7 @@ class ChannelCustomNotifier extends Notifier<ChannelCustom> {
   @override
   ChannelCustom build() {
     final profileId = ref.watch(activeProfileIdProvider);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     if (profileId == null || prefs == null) return ChannelCustom.empty;
     return parseChannelCustom(prefs.channelCustomJson)[profileId] ??
         ChannelCustom.empty;

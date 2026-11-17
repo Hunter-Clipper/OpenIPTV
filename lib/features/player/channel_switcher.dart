@@ -72,8 +72,8 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
   /// then first-appearance order (or A–Z), without hidden, locked, or — on
   /// a kids profile — adult ones.
   List<String> _categories(List<Channel> all) {
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final unlocked = ref.watch(parentalSessionUnlockedProvider);
     final cats = liveCategories(
       all,
@@ -89,7 +89,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
 
   List<Channel> _channelsIn(List<Channel> all, String cat) {
     final favIds =
-        (ref.watch(activeProfileProvider).valueOrNull?.favoriteChannelIds ??
+        (ref.watch(activeProfileProvider).value?.favoriteChannelIds ??
                 const [])
             .toSet();
     final list = cat == _favorites
@@ -104,7 +104,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
   String _label(BuildContext context, String cat) => cat == _favorites
       ? AppLocalizations.of(context).channelSwitcherFavorites
       : categoryLabel(
-          context, ref.read(activeProfileProvider).valueOrNull, cat);
+          context, ref.read(activeProfileProvider).value, cat);
 
   void _step(List<String> cats, int delta) {
     if (_category == null) return;
@@ -119,7 +119,7 @@ class _ChannelSwitcherState extends ConsumerState<_ChannelSwitcher> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final all = ref.watch(allChannelsProvider).valueOrNull ?? const [];
+    final all = ref.watch(allChannelsProvider).value ?? const [];
     final cats = _categories(all);
     final current = all.where((c) => c.id == widget.currentId).firstOrNull;
     if (_category == null || !cats.contains(_category)) {
@@ -278,7 +278,7 @@ class _ChannelRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final prog = ref.watch(_nowOnProvider(channel.id)).valueOrNull;
+    final prog = ref.watch(_nowOnProvider(channel.id)).value;
     final logo = channel.logoUrl;
     return TvFocusable(
       onTap: onTap,

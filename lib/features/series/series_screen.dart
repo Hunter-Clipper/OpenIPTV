@@ -123,15 +123,15 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
   Widget build(BuildContext context) {
     final allAsync = ref.watch(_allSeriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final profileId = profile?.id;
 
     final sort = ref.watch(contentSortProvider);
     final posterView = ref.watch(homeLayoutSeriesProvider) != 'compact';
-    final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final parentalPrefs = ref.watch(appPreferencesProvider).value;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
     final inProgress =
-        ref.watch(_episodesInProgressProvider).valueOrNull ?? [];
+        ref.watch(_episodesInProgressProvider).value ?? [];
     return Scaffold(
       appBar: AppBar(
         leading: const AppLogo(),
@@ -343,7 +343,7 @@ class _SeriesGenreScreenState extends ConsumerState<SeriesGenreScreen> {
   Widget build(BuildContext context) {
     final allAsync = ref.watch(_allSeriesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final profileId = profile?.id;
     final columns = PlatformHelper.posterColumns(context);
     final sort = ref.watch(contentSortProvider);
@@ -537,7 +537,7 @@ void _showSeriesOptions(
   HapticFeedback.mediumImpact();
   final isFav = ref
           .read(activeProfileProvider)
-          .valueOrNull
+          .value
           ?.favoriteSeriesIds
           .contains(series.id) ??
       false;
@@ -583,7 +583,7 @@ class _SeriesListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFav = ref.watch(activeProfileProvider.select(
-        (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
+        (a) => a.value?.favoriteSeriesIds.contains(series.id) ?? false));
     void onTap() => context.push('/series/${series.id}');
     return TvFocusable(
       wrapsGesture: false,
@@ -653,7 +653,7 @@ class _PosterCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFav = ref.watch(activeProfileProvider.select(
-        (a) => a.valueOrNull?.favoriteSeriesIds.contains(series.id) ?? false));
+        (a) => a.value?.favoriteSeriesIds.contains(series.id) ?? false));
 
     return TvFocusable(
       onTap: () => context.push('/series/${series.id}',
@@ -723,7 +723,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final profileId =
-                    ref.read(activeProfileProvider).valueOrNull?.id;
+                    ref.read(activeProfileProvider).value?.id;
                 if (profileId == null) return;
                 await ref
                     .read(appDatabaseProvider)
@@ -742,7 +742,7 @@ class _EpisodeContinueWatchingRow extends ConsumerWidget {
     // often absent) and name — "S01E01 · Episode 1" alone doesn't say which
     // show it is.
     final seriesById = {
-      for (final s in ref.watch(_allSeriesProvider).valueOrNull ?? const [])
+      for (final s in ref.watch(_allSeriesProvider).value ?? const [])
         s.id: s,
     };
     return MediaRail(

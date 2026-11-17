@@ -6,38 +6,80 @@ part of 'source_manager.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(sourceManager)
+const sourceManagerProvider = SourceManagerProvider._();
+
+final class SourceManagerProvider
+    extends $FunctionalProvider<SourceManager, SourceManager, SourceManager>
+    with $Provider<SourceManager> {
+  const SourceManagerProvider._()
+      : super(
+          from: null,
+          argument: null,
+          retry: null,
+          name: r'sourceManagerProvider',
+          isAutoDispose: false,
+          dependencies: null,
+          $allTransitiveDependencies: null,
+        );
+
+  @override
+  String debugGetCreateSourceHash() => _$sourceManagerHash();
+
+  @$internal
+  @override
+  $ProviderElement<SourceManager> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  SourceManager create(Ref ref) {
+    return sourceManager(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SourceManager value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SourceManager>(value),
+    );
+  }
+}
+
 String _$sourceManagerHash() => r'65d25c3c4f37602210c7776da818e57f7889685b';
 
-/// See also [sourceManager].
-@ProviderFor(sourceManager)
-final sourceManagerProvider = Provider<SourceManager>.internal(
-  sourceManager,
-  name: r'sourceManagerProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$sourceManagerHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef SourceManagerRef = ProviderRef<SourceManager>;
-String _$allSourcesHash() => r'3fbaa59be00843e726473ffccaa8ae1ae31ed92b';
-
-/// See also [allSources].
 @ProviderFor(allSources)
-final allSourcesProvider = FutureProvider<List<Source>>.internal(
-  allSources,
-  name: r'allSourcesProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$allSourcesHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+const allSourcesProvider = AllSourcesProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef AllSourcesRef = FutureProviderRef<List<Source>>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class AllSourcesProvider extends $FunctionalProvider<
+        AsyncValue<List<Source>>, List<Source>, FutureOr<List<Source>>>
+    with $FutureModifier<List<Source>>, $FutureProvider<List<Source>> {
+  const AllSourcesProvider._()
+      : super(
+          from: null,
+          argument: null,
+          retry: null,
+          name: r'allSourcesProvider',
+          isAutoDispose: false,
+          dependencies: null,
+          $allTransitiveDependencies: null,
+        );
+
+  @override
+  String debugGetCreateSourceHash() => _$allSourcesHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<List<Source>> $createElement(
+          $ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<Source>> create(Ref ref) {
+    return allSources(ref);
+  }
+}
+
+String _$allSourcesHash() => r'3fbaa59be00843e726473ffccaa8ae1ae31ed92b';

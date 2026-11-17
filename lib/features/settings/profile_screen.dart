@@ -53,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
                 ref,
                 profile,
                 blockPinRemoval:
-                    profile.isAdmin && (allAsync.valueOrNull?.length ?? 1) > 1,
+                    profile.isAdmin && (allAsync.value?.length ?? 1) > 1,
               );
           return TvFollowFocus(child: ListView(
             children: [
@@ -1061,9 +1061,9 @@ class _AdminBiometricTileState extends ConsumerState<_AdminBiometricTile> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final available =
-        ref.watch(adminBiometricAvailableProvider).valueOrNull ?? false;
+        ref.watch(adminBiometricAvailableProvider).value ?? false;
     if (prefs == null || !available) return const SizedBox.shrink();
 
     final hasPin = widget.profile.hasPin;

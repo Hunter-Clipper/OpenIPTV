@@ -6,21 +6,46 @@ part of 'epg_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$epgServiceHash() => r'35571a9a3bcadfe535c5e8c6c4e5559e63ac5e7c';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [epgService].
 @ProviderFor(epgService)
-final epgServiceProvider = Provider<EpgService>.internal(
-  epgService,
-  name: r'epgServiceProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$epgServiceHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+const epgServiceProvider = EpgServiceProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef EpgServiceRef = ProviderRef<EpgService>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class EpgServiceProvider
+    extends $FunctionalProvider<EpgService, EpgService, EpgService>
+    with $Provider<EpgService> {
+  const EpgServiceProvider._()
+      : super(
+          from: null,
+          argument: null,
+          retry: null,
+          name: r'epgServiceProvider',
+          isAutoDispose: false,
+          dependencies: null,
+          $allTransitiveDependencies: null,
+        );
+
+  @override
+  String debugGetCreateSourceHash() => _$epgServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<EpgService> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  EpgService create(Ref ref) {
+    return epgService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EpgService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EpgService>(value),
+    );
+  }
+}
+
+String _$epgServiceHash() => r'35571a9a3bcadfe535c5e8c6c4e5559e63ac5e7c';

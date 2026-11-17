@@ -5,6 +5,7 @@ import 'package:open_iptv/shared/utils/format.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/core/models/channel.dart';
@@ -558,7 +559,7 @@ class _ResultsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
 
     bool channelLocked(Channel c) =>
