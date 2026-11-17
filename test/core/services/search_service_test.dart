@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,12 +16,6 @@ Programme _pr(String channelId, String title) {
 }
 
 void main() {
-  // Linux hosts often ship only the versioned runtime library (no -dev
-  // symlink), which package:sqlite3 won't find by default.
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   late AppDatabase db;
   late SearchService service;
 

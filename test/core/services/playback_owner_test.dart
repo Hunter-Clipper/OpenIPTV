@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
@@ -8,10 +7,6 @@ import 'package:open_iptv/core/storage/database.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   late AppDatabase db;
   final opened = <String>[];
   final carScreen = <bool?>[];

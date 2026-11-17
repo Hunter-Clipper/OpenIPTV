@@ -20,10 +20,6 @@ SourceRefreshResult _result(String name,
     );
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   group('refreshSummary', () {
     test('all good', () {
       final ok = [_result('A'), _result('B')];

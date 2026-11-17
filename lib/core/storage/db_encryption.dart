@@ -48,6 +48,19 @@ class DbKeyStore {
 
   Future<void> delete() => _storage.delete(key: _keyName);
 
+  static const _lostKeyName = 'otv_db_key_v1_lost';
+
+  /// Remembers the key that belonged to a database that was just set aside
+  /// (the `.lost` files), so those files can still be opened later. Only the
+  /// latest set aside database is kept, like the files themselves.
+  Future<void> archiveLost(String key) =>
+      _storage.write(key: _lostKeyName, value: key);
+
+  Future<String?> readLost() async {
+    final key = await _storage.read(key: _lostKeyName);
+    return key != null && isValidKey(key) ? key : null;
+  }
+
   static String newKey() {
     final rnd = Random.secure();
     final bytes = List<int>.generate(32, (_) => rnd.nextInt(256));
@@ -78,6 +91,30 @@ bool isPlaintextSqlite(File file) {
 final _sqliteMagic =
     Uint8List.fromList('SQLite format 3\u0000'.codeUnits);
 
+/// True when the bundled SQLite is really SQLCipher. A build that ships plain
+/// SQLite ignores `PRAGMA key`, so every encrypted database looks "not a
+/// database" and would be mistaken for one with a lost key.
+bool sqlCipherAvailable() {
+  final db = sqlite3.openInMemory();
+  try {
+    final rows = db.select('PRAGMA cipher_version;');
+    return rows.isNotEmpty && '${rows.first.values.first}'.isNotEmpty;
+  } finally {
+    db.dispose();
+  }
+}
+
+/// Thrown instead of touching the database when this build has no SQLCipher:
+/// that is a packaging mistake, never a reason to reset anyone's data.
+class SqlCipherMissingException implements Exception {
+  const SqlCipherMissingException();
+
+  @override
+  String toString() =>
+      'SqlCipherMissingException: this build has no SQLCipher; the database '
+      'was left untouched';
+}
+
 /// Thrown to background isolates while the database hasn't been converted
 /// to encrypted yet — they skip their run; the app converts it on launch.
 class DatabaseNotReadyException implements Exception {
@@ -104,8 +141,9 @@ enum DbOpenState {
 /// pass false: they never convert, and never touch an unconverted file
 /// ([DatabaseNotReadyException]).
 /// The old database files keep this suffix when a reset sets them aside
-/// (only the latest set is kept). Nothing reads them yet; they exist so a
-/// reset never destroys data outright (#51).
+/// (only the latest set is kept) together with the key that opens them
+/// ([DbKeyStore.archiveLost]). Nothing reads them yet; they exist so a reset
+/// never destroys data outright (#51).
 const lostSuffix = '.lost';
 
 Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
@@ -113,11 +151,18 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   required DbKeyStore keys,
   required void Function(Database db) setup,
   bool migrate = true,
-  // Tests swap these: whether a key opens the file, and the retry pause.
+  // Tests swap these: whether a key opens the file, the retry pause, and
+  // whether the bundled SQLite is SQLCipher.
   Future<bool> Function(String path, String key)? keyOpensCallback,
   Duration retryDelay = const Duration(milliseconds: 300),
+  bool Function()? cipherAvailable,
 }) async {
   final keyOpensFn = keyOpensCallback ?? (path, key) => Isolate.run(() => keyOpens(path, key));
+  // Before anything is read, converted or set aside.
+  if (!(cipherAvailable ?? sqlCipherAvailable)()) {
+    debugPrint('[OTV-db] this build has no SQLCipher — leaving the database alone');
+    throw const SqlCipherMissingException();
+  }
 
   var state = DbOpenState.encrypted;
   if (isPlaintextSqlite(file)) {
@@ -152,6 +197,8 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
           '${key == null ? 'unreadable' : 'does not match'} — setting the '
           'old database aside and starting fresh');
       setAside(file);
+      // Keep the old key (the files stay openable) before it is replaced.
+      if (key != null) await keys.archiveLost(key);
       await keys.delete();
       key = null;
       state = DbOpenState.reset;

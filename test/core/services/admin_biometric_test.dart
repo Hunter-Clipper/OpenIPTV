@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,10 +31,6 @@ class _SlowBiometric extends AdminBiometric {
 }
 
 void main() {
-  if (Platform.isLinux &&
-      File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-  }
-
   Future<AppPreferences> prefsWith({required bool biometricOn}) async {
     SharedPreferences.setMockInitialValues(
         {'admin_biometric_unlock': biometricOn});

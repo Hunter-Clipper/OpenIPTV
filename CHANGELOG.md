@@ -7,12 +7,15 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 **Under the hood**
 - **Updated the libraries the app is built on**, and the Android build tools they need: file and share handling (file_picker, share_plus), version info, background refresh (workmanager), permission prompts, ZIP handling (archive) and a few smaller ones. Nothing should look different; it keeps the app current and secure. Thanks to **edrmundy** (Ed Mundy) for the reminder to check our dependencies. The big ones (Riverpod, the router, the database stack) are left for their own changes.
-- **The bigger library updates**: Riverpod 3 (app state), the page router (go_router 18), notifications, the image loader, the secure key storage and the XML reader. Nothing should look or work differently. The database engine (Drift, SQLite and its encryption) is left for later.
+- **The bigger library updates**: Riverpod 3 (app state), the page router (go_router 18), notifications, the image loader, the secure key storage and the XML reader. Nothing should look or work differently. 
 
 **Fixed**
 - **Providers that send numbers where text is expected no longer stop a playlist from loading.** Some Xtream providers send a movie's year or rating, a plot, a logo or cover, or an episode's picture as a number instead of text, which the app couldn't read. All of these are now accepted. Thanks to **edrmundy** (Ed Mundy) for finding and fixing the movie case (#176), which the rest builds on.
 
 ## 0.15.0 — 2026-11-17
+
+- **The database engine and its encryption are updated** (Drift 2.35, SQLite 3 with SQLCipher bundled by its build step, replacing an end-of-life package). Existing databases open as before; this was tested by creating a database with the previous release and opening it with the new build.
+- **A safety net for your data.** If a build ever shipped without the encryption library, the app now refuses to touch the database instead of mistaking it for one with a lost key and resetting it. When a reset does happen, the old database's key is kept so its file can still be opened.
 
 **Fixed**
 - **The first profile shows up in Settings straight away.** After the setup wizard, Settings no longer shows no profile until you force-close and reopen the app.
