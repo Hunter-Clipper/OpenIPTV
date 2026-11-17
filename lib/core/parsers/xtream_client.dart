@@ -320,10 +320,10 @@ class XtreamClient {
         id: '${sourceId}_ch_$streamId',
         sourceId: sourceId,
         name: '${m['name'] ?? 'Unknown'}',
-        logoUrl: m['stream_icon'] as String?,
+        logoUrl: _optionalString(m['stream_icon']),
         streamUrl: buildStreamUrl(streamId, 'live', ext: ext),
         groupTitle: catMap[catId],
-        tvgId: m['epg_channel_id'] as String?,
+        tvgId: _optionalString(m['epg_channel_id']),
         tvgName: null, // Xtream has no tvg_name field
         sortOrder: entry.key,
         hasCatchup: hasCatchup && catchupDays > 0,
@@ -372,10 +372,10 @@ class XtreamClient {
         id: '${sourceId}_ser_$seriesId',
         sourceId: sourceId,
         title: '${m['name'] ?? 'Unknown'}',
-        posterUrl: m['cover'] as String?,
+        posterUrl: _optionalString(m['cover']),
         genre: catMap[catId],
-        year: m['releaseDate']?.toString().split('-').first,
-        description: m['plot'] as String?,
+        year: _optionalString(m['releaseDate'])?.split('-').first,
+        description: _optionalString(m['plot']),
       );
     }).toList();
   }
@@ -410,7 +410,7 @@ class XtreamClient {
             'series',
             ext: ext is String ? ext : (ext is int ? '$ext' : 'mp4'),
           ),
-          stillUrl: infoMap?['movie_image'] as String?,
+          stillUrl: _optionalString(infoMap?['movie_image']),
         ));
       }
     }
@@ -419,7 +419,10 @@ class XtreamClient {
 
   /// Converts provider metadata to text without assuming its JSON type.
   /// Xtream implementations commonly return numbers for string-like fields.
-  String? _optionalString(Object? value) => value?.toString();
+  /// A list or object (a provider sending the wrong shape) is ignored rather
+  /// than shown as its raw JSON.
+  String? _optionalString(Object? value) =>
+      value is Map || value is List ? null : value?.toString();
 
   void dispose() => _http.close();
 }

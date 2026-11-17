@@ -171,6 +171,64 @@ void main() {
     });
   });
 
+  group('XtreamClient odd metadata types', () {
+    test('live channels accept numbers where text is expected', () async {
+      final streams = (fixture['live_streams'] as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      streams.first['stream_icon'] = 42;
+      streams.first['epg_channel_id'] = 1234;
+      streams[1]['stream_icon'] = {'not': 'a url'};
+
+      stubGetByAction({
+        'get_live_categories': fixture['live_categories'],
+        'get_live_streams': streams,
+      });
+
+      final channels = await client.getLiveStreams();
+      expect(channels.first.logoUrl, '42');
+      expect(channels.first.tvgId, '1234');
+      expect(channels[1].logoUrl, isNull);
+    });
+
+    test('series accept numbers where text is expected', () async {
+      final all = (fixture['all_series'] as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      all.first['cover'] = 7;
+      all.first['plot'] = 2008;
+      all.first['releaseDate'] = 2008;
+
+      stubGetByAction({
+        'get_series_categories': fixture['series_categories'],
+        'get_series': all,
+      });
+
+      final series = await client.getAllSeries();
+      expect(series.first.posterUrl, '7');
+      expect(series.first.description, '2008');
+      expect(series.first.year, '2008');
+    });
+
+    test('episodes accept a numeric still and extension', () async {
+      final info = Map<String, dynamic>.from(fixture['series_info'] as Map);
+      final seasons = Map<String, dynamic>.from(info['episodes'] as Map);
+      final first = seasons.keys.first;
+      final eps = (seasons[first] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      eps.first['info'] = {'movie_image': 99};
+      eps.first['container_extension'] = 4;
+      seasons[first] = eps;
+      info['episodes'] = seasons;
+      stubGet(info);
+
+      final episodes = await client.getSeriesEpisodes('301');
+      expect(episodes.any((e) => e.stillUrl == '99'), isTrue);
+      expect(episodes.any((e) => e.streamUrl.endsWith('.4')), isTrue);
+    });
+  });
+
   group('XtreamClient.getAllSeries', () {
     test('returns series with correct fields', () async {
       stubGetByAction({
