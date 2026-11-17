@@ -28,7 +28,7 @@ dependencies:
   xml: ^7.0.1
 
   # Images
-  cached_network_image: ^3.3.1
+  cached_network_image: ^4.0.3
 
   # Encryption (AES-256 for backup PIN)
   encrypt: ^5.0.3
