@@ -131,7 +131,7 @@ class BackupManager {
       archive.addFile(_rawFile('data.json', utf8.encode(payload)));
     }
 
-    return Uint8List.fromList(ZipEncoder().encode(archive)!);
+    return Uint8List.fromList(ZipEncoder().encode(archive));
   }
 
   // ---------------------------------------------------------------------------

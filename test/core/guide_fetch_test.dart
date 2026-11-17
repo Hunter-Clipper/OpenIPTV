@@ -46,10 +46,10 @@ void main() {
         case '/plain.xml':
           res.add(xml);
         case '/guide.xml.gz':
-          res.add(GZipEncoder().encode(xml)!);
+          res.add(GZipEncoder().encode(xml));
         case '/guide.zip':
           final a = Archive()..addFile(ArchiveFile('inner/guide.xml', xml.length, xml));
-          res.add(ZipEncoder().encode(a)!);
+          res.add(ZipEncoder().encode(a));
         case '/page':
           res.write('<!DOCTYPE html><html><body>Too many requests</body></html>');
         case '/empty':
