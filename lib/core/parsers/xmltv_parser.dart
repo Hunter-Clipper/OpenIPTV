@@ -404,4 +404,7 @@ class _FakeAttr implements XmlEventAttribute {
 
   @override
   void attachParent(XmlStartElementEvent? parent) {}
+
+  @override
+  void attachNamespace(String namespaceUri) {}
 }
