@@ -19,9 +19,6 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## 0.15.0 — 2026-11-17
 
-- **The database engine and its encryption are updated** (Drift 2.35, SQLite 3 with SQLCipher bundled by its build step, replacing an end-of-life package). Existing databases open as before; this was tested by creating a database with the previous release and opening it with the new build.
-- **A safety net for your data.** If a build ever shipped without the encryption library, the app now refuses to touch the database instead of mistaking it for one with a lost key and resetting it. When a reset does happen, the old database's key is kept so its file can still be opened.
-
 **Fixed**
 - **The first profile shows up in Settings straight away.** After the setup wizard, Settings no longer shows no profile until you force-close and reopen the app.
 - **The server address is no longer treated as a password.** Fields in the setup wizard, Edit Playlist, Extra Guides and the PIN box now tell Android not to autofill them (an empty hint list didn't), and the TV keyboard's text box does the same.
