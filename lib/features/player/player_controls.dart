@@ -315,7 +315,14 @@ class _ControlsLayout extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const _Scrim([0.65, 0.0, 0.0, 0.55, 0.9], [0.0, 0.24, 0.45, 0.72, 1.0]),
+        // A look with its own guide draws a solid banner at the bottom, so
+        // only the top (back button, quality) and the centre controls need
+        // help to read.
+        _Scrim(
+            Theme.of(context).extension<GuideStyle>() == null
+                ? const [0.65, 0.0, 0.0, 0.55, 0.9]
+                : const [0.65, 0.0, 0.0, 0.35, 0.0],
+            const [0.0, 0.24, 0.45, 0.72, 1.0]),
         if (background != null) background!,
         if (transport != null) Center(child: transport),
         Positioned(
@@ -336,7 +343,9 @@ class _ControlsLayout extends StatelessWidget {
                   style: PlayerButtonStyle.tonal,
                 ),
                 const Spacer(),
-                if (qualityLabel != null) _QualityChip(label: qualityLabel!),
+                if (qualityLabel != null &&
+                    Theme.of(context).extension<GuideStyle>() == null)
+                  _QualityChip(label: qualityLabel!),
               ],
             ),
           ),
@@ -348,7 +357,7 @@ class _ControlsLayout extends StatelessWidget {
           child: SafeArea(
             top: false,
             minimum: EdgeInsets.fromLTRB(m.edge, 0, m.edge, m.edge * 0.6),
-            child: bottom,
+            child: _BannerExtras(qualityLabel: qualityLabel, child: bottom),
           ),
         ),
       ],
@@ -366,6 +375,7 @@ class _ControlsLayout extends StatelessWidget {
                 ? const [0.45, 0.0, 0.0, 0.7, 0.95]
                 : const [0.45, 0.0, 0.0, 0.0, 0.0],
             const [0.0, 0.18, 0.4, 0.68, 1.0]),
+        if (Theme.of(context).extension<GuideStyle>() == null)
         Positioned(
           top: m.tvEdge * 0.6,
           right: m.tvEdge,
@@ -393,7 +403,7 @@ class _ControlsLayout extends StatelessWidget {
           left: m.tvEdge,
           right: m.tvEdge,
           bottom: m.tvEdge * 0.6,
-          child: bottom,
+          child: _BannerExtras(qualityLabel: qualityLabel, child: bottom),
         ),
       ],
     );
@@ -409,7 +419,15 @@ class _BottomPanel extends StatelessWidget {
     required this.actions,
     this.subtitle,
     this.transport,
+    this.badge,
+    this.infoLine,
   });
+
+  // Themed TV banner only: the LIVE badge sits on the controls line after
+  // the transport, and [infoLine] is the meta without it. Everywhere else
+  // [meta] (which already holds the badge) is used.
+  final Widget? badge;
+  final Widget? infoLine;
 
   final String title;
   final String? subtitle;
@@ -425,6 +443,8 @@ class _BottomPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
     if (m.tv) return _buildTv(context, m);
+    final look = Theme.of(context).extension<GuideStyle>();
+    if (look != null) return _buildBanner(context, look, tv: false, m: m);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,7 +494,7 @@ class _BottomPanel extends StatelessWidget {
   // bar, then [transport] [meta] ... [actions] on one line.
   Widget _buildTv(BuildContext context, PlayerMetrics m) {
     final look = Theme.of(context).extension<GuideStyle>();
-    if (look != null) return _buildTvBanner(context, look);
+    if (look != null) return _buildBanner(context, look, tv: true, m: m);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,11 +550,23 @@ class _BottomPanel extends StatelessWidget {
       ],
     );
   }
+  Widget _maybeRowFocus(bool tv, Widget child) =>
+      tv ? TvRowFocus(child: child) : child;
+
   // The look's own take on "what's on": a solid panel in the guide's colours
   // (like the top panel of its guide), the channel on a light name block,
   // the programme title in the guide's title colour, the guide's "now" line
   // for progress.
-  Widget _buildTvBanner(BuildContext context, GuideStyle look) {
+  Widget _buildBanner(BuildContext context, GuideStyle look,
+      {required bool tv, required PlayerMetrics m}) {
+    final pad = tv
+        ? const EdgeInsets.fromLTRB(24, 16, 24, 12)
+        : const EdgeInsets.fromLTRB(14, 10, 14, 6);
+    final titleSize = tv ? 32.0 : 24.0;
+    final chipSize = tv ? 16.0 : 13.0;
+    final extras = _BannerExtras.maybeOf(context);
+    final clockAlways = ProviderScope.containerOf(context)
+        .read(playerClockAlwaysProvider);
     final page = Theme.of(context).scaffoldBackgroundColor;
     final radius = BorderRadius.circular(look.cellRadius > 0 ? look.cellRadius : 6);
     return DecoratedBox(
@@ -548,7 +580,7 @@ class _BottomPanel extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+        padding: pad,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,8 +588,10 @@ class _BottomPanel extends StatelessWidget {
             Row(
               children: [
                 if (subtitle != null)
-                  Flexible(
-                    child: DecoratedBox(
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: look.channelColumn,
                         borderRadius: BorderRadius.circular(
@@ -575,7 +609,7 @@ class _BottomPanel extends StatelessWidget {
                               : context.displayName(subtitle!),
                           style: TextStyle(
                             color: look.channelText,
-                            fontSize: 16,
+                            fontSize: chipSize,
                             fontWeight: FontWeight.w800,
                             letterSpacing: look.retroFlair ? 1.2 : 0,
                           ),
@@ -583,8 +617,22 @@ class _BottomPanel extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      ),
                     ),
                   ),
+                if (subtitle == null) const Spacer(),
+                // Stream details and the clock live in the banner. The
+                // "Always on" clock stays in the screen corner instead.
+                if (extras?.qualityLabel != null) ...[
+                  const SizedBox(width: 10),
+                  _BannerChip(
+                      label: extras!.qualityLabel!, look: look, size: chipSize),
+                ],
+                if (!clockAlways) ...[
+                  const SizedBox(width: 12),
+                  PlayerClock(
+                      fontSize: tv ? 20 : 15, color: look.headerText),
+                ],
               ],
             ),
             const SizedBox(height: 10),
@@ -592,7 +640,7 @@ class _BottomPanel extends StatelessWidget {
               context.displayName(title),
               style: TextStyle(
                 color: look.titleColor,
-                fontSize: 32,
+                fontSize: titleSize,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
                 // A hard, blocky drop shadow like old on-screen text.
@@ -603,6 +651,38 @@ class _BottomPanel extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            if (tv) ...[
+              // TV: the info line gets the full width, controls beneath it,
+              // the progress bar last.
+              const SizedBox(height: 8),
+              if (badge == null || infoLine != null)
+                DefaultTextStyle.merge(
+                  style: TextStyle(color: look.headerText),
+                  child: badge == null ? meta : infoLine!,
+                ),
+              const SizedBox(height: 8),
+              DefaultTextStyle.merge(
+                style: TextStyle(color: look.headerText),
+                child: TvRowFocus(
+                  child: Row(
+                    children: [
+                      if (transport != null) transport!,
+                      if (badge != null) ...[
+                        const SizedBox(width: 16),
+                        badge!,
+                      ],
+                      const Spacer(),
+                      for (final a in actions) ...[
+                        const SizedBox(width: 8),
+                        a,
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (bar != null) bar!,
+            ] else ...[
             const SizedBox(height: 12),
             if (bar != null) ...[
               bar!,
@@ -611,22 +691,33 @@ class _BottomPanel extends StatelessWidget {
               const SizedBox(height: 4),
             DefaultTextStyle.merge(
               style: TextStyle(color: look.headerText),
-              child: TvRowFocus(
-                child: Row(
-                  children: [
-                    if (transport != null) ...[
-                      transport!,
-                      const SizedBox(width: 20),
-                    ],
-                    Expanded(child: meta),
-                    for (final a in actions) ...[
-                      const SizedBox(width: 8),
-                      a,
-                    ],
-                  ],
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // The programme line gets the full width so its times and
+                  // "next" are not squeezed beside the buttons.
+                  meta,
+                  const SizedBox(height: 8),
+                  _maybeRowFocus(
+                    tv,
+                    Row(
+                      children: [
+                        if (transport != null) ...[
+                          transport!,
+                          const SizedBox(width: 20),
+                        ],
+                        const Spacer(),
+                        for (final a in actions) ...[
+                          SizedBox(width: tv ? 8 : 4 * m.scale),
+                          a,
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+            ],
           ],
         ),
       ),
@@ -911,6 +1002,7 @@ class _LiveControls extends ConsumerWidget {
               title: title,
               bar: tv ? null : const _ProgressBar(value: 1),
               meta: liveBadge,
+              badge: liveBadge,
               actions: actions,
               transport: tv ? transport : null,
             )
@@ -1003,6 +1095,18 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
           fontSize: m.bodySize,
           fontFeatures: const [FontFeature.tabularFigures()],
         );
+        Widget infoText(Programme prog, Programme? next) => Text(
+              [
+                '${_time(context, prog.start)} – ${_time(context, prog.end)}',
+                AppLocalizations.of(context).playerTimeLeft(formatRuntimeL10n(
+                    AppLocalizations.of(context), prog.end.difference(_now))),
+                if (next != null)
+                  AppLocalizations.of(context).playerNextProgramme(next.title),
+              ].join('  ·  '),
+              style: metaStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
         return _BottomPanel(
           // Programme title leads when known (what's on), channel below.
           title: prog?.title ?? widget.channelName,
@@ -1015,26 +1119,12 @@ class _LiveProgrammePanelState extends ConsumerState<_LiveProgrammePanel> {
               widget.liveBadge,
               if (prog != null) ...[
                 SizedBox(width: 12 * m.scale),
-                Flexible(
-                  child: Text(
-                    [
-                      '${_time(context, prog.start)} – ${_time(context, prog.end)}',
-                      AppLocalizations.of(context)
-                          .playerTimeLeft(
-                              formatRuntimeL10n(AppLocalizations.of(context),
-                                  prog.end.difference(_now))),
-                      if (next != null)
-                        AppLocalizations.of(context)
-                            .playerNextProgramme(next.title),
-                    ].join('  ·  '),
-                    style: metaStyle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+                Flexible(child: infoText(prog, next)),
               ],
             ],
           ),
+          badge: widget.liveBadge,
+          infoLine: prog == null ? null : infoText(prog, next),
           actions: widget.actions,
           transport: widget.transport,
         );
@@ -1230,8 +1320,8 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
-    final look = m.tv ? Theme.of(context).extension<GuideStyle>() : null;
-    final thickness = look != null ? 8.0 : (m.tv ? 4.0 : 6 * m.scale);
+    final look = Theme.of(context).extension<GuideStyle>();
+    final thickness = look != null ? (m.tv ? 8.0 : 6.0) : (m.tv ? 4.0 : 6 * m.scale);
     return SizedBox(
       height: m.tv ? 20 : 28 * m.scale,
       child: Center(
@@ -1352,6 +1442,53 @@ String? _audioCodecName(String? mime) {
   return null;
 }
 
+/// What the controls layout hands the themed banner: the stream details.
+class _BannerExtras extends InheritedWidget {
+  const _BannerExtras({required this.qualityLabel, required super.child});
+
+  final String? qualityLabel;
+
+  static _BannerExtras? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_BannerExtras>();
+
+  @override
+  bool updateShouldNotify(_BannerExtras old) => old.qualityLabel != qualityLabel;
+}
+
+/// The stream-details chip in the look's own colours.
+class _BannerChip extends StatelessWidget {
+  const _BannerChip(
+      {required this.label, required this.look, required this.size});
+
+  final String label;
+  final GuideStyle look;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: AppLocalizations.of(context).playerStreamDetails(label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(look.cellRadius > 0 ? 6 : 4),
+          border: Border.all(color: look.headerText.withValues(alpha: 0.6)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          style: TextStyle(
+            color: look.headerText,
+            fontWeight: FontWeight.w700,
+            fontSize: size - 1.5,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _QualityChip extends StatelessWidget {
   const _QualityChip({required this.label});
 
@@ -1388,9 +1525,10 @@ class _QualityChip extends StatelessWidget {
 /// by the player screen: with the controls on TV, or always when the
 /// "Always on" clock option is set.
 class PlayerClock extends StatefulWidget {
-  const PlayerClock({super.key, this.fontSize = 20});
+  const PlayerClock({super.key, this.fontSize = 20, this.color});
 
   final double fontSize;
+  final Color? color;
 
   static String label(BuildContext context) =>
       formatSystemTime(context, DateTime.now());
@@ -1434,7 +1572,8 @@ class _ClockState extends State<PlayerClock> {
   Widget build(BuildContext context) {
     return Text(
       PlayerClock.label(context),
-      style: PlayerClock.style(widget.fontSize),
+      style: PlayerClock.style(widget.fontSize)
+          .copyWith(color: widget.color, shadows: widget.color == null ? null : const []),
     );
   }
 }
