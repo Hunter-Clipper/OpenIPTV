@@ -10,12 +10,12 @@ part of 'epg_service.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(epgService)
-const epgServiceProvider = EpgServiceProvider._();
+final epgServiceProvider = EpgServiceProvider._();
 
 final class EpgServiceProvider
     extends $FunctionalProvider<EpgService, EpgService, EpgService>
     with $Provider<EpgService> {
-  const EpgServiceProvider._()
+  EpgServiceProvider._()
       : super(
           from: null,
           argument: null,
@@ -48,4 +48,4 @@ final class EpgServiceProvider
   }
 }
 
-String _$epgServiceHash() => r'35571a9a3bcadfe535c5e8c6c4e5559e63ac5e7c';
+String _$epgServiceHash() => r'5ea095a94a6ac1daece02697379793382e18f63c';

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -9,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/services/guide_assignment_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqlite3/open.dart';
 
 String stamp(DateTime t) {
   String two(int n) => n.toString().padLeft(2, '0');
@@ -35,8 +33,6 @@ String feed(Map<String, String> channels) {
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   late AppDatabase db;

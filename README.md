@@ -143,10 +143,31 @@ The full list of what the app contacts is in [PRIVACY.md](PRIVACY.md).
 
 | Tool | Version |
 |---|---|
-| Flutter | 3.22+ (stable; developed on 3.44) |
-| Dart | 3.4+ |
-| Android SDK | minSdk 24 (Android 7.0), compile/target SDK 36 |
+| Flutter | 3.44 (stable; what the app is developed and tested on) |
+| Dart | 3.12 (comes with Flutter 3.44) |
+| Android SDK | minSdk 24 (Android 7.0), compile SDK 37 — install platform 37 and build-tools 35 |
+| Android NDK | 28.2.13676358 (OpenVPN native build) |
+| Android Gradle plugin | 9.1.0, with Gradle 9.3.1 and Kotlin 2.2.20 |
 | Java | 17 (for Android Gradle) |
+
+### Main libraries
+
+The versions below are what `pubspec.yaml` and `pubspec.lock` pin; keep this table in step whenever dependencies change.
+
+| Area | Library | Version |
+|---|---|---|
+| State | `flutter_riverpod`, `riverpod_annotation` (+ `riverpod_generator`) | 3.5 / 4.0 (+ 4.0) |
+| Navigation | `go_router` | 18.1 |
+| Database | `drift` (+ `drift_dev`) on `sqlite3` with its SQLCipher build | 2.35 (+ 2.35) / 3.5 |
+| Secure storage (database key) | `flutter_secure_storage` | 11.2 |
+| Images | `cached_network_image` | 4.0 |
+| Files and sharing | `file_picker`, `share_plus`, `archive` | 13.4, 13.3, 4.7 |
+| Background work, notifications, permissions | `workmanager`, `flutter_local_notifications`, `permission_handler` | 0.10, 23.0, 13.0 |
+| Guide parsing | `xml` | 7.0 |
+| App info | `package_info_plus` | 10.2 |
+| Android video | AndroidX Media3 ExoPlayer | 1.11 |
+
+`intl` stays at 0.20.2 because the Flutter SDK pins it.
 
 ```bash
 git clone https://github.com/Hunter-Clipper/OpenIPTV.git
@@ -186,8 +207,8 @@ android/app/src/main/kotlin/com/openiptv/app/
 
 ### Architecture
 
-- **State:** Riverpod 2, partly code-generated with `riverpod_annotation`.
-- **Database:** Drift on SQLCipher (AES-256, key kept in the Android Keystore via `flutter_secure_storage`), with versioned, guarded migrations. Encryption is on by default; slow TV devices can disable it (Settings → Power User Tools → Skip Database Encryption) to use plain SQLite for faster reads.
+- **State:** Riverpod 3, partly code-generated with `riverpod_annotation`.
+- **Database:** Drift on SQLCipher (AES-256, bundled by `package:sqlite3`'s build hook; the key is kept in the Android Keystore via `flutter_secure_storage`), with versioned, guarded migrations. Encryption is on by default; slow TV devices can disable it (Settings → Power User Tools → Skip Database Encryption) to use plain SQLite for faster reads.
 - **Navigation:** `go_router`. On Android TV (detected natively via `UiModeManager`) the tab bar becomes a side rail with remote-first focus handling.
 - **Video:** a custom native player on AndroidX Media3 **ExoPlayer**, rendered into a Flutter `Texture` (a `SurfaceTexture`, so decoder crop is honoured). It handles HLS, MPEG-TS, MP4/MKV, hardware decoding, CEA-608/708 captions and audio/subtitle track selection.
 - **Parsing:** custom Dart M3U, XMLTV and Xtream parsers; large payloads are decoded off the UI thread.
@@ -214,7 +235,7 @@ android/app/src/main/kotlin/com/openiptv/app/
 2. Branch from `main` (`feature/<issue-number>-short-description`) and open a PR referencing the issue.
 3. Use short imperative commit subjects: `fix: channel list respects sort toggle`.
 
-Before opening a PR: `flutter analyze` is clean, `flutter test` passes, and no new dependencies without discussion first.
+Before opening a PR: `flutter analyze` is clean, `flutter test` passes, and no new dependencies without discussion first. When you change dependencies, update the "Main libraries" table above in the same PR.
 
 Please don't open issues or PRs asking for, sharing or linking to playlists or streams. They will be closed.
 

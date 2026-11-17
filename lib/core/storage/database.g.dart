@@ -5776,9 +5776,9 @@ final class $$SourcesTableReferences
   $$SourcesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$ChannelsTable, List<ChannelRow>>
-      _channelsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.channels,
-          aliasName: $_aliasNameGenerator(db.sources.id, db.channels.sourceId));
+      _channelsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.channels,
+              aliasName: 'sources__id__channels__source_id');
 
   $$ChannelsTableProcessedTableManager get channelsRefs {
     final manager = $$ChannelsTableTableManager($_db, $_db.channels)
@@ -5792,7 +5792,7 @@ final class $$SourcesTableReferences
   static MultiTypedResultKey<$MoviesTable, List<MovieRow>> _moviesRefsTable(
           _$AppDatabase db) =>
       MultiTypedResultKey.fromTable(db.movies,
-          aliasName: $_aliasNameGenerator(db.sources.id, db.movies.sourceId));
+          aliasName: 'sources__id__movies__source_id');
 
   $$MoviesTableProcessedTableManager get moviesRefs {
     final manager = $$MoviesTableTableManager($_db, $_db.movies)
@@ -5806,8 +5806,7 @@ final class $$SourcesTableReferences
   static MultiTypedResultKey<$SeriesEntriesTable, List<SeriesRow>>
       _seriesEntriesRefsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.seriesEntries,
-              aliasName: $_aliasNameGenerator(
-                  db.sources.id, db.seriesEntries.sourceId));
+              aliasName: 'sources__id__series_entries__source_id');
 
   $$SeriesEntriesTableProcessedTableManager get seriesEntriesRefs {
     final manager = $$SeriesEntriesTableTableManager($_db, $_db.seriesEntries)
@@ -5819,9 +5818,9 @@ final class $$SourcesTableReferences
   }
 
   static MultiTypedResultKey<$EpisodesTable, List<EpisodeRow>>
-      _episodesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.episodes,
-          aliasName: $_aliasNameGenerator(db.sources.id, db.episodes.sourceId));
+      _episodesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.episodes,
+              aliasName: 'sources__id__episodes__source_id');
 
   $$EpisodesTableProcessedTableManager get episodesRefs {
     final manager = $$EpisodesTableTableManager($_db, $_db.episodes)
@@ -6205,8 +6204,10 @@ class $$SourcesTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$SourcesTableReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$SourcesTable, SourceRow>(table),
+                    $$SourcesTableReferences(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: (
               {channelsRefs = false,
@@ -6225,55 +6226,51 @@ class $$SourcesTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (channelsRefs)
-                    await $_getPrefetchedData<SourceRow, $SourcesTable,
-                            ChannelRow>(
+                    await $_getPrefetchedDataByColumns<SourceRow, $SourcesTable,
+                            ChannelRow, $ChannelsTable>(
                         currentTable: table,
                         referencedTable:
                             $$SourcesTableReferences._channelsRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$SourcesTableReferences(db, table, p0)
                                 .channelsRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.sourceId == item.id),
+                        currentColumn: 'id',
+                        referencedColumn: 'source_id',
                         typedResults: items),
                   if (moviesRefs)
-                    await $_getPrefetchedData<SourceRow, $SourcesTable,
-                            MovieRow>(
+                    await $_getPrefetchedDataByColumns<SourceRow, $SourcesTable,
+                            MovieRow, $MoviesTable>(
                         currentTable: table,
                         referencedTable:
                             $$SourcesTableReferences._moviesRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$SourcesTableReferences(db, table, p0).moviesRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.sourceId == item.id),
+                        currentColumn: 'id',
+                        referencedColumn: 'source_id',
                         typedResults: items),
                   if (seriesEntriesRefs)
-                    await $_getPrefetchedData<SourceRow, $SourcesTable,
-                            SeriesRow>(
+                    await $_getPrefetchedDataByColumns<SourceRow, $SourcesTable,
+                            SeriesRow, $SeriesEntriesTable>(
                         currentTable: table,
                         referencedTable: $$SourcesTableReferences
                             ._seriesEntriesRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$SourcesTableReferences(db, table, p0)
                                 .seriesEntriesRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.sourceId == item.id),
+                        currentColumn: 'id',
+                        referencedColumn: 'source_id',
                         typedResults: items),
                   if (episodesRefs)
-                    await $_getPrefetchedData<SourceRow, $SourcesTable,
-                            EpisodeRow>(
+                    await $_getPrefetchedDataByColumns<SourceRow, $SourcesTable,
+                            EpisodeRow, $EpisodesTable>(
                         currentTable: table,
                         referencedTable:
                             $$SourcesTableReferences._episodesRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$SourcesTableReferences(db, table, p0)
                                 .episodesRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.sourceId == item.id),
+                        currentColumn: 'id',
+                        referencedColumn: 'source_id',
                         typedResults: items)
                 ];
               },
@@ -6337,8 +6334,8 @@ final class $$ChannelsTableReferences
     extends BaseReferences<_$AppDatabase, $ChannelsTable, ChannelRow> {
   $$ChannelsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $SourcesTable _sourceIdTable(_$AppDatabase db) => db.sources
-      .createAlias($_aliasNameGenerator(db.channels.sourceId, db.sources.id));
+  static $SourcesTable _sourceIdTable(_$AppDatabase db) =>
+      db.sources.createAlias('channels__source_id__sources__id');
 
   $$SourcesTableProcessedTableManager get sourceId {
     final $_column = $_itemColumn<String>('source_id')!;
@@ -6651,8 +6648,10 @@ class $$ChannelsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$ChannelsTableReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$ChannelsTable, ChannelRow>(table),
+                    $$ChannelsTableReferences(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: ({sourceId = false}) {
             return PrefetchHooks(
@@ -6893,7 +6892,11 @@ class $$ProgrammesTableTableManager extends RootTableManager<
             episodeNum: episodeNum,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$ProgrammesTable, ProgrammeRow>(table),
+                    BaseReferences<_$AppDatabase, $ProgrammesTable,
+                        ProgrammeRow>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));
@@ -7112,7 +7115,11 @@ class $$ExtraGuidesTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$ExtraGuidesTable, ExtraGuideRow>(table),
+                    BaseReferences<_$AppDatabase, $ExtraGuidesTable,
+                        ExtraGuideRow>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));
@@ -7271,7 +7278,11 @@ class $$GuideChannelsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$GuideChannelsTable, GuideChannelRow>(table),
+                    BaseReferences<_$AppDatabase, $GuideChannelsTable,
+                        GuideChannelRow>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));
@@ -7446,7 +7457,11 @@ class $$ChannelGuideLinksTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$ChannelGuideLinksTable, GuideLinkRow>(table),
+                    BaseReferences<_$AppDatabase, $ChannelGuideLinksTable,
+                        GuideLinkRow>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));
@@ -7502,8 +7517,8 @@ final class $$MoviesTableReferences
     extends BaseReferences<_$AppDatabase, $MoviesTable, MovieRow> {
   $$MoviesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $SourcesTable _sourceIdTable(_$AppDatabase db) => db.sources
-      .createAlias($_aliasNameGenerator(db.movies.sourceId, db.sources.id));
+  static $SourcesTable _sourceIdTable(_$AppDatabase db) =>
+      db.sources.createAlias('movies__source_id__sources__id');
 
   $$SourcesTableProcessedTableManager get sourceId {
     final $_column = $_itemColumn<String>('source_id')!;
@@ -7794,8 +7809,10 @@ class $$MoviesTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$MoviesTableReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$MoviesTable, MovieRow>(table),
+                    $$MoviesTableReferences(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: ({sourceId = false}) {
             return PrefetchHooks(
@@ -7875,8 +7892,7 @@ final class $$SeriesEntriesTableReferences
       super.$_db, super.$_table, super.$_typedResult);
 
   static $SourcesTable _sourceIdTable(_$AppDatabase db) =>
-      db.sources.createAlias(
-          $_aliasNameGenerator(db.seriesEntries.sourceId, db.sources.id));
+      db.sources.createAlias('series_entries__source_id__sources__id');
 
   $$SourcesTableProcessedTableManager get sourceId {
     final $_column = $_itemColumn<String>('source_id')!;
@@ -8098,7 +8114,7 @@ class $$SeriesEntriesTableTableManager extends RootTableManager<
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (
-                    e.readTable(table),
+                    e.readTable<$SeriesEntriesTable, SeriesRow>(table),
                     $$SeriesEntriesTableReferences(db, table, e)
                   ))
               .toList(),
@@ -8185,8 +8201,8 @@ final class $$EpisodesTableReferences
     extends BaseReferences<_$AppDatabase, $EpisodesTable, EpisodeRow> {
   $$EpisodesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $SourcesTable _sourceIdTable(_$AppDatabase db) => db.sources
-      .createAlias($_aliasNameGenerator(db.episodes.sourceId, db.sources.id));
+  static $SourcesTable _sourceIdTable(_$AppDatabase db) =>
+      db.sources.createAlias('episodes__source_id__sources__id');
 
   $$SourcesTableProcessedTableManager get sourceId {
     final $_column = $_itemColumn<String>('source_id')!;
@@ -8464,8 +8480,10 @@ class $$EpisodesTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$EpisodesTableReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$EpisodesTable, EpisodeRow>(table),
+                    $$EpisodesTableReferences(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: ({sourceId = false}) {
             return PrefetchHooks(
@@ -8956,7 +8974,11 @@ class $$ProfilesTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$ProfilesTable, ProfileRow>(table),
+                    BaseReferences<_$AppDatabase, $ProfilesTable, ProfileRow>(
+                        db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));
@@ -9146,7 +9168,11 @@ class $$WatchProgressTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$WatchProgressTable, WatchProgressRow>(table),
+                    BaseReferences<_$AppDatabase, $WatchProgressTable,
+                        WatchProgressRow>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));

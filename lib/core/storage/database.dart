@@ -2363,8 +2363,7 @@ QueryExecutor _openConnection({bool migrate = true}) {
       }
       debugPrint('[OTV-db] opened (plaintext, skip encryption)');
       if (migrate) unawaited(_logStorage(dbFolder));
-      return NativeDatabase.createInBackground(file,
-          isolateSetup: useSqlCipher, setup: _dbSetup);
+      return NativeDatabase.createInBackground(file, setup: _dbSetup);
     }
     final (executor, state) = await openEncryptedDatabase(
       file,

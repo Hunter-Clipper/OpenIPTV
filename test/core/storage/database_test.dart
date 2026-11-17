@@ -1,20 +1,11 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/storage/database.dart';
-import 'package:sqlite3/open.dart';
 
 void main() {
-  // Linux hosts often ship only the versioned runtime library (no -dev
-  // symlink), which package:sqlite3 won't find by default.
-  if (Platform.isLinux && File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
-  }
-
   late AppDatabase db;
   final now = DateTime.now();
 

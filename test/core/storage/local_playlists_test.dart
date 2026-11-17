@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -13,7 +12,6 @@ import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqlite3/open.dart';
 
 const _playlist = '#EXTM3U\n'
     '#EXTINF:-1 group-title="News",Channel One\n'
@@ -24,8 +22,6 @@ Uint8List _bytes(String s) => Uint8List.fromList(utf8.encode(s));
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   late Directory tmp;

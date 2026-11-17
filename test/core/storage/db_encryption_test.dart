@@ -1,18 +1,14 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/storage/db_encryption.dart';
 import 'package:open_iptv/shared/utils/redact.dart';
-import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   group('DbKeyStore', () {

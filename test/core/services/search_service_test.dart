@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/search_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
-import 'package:sqlite3/open.dart';
 
 Programme _pr(String channelId, String title) {
   final now = DateTime.now();
@@ -23,8 +21,6 @@ void main() {
   // symlink), which package:sqlite3 won't find by default.
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   late AppDatabase db;

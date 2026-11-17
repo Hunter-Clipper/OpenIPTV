@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -10,7 +9,6 @@ import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/local_playlists.dart';
 import 'package:open_iptv/features/settings/refresh_all.dart';
 import 'package:open_iptv/l10n/gen/app_localizations_en.dart';
-import 'package:sqlite3/open.dart';
 
 SourceRefreshResult _result(String name,
         {Object? playlistError, Object? epgError}) =>
@@ -24,8 +22,6 @@ SourceRefreshResult _result(String name,
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   group('refreshSummary', () {

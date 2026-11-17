@@ -10,11 +10,11 @@ part of 'playback_service.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(playbackService)
-const playbackServiceProvider = PlaybackServiceProvider._();
+final playbackServiceProvider = PlaybackServiceProvider._();
 
 final class PlaybackServiceProvider extends $FunctionalProvider<PlaybackService,
     PlaybackService, PlaybackService> with $Provider<PlaybackService> {
-  const PlaybackServiceProvider._()
+  PlaybackServiceProvider._()
       : super(
           from: null,
           argument: null,
@@ -47,4 +47,4 @@ final class PlaybackServiceProvider extends $FunctionalProvider<PlaybackService,
   }
 }
 
-String _$playbackServiceHash() => r'2f5f30a382c7cfdf00ab99f06de49cc4874dde1d';
+String _$playbackServiceHash() => r'1a5df24d9153680ce85c567e131beaab3ce85afa';

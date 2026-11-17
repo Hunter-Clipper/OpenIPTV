@@ -10,12 +10,12 @@ part of 'source_manager.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(sourceManager)
-const sourceManagerProvider = SourceManagerProvider._();
+final sourceManagerProvider = SourceManagerProvider._();
 
 final class SourceManagerProvider
     extends $FunctionalProvider<SourceManager, SourceManager, SourceManager>
     with $Provider<SourceManager> {
-  const SourceManagerProvider._()
+  SourceManagerProvider._()
       : super(
           from: null,
           argument: null,
@@ -48,15 +48,15 @@ final class SourceManagerProvider
   }
 }
 
-String _$sourceManagerHash() => r'65d25c3c4f37602210c7776da818e57f7889685b';
+String _$sourceManagerHash() => r'd5e7ab21e35e32de13686f6a1030478e96c7458c';
 
 @ProviderFor(allSources)
-const allSourcesProvider = AllSourcesProvider._();
+final allSourcesProvider = AllSourcesProvider._();
 
 final class AllSourcesProvider extends $FunctionalProvider<
         AsyncValue<List<Source>>, List<Source>, FutureOr<List<Source>>>
     with $FutureModifier<List<Source>>, $FutureProvider<List<Source>> {
-  const AllSourcesProvider._()
+  AllSourcesProvider._()
       : super(
           from: null,
           argument: null,
@@ -82,4 +82,4 @@ final class AllSourcesProvider extends $FunctionalProvider<
   }
 }
 
-String _$allSourcesHash() => r'3fbaa59be00843e726473ffccaa8ae1ae31ed92b';
+String _$allSourcesHash() => r'a7c38ba9d69c49ceb695431906990820b1d6a1f9';

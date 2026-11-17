@@ -6,8 +6,6 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
-import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 /// On-device encryption of the app database (playlist logins, and the
@@ -80,10 +78,6 @@ bool isPlaintextSqlite(File file) {
 final _sqliteMagic =
     Uint8List.fromList('SQLite format 3\u0000'.codeUnits);
 
-void useSqlCipher() {
-  open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
-}
-
 /// Thrown to background isolates while the database hasn't been converted
 /// to encrypted yet — they skip their run; the app converts it on launch.
 class DatabaseNotReadyException implements Exception {
@@ -124,8 +118,6 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   Duration retryDelay = const Duration(milliseconds: 300),
 }) async {
   final keyOpensFn = keyOpensCallback ?? (path, key) => Isolate.run(() => keyOpens(path, key));
-  useSqlCipher();
-  await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
 
   var state = DbOpenState.encrypted;
   if (isPlaintextSqlite(file)) {
@@ -173,7 +165,6 @@ Future<(QueryExecutor, DbOpenState)> openEncryptedDatabase(
   return (
     NativeDatabase.createInBackground(
       file,
-      isolateSetup: useSqlCipher,
       setup: (db) {
         db.execute('PRAGMA key = $sqlKey;');
         setup(db);
@@ -214,13 +205,11 @@ void setAside(File file) {
 }
 
 QueryExecutor _plain(File file, void Function(Database) setup) =>
-    NativeDatabase.createInBackground(file,
-        isolateSetup: useSqlCipher, setup: setup);
+    NativeDatabase.createInBackground(file, setup: setup);
 
 const _sqliteNotADb = 26;
 
 bool keyOpens(String path, String hexKey) {
-  useSqlCipher();
   final db = sqlite3.open(path);
   try {
     db.execute('PRAGMA key = ${_sqlKey(hexKey)};');
@@ -239,7 +228,6 @@ bool keyOpens(String path, String hexKey) {
 /// Rewrites the SQLCipher database at [path] as a plain SQLite database,
 /// replacing the original only once the copy is complete.
 void decryptInPlace(String path, String hexKey) {
-  useSqlCipher();
   final tmp = '$path.decrypting';
   for (final f in [File(tmp), File('$tmp-journal')]) {
     if (f.existsSync()) f.deleteSync();
@@ -270,7 +258,6 @@ void decryptInPlace(String path, String hexKey) {
 }
 /// [hexKey], replacing the original only once the copy is complete.
 void _encryptInPlace(String path, String hexKey) {
-  useSqlCipher();
   final tmp = '$path.encrypting';
   for (final f in [File(tmp), File('$tmp-journal')]) {
     if (f.existsSync()) f.deleteSync();

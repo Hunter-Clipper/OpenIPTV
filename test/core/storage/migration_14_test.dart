@@ -1,16 +1,12 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/storage/database.dart';
-import 'package:sqlite3/open.dart';
 
 void main() {
   if (Platform.isLinux &&
       File('/lib/x86_64-linux-gnu/libsqlite3.so.0').existsSync()) {
-    open.overrideFor(
-        OperatingSystem.linux, () => DynamicLibrary.open('libsqlite3.so.0'));
   }
 
   // The UI and the background engine can both start the upgrade; the second
