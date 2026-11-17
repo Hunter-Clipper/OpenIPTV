@@ -6,8 +6,13 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased
 
 **Under the hood**
-- **Updated the libraries the app is built on**, and the Android build tools they need: file and share handling (file_picker, share_plus), version info, background refresh (workmanager), permission prompts, ZIP handling (archive) and a few smaller ones. Nothing should look different; it keeps the app current and secure. Thanks to **edrmundy** (Ed Mundy) for the reminder to check our dependencies. The big ones (Riverpod, the router, the database stack) are left for their own changes.
-- **The bigger library updates**: Riverpod 3 (app state), the page router (go_router 18), notifications, the image loader, the secure key storage and the XML reader. Nothing should look or work differently. 
+- **Updated the libraries the app is built on.** Nothing should look or work differently; it keeps the app current and secure. Thanks to **edrmundy** (Ed Mundy) for the reminder to check our dependencies.
+  - *App state and navigation:* Riverpod 3 and its code generator, and the page router (go_router 18).
+  - *Database:* Drift 2.35 and SQLite 3 with the SQLCipher encryption bundled by its build step, replacing an end-of-life package. Existing databases open as before — tested by creating a database with the previous release and opening it with the new build.
+  - *Files, sharing and system features:* file picker, sharing, app version info, background refresh (workmanager), permission prompts, notifications and the secure key storage.
+  - *Everything else:* the image loader, the ZIP and XML readers, and the code-style rules.
+  - *Android build tools:* Android Gradle plugin 9.1 with Gradle 9.3.1 and Android SDK 37.
+- **A safety net for your data.** If a build ever shipped without the encryption library, the app now refuses to touch the database instead of mistaking it for one with a lost key and resetting it. When a reset does happen, the old database's key is kept so its file can still be opened.
 
 **Fixed**
 - **Providers that send numbers where text is expected no longer stop a playlist from loading.** Some Xtream providers send a movie's year or rating, a plot, a logo or cover, or an episode's picture as a number instead of text, which the app couldn't read. All of these are now accepted. Thanks to **edrmundy** (Ed Mundy) for finding and fixing the movie case (#176), which the rest builds on.
