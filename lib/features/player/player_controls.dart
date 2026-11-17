@@ -553,10 +553,6 @@ class _BottomPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (look.retroFlair) ...[
-              _ColourBars(look: look),
-              const SizedBox(height: 12),
-            ],
             Row(
               children: [
                 if (subtitle != null)
@@ -633,32 +629,6 @@ class _BottomPanel extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// A strip of colour blocks along the top of the banner, in the guide's own
-/// programme colours (the retro-box test pattern touch).
-class _ColourBars extends StatelessWidget {
-  const _ColourBars({required this.look});
-
-  final GuideStyle look;
-
-  @override
-  Widget build(BuildContext context) {
-    final colours = <Color>[
-      look.cellColor,
-      for (final v in look.genreColors.values) v.fill,
-      look.nowColor,
-    ];
-    return SizedBox(
-      height: 8,
-      child: Row(
-        children: [
-          for (final c in colours)
-            Expanded(child: ColoredBox(color: c, child: const SizedBox.expand())),
-        ],
       ),
     );
   }
