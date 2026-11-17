@@ -124,7 +124,7 @@ class _GuideDataScreenState extends ConsumerState<GuideDataScreen> {
     ref.listen(refreshAllProvider, (prev, next) {
       if (prev?.isRunning == true && !next.isRunning) _load();
     });
-    final sources = ref.watch(allSourcesProvider).valueOrNull ?? const [];
+    final sources = ref.watch(allSourcesProvider).value ?? const [];
     final withGuide = [
       for (final s in sources)
         if (_hasGuide(s)) s

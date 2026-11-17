@@ -38,7 +38,7 @@ Future<void> showCategoryOptions(
   List<String> visible = const [],
 }) async {
   unawaited(HapticFeedback.mediumImpact());
-  final profile = ref.read(activeProfileProvider).valueOrNull;
+  final profile = ref.read(activeProfileProvider).value;
   final real = category != 'All';
   final index = visible.indexOf(category);
   final action = await showModalBottomSheet<_CategoryAction>(

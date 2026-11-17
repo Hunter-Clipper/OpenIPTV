@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:open_iptv/core/epg/guide_matcher.dart';
 import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/services/guide_fetch.dart';

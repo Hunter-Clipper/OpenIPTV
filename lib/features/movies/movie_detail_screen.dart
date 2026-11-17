@@ -63,7 +63,7 @@ class MovieDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final movieAsync = ref.watch(_movieDetailProvider(movieId));
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
     final isFavourite =
         profile?.favoriteMovieIds.contains(movieId) ?? false;
 
@@ -132,7 +132,7 @@ class _MovieDetailBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final extras =
-        ref.watch(_movieExtrasProvider((movie.id, movie.sourceId))).valueOrNull;
+        ref.watch(_movieExtrasProvider((movie.id, movie.sourceId))).value;
     final genre = splitGenres(movie.genre).first;
     final more = movie.genre == null
         ? const <Movie>[]
@@ -140,7 +140,7 @@ class _MovieDetailBody extends ConsumerWidget {
             ref,
             ref
                     .watch(_moreLikeThisProvider((movie.id, movie.sourceId, genre)))
-                    .valueOrNull ??
+                    .value ??
                 const []);
 
     final runtime = extras?.runtime ?? movie.totalDuration;
@@ -236,8 +236,8 @@ class _MovieDetailBody extends ConsumerWidget {
 
   /// Drops titles a kids profile mustn't see or that sit in a locked genre.
   List<Movie> _visible(WidgetRef ref, List<Movie> movies) {
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final unlocked = ref.watch(parentalSessionUnlockedProvider);
     final isKid = profile?.isKidsProfile ?? false;
     return movies

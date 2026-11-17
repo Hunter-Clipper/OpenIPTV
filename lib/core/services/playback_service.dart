@@ -14,13 +14,13 @@ part 'playback_service.g.dart';
 enum StreamType { hls, mpegTs, progressive, auto }
 
 @Riverpod(keepAlive: true)
-PlaybackService playbackService(PlaybackServiceRef ref) {
+PlaybackService playbackService(Ref ref) {
   final db = ref.watch(appDatabaseProvider);
   final service = PlaybackService(
     db: db,
     bufferPreset: () => BufferPreset.fromId(
-        ref.read(appPreferencesProvider).valueOrNull?.bufferPreset),
-    userAgent: () => ref.read(appPreferencesProvider).valueOrNull?.userAgent,
+        ref.read(appPreferencesProvider).value?.bufferPreset),
+    userAgent: () => ref.read(appPreferencesProvider).value?.userAgent,
   );
   ref.onDispose(service.dispose);
   return service;

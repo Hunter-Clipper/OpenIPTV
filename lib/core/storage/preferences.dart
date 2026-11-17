@@ -73,7 +73,7 @@ const _kLastUpdateCheckMs = 'last_update_check_ms';
 const _kSkippedUpdateVersion = 'skipped_update_version';
 
 @Riverpod(keepAlive: true)
-Future<AppPreferences> appPreferences(AppPreferencesRef ref) async {
+Future<AppPreferences> appPreferences(Ref ref) async {
   final prefs = await SharedPreferences.getInstance();
   return AppPreferences(prefs);
 }

@@ -818,8 +818,8 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
 
   Widget _buildGuide(List<Channel> all) {
     _pane.channels = all;
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final unlocked = ref.watch(parentalSessionUnlockedProvider);
     final az = ref.watch(contentSortProvider) == 'az';
     final isKid = profile?.isKidsProfile ?? false;
@@ -829,7 +829,7 @@ class _TvGuideScreenState extends ConsumerState<TvGuideScreen>
     // These scan the whole catalogue (tens of thousands of channels): worked
     // out again only when what they come from has changed, not on every
     // rebuild (a rebuild took 70-240 ms on the Chromecast).
-    final recentRaw = ref.watch(recentChannelsProvider).valueOrNull;
+    final recentRaw = ref.watch(recentChannelsProvider).value;
     final baseKey = (
       identityHashCode(all),
       identityHashCode(profile),
@@ -1369,7 +1369,7 @@ class _TopPane extends ConsumerWidget {
             (channel == null
                 ? null
                 : _airing(ref.watch(_rowProgrammesProvider(rowKey(channel)))
-                        .valueOrNull ??
+                        .value ??
                     const []));
         final service = model.service;
         // While the full-screen player has taken the stream over (it zooms
@@ -1999,7 +1999,7 @@ class _GuideRow extends ConsumerWidget {
     final twoLineNames = ref.watch(guideTwoLineNamesProvider);
     final twoLineTitles = ref.watch(guideTwoLineTitlesProvider);
     final markPlaying = playing && ref.watch(guideHighlightPlayingProvider);
-    final fresh = loaded.valueOrNull;
+    final fresh = loaded.value;
     if (fresh != null) rowCache[channel.id] = fresh;
     final shown = fresh ?? rowCache[channel.id] ?? const <Programme>[];
     // Gaps (or a whole row with no guide) become "No guide information"

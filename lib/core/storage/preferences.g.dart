@@ -6,22 +6,39 @@ part of 'preferences.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$appPreferencesHash() => r'3cc0fc458c7c88a922add6e9e74c001939a8df3d';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [appPreferences].
 @ProviderFor(appPreferences)
-final appPreferencesProvider = FutureProvider<AppPreferences>.internal(
-  appPreferences,
-  name: r'appPreferencesProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$appPreferencesHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+const appPreferencesProvider = AppPreferencesProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef AppPreferencesRef = FutureProviderRef<AppPreferences>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class AppPreferencesProvider extends $FunctionalProvider<
+        AsyncValue<AppPreferences>, AppPreferences, FutureOr<AppPreferences>>
+    with $FutureModifier<AppPreferences>, $FutureProvider<AppPreferences> {
+  const AppPreferencesProvider._()
+      : super(
+          from: null,
+          argument: null,
+          retry: null,
+          name: r'appPreferencesProvider',
+          isAutoDispose: false,
+          dependencies: null,
+          $allTransitiveDependencies: null,
+        );
+
+  @override
+  String debugGetCreateSourceHash() => _$appPreferencesHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<AppPreferences> $createElement(
+          $ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<AppPreferences> create(Ref ref) {
+    return appPreferences(ref);
+  }
+}
+
+String _$appPreferencesHash() => r'3cc0fc458c7c88a922add6e9e74c001939a8df3d';

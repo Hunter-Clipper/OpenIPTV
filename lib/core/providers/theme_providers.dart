@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 import 'package:open_iptv/core/services/image_quality.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -372,7 +373,7 @@ Future<void> setMediaNotificationEnabled(
 /// backup — must call this afterward or the UI keeps showing stale values
 /// until the app restarts.
 void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
-  final activeProfile = ref.read(activeProfileProvider).valueOrNull;
+  final activeProfile = ref.read(activeProfileProvider).value;
   final accentHex = activeProfile?.accentColor ?? prefs.accentColor;
   ref.read(accentColorProvider.notifier).state =
       AppTheme.accentFromHex(accentHex);

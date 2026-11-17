@@ -5,6 +5,7 @@ import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/core/services/category_order.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -14,11 +15,11 @@ const _uuid = Uuid();
 const _maxProfiles = 10;
 
 @Riverpod(keepAlive: true)
-ProfileService profileService(ProfileServiceRef ref) {
+ProfileService profileService(Ref ref) {
   final db = ref.watch(appDatabaseProvider);
   return ProfileService(
     db: db,
-    prefsGetter: () => ref.read(appPreferencesProvider).valueOrNull,
+    prefsGetter: () => ref.read(appPreferencesProvider).value,
     // Favorites are cached on the active profile. Refreshing here (not in
     // each screen after its await) means it still happens when the screen
     // that toggled has already been closed.
@@ -27,13 +28,13 @@ ProfileService profileService(ProfileServiceRef ref) {
 }
 
 @Riverpod(keepAlive: true)
-Stream<List<Profile>> allProfiles(AllProfilesRef ref) {
+Stream<List<Profile>> allProfiles(Ref ref) {
   final db = ref.watch(appDatabaseProvider);
   return db.watchAllProfiles();
 }
 
 @Riverpod(keepAlive: true)
-Future<Profile?> activeProfile(ActiveProfileRef ref) async {
+Future<Profile?> activeProfile(Ref ref) async {
   final prefs = await ref.watch(appPreferencesProvider.future);
   final id = prefs.activeProfileId;
   if (id == null) return null;
@@ -292,7 +293,7 @@ class ProfileService {
 
 // Provider for the AppDatabase — kept here to avoid circular imports.
 @Riverpod(keepAlive: true)
-AppDatabase appDatabase(AppDatabaseRef ref) {
+AppDatabase appDatabase(Ref ref) {
   return AppDatabase();
 }
 
@@ -300,4 +301,4 @@ AppDatabase appDatabase(AppDatabaseRef ref) {
 /// when only the id matters, so favorite toggles (which invalidate
 /// activeProfileProvider) don't rebuild or re-subscribe dependents.
 final activeProfileIdProvider = Provider<String?>(
-    (ref) => ref.watch(activeProfileProvider.select((a) => a.valueOrNull?.id)));
+    (ref) => ref.watch(activeProfileProvider.select((a) => a.value?.id)));

@@ -427,7 +427,7 @@ class _ExtraGuidesScreenState extends ConsumerState<ExtraGuidesScreen> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final prefs = _prefs;
-    final guides = ref.watch(_extraGuidesProvider).valueOrNull ?? const [];
+    final guides = ref.watch(_extraGuidesProvider).value ?? const [];
     return Scaffold(
       appBar: AppBar(title: Text(l10n.extraGuidesTitle)),
       body: prefs == null

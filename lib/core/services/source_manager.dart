@@ -45,7 +45,7 @@ class SourceRefreshResult {
 }
 
 @Riverpod(keepAlive: true)
-SourceManager sourceManager(SourceManagerRef ref) {
+SourceManager sourceManager(Ref ref) {
   return SourceManager(
     db: ref.watch(appDatabaseProvider),
     epgService: ref.watch(epgServiceProvider),
@@ -53,7 +53,7 @@ SourceManager sourceManager(SourceManagerRef ref) {
 }
 
 @Riverpod(keepAlive: true)
-Future<List<Source>> allSources(AllSourcesRef ref) {
+Future<List<Source>> allSources(Ref ref) {
   return ref.watch(appDatabaseProvider).getAllSources();
 }
 

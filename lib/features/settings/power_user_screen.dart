@@ -227,7 +227,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     if (_ovpnStatus.state != 'off' && _ovpnStatus.state != 'error') {
       await _vpn.disconnectOpenVpn();
     } else {
-      final prefs = ref.read(appPreferencesProvider).valueOrNull;
+      final prefs = ref.read(appPreferencesProvider).value;
       // One VPN at a time.
       if (_vpnStatus.up) await _vpn.disconnect();
       await prefs?.setVpnKind('openvpn');
@@ -263,7 +263,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   Future<void> _removeOpenVpn() async {
     if (await _confirmRemove() != true) return;
     await _vpn.deleteOpenVpn();
-    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    final prefs = ref.read(appPreferencesProvider).value;
     if (_vpnProfile == null) await prefs?.setVpnAutoConnect(false);
     if (prefs?.vpnKind == 'openvpn') await prefs?.setVpnKind('wireguard');
     if (!mounted) return;
@@ -301,7 +301,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     if (_vpnStatus.up) {
       await _vpn.disconnect();
     } else {
-      final prefs = ref.read(appPreferencesProvider).valueOrNull;
+      final prefs = ref.read(appPreferencesProvider).value;
       // One VPN at a time.
       if (_ovpnStatus.state != 'off') await _vpn.disconnectOpenVpn();
       await prefs?.setVpnKind('wireguard');
@@ -339,7 +339,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   Future<void> _removeVpn() async {
     if (await _confirmRemove() != true) return;
     await _vpn.deleteProfile();
-    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    final prefs = ref.read(appPreferencesProvider).value;
     // Nothing left to auto-connect to.
     if (_ovpn == null) await prefs?.setVpnAutoConnect(false);
     if (prefs?.vpnKind == 'wireguard' && _ovpn != null) {
@@ -518,7 +518,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     final st = _vpnStatus;
     final ovpn = _ovpn;
     final os = _ovpnStatus;
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final route = prefs?.vpnRoute ?? 'app';
 
     String wgText() {
@@ -796,7 +796,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
   // Moved here from the main Settings list so a stray OK can't flip it.
   Widget _databaseGroup() {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final skip = prefs?.skipDbEncryption ?? false;
 
     Future<void> change(bool enable) async {
@@ -863,7 +863,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Widget _bufferGroup() {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final current = BufferPreset.fromId(prefs?.bufferPreset);
     return SettingsGroup(
       title: l10n.powerUserBufferTitle,
@@ -959,7 +959,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
     Widget row(String id, String label, String text) => TvActivatable(
           onTap: () async {
             await save(id);
-            final prefs = ref.read(appPreferencesProvider).valueOrNull;
+            final prefs = ref.read(appPreferencesProvider).value;
             if (prefs != null) {
               await NativeVideoPlayer.setOutputModes(
                   passthrough: prefs.audioPassthrough,
@@ -992,7 +992,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Widget _passthroughGroup() {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     return _outputGroup(
       title: l10n.powerUserPassthroughTitle,
       description: l10n.powerUserPassthroughDescription,
@@ -1006,7 +1006,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Widget _tunnelingGroup() {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     return _outputGroup(
       title: l10n.powerUserTunnelingTitle,
       description: l10n.powerUserTunnelingDescription,
@@ -1171,7 +1171,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Widget _userAgentGroup() {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final custom = prefs?.userAgent;
     return SettingsGroup(
       title: l10n.powerUserUaTitle,
@@ -1196,7 +1196,7 @@ class _PowerUserScreenState extends ConsumerState<PowerUserScreen> {
 
   Future<void> _editUserAgent() async {
     final l10n = AppLocalizations.of(context);
-    final prefs = ref.read(appPreferencesProvider).valueOrNull;
+    final prefs = ref.read(appPreferencesProvider).value;
     if (prefs == null) return;
     final controller = TextEditingController(text: prefs.userAgent ?? '');
     String? error;

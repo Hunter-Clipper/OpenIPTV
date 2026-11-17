@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
 
 const List<String> _adultKeywords = [

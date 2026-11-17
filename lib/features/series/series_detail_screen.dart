@@ -88,7 +88,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   Widget build(BuildContext context) {
     final seriesAsync = ref.watch(_seriesDetailProvider(widget.seriesId));
     final episodesAsync = ref.watch(_seriesEpisodesProvider(widget.seriesId));
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
     final isFav =
         profile?.favoriteSeriesIds.contains(widget.seriesId) ?? false;
 
@@ -100,7 +100,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           if (series == null) {
             return _ErrorScaffold(onBack: () => context.pop());
           }
-          final episodes = episodesAsync.valueOrNull ?? const <Episode>[];
+          final episodes = episodesAsync.value ?? const <Episode>[];
           // No episodes stored yet: fetch them from the provider once.
           if (episodesAsync.hasValue && episodes.isEmpty && !_fetchRequested) {
             _fetchRequested = true;
@@ -160,7 +160,7 @@ class _SeriesBody extends ConsumerWidget {
     final theme = Theme.of(context);
     final extras = ref
         .watch(_seriesExtrasProvider((series.id, series.sourceId)))
-        .valueOrNull;
+        .value;
     final genre = splitGenres(series.genre).first;
     final more = series.genre == null
         ? const <Series>[]
@@ -169,7 +169,7 @@ class _SeriesBody extends ConsumerWidget {
             ref
                     .watch(_moreLikeThisProvider(
                         (series.id, series.sourceId, genre)))
-                    .valueOrNull ??
+                    .value ??
                 const []);
 
     final seasons = episodes.map((e) => e.season).toSet().toList()..sort();
@@ -325,8 +325,8 @@ class _SeriesBody extends ConsumerWidget {
 
   /// Drops series a kids profile mustn't see or that sit in a locked genre.
   List<Series> _visible(WidgetRef ref, List<Series> list) {
-    final profile = ref.watch(activeProfileProvider).valueOrNull;
-    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final profile = ref.watch(activeProfileProvider).value;
+    final prefs = ref.watch(appPreferencesProvider).value;
     final unlocked = ref.watch(parentalSessionUnlockedProvider);
     final isKid = profile?.isKidsProfile ?? false;
     return list
@@ -452,7 +452,7 @@ class _EpisodeCard extends ConsumerWidget {
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final profileId =
-                    ref.read(activeProfileProvider).valueOrNull?.id;
+                    ref.read(activeProfileProvider).value?.id;
                 if (profileId == null) return;
                 await ref
                     .read(appDatabaseProvider)

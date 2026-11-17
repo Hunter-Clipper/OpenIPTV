@@ -55,7 +55,7 @@ final _moviesInProgressProvider = StreamProvider<List<Movie>>((ref) {
   final db = ref.watch(appDatabaseProvider);
   // Locked movies never show in history; hold everything back until the
   // lock settings are known.
-  final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+  final prefs = ref.watch(appPreferencesProvider).value;
   if (profileId == null || prefs == null) return const Stream.empty();
   // Follow the active playlist, like the rest of the Movies tab.
   final sourceId = ref.watch(activeSourceIdProvider);
@@ -132,12 +132,12 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     final moviesAsync = ref.watch(_allMoviesProvider);
     final inProgressAsync = ref.watch(_moviesInProgressProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final profileId = profile?.id;
 
     final sort = ref.watch(contentSortProvider);
     final posterView = ref.watch(homeLayoutMoviesProvider) != 'compact';
-    final parentalPrefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final parentalPrefs = ref.watch(appPreferencesProvider).value;
     final sessionUnlocked = ref.watch(parentalSessionUnlockedProvider);
     return Scaffold(
       appBar: AppBar(
@@ -160,7 +160,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         ),
         data: (all) {
           final isKid = profile?.isKidsProfile ?? false;
-          final inProgress = (inProgressAsync.valueOrNull ?? [])
+          final inProgress = (inProgressAsync.value ?? [])
               .where((m) => !isKid || !isAdultGenre(m.genre))
               .toList();
           final favIdSet = (profile?.favoriteMovieIds ?? []).toSet();
@@ -348,7 +348,7 @@ class _MovieGenreScreenState extends ConsumerState<MovieGenreScreen> {
   Widget build(BuildContext context) {
     final moviesAsync = ref.watch(_allMoviesProvider);
     final profileAsync = ref.watch(activeProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final columns = PlatformHelper.posterColumns(context);
     final sort = ref.watch(contentSortProvider);
     final viewMode = ref.watch(viewModeMoviesProvider);
@@ -542,7 +542,7 @@ class _HorizontalPosterRow extends ConsumerWidget {
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   final profileId =
-                      ref.read(activeProfileProvider).valueOrNull?.id;
+                      ref.read(activeProfileProvider).value?.id;
                   if (profileId == null) return;
                   await ref
                       .read(appDatabaseProvider)
@@ -596,7 +596,7 @@ void _showMovieOptions(
   HapticFeedback.mediumImpact();
   final isFav = ref
           .read(activeProfileProvider)
-          .valueOrNull
+          .value
           ?.favoriteMovieIds
           .contains(movie.id) ??
       false;
@@ -642,7 +642,7 @@ class _MovieListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFav = ref.watch(activeProfileProvider.select(
-        (a) => a.valueOrNull?.favoriteMovieIds.contains(movie.id) ?? false));
+        (a) => a.value?.favoriteMovieIds.contains(movie.id) ?? false));
     void onTap() => context.push('/movies/${movie.id}');
     return TvFocusable(
       wrapsGesture: false,
@@ -762,7 +762,7 @@ class _PosterCard extends ConsumerWidget {
             right: 4,
             child: StarButton(
               isFavorite: ref.watch(activeProfileProvider.select((a) =>
-                  a.valueOrNull?.favoriteMovieIds.contains(movie.id) ?? false)),
+                  a.value?.favoriteMovieIds.contains(movie.id) ?? false)),
               onTap: profileId == null
                   ? null
                   : () async {

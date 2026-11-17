@@ -25,7 +25,7 @@ Future<AdminScanResult> tryAdminBiometric(
   String action, {
   void Function(String message)? onNotice,
 }) async {
-  final prefs = ref.read(appPreferencesProvider).valueOrNull;
+  final prefs = ref.read(appPreferencesProvider).value;
   if (prefs == null) return AdminScanResult.usePin;
   return unlockAdminWithBiometric(
     prefs,
@@ -80,7 +80,7 @@ Future<bool> promptAdminPin(
 /// entered a valid admin PIN (which unlocks it for the rest of the session).
 Future<bool> ensureCategoryUnlocked(
     BuildContext context, WidgetRef ref, String category) async {
-  final prefs = ref.read(appPreferencesProvider).valueOrNull;
+  final prefs = ref.read(appPreferencesProvider).value;
   final sessionUnlocked = ref.read(parentalSessionUnlockedProvider);
   if (prefs == null || !isCategoryLocked(category, prefs, sessionUnlocked)) {
     return true;

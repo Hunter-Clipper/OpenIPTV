@@ -6,22 +6,45 @@ part of 'playback_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$playbackServiceHash() => r'2f5f30a382c7cfdf00ab99f06de49cc4874dde1d';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [playbackService].
 @ProviderFor(playbackService)
-final playbackServiceProvider = Provider<PlaybackService>.internal(
-  playbackService,
-  name: r'playbackServiceProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$playbackServiceHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+const playbackServiceProvider = PlaybackServiceProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef PlaybackServiceRef = ProviderRef<PlaybackService>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class PlaybackServiceProvider extends $FunctionalProvider<PlaybackService,
+    PlaybackService, PlaybackService> with $Provider<PlaybackService> {
+  const PlaybackServiceProvider._()
+      : super(
+          from: null,
+          argument: null,
+          retry: null,
+          name: r'playbackServiceProvider',
+          isAutoDispose: false,
+          dependencies: null,
+          $allTransitiveDependencies: null,
+        );
+
+  @override
+  String debugGetCreateSourceHash() => _$playbackServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<PlaybackService> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  PlaybackService create(Ref ref) {
+    return playbackService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PlaybackService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PlaybackService>(value),
+    );
+  }
+}
+
+String _$playbackServiceHash() => r'2f5f30a382c7cfdf00ab99f06de49cc4874dde1d';

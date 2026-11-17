@@ -44,7 +44,9 @@ void main() async {
   // PlaybackService singleton can be handed to audio_service before runApp —
   // the Now Playing notification must mirror the exact Player instance the
   // rest of the app plays through, not a separate one.
-  final container = ProviderContainer();
+  // Riverpod 3 retries a failed provider on its own; the app has always shown
+  // the error and let the user try again, so keep that.
+  final container = ProviderContainer(retry: (retryCount, error) => null);
   await initNowPlayingService(container.read(playbackServiceProvider));
   // Android Auto's browse tree reads the same data, profile and playlist
   // as the app (the car may start the app without its screen — see
