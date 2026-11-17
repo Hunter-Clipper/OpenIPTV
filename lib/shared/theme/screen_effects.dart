@@ -127,18 +127,44 @@ class _ScanLines extends CustomPainter {
 class _Vignette extends StatelessWidget {
   const _Vignette();
 
+  // The dark corners ease in over many stops on a smooth curve. Two stops
+  // with a straight ramp (and a flat start) leave a visible knee where the
+  // slope changes, and on some panels a faint hard ring from 8-bit banding.
+  static const _steps = 16;
+  static final List<Color> _colours = [
+    for (var i = 0; i <= _steps; i++)
+      Color.fromARGB(
+          (0x59 * _ease(i / _steps)).round(), 0, 0, 0),
+  ];
+  static final List<double> _stops = [
+    for (var i = 0; i <= _steps; i++) 0.35 + 0.65 * (i / _steps),
+  ];
+
+  /// Smootherstep: zero slope at both ends, so no knee.
+  static double _ease(double t) => t * t * t * (t * (t * 6 - 15) + 10);
+
+  static final _dark = BoxDecoration(
+    gradient: RadialGradient(
+      radius: 1.05,
+      colors: [const Color(0x00000000), ..._colours],
+      stops: [0, ..._stops],
+    ),
+  );
+
+  // The faint warm centre fades to nothing in the same hue.
+  static const _warm = BoxDecoration(
+    gradient: RadialGradient(
+      radius: 0.7,
+      colors: [Color(0x0AFFE2B0), Color(0x00FFE2B0)],
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            radius: 1.05,
-            colors: [
-              Color(0x0AFFE2B0), // faint warm centre
-              Color(0x00000000),
-              Color(0x59000000), // darker corners
-            ],
-            stops: [0, 0.6, 1],
-          ),
-        ),
+  Widget build(BuildContext context) => Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(decoration: _warm),
+          DecoratedBox(decoration: _dark),
+        ],
       );
 }

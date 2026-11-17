@@ -51,6 +51,7 @@ class RetroCable {
     titleColor: yellow,
     nowColor: yellow,
     logoShadow: Color(0xB30A2268),
+    retroFlair: true,
   );
 
   /// The whole app's theme: the normal component styling, re-coloured and

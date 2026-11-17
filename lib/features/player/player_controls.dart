@@ -553,6 +553,10 @@ class _BottomPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (look.retroFlair) ...[
+              _ColourBars(look: look),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 if (subtitle != null)
@@ -570,11 +574,14 @@ class _BottomPanel extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 4),
                         child: Text(
-                          context.displayName(subtitle!),
+                          look.retroFlair
+                              ? context.displayName(subtitle!).toUpperCase()
+                              : context.displayName(subtitle!),
                           style: TextStyle(
                             color: look.channelText,
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: look.retroFlair ? 1.2 : 0,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -590,8 +597,12 @@ class _BottomPanel extends StatelessWidget {
               style: TextStyle(
                 color: look.titleColor,
                 fontSize: 32,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 height: 1.15,
+                // A hard, blocky drop shadow like old on-screen text.
+                shadows: look.retroFlair
+                    ? const [Shadow(offset: Offset(2.5, 2.5), color: Color(0xCC050E34))]
+                    : null,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -622,6 +633,32 @@ class _BottomPanel extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A strip of colour blocks along the top of the banner, in the guide's own
+/// programme colours (the retro-box test pattern touch).
+class _ColourBars extends StatelessWidget {
+  const _ColourBars({required this.look});
+
+  final GuideStyle look;
+
+  @override
+  Widget build(BuildContext context) {
+    final colours = <Color>[
+      look.cellColor,
+      for (final v in look.genreColors.values) v.fill,
+      look.nowColor,
+    ];
+    return SizedBox(
+      height: 8,
+      child: Row(
+        children: [
+          for (final c in colours)
+            Expanded(child: ColoredBox(color: c, child: const SizedBox.expand())),
+        ],
       ),
     );
   }
