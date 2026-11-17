@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/static_noise.dart';
+import 'package:open_iptv/shared/theme/guide_style.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1415,6 +1417,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     fit: StackFit.expand,
                     children: [
                 _buildCueOverlay(),
+                // Retro Cable: fake static while a channel tunes in.
+                if (_isBuffering &&
+                    !_watchdog.everPlayed &&
+                    !_playbackGaveUp &&
+                    Theme.of(context).extension<GuideStyle>()?.retroFlair ==
+                        true)
+                  const IgnorePointer(child: StaticNoise()),
                 // Buffering / recovery overlay.
                 AnimatedOpacity(
                   opacity: _isBuffering ? 1.0 : 0.0,
@@ -1427,7 +1436,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       // stays visible, dimmed.
                       color: _watchdog.everPlayed && !_playbackGaveUp
                           ? Colors.black54
-                          : Colors.black,
+                          : (Theme.of(context)
+                                      .extension<GuideStyle>()
+                                      ?.retroFlair ==
+                                  true
+                              ? Colors.transparent
+                              : Colors.black),
                       child: Center(
                         child: _playbackGaveUp
                             ? _ErrorOverlay(
@@ -1764,6 +1778,48 @@ class _LoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final look = theme.extension<GuideStyle>();
+    if (look != null && look.retroFlair) {
+      // Over the static: a solid cream name block, like a station card.
+      return AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: motionDuration(const Duration(milliseconds: 200)),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: look.channelColumn,
+            border: Border.all(color: look.nowColor, width: 3),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.displayName(title).toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: look.channelText,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (status != null)
+                    Text(status!,
+                        style: TextStyle(
+                            color: look.channelText.withValues(alpha: 0.7),
+                            fontSize: 16)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return AnimatedOpacity(
       opacity: visible ? 1 : 0,
       duration: motionDuration(const Duration(milliseconds: 200)),

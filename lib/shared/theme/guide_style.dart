@@ -24,6 +24,7 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
     this.outlineColor = Colors.transparent,
     this.airingOutline = Colors.transparent,
     this.cellRadius = 0,
+    this.retroFlair = false,
   });
 
   /// A plain cell, and the text on it.
@@ -62,6 +63,10 @@ class GuideStyle extends ThemeExtension<GuideStyle> {
   final Color airingOutline;
 
   final double cellRadius;
+
+  /// Retro Cable's extras: fake static while a channel tunes in, and the
+  /// colour-bar banner in the player.
+  final bool retroFlair;
 
   /// Fill and text for a programme of [bucket].
   ({Color fill, Color text}) colorsFor(GenreBucket bucket) =>

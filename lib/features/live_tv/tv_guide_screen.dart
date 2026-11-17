@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/widgets/static_noise.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:open_iptv/shared/theme/guide_style.dart';
 import 'package:open_iptv/shared/utils/genre_colors.dart';
@@ -1281,9 +1282,12 @@ class _TopPane extends ConsumerWidget {
                             if (!model.showPicture && !handedOver)
                               ColoredBox(
                                 color: Colors.black,
-                                child: const _PreviewPlaceholder(),
+                                child: Theme.of(context).extension<GuideStyle>()?.retroFlair == true
+                                    ? const StaticNoise()
+                                    : const _PreviewPlaceholder(),
                               ),
                             if (!handedOver &&
+                                Theme.of(context).extension<GuideStyle>()?.retroFlair != true &&
                                 (model.loading || !model.showPicture))
                               const Center(
                                 child: SizedBox(
