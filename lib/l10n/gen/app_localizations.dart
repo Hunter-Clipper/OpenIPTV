@@ -6297,6 +6297,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Amber'**
   String get themeAmberName;
+
+  /// Toast when the background playlist refresh starts.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating your playlists in the background. The app may be slow for a minute or two.'**
+  String get refreshBgStarted;
+
+  /// Toast when the background refresh finishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists updated.'**
+  String get refreshBgDone;
+
+  /// Toast when the background refresh had failures.
+  ///
+  /// In en, this message translates to:
+  /// **'Some playlists couldn\'t be updated. Check them in Settings.'**
+  String get refreshBgProblem;
 }
 
 class _AppLocalizationsDelegate

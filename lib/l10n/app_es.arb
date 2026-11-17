@@ -1032,5 +1032,8 @@
   "settingsAccentSetByTheme": "Definido por el tema",
   "themeLightName": "Claro",
   "themeTerminalGreenName": "Terminal verde",
-  "themeAmberName": "Ámbar"
+  "themeAmberName": "Ámbar",
+  "refreshBgStarted": "Actualizando tus listas en segundo plano. La app puede ir lenta un par de minutos.",
+  "refreshBgDone": "Listas actualizadas.",
+  "refreshBgProblem": "No se pudieron actualizar algunas listas. Revísalas en Ajustes."
 }

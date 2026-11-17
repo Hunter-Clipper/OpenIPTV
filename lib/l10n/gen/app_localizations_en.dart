@@ -3685,4 +3685,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeAmberName => 'Amber';
+
+  @override
+  String get refreshBgStarted =>
+      'Updating your playlists in the background. The app may be slow for a minute or two.';
+
+  @override
+  String get refreshBgDone => 'Playlists updated.';
+
+  @override
+  String get refreshBgProblem =>
+      'Some playlists couldn\'t be updated. Check them in Settings.';
 }
