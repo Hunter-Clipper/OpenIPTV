@@ -17,6 +17,7 @@ class TerminalLooks {
         panel: const Color(0xFF04100A),
         high: const Color(0xFF0A2214),
         wash: const Color(0x663DFF7F),
+        codeLoader: true,
       );
 
   static ThemeData amber() => _build(
@@ -26,6 +27,7 @@ class TerminalLooks {
         panel: const Color(0xFF120C02),
         high: const Color(0xFF241804),
         wash: const Color(0x66FFB000),
+        amberLoader: true,
       );
 
   static ThemeData _build({
@@ -35,6 +37,8 @@ class TerminalLooks {
     required Color panel,
     required Color high,
     required Color wash,
+    bool codeLoader = false,
+    bool amberLoader = false,
   }) {
     const black = Color(0xFF000000);
     final guide = GuideStyle(
@@ -55,6 +59,8 @@ class TerminalLooks {
       outlined: true,
       outlineColor: edge,
       airingOutline: text,
+      codeLoader: codeLoader,
+      amberLoader: amberLoader,
     );
     return buildFlatTheme(FlatPalette(
       fontFamily: fontFamily,
