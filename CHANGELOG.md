@@ -5,6 +5,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+**Under the hood**
+- **Updated the libraries the app is built on**, and the Android build tools they need: file and share handling (file_picker, share_plus), version info, background refresh (workmanager), permission prompts, ZIP handling (archive) and a few smaller ones. Nothing should look different; it keeps the app current and secure. Thanks to **edrmundy** (Ed Mundy) for the reminder to check our dependencies. The big ones (Riverpod, the router, the database stack) are left for their own changes.
+
 **Fixed**
 - **Providers that send numbers where text is expected no longer stop a playlist from loading.** Some Xtream providers send a movie's year or rating, a plot, a logo or cover, or an episode's picture as a number instead of text, which the app couldn't read. All of these are now accepted. Thanks to **edrmundy** (Ed Mundy) for finding and fixing the movie case (#176), which the rest builds on.
 
