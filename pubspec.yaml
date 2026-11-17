@@ -55,7 +55,7 @@ dependencies:
   # Background auto-refresh
   workmanager: ^0.10.10
   flutter_local_notifications: ^18.0.1
-  permission_handler: ^11.3.1
+  permission_handler: ^13.0.2
   sqlcipher_flutter_libs: ^0.6.8
   # Registers the app's native channels on every engine (Android Auto).
   engine_hooks:
