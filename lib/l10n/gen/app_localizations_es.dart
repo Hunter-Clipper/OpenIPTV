@@ -3725,4 +3725,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get themeAmberName => 'Ámbar';
+
+  @override
+  String get refreshBgStarted =>
+      'Actualizando tus listas en segundo plano. La app puede ir lenta un par de minutos.';
+
+  @override
+  String get refreshBgDone => 'Listas actualizadas.';
+
+  @override
+  String get refreshBgProblem =>
+      'No se pudieron actualizar algunas listas. Revísalas en Ajustes.';
 }

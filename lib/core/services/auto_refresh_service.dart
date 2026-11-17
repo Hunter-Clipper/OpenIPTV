@@ -21,6 +21,46 @@ const _kNotificationChannelDescription =
 final FlutterLocalNotificationsPlugin _notifications =
     FlutterLocalNotificationsPlugin();
 
+const _kBgState = 'bg_refresh_state';
+const _kBgStamp = 'bg_refresh_stamp';
+
+/// What the background refresh is doing, as the app sees it.
+enum BackgroundRefreshPhase { idle, running, done, problem }
+
+/// A snapshot of the background refresh. [stamp] changes with every
+/// change of [phase], so the app can tell a new run from one it already
+/// announced.
+class BackgroundRefreshStatus {
+  const BackgroundRefreshStatus(this.phase, this.stamp);
+  final BackgroundRefreshPhase phase;
+  final int stamp;
+}
+
+/// The worker runs in its own isolate, so it can't show a toast itself: it
+/// leaves its state in shared preferences and the open app reads it (see
+/// [readBackgroundRefreshStatus]).
+Future<void> _setBgState(SharedPreferences p, BackgroundRefreshPhase phase) async {
+  await p.setString(_kBgState, phase.name);
+  await p.setInt(_kBgStamp, DateTime.now().millisecondsSinceEpoch);
+}
+
+/// Reads the background refresh state written by the worker isolate.
+/// A "running" mark older than 30 minutes is a worker that died: idle.
+Future<BackgroundRefreshStatus> readBackgroundRefreshStatus() async {
+  final p = await SharedPreferences.getInstance();
+  await p.reload();
+  final name = p.getString(_kBgState);
+  final stamp = p.getInt(_kBgStamp) ?? 0;
+  var phase = BackgroundRefreshPhase.values.firstWhere(
+      (v) => v.name == name,
+      orElse: () => BackgroundRefreshPhase.idle);
+  if (phase == BackgroundRefreshPhase.running &&
+      DateTime.now().millisecondsSinceEpoch - stamp > 30 * 60 * 1000) {
+    phase = BackgroundRefreshPhase.idle;
+  }
+  return BackgroundRefreshStatus(phase, stamp);
+}
+
 // ---------------------------------------------------------------------------
 // App-side (main isolate) setup — call once at startup.
 // ---------------------------------------------------------------------------
@@ -139,12 +179,17 @@ void autoRefreshCallbackDispatcher() {
       return false;
     }
     final results = <SourceRefreshResult>[];
+    final sp = await SharedPreferences.getInstance();
+    if (sources.isNotEmpty) {
+      await _setBgState(sp, BackgroundRefreshPhase.running);
+    }
     try {
       for (final source in sources) {
         results.add(await sourceManager.refreshSourceConcurrent(source));
       }
     } catch (e) {
       // Unexpected error during refresh — close DB and return false for retry.
+      await _setBgState(sp, BackgroundRefreshPhase.problem);
       await db.close();
       return false;
     }
@@ -152,6 +197,14 @@ void autoRefreshCallbackDispatcher() {
     try {
       await GuideAssignmentService(db: db).sync();
     } catch (_) {}
+
+    if (results.isNotEmpty) {
+      await _setBgState(
+          sp,
+          results.every((r) => r.succeeded)
+              ? BackgroundRefreshPhase.done
+              : BackgroundRefreshPhase.problem);
+    }
 
     if (prefs.refreshNotificationsEnabled) {
       await _initNotifications();

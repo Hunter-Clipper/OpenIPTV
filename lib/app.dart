@@ -536,6 +536,12 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   bool _holdRail = false;
   FocusNode? _lastRailFocus;
 
+  // Toasts for the background playlist refresh (it runs in another
+  // isolate and reports through shared preferences).
+  Timer? _bgRefreshTimer;
+  BackgroundRefreshStatus? _bgSeen;
+  bool _bgFirstLook = true;
+
   @override
   void initState() {
     super.initState();
@@ -557,6 +563,9 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // …and again when the app is brought back from the background (Android
     // usually keeps it running, so that isn't a fresh launch).
     WidgetsBinding.instance.addObserver(this);
+    _bgRefreshTimer = Timer.periodic(
+        const Duration(seconds: 3), (_) => unawaited(_watchBackgroundRefresh()));
+    unawaited(_watchBackgroundRefresh());
     _backChannel.setMethodCallHandler((call) async {
       if (call.method == 'backPressed') _handleNativeBackPressed();
       if (call.method == 'backLongPressed') {
@@ -570,6 +579,35 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) _checkForUpdate();
   }
 
+  Future<void> _watchBackgroundRefresh() async {
+    final BackgroundRefreshStatus now;
+    try {
+      now = await readBackgroundRefreshStatus();
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    final seen = _bgSeen;
+    final first = _bgFirstLook;
+    _bgSeen = now;
+    _bgFirstLook = false;
+    if (seen != null && seen.stamp == now.stamp) return;
+    // A finished run from before the app opened was announced by its
+    // notification already; only a run in progress is news on first look.
+    if (first && now.phase != BackgroundRefreshPhase.running) return;
+    final l10n = AppLocalizations.of(context);
+    final text = switch (now.phase) {
+      BackgroundRefreshPhase.running => l10n.refreshBgStarted,
+      BackgroundRefreshPhase.done => l10n.refreshBgDone,
+      BackgroundRefreshPhase.problem => l10n.refreshBgProblem,
+      BackgroundRefreshPhase.idle => null,
+    };
+    if (text == null) return;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
   void _checkForUpdate() {
     if (!mounted) return;
     unawaited(maybePromptForUpdate(
@@ -581,6 +619,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _bgRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_trackContentFocus);
     _backChannel.setMethodCallHandler(null);

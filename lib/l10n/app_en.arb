@@ -4873,5 +4873,11 @@
   "themeAmberName": "Amber",
   "@themeAmberName": {
     "description": "Name of the black look with amber monitor-style text"
-  }
+  },
+  "refreshBgStarted": "Updating your playlists in the background. The app may be slow for a minute or two.",
+  "@refreshBgStarted": {"description": "Toast when the background playlist refresh starts."},
+  "refreshBgDone": "Playlists updated.",
+  "@refreshBgDone": {"description": "Toast when the background refresh finishes."},
+  "refreshBgProblem": "Some playlists couldn't be updated. Check them in Settings.",
+  "@refreshBgProblem": {"description": "Toast when the background refresh had failures."}
 }
