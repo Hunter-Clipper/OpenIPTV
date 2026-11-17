@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:open_iptv/shared/theme/guide_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_iptv/core/models/programme.dart';
@@ -358,7 +359,13 @@ class _ControlsLayout extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const _Scrim([0.45, 0.0, 0.0, 0.7, 0.95], [0.0, 0.18, 0.4, 0.68, 1.0]),
+        // A look with its own guide draws a solid banner below, so only the
+        // top corner (clock, quality) needs help to read.
+        _Scrim(
+            Theme.of(context).extension<GuideStyle>() == null
+                ? const [0.45, 0.0, 0.0, 0.7, 0.95]
+                : const [0.45, 0.0, 0.0, 0.0, 0.0],
+            const [0.0, 0.18, 0.4, 0.68, 1.0]),
         Positioned(
           top: m.tvEdge * 0.6,
           right: m.tvEdge,
@@ -466,6 +473,8 @@ class _BottomPanel extends StatelessWidget {
   // Channel (or show) as a quiet overline, the title beneath it, a slim
   // bar, then [transport] [meta] ... [actions] on one line.
   Widget _buildTv(BuildContext context, PlayerMetrics m) {
+    final look = Theme.of(context).extension<GuideStyle>();
+    if (look != null) return _buildTvBanner(context, look);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,6 +528,101 @@ class _BottomPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+  // The look's own take on "what's on": a solid panel in the guide's colours
+  // (like the top panel of its guide), the channel on a light name block,
+  // the programme title in the guide's title colour, the guide's "now" line
+  // for progress.
+  Widget _buildTvBanner(BuildContext context, GuideStyle look) {
+    final page = Theme.of(context).scaffoldBackgroundColor;
+    final radius = BorderRadius.circular(look.cellRadius > 0 ? look.cellRadius : 6);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: look.outlined ? null : look.headerGradient,
+        color: look.outlined ? page : null,
+        borderRadius: radius,
+        border: Border.all(
+          color: look.outlined ? look.airingOutline : look.nowColor,
+          width: look.outlined ? 2 : 3,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (subtitle != null)
+                  Flexible(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: look.channelColumn,
+                        borderRadius: BorderRadius.circular(
+                            look.cellRadius > 0 ? look.cellRadius : 4),
+                        border: look.outlined
+                            ? Border.all(color: look.outlineColor)
+                            : null,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        child: Text(
+                          context.displayName(subtitle!),
+                          style: TextStyle(
+                            color: look.channelText,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              context.displayName(title),
+              style: TextStyle(
+                color: look.titleColor,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                height: 1.15,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            if (bar != null) ...[
+              bar!,
+              const SizedBox(height: 10),
+            ] else
+              const SizedBox(height: 4),
+            DefaultTextStyle.merge(
+              style: TextStyle(color: look.headerText),
+              child: TvRowFocus(
+                child: Row(
+                  children: [
+                    if (transport != null) ...[
+                      transport!,
+                      const SizedBox(width: 20),
+                    ],
+                    Expanded(child: meta),
+                    for (final a in actions) ...[
+                      const SizedBox(width: 8),
+                      a,
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1119,7 +1223,8 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = PlayerMetrics.of(context);
-    final thickness = m.tv ? 4.0 : 6 * m.scale;
+    final look = m.tv ? Theme.of(context).extension<GuideStyle>() : null;
+    final thickness = look != null ? 8.0 : (m.tv ? 4.0 : 6 * m.scale);
     return SizedBox(
       height: m.tv ? 20 : 28 * m.scale,
       child: Center(
@@ -1131,8 +1236,10 @@ class _ProgressBar extends StatelessWidget {
           trackGap: m.tv ? 3 : 4 * m.scale,
           stopIndicatorColor: Colors.transparent,
           borderRadius: BorderRadius.circular(thickness / 2),
-          backgroundColor: Colors.white.withValues(alpha: 0.28),
-          color: Theme.of(context).colorScheme.primary,
+          backgroundColor: look != null
+              ? look.headerText.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.28),
+          color: look?.nowColor ?? Theme.of(context).colorScheme.primary,
         ),
         ),
       ),
