@@ -342,9 +342,10 @@ class _Field extends StatelessWidget {
             keyboardType: type,
             obscureText: obscure,
             enabled: enabled,
-            // Playlist logins are never the device's saved logins: an empty hint
-            // list stops Android autofill from pairing the URL with a saved password.
-            autofillHints: const <String>[],
+            // Not an autofill field. An empty hint list does NOT opt out: it
+            // leaves the system to guess, and next to a password box it
+            // guessed the server address was a password. null opts out.
+            autofillHints: null,
             autocorrect: false,
             enableSuggestions: !obscure && type != TextInputType.url,
             textInputAction: TextInputAction.next,
