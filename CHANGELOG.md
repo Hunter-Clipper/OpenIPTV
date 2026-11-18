@@ -12,6 +12,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
   - *Files, sharing and system features:* file picker, sharing, app version info, background refresh (workmanager), permission prompts, notifications and the secure key storage.
   - *Everything else:* the image loader, the ZIP and XML readers, and the code-style rules.
   - *Android build tools:* Android Gradle plugin 9.1 with Gradle 9.3.1 and Android SDK 37.
+  - *Newer Java dates and times on older Android versions:* desugar_jdk_libs 2.1.5.
 - **A safety net for your data.** If a build ever shipped without the encryption library, the app now refuses to touch the database instead of mistaking it for one with a lost key and resetting it. When a reset does happen, the old database's key is kept so its file can still be opened.
 
 **Fixed**

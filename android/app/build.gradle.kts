@@ -104,7 +104,7 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Custom native video engine (see NativeVideoPlayer.kt) replacing
     // media_kit/mpv — ExoPlayer's hardware-decoder handling is far more
     // battle-tested across the fragmented Android device landscape.
