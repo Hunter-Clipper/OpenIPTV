@@ -143,11 +143,11 @@ The full list of what the app contacts is in [PRIVACY.md](PRIVACY.md).
 
 | Tool | Version |
 |---|---|
-| Flutter | 3.44 (stable; what the app is developed and tested on) |
-| Dart | 3.12 (comes with Flutter 3.44) |
+| Flutter | 3.50 (stable; what the app is developed and tested on) |
+| Dart | 3.14 (comes with Flutter 3.50) |
 | Android SDK | minSdk 24 (Android 7.0), compile SDK 37 — install platform 37 and build-tools 35 |
 | Android NDK | 28.2.13676358 (OpenVPN native build) |
-| Android Gradle plugin | 9.1.0, with Gradle 9.3.1 and Kotlin 2.4.21 |
+| Android Gradle plugin | 9.3.1, with Gradle 9.5.0 and Kotlin 2.4.21 (Android's built-in Kotlin) |
 | Java | 17 (for Android Gradle) |
 
 ### Main libraries
@@ -167,7 +167,7 @@ The versions below are what `pubspec.yaml` and `pubspec.lock` pin; keep this tab
 | App info | `package_info_plus` | 10.2 |
 | Android video | AndroidX Media3 ExoPlayer | 1.11 |
 
-`intl` stays at 0.20.2 because the Flutter SDK pins it.
+`intl` stays at 0.20.3 because the Flutter SDK pins it.
 
 ```bash
 git clone https://github.com/Hunter-Clipper/OpenIPTV.git
