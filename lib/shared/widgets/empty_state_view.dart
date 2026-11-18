@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Standardized "there's nothing here yet" placeholder: icon in a soft
 /// tinted circle, an optional title, a message and an optional call to

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 
 /// Picks an icon that fits a Live TV category or VOD genre name ("US| NEWS

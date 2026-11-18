@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Renders a GitHub release body — the small subset of Markdown our release
 /// notes use: `#`/`##` headings, `-`/`*` bullets, `>` quotes, **bold**,

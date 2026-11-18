@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:open_iptv/shared/utils/motion.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A single line of text that is cut with an ellipsis, unless [active] and
 /// it doesn't fit: then it slides sideways to show the rest, pauses, and

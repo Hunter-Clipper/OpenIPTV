@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:open_iptv/core/services/image_cache_manager.dart';
 
 /// A channel logo with a soft, feathered glow all round (the Retro Cable look,

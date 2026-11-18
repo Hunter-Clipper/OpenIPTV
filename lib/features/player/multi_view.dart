@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:open_iptv/core/services/channel_customisation.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/utils/motion.dart';

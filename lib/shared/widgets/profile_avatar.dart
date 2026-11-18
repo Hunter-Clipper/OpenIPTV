@@ -1,5 +1,5 @@
 import 'package:open_iptv/shared/utils/motion.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A profile's emoji on a round, softly tinted background. The tint is
 /// picked from the profile's name, so each profile keeps its own colour

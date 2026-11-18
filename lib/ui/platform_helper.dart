@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:open_iptv/core/services/device_info_channel.dart';
 
 enum AppLayout { phone, tablet, tv }

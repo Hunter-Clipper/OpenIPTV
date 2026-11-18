@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The OpenIPTV "Open Ring" mark for AppBar leading slots.
 class AppLogo extends StatelessWidget {

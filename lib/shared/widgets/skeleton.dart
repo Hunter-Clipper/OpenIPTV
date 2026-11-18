@@ -1,5 +1,5 @@
 import 'package:open_iptv/shared/utils/motion.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Loading placeholder shaped like the list that's about to appear — rows of
 /// softly shimmering blocks instead of a spinner, so the layout doesn't jump

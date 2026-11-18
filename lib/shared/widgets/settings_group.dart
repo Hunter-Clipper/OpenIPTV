@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A titled group of settings rows on one rounded card — the Android /
 /// Google TV settings look.

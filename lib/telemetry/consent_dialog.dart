@@ -3,7 +3,7 @@
 // new installs. Either button is a final answer; it never asks again, and
 // Settings → Advanced → Anonymous Reports changes it any time.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/ui/platform_helper.dart';

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:open_iptv/shared/widgets/static_noise.dart';
 import 'package:open_iptv/shared/widgets/terminal_loading.dart';
 import 'package:open_iptv/shared/theme/guide_style.dart';

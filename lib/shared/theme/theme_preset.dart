@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The looks the app can wear (#178). Chosen per profile, next to the accent
 /// colour. Presets that fix their own colours ([fixedColours]) ignore the
