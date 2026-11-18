@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Standardized centered loading spinner used while a screen's initial data
 /// is being fetched.

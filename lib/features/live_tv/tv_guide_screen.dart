@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:intl/intl.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/widgets/static_noise.dart';

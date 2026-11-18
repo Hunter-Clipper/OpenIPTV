@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Shows a snack bar, hiding any current one first.
 void showSnackBarMessage(BuildContext context, String message) {

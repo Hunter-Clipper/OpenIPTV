@@ -157,6 +157,7 @@ The versions below are what `pubspec.yaml` and `pubspec.lock` pin; keep this tab
 | Area | Library | Version |
 |---|---|---|
 | State | `flutter_riverpod`, `riverpod_annotation` (+ `riverpod_generator`) | 3.5 / 4.0 (+ 4.0) |
+| UI toolkit (Material, Cupertino) | `material_ui`, `cupertino_ui` (split out of the Flutter SDK in 3.47) | 1.2, 1.0 |
 | Navigation | `go_router` | 18.1 |
 | Database | `drift` (+ `drift_dev`) on `sqlite3` with its SQLCipher build | 2.35 (+ 2.35) / 3.5 |
 | Secure storage (database key) | `flutter_secure_storage` | 11.2 |

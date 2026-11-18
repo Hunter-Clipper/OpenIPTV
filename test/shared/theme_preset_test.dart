@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_iptv/core/models/profile.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';

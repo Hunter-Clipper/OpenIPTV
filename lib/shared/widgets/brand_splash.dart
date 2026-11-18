@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Brand ink, the splash and adaptive-icon background.
 const kBrandInk = Color(0xFF0A0A12);

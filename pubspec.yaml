@@ -1,7 +1,7 @@
 name: open_iptv
 description: Open-source, ad-free, cross-platform IPTV client.
 publish_to: none
-version: 0.15.12+392
+version: 0.15.13+393
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -66,6 +66,12 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
+  # Material and Cupertino moved out of the Flutter SDK (Flutter 3.47+):
+  # import package:material_ui, not package:flutter/material.dart.
+  material_ui: ^1.2.0
+  cupertino_ui: ^1.0.2
+  # Used directly by the image cache (lib/core/services/image_cache_manager.dart).
+  flutter_cache_manager: ^3.5.0
 
 dev_dependencies:
   flutter_test:
