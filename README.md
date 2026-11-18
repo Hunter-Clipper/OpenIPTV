@@ -147,7 +147,7 @@ The full list of what the app contacts is in [PRIVACY.md](PRIVACY.md).
 | Dart | 3.12 (comes with Flutter 3.44) |
 | Android SDK | minSdk 24 (Android 7.0), compile SDK 37 — install platform 37 and build-tools 35 |
 | Android NDK | 28.2.13676358 (OpenVPN native build) |
-| Android Gradle plugin | 9.1.0, with Gradle 9.3.1 and Kotlin 2.2.20 |
+| Android Gradle plugin | 9.1.0, with Gradle 9.3.1 and Kotlin 2.4.21 |
 | Java | 17 (for Android Gradle) |
 
 ### Main libraries
