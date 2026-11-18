@@ -13,7 +13,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
   - *Everything else:* the image loader, the ZIP and XML readers, and the code-style rules.
   - *Android build tools:* Android Gradle plugin 9.1 with Gradle 9.3.1 and Android SDK 37.
   - *Newer Java dates and times on older Android versions:* desugar_jdk_libs 2.1.5.
-  - *Built-in OpenVPN client:* the TLS library (Mbed TLS 3.6.8, from 3.6.4, with upstream security and bug fixes) and the LZ4 and xxHash components. Tested by connecting to a test OpenVPN server.
+  - *Built-in OpenVPN client:* the TLS library (Mbed TLS 3.6.8, from 3.6.4, with upstream security and bug fixes), the networking library (Asio 1.39), the text-formatting library ({fmt} 12) and the LZ4 and xxHash components. Tested by connecting to a test OpenVPN server on a phone and a TV.
 - **A safety net for your data.** If a build ever shipped without the encryption library, the app now refuses to touch the database instead of mistaking it for one with a lost key and resetting it. When a reset does happen, the old database's key is kept so its file can still be opened.
 
 **Fixed**
