@@ -7,14 +7,14 @@ Settings → Power User Tools). They are fetched unmodified at the pinned
 commits in [`android/openvpn-deps.sh`](../android/openvpn-deps.sh) and
 built from source with every app build.
 
-| Library | Licence | Notes |
-|---|---|---|
-| [OpenVPN 3 core](https://github.com/OpenVPN/openvpn3) | MPL-2.0 (chosen of its AGPL-3.0 / MPL-2.0 dual licence) | unmodified |
-| [Asio](https://github.com/chriskohlhoff/asio) | BSL-1.0 | with the patches OpenVPN ships in `openvpn3/deps/vcpkg-ports/asio` |
-| [Mbed TLS](https://github.com/Mbed-TLS/mbedtls) | Apache-2.0 | unmodified |
-| [{fmt}](https://github.com/fmtlib/fmt) | MIT | header-only |
-| [LZ4](https://github.com/lz4/lz4) | BSD-2-Clause | `lib/lz4.c` |
-| [xxHash](https://github.com/Cyan4973/xxHash) | BSD-2-Clause | header-only |
+| Library | Version | Licence | Notes |
+|---|---|---|---|
+| [OpenVPN 3 core](https://github.com/OpenVPN/openvpn3) | `master` commit 2f74c607 (2026-10-02; latest tag is on an older release line) | MPL-2.0 (chosen of its AGPL-3.0 / MPL-2.0 dual licence) | unmodified |
+| [Asio](https://github.com/chriskohlhoff/asio) | 1.39.0 | BSL-1.0 | with the patches OpenVPN ships in `openvpn3/deps/vcpkg-ports/asio` (its Windows-only patch 0003 is skipped: it no longer applies and is not compiled on Android) |
+| [Mbed TLS](https://github.com/Mbed-TLS/mbedtls) | 3.6.8 | Apache-2.0 | unmodified |
+| [{fmt}](https://github.com/fmtlib/fmt) | 12.2.1 | MIT | header-only |
+| [LZ4](https://github.com/lz4/lz4) | 1.11.1 | BSD-2-Clause | `lib/lz4.c` |
+| [xxHash](https://github.com/Cyan4973/xxHash) | 0.8.4 | BSD-2-Clause | header-only |
 
 The WireGuard VPN uses the official
 [WireGuard Android tunnel library](https://git.zx2c4.com/wireguard-android)
