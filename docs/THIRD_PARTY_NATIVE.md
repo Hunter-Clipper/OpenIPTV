@@ -22,3 +22,6 @@ The WireGuard VPN uses the official
 
 The source for all of the above is available at the links and commits
 given; OpenIPTV's own bridge code is in `android/app/src/main/cpp/`.
+
+Why some of these are held at older versions, and how to re-test the VPN after
+changing them: [DEPENDENCY_REVIEW.md](DEPENDENCY_REVIEW.md).

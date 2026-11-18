@@ -150,6 +150,8 @@ The full list of what the app contacts is in [PRIVACY.md](PRIVACY.md).
 | Android Gradle plugin | 9.3.1, with Gradle 9.5.0 and Kotlin 2.4.21 (Android's built-in Kotlin) |
 | Java | 17 (for Android Gradle) |
 
+How to check and update dependencies, what is held back and why, and how the built-in VPN is tested: [docs/DEPENDENCY_REVIEW.md](docs/DEPENDENCY_REVIEW.md).
+
 ### Main libraries
 
 The versions below are what `pubspec.yaml` and `pubspec.lock` pin; keep this table in step whenever dependencies change.
