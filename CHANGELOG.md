@@ -14,6 +14,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
   - *Flutter and Android build tools:* Flutter 3.50 (Dart 3.14), Android Gradle plugin 9.3.1 with Gradle 9.5, Kotlin 2.4 (now Android's built-in Kotlin) and Android SDK 37. Tested by installing the new build over the previous one with an encrypted database and checking every row was still there, then on a phone and a TV.
   - *Newer Java dates and times on older Android versions:* desugar_jdk_libs 2.1.5.
   - *Built-in OpenVPN client:* the TLS library (Mbed TLS 3.6.8, from 3.6.4, with upstream security and bug fixes), the networking library (Asio 1.39), the text-formatting library ({fmt} 12) and the LZ4 and xxHash components. Tested by connecting to a test OpenVPN server on a phone and a TV.
+  - *Android native compiler:* Android NDK 29 (from 28.2) builds the OpenVPN client; tested by connecting, reconnecting and sending traffic through a test OpenVPN server on a phone and a TV.
   - *Casting:* the Google Cast framework (23.0.0). Tested by casting a channel and a movie from a phone to a Chromecast-class TV (discovery, switching channels, seeking, handing back to the phone).
 - **A safety net for your data.** If a build ever shipped without the encryption library, the app now refuses to touch the database instead of mistaking it for one with a lost key and resetting it. When a reset does happen, the old database's key is kept so its file can still be opened.
 

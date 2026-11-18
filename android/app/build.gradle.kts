@@ -21,7 +21,7 @@ android {
     namespace = "com.openiptv.app"
     compileSdk = 37
     // Pinned: the OpenVPN native build is tested with this NDK.
-    ndkVersion = "28.2.13676358"
+    ndkVersion = "29.0.14206865"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
