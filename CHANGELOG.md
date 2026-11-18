@@ -5,6 +5,8 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+## 0.15.1 — 2026-11-18
+
 **Under the hood**
 - **Updated the libraries the app is built on.** Nothing should look or work differently; it keeps the app current and secure. Thanks to **edrmundy** (Ed Mundy) for the reminder to check our dependencies.
   - *App state and navigation:* Riverpod 3 and its code generator, and the page router (go_router 18).
