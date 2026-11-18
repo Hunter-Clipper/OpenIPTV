@@ -113,7 +113,7 @@ dependencies {
     implementation("androidx.media3:media3-extractor:1.11.1")
     // Casting to Chromecast / Google TV (CastController.kt): Google Cast
     // framework + MediaRouter for device discovery.
-    implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
+    implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
     // Built-in WireGuard VPN (VpnController.kt, Power User Tools #41).
     // Official userspace tunnel library, Apache-2.0.
