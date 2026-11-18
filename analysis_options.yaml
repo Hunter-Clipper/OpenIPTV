@@ -6,6 +6,11 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

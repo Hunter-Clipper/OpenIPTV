@@ -9,7 +9,6 @@ import java.util.Properties
 // the connection is protected by a signature permission).
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 val keystoreProperties = Properties().apply {
