@@ -10,7 +10,7 @@
 set -euo pipefail
 
 DEST="${1:-$(cd "$(dirname "$0")" && pwd)/.ovpn-deps}"
-STAMP_VALUE="v2"
+STAMP_VALUE="v3"
 [ -f "$DEST/.ready" ] && [ "$(cat "$DEST/.ready")" = "$STAMP_VALUE" ] && exit 0
 
 fetch() { # name url commit
@@ -24,15 +24,25 @@ fetch() { # name url commit
 
 mkdir -p "$DEST"
 fetch openvpn3 https://github.com/OpenVPN/openvpn3.git 2f74c607f56294e39c9fab253f6dd87a2ed6e9ab
-fetch asio https://github.com/chriskohlhoff/asio.git 8806a6803cde7054c3049d3666d3ec36786568c5
-fetch fmt https://github.com/fmtlib/fmt.git 123913715afeb8a437e6388b4473fcc4753e1c9a
+fetch asio https://github.com/chriskohlhoff/asio.git 190a8d8daf1cc62909b4e0c72ff491ba264ca98e
+fetch fmt https://github.com/fmtlib/fmt.git 208219daff58f2a7438f6931cc2ddc358acf33ef
 fetch lz4 https://github.com/lz4/lz4.git aa4647fad575d01a874aaaadcdbe8e6a40e072f5
 fetch xxHash https://github.com/Cyan4973/xxHash.git c87183a77d67f7d37e3d2d1b7eaac5e7c695e4f0
 fetch mbedtls https://github.com/Mbed-TLS/mbedtls.git 82e69999f91126589a28b70dd75b69fbcabe2711
 git -C "$DEST/mbedtls" submodule update -q --init --depth 1
 
+# OpenVPN's patch set targets Asio 1.38.2. Patch 0003 only changes Windows
+# error-message text (error_code.ipp) and no longer applies to newer Asio;
+# it is irrelevant on Android, so it alone may be skipped. Any other patch
+# failing stops the build.
 for p in "$DEST"/openvpn3/deps/vcpkg-ports/asio/0*.patch; do
-  (cd "$DEST/asio" && patch -p1 -s < "$p")
+  if ! (cd "$DEST/asio" && patch -p1 -s < "$p"); then
+    case "$(basename "$p")" in
+      0003-error_code.ipp-*) echo "skipping Windows-only asio patch $(basename "$p")"
+        find "$DEST/asio" \( -name '*.rej' -o -name '*.orig' \) -delete ;;
+      *) echo "asio patch $(basename "$p") failed" >&2; exit 1 ;;
+    esac
+  fi
 done
 
 echo "$STAMP_VALUE" > "$DEST/.ready"
