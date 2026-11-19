@@ -149,7 +149,10 @@ ThemeData buildFlatTheme(FlatPalette p) {
     cardTheme: CardThemeData(color: p.panel, elevation: 0, shape: shape()),
     chipTheme: base.chipTheme.copyWith(
       backgroundColor: p.panelHigh,
-      selectedColor: p.primary.withValues(alpha: 0.30),
+      // Opaque: a see-through tint takes its colour from whatever is under
+      // the chip, which came out dark navy under dark text on Light.
+      selectedColor: Color.alphaBlend(
+          p.primary.withValues(alpha: 0.30), p.panelHigh),
       labelStyle: label(p.text, size: 13),
       shape: shape(),
     ),
