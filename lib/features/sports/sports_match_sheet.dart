@@ -172,7 +172,7 @@ class _MatchSheet extends ConsumerWidget {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2)),
               SizedBox(width: 16),
-              Text('Looking through your channels…'),
+              Expanded(child: Text('Looking through your channels…')),
             ]),
           )
         else if (matches.hasError)
