@@ -12,6 +12,7 @@ import 'package:open_iptv/core/services/native_video_player.dart';
 import 'package:open_iptv/core/services/playback_service.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/sports/sports_providers.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/theme/screen_effects.dart';
 import 'package:open_iptv/shared/theme/theme_preset.dart';
@@ -406,6 +407,7 @@ void syncSettingsProviders(WidgetRef ref, AppPreferences prefs) {
   ref.read(videoFitProvider.notifier).state = prefs.videoFit;
   ref.read(playerClockAlwaysProvider.notifier).state = prefs.playerClockAlways;
   ref.read(askStartOverProvider.notifier).state = prefs.askStartOver;
+  syncSportsSettings(ref, prefs);
   ref.read(panelTimeoutProvider.notifier).state = prefs.panelTimeoutSeconds;
   ref.read(skipSecondsProvider.notifier).state = prefs.skipSeconds;
   ref.read(streamDetailsProvider.notifier).state = prefs.streamDetails;

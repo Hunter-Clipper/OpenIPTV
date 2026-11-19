@@ -1,3 +1,7 @@
+import 'features/sports/sports_providers.dart';
+import 'features/sports/sports_reminders.dart';
+import 'features/sports/sports_screen.dart';
+import 'features/sports/sports_settings_screen.dart';
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
@@ -117,6 +121,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     // across OS updates or force-stops, so this must run on every launch,
     // not just when the user changes the setting.
     unawaited(syncAutoRefreshRegistration(prefs));
+    unawaited(syncSportsReminderRegistration(prefs));
 
     // Power User Tools: bring the built-in VPN up if asked to. Never
     // prompts and never blocks start-up.
@@ -308,6 +313,11 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
               path: '/search',
               builder: (_, __) => const SearchScreen(),
             ),
+            // Fixtures and live scores; only in the nav when Sports is on.
+            GoRoute(
+              path: '/sports',
+              builder: (_, __) => const SportsScreen(),
+            ),
             // A tab since 0.12.1 (the gear in the top corner confused
             // people); its pages stay inside the shell, under the nav.
             GoRoute(
@@ -337,6 +347,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
                 GoRoute(
                   path: 'power-tools',
                   builder: (_, __) => const PowerUserScreen(),
+                ),
+                GoRoute(
+                  path: 'sports',
+                  builder: (_, __) => const SportsSettingsScreen(),
                 ),
                 GoRoute(
                   path: 'anonymous-reports',
@@ -488,16 +502,16 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
-class _Shell extends StatefulWidget {
+class _Shell extends ConsumerStatefulWidget {
   const _Shell({required this.child});
 
   final Widget child;
 
   @override
-  State<_Shell> createState() => _ShellState();
+  ConsumerState<_Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<_Shell> with WidgetsBindingObserver {
+class _ShellState extends ConsumerState<_Shell> with WidgetsBindingObserver {
   // When the first Back on the home tab asked "press again to exit".
   DateTime? _exitArmedAt;
   static const _exitWindow = Duration(seconds: 2);
@@ -756,6 +770,8 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       unawaited(_backChannel.invokeMethod('setBlocked', true));
     }
 
+    final visibleDestinations =
+        _visibleDestinations(ref.watch(sportsTabVisibleProvider));
     if (PlatformHelper.isTV(context)) {
       return Scaffold(
         // The TV keyboard floats over the middle of the screen, never over
@@ -774,7 +790,11 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
           child: Row(
             children: [
               _TvNavRail(
-                nodes: _railNodes,
+                destinations: visibleDestinations,
+                nodes: [
+                  for (final d in visibleDestinations)
+                    _railNodes[_kNavDestinations.indexOf(d)],
+                ],
                 onEnterContent: _focusContent,
                 onSelect: () => _holdRail = false,
               ),
@@ -839,6 +859,7 @@ class _NavDestination {
         '/movies' => l10n.navMovies,
         '/series' => l10n.navSeries,
         '/search' => l10n.navSearch,
+        '/sports' => 'Sports',
         _ => l10n.navSettings,
       };
 }
@@ -852,9 +873,18 @@ const _kNavDestinations = [
       selectedIcon: Icons.video_library),
   _NavDestination(Icons.search, '/search',
       selectedIcon: Icons.search),
+  // Only shown when Sports is switched on (see _visibleDestinations).
+  _NavDestination(Icons.sports_soccer_outlined, '/sports',
+      selectedIcon: Icons.sports_soccer),
   _NavDestination(Icons.settings_outlined, '/settings',
       selectedIcon: Icons.settings),
 ];
+
+/// The tabs to show: every destination, minus Sports while it is off.
+List<_NavDestination> _visibleDestinations(bool sports) => [
+      for (final d in _kNavDestinations)
+        if (sports || d.path != '/sports') d,
+    ];
 
 int _navIndexForLocation(BuildContext context) {
   final location = GoRouterState.of(context).fullPath ?? '/live';
@@ -864,20 +894,24 @@ int _navIndexForLocation(BuildContext context) {
   return 0;
 }
 
-class _BottomNav extends StatelessWidget {
+class _BottomNav extends ConsumerWidget {
   const _BottomNav();
 
   @override
-  Widget build(BuildContext context) {
-    final index = _navIndexForLocation(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final destinations =
+        _visibleDestinations(ref.watch(sportsTabVisibleProvider));
+    final index = destinations
+        .indexOf(_kNavDestinations[_navIndexForLocation(context)])
+        .clamp(0, destinations.length - 1);
 
     // Material 3 navigation bar: pill indicator behind the active tab,
     // filled icon when selected.
     return NavigationBar(
       selectedIndex: index,
-      onDestinationSelected: (i) => context.go(_kNavDestinations[i].path),
+      onDestinationSelected: (i) => context.go(destinations[i].path),
       destinations: [
-        for (final d in _kNavDestinations)
+        for (final d in destinations)
           NavigationDestination(
             icon: Icon(d.icon),
             selectedIcon: Icon(d.selectedIcon ?? d.icon),
@@ -897,6 +931,7 @@ class _BottomNav extends StatelessWidget {
 
 class _TvNavRail extends StatefulWidget {
   const _TvNavRail({
+    required this.destinations,
     required this.nodes,
     required this.onEnterContent,
     required this.onSelect,
@@ -908,7 +943,8 @@ class _TvNavRail extends StatefulWidget {
   // Called when a destination is picked, before navigating.
   final VoidCallback onSelect;
 
-  // The shell's node for each destination, in _kNavDestinations order.
+  // The tabs shown, and the shell's node for each, in the same order.
+  final List<_NavDestination> destinations;
   final List<FocusNode> nodes;
 
   @override
@@ -946,7 +982,8 @@ class _TvNavRailState extends State<_TvNavRail> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final index = _navIndexForLocation(context);
+    final activePath = _kNavDestinations[_navIndexForLocation(context)].path;
+    final destinations = widget.destinations;
 
     return Focus(
       canRequestFocus: false,
@@ -963,14 +1000,14 @@ class _TvNavRailState extends State<_TvNavRail> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              for (var i = 0; i < _kNavDestinations.length; i++)
+              for (var i = 0; i < destinations.length; i++)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: _TvNavRailItem(
-                    icon: _kNavDestinations[i].icon,
-                    label: _kNavDestinations[i]
+                    icon: destinations[i].icon,
+                    label: destinations[i]
                         .label(AppLocalizations.of(context)),
-                    active: i == index,
+                    active: destinations[i].path == activePath,
                     compact: compact,
                     // Only the very first item auto-claims focus, and only on
                     // the rail's initial mount (cold app start, landing on
@@ -983,7 +1020,7 @@ class _TvNavRailState extends State<_TvNavRail> {
                       // focus so its first item's autofocus takes it.
                       widget.onSelect();
                       FocusManager.instance.primaryFocus?.unfocus();
-                      context.go(_kNavDestinations[i].path);
+                      context.go(destinations[i].path);
                       if (i == 0) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           TvGuideScreen.requestCategoryFocus?.call();

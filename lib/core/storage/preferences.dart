@@ -36,6 +36,11 @@ const _kRecentSearches = 'recent_searches';
 const _kVideoFit = 'video_fit'; // 'fit' | 'fill' | 'zoom'
 const _kPlayerClockAlways = 'player_clock_always';
 const _kAskStartOver = 'ask_start_over';
+const _kSportsEnabled = 'sports_enabled'; // the Sports tab (off by default)
+const _kSportsLeagues = 'sports_leagues'; // league ids; absent = defaults
+const _kSportsFollowed = 'sports_followed_teams';
+const _kSportsHideScores = 'sports_hide_scores';
+const _kSportsReminders = 'sports_reminders';
 const _kPanelTimeoutSeconds = 'panel_timeout_seconds'; // player controls
 const _kSkipSeconds = 'skip_seconds'; // skip buttons in the player
 const _kLanguage = 'language'; // 'auto' or a language tag such as 'es' (#172)
@@ -205,6 +210,28 @@ class AppPreferences {
   /// opening a show that's already underway.
   bool get askStartOver => _prefs.getBool(_kAskStartOver) ?? true;
   Future<void> setAskStartOver(bool v) => _prefs.setBool(_kAskStartOver, v);
+
+  // Sports (fixtures tab). Device-only choices; no secrets live here.
+  bool get sportsEnabled => _prefs.getBool(_kSportsEnabled) ?? false;
+  Future<void> setSportsEnabled(bool v) => _prefs.setBool(_kSportsEnabled, v);
+
+  /// Selected league ids, or null if the user never chose (use defaults).
+  List<String>? get sportsLeagues => _prefs.getStringList(_kSportsLeagues);
+  Future<void> setSportsLeagues(List<String> v) =>
+      _prefs.setStringList(_kSportsLeagues, v);
+
+  List<String> get sportsFollowedTeams =>
+      _prefs.getStringList(_kSportsFollowed) ?? const [];
+  Future<void> setSportsFollowedTeams(List<String> v) =>
+      _prefs.setStringList(_kSportsFollowed, v);
+
+  bool get sportsHideScores => _prefs.getBool(_kSportsHideScores) ?? false;
+  Future<void> setSportsHideScores(bool v) =>
+      _prefs.setBool(_kSportsHideScores, v);
+
+  bool get sportsReminders => _prefs.getBool(_kSportsReminders) ?? false;
+  Future<void> setSportsReminders(bool v) =>
+      _prefs.setBool(_kSportsReminders, v);
 
   /// How long the player's on-screen controls stay up before hiding.
   int get panelTimeoutSeconds => _prefs.getInt(_kPanelTimeoutSeconds) ?? 4;

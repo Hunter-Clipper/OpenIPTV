@@ -5,6 +5,12 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+**New**
+- **A Sports tab: fixtures, live scores and the channels showing them.** Turn it on in Settings → Sports (it is off until you do, and nothing is contacted until then). Pick your leagues (football, NFL, NBA, MLB, NHL, college football, Formula 1, UFC, tennis) and the tab lists each day's games, with live games first and followed teams next. Tap a game and OpenIPTV looks through your own playlist for the channels showing it, using the TV guide and event channels named after the game, and lists the best matches. Tap one to watch; for finished games, where a channel keeps an archive, you can catch up. If nothing matches you get a plain message and a shortcut to search your channels.
+  - **Follow teams** from a game's sheet to see their games first and get a **kickoff reminder** (Settings → Sports; timing is approximate, checked about every 15 minutes).
+  - **Hide scores** shows a dash instead of the score, for games you watch later; hold a game to reveal it.
+  - Games come from a free public scoreboard, so only your device's address is shared with it. The tab is not shown on kids profiles. Works with the remote on TV.
+
 ## 0.15.1 — 2026-11-18
 
 **Under the hood**

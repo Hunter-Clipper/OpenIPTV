@@ -114,6 +114,16 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: context.l10n.settingsStartupSubtitle,
                   groups: [(null, _startupTiles(context, theme, isAdmin))],
                 ),
+              if (profile?.isKidsProfile != true)
+                _NavTile(
+                  leading: const Icon(Icons.sports_soccer_outlined),
+                  title: 'Sports',
+                  subtitle: Text(
+                    'Fixtures and live scores, matched to your channels',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  onTap: () => context.push('/settings/sports'),
+                ),
               _pageTile(
                 context,
                 icon: Icons.live_tv_outlined,
