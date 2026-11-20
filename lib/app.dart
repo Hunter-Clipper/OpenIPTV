@@ -50,7 +50,6 @@ import 'package:open_iptv/features/settings/profile_screen.dart';
 import 'package:open_iptv/features/settings/settings_screen.dart';
 import 'package:open_iptv/shared/utils/display_name.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
-import 'package:open_iptv/shared/theme/screen_effects.dart';
 import 'package:open_iptv/shared/theme/theme_preset.dart';
 import 'package:open_iptv/shared/widgets/brand_splash.dart';
 import 'package:open_iptv/shared/widgets/info_tooltip.dart';
@@ -480,13 +479,10 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
           full: ref.watch(fullResImagesProvider),
           child: DisplayNames(
             enabled: ref.watch(cleanNamesProvider),
-            child: ScreenEffectsOverlay(
-              effects: ref.watch(screenEffectsProvider),
-              child: TvKeyboardInset(
-                child: TvAppBarScroll(
-                  child: TvTextFieldEscape(
-                      child: child ?? const SizedBox.shrink()),
-                ),
+            child: TvKeyboardInset(
+              child: TvAppBarScroll(
+                child: TvTextFieldEscape(
+                    child: child ?? const SizedBox.shrink()),
               ),
             ),
           ),

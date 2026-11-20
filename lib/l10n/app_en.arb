@@ -4814,38 +4814,6 @@
   "@themePickerHint": {
     "description": "Note under the theme picker heading"
   },
-  "screenEffectsTitle": "Screen effects",
-  "@screenEffectsTitle": {
-    "description": "Settings row and dialog title for the old-TV look drawn over the whole screen"
-  },
-  "screenEffectsSubtitleOff": "Off",
-  "@screenEffectsSubtitleOff": {
-    "description": "Shown under Screen effects when no effect is on"
-  },
-  "screenEffectsSubtitleOn": "On",
-  "@screenEffectsSubtitleOn": {
-    "description": "Shown under Screen effects when at least one effect is on"
-  },
-  "screenEffectsLines": "Scan lines",
-  "@screenEffectsLines": {
-    "description": "Switch: horizontal lines like an old TV"
-  },
-  "screenEffectsStrengthLight": "Light",
-  "@screenEffectsStrengthLight": {
-    "description": "Scan line strength: faint"
-  },
-  "screenEffectsStrengthMedium": "Medium",
-  "@screenEffectsStrengthMedium": {
-    "description": "Scan line strength: normal"
-  },
-  "screenEffectsStrengthStrong": "Strong",
-  "@screenEffectsStrengthStrong": {
-    "description": "Scan line strength: heavy"
-  },
-  "screenEffectsGlow": "Soft glow and vignette",
-  "@screenEffectsGlow": {
-    "description": "Switch: darker corners with a faint warm centre"
-  },
   "commonDone": "Done",
   "@commonDone": {
     "description": "Button that closes a settings dialog"

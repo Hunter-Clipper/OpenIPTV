@@ -6208,54 +6208,6 @@ abstract class AppLocalizations {
   /// **'Applies to this profile.'**
   String get themePickerHint;
 
-  /// Settings row and dialog title for the old-TV look drawn over the whole screen
-  ///
-  /// In en, this message translates to:
-  /// **'Screen effects'**
-  String get screenEffectsTitle;
-
-  /// Shown under Screen effects when no effect is on
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get screenEffectsSubtitleOff;
-
-  /// Shown under Screen effects when at least one effect is on
-  ///
-  /// In en, this message translates to:
-  /// **'On'**
-  String get screenEffectsSubtitleOn;
-
-  /// Switch: horizontal lines like an old TV
-  ///
-  /// In en, this message translates to:
-  /// **'Scan lines'**
-  String get screenEffectsLines;
-
-  /// Scan line strength: faint
-  ///
-  /// In en, this message translates to:
-  /// **'Light'**
-  String get screenEffectsStrengthLight;
-
-  /// Scan line strength: normal
-  ///
-  /// In en, this message translates to:
-  /// **'Medium'**
-  String get screenEffectsStrengthMedium;
-
-  /// Scan line strength: heavy
-  ///
-  /// In en, this message translates to:
-  /// **'Strong'**
-  String get screenEffectsStrengthStrong;
-
-  /// Switch: darker corners with a faint warm centre
-  ///
-  /// In en, this message translates to:
-  /// **'Soft glow and vignette'**
-  String get screenEffectsGlow;
-
   /// Button that closes a settings dialog
   ///
   /// In en, this message translates to:

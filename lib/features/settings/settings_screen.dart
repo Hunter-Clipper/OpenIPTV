@@ -35,7 +35,6 @@ import 'package:open_iptv/shared/widgets/profile_avatar.dart';
 import 'package:open_iptv/shared/widgets/settings_group.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/widgets/language_picker.dart';
-import 'package:open_iptv/shared/widgets/screen_effects_dialog.dart';
 import 'package:open_iptv/shared/widgets/theme_picker.dart';
 import 'package:open_iptv/shared/widgets/tv_focusable.dart';
 import 'package:open_iptv/ui/platform_helper.dart';
@@ -708,16 +707,6 @@ class SettingsScreen extends ConsumerWidget {
         subtitle: Text(themeName(AppLocalizations.of(context), preset),
             style: theme.textTheme.bodySmall),
         onTap: () => showThemePicker(context, ref),
-      );
-    }),
-    Consumer(builder: (context, ref, _) {
-      final fx = ref.watch(screenEffectsProvider);
-      return _NavTile(
-        leading: const Icon(Icons.tv_rounded),
-        title: AppLocalizations.of(context).screenEffectsTitle,
-        subtitle: Text(screenEffectsSummary(AppLocalizations.of(context), fx),
-            style: theme.textTheme.bodySmall),
-        onTap: () => showScreenEffectsDialog(context, ref),
       );
     }),
     Consumer(builder: (context, ref, _) {

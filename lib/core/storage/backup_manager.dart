@@ -402,27 +402,6 @@ class BackupManager {
       },
     ),
     PreferenceEntry(
-      key: 'crtLines',
-      encode: (p) => p.crtLines,
-      decode: (p, v) async {
-        if (v is bool) await p.setCrtLines(v);
-      },
-    ),
-    PreferenceEntry(
-      key: 'crtStrength',
-      encode: (p) => p.crtStrength,
-      decode: (p, v) async {
-        if (v is String) await p.setCrtStrength(v);
-      },
-    ),
-    PreferenceEntry(
-      key: 'crtGlow',
-      encode: (p) => p.crtGlow,
-      decode: (p, v) async {
-        if (v is bool) await p.setCrtGlow(v);
-      },
-    ),
-    PreferenceEntry(
       key: 'themeId',
       encode: (p) => p.themeId,
       decode: (p, v) async {

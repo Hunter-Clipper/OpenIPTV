@@ -13,9 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _expectedBackupKeys = {
   'accentColor',
   'themeId',
-  'crtLines',
-  'crtStrength',
-  'crtGlow',
   'contentSort',
   'channelListDensity',
   'viewModeLive',

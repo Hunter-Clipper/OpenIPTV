@@ -5,6 +5,9 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+**Removed**
+- **Screen effects (scan lines, soft glow and vignette).** They were a fun novelty, but not worth keeping up, and they cost some drawing time on every screen. Settings → Appearance → Screen effects is gone; the themes themselves are unchanged. Backups that include the old setting still restore normally.
+
 **Improved**
 - **Better channel matching.** The guide search now also reads programme descriptions, so a local station showing "NFL Football" is found when its description names the teams. A one-team guess now needs the entry to read like sport, and a game that pits your team against someone else is no longer offered.
 
