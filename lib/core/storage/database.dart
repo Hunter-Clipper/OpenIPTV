@@ -1651,6 +1651,28 @@ class AppDatabase extends _$AppDatabase {
     ];
   }
 
+  /// Channels whose name contains any of [terms] — for the Sports tab,
+  /// which finds the channels named after a game ("NFL : 01 - 8:15pm Colts
+  /// at Texans"). A name scan over channels (names only), capped.
+  Future<List<model.Channel>> getChannelsNamedLike(Iterable<String> terms,
+      {String? sourceId, int limit = 800}) async {
+    final list = terms.where((t) => t.trim().length >= 3).toSet();
+    if (list.isEmpty) return const [];
+    Expression<bool> any = const Constant(false);
+    for (final t in list) {
+      any = any | _textContains(channels.name, t);
+    }
+    final rows = await (select(channels)
+          ..where((t) =>
+              any &
+              (sourceId == null
+                  ? const Constant(true)
+                  : t.sourceId.equals(sourceId)))
+          ..limit(limit))
+        .get();
+    return rows.map(_channelFromRow).toList();
+  }
+
   /// Channels for [ids] (bounded: callers pass at most a few hundred),
   /// limited to [sourceId] when given.
   Future<List<model.Channel>> getChannelsByIds(Iterable<String> ids,

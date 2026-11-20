@@ -7,6 +7,7 @@ import 'package:open_iptv/core/models/source.dart';
 import 'package:open_iptv/core/storage/database.dart';
 import 'package:open_iptv/core/storage/db_encryption.dart';
 import 'package:open_iptv/core/storage/preferences.dart';
+import 'package:open_iptv/features/sports/sports_reminders.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -158,6 +159,8 @@ Future<void> requestBatteryOptimizationExemption() async {
 void autoRefreshCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
+    // The same dispatcher serves the Sports kickoff reminders.
+    if (task == kSportsReminderTask) return runSportsReminderCheck();
 
     final db = AppDatabase.background();
     final epgService = EpgService(db: db);
