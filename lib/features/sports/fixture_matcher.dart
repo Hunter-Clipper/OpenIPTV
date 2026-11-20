@@ -150,6 +150,26 @@ const _aliases = {
   'la clippers': 'los angeles clippers',
 };
 
+/// Words that make a guide entry read like sport.
+const _sportWords = {
+  'nfl', 'nba', 'mlb', 'nhl', 'mls', 'wnba', 'ncaa', 'football', 'soccer', //
+  'basketball', 'baseball', 'hockey', 'game', 'match', 'live', 'vs', 'versus',
+  'playoff', 'playoffs', 'league', 'cup', 'sports', 'sport',
+};
+
+/// Capitalised words after a "vs" that are not a team.
+const _fillerWords = {
+  'live', 'game', 'match', 'tonight', 'today', 'pregame', 'postgame', //
+  'from', 'the', 'watch', 'new', 'special', 'coverage', 'sunday', 'monday',
+  'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'night',
+  'afternoon', 'morning', 'evening', 'week', 'highlights',
+};
+
+final _versus = RegExp(
+  r'\s(?:vs\.?|v|versus|at|@)\s(?!\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b)',
+  caseSensitive: false,
+);
+
 const _noiseWords = {'fc', 'afc', 'cf', 'sc', 'the', 'club'};
 
 String _normalizeText(String raw) {
@@ -304,8 +324,17 @@ class FixtureMatcher {
       final nearKickoff =
           p.start.difference(fixture.kickoff).abs() <= kickoffWindow;
       if (!airingAtKickoff && !nearKickoff) continue;
-      var strength = _strength(fixture, p.title, nicknameAlone: true);
+      // A local station's "NFL Football" names the teams only in its
+      // description, so title and description are read together.
+      final text = [p.title, p.description, p.category]
+          .whereType<String>()
+          .where((t) => t.isNotEmpty)
+          .join(' | ');
+      var strength = _strength(fixture, text, nicknameAlone: false);
       if (strength == null) continue;
+      if (strength == MatchStrength.one && !_looksLikeSport(fixture, text)) {
+        continue;
+      }
       if (_aboutTheGame.hasMatch(p.title)) strength = MatchStrength.one;
       found.add(ChannelMatch(
           channel: c,
@@ -343,7 +372,47 @@ class FixtureMatcher {
     if (h > 0 && a > 0) return MatchStrength.both;
     final best = h > a ? h : a;
     if (best == 0) return null;
-    return (best == 2 || nicknameAlone) ? MatchStrength.one : null;
+    if (!(best == 2 || nicknameAlone)) return null;
+    if (_isOtherGame(f, text)) return null;
+    return MatchStrength.one;
+  }
+
+  /// A one-team hit in a guide entry only counts when the entry reads like
+  /// sport: the league or a sport word is in it. "Giants" in a cooking show
+  /// is not a game.
+  bool _looksLikeSport(Fixture f, String text) {
+    final hay = ' ${_normalizeText(text)} ';
+    for (final w in _sportWords) {
+      if (hay.contains(' $w ')) return true;
+    }
+    for (final w in _normalizeText(f.league).split(' ')) {
+      if (w.length >= 3 && hay.contains(' $w ')) return true;
+    }
+    return false;
+  }
+
+  /// "Texans vs Titans": one of our teams is named, but against somebody
+  /// else, so it is a different game. Only fires when the text has a clear
+  /// two-sided "X vs Y" shape and the side without our team names a team
+  /// (a capitalised word that is no sport or filler word).
+  bool _isOtherGame(Fixture f, String text) {
+    final parts = text.split(_versus);
+    if (parts.length != 2) return false;
+    bool ours(String side) =>
+        _sideLevel(f.home, f.homeNames, f.homePlace, side) > 0 ||
+        _sideLevel(f.away, f.awayNames, f.awayPlace, side) > 0;
+    final left = parts[0], right = parts[1];
+    final l = ours(left), r = ours(right);
+    if (l == r) return false; // both ours or neither: not this shape
+    final other = l ? right : left;
+    // The leading words of a side may be a title ("NFL Football: Texans"),
+    // so judge the side that does NOT hold our team by its first words.
+    final words = other
+        .split(RegExp(r"[^A-Za-z']+"))
+        .where((w) => w.length >= 3 && w[0] == w[0].toUpperCase())
+        .where((w) => !_sportWords.contains(w.toLowerCase()))
+        .where((w) => !_fillerWords.contains(w.toLowerCase()));
+    return words.isNotEmpty;
   }
 
   /// Keeps the best quality of each guide channel (same base name).

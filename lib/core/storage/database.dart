@@ -1651,6 +1651,49 @@ class AppDatabase extends _$AppDatabase {
     ];
   }
 
+  /// Programmes airing in [from]..[to] whose title OR description contains
+  /// any of [terms] — for the Sports tab: a local station's "NFL Football"
+  /// names the teams only in its description. The time window bounds the
+  /// scan (idx_programmes_airing); capped.
+  Future<List<model.Programme>> searchProgrammesWithText(
+      Iterable<String> terms, DateTime from, DateTime to,
+      {int limit = 400}) async {
+    final list = terms.where((t) => t.trim().length >= 3).toSet();
+    if (list.isEmpty) return const [];
+    Expression<bool> any = const Constant(false);
+    for (final t in list) {
+      any = any |
+          _textContains(programmes.title, t) |
+          _textContains(programmes.description, t);
+    }
+    final rows = await (selectOnly(programmes)
+          ..addColumns([
+            programmes.channelId,
+            programmes.start,
+            programmes.end,
+            programmes.title,
+            programmes.description,
+            programmes.category,
+          ])
+          ..where(programmes.end.isBiggerThanValue(from) &
+              programmes.start.isSmallerThanValue(to) &
+              any)
+          ..orderBy([OrderingTerm.asc(programmes.start)])
+          ..limit(limit))
+        .get();
+    return [
+      for (final r in rows)
+        model.Programme(
+          channelId: r.read(programmes.channelId)!,
+          start: r.read(programmes.start)!,
+          end: r.read(programmes.end)!,
+          title: r.read(programmes.title)!,
+          description: r.read(programmes.description),
+          category: r.read(programmes.category),
+        ),
+    ];
+  }
+
   /// Channels whose name contains any of [terms] — for the Sports tab,
   /// which finds the channels named after a game ("NFL : 01 - 8:15pm Colts
   /// at Texans"). A name scan over channels (names only), capped.

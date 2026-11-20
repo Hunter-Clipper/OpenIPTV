@@ -26,6 +26,13 @@ Built differently from the first plan:
 - **Not built yet:** the user's own API key option (needs a second
   `SportsSource`), backup/restore of Sports settings.
 
+**Matching round 2 (2026-11-20):** the guide search reads title AND
+description (`searchProgrammesWithText`, bounded by the kickoff time
+window) because local stations name the teams only in the description of a
+generic "NFL Football". One-team guide hits need sport words or the league
+in the text; a clear "X vs Y" where Y is someone else's team is rejected.
+Unmeasured on the TV: the description scan reads full rows in the window.
+
 ## Goal
 
 A user who wants a game or a score finds it quickly: **Sports tab → tap a

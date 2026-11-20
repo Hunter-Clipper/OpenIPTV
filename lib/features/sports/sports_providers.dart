@@ -1,9 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:open_iptv/core/models/channel.dart';
-import 'package:open_iptv/core/models/programme.dart';
 import 'package:open_iptv/core/providers/theme_providers.dart';
 import 'package:open_iptv/core/services/parental_service.dart';
 import 'package:open_iptv/core/services/profile_service.dart';
@@ -157,16 +157,8 @@ final gameMatchesProvider = FutureProvider.autoDispose
 
   final from = game.kickoff.subtract(const Duration(hours: 3));
   final to = game.kickoff.add(const Duration(hours: 1));
-  final seen = <String>{};
-  final programmes = <Programme>[];
-  for (final term in searchTermsFor(game)) {
-    for (final p
-        in await db.searchProgrammesBetween(term, from, to, limit: 400)) {
-      if (seen.add('${p.channelId}|${p.start.millisecondsSinceEpoch}')) {
-        programmes.add(p);
-      }
-    }
-  }
+  final programmes =
+      await db.searchProgrammesWithText(searchTermsFor(game), from, to);
 
   final ids = programmes.map((p) => p.channelId).toSet().toList();
   final byId = <String, Channel>{};
@@ -187,10 +179,17 @@ final gameMatchesProvider = FutureProvider.autoDispose
           (prefs == null || !isGenreLocked(c.groupTitle, prefs, unlocked)))
         c,
   ];
-  return const FixtureMatcher().match(
+  final matches = const FixtureMatcher().match(
     game.toFixture(),
     channels: usable,
     programmes: programmes,
     now: DateTime.now().toUtc(),
   );
+  debugPrint('[OTV-sports] ${game.title}: ${programmes.length} guide hits, '
+      '${usable.length} channels checked, ${matches.length} matches');
+  for (final m in matches.take(12)) {
+    debugPrint('[OTV-sports]   ${m.strength.name}/${m.source.name} '
+        '"${m.channel.name}" ${m.programme?.title ?? ''}');
+  }
+  return matches;
 });

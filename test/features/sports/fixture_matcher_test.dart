@@ -247,7 +247,7 @@ void main() {
     test('one team only is "one" strength and ranks below both', () {
       final channels = [ch('a', 'Sport A'), ch('b', 'Sport B')];
       final programmes = [
-        prog('a', kickoff, 'Arsenal Press Conference', mins: 60),
+        prog('a', kickoff, 'Premier League: Arsenal Live', mins: 60),
         prog('b', kickoff, 'Arsenal vs Manchester United'),
       ];
       final r = matcher.match(fixture,
@@ -322,6 +322,67 @@ void main() {
           channels: [ch('a', 'Local')],
           programmes: [prog('a', kickoff, 'News @ 4')],
           now: now);
+      expect(r, isEmpty);
+    });
+  });
+
+  group('FixtureMatcher (guide descriptions and false positives)', () {
+    const matcher = FixtureMatcher();
+    final ko = colts.kickoff;
+
+    Programme withDesc(String ch, String title, String? desc,
+            {String? category}) =>
+        Programme(
+          channelId: ch,
+          start: ko.subtract(const Duration(minutes: 5)),
+          end: ko.add(const Duration(hours: 3)),
+          title: title,
+          description: desc,
+          category: category,
+        );
+
+    List<ChannelMatch> run(List<Programme> ps) => matcher.match(colts,
+        channels: [for (final p in ps) ch(p.channelId, 'Local ${p.channelId}')],
+        programmes: ps,
+        now: nflNow);
+
+    test('a local station naming the teams only in the description is Best',
+        () {
+      final r = run([
+        withDesc('wish', 'NFL Football', 'Indianapolis Colts at Houston Texans.')
+      ]);
+      expect(r.single.channel.id, 'wish');
+      expect(r.single.strength, MatchStrength.both);
+    });
+
+    test('the same title in another market with another game is ignored', () {
+      final r = run([
+        withDesc('other', 'NFL Football', 'Green Bay Packers at Detroit Lions.')
+      ]);
+      expect(r, isEmpty);
+    });
+
+    test('one team in a non-sport programme is ignored', () {
+      final r = run([withDesc('cook', 'Texans Kitchen', 'Houston recipes.')]);
+      expect(r, isEmpty);
+    });
+
+    test('one full team name in a sport programme is Possible', () {
+      final r = run([
+        withDesc('sp', 'NFL Football', 'Indianapolis Colts take the field.')
+      ]);
+      expect(r.single.strength, MatchStrength.one);
+    });
+
+    test('our team against somebody else is a different game', () {
+      final r = run([
+        withDesc('sp', 'NFL: Houston Texans vs Tennessee Titans', null)
+      ]);
+      expect(r, isEmpty);
+    });
+
+    test('a lone nickname in a programme is not enough', () {
+      final r = run([withDesc('sp', 'NFL Football', 'Colts fans react.')]);
       expect(r, isEmpty);
     });
   });
