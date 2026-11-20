@@ -6,7 +6,7 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 ## Unreleased
 
 **Improved**
-**Better channel matching.** The guide search now also reads programme descriptions, so a local station showing "NFL Football" is found when its description names the teams. A one-team guess now needs the entry to read like sport, and a game that pits your team against someone else is no longer offered.
+- **Better channel matching.** The guide search now also reads programme descriptions, so a local station showing "NFL Football" is found when its description names the teams. A one-team guess now needs the entry to read like sport, and a game that pits your team against someone else is no longer offered.
 
 ## 0.16.0 — 2026-11-19
 
