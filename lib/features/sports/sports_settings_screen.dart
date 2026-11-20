@@ -58,7 +58,7 @@ class SportsSettingsScreen extends ConsumerWidget {
                 toggle(
                   autofocus: true,
                   icon: Icons.sports_soccer_outlined,
-                  title: 'Show Sports',
+                  title: 'Show Sports (experimental)',
                   subtitle:
                       'Adds a Sports tab with fixtures and live scores. Tap a '
                       'game to see which of your channels are showing it. '
@@ -66,7 +66,13 @@ class SportsSettingsScreen extends ConsumerWidget {
                       'scoreboard for games; nothing about your playlists or '
                       'profile is sent.',
                   value: enabled,
-                  set: (p, v) => setSportsEnabled(ref, v, p),
+                  set: (p, v) async {
+                    if (v && !enabled) {
+                      final ok = await _confirmExperimental(context);
+                      if (!ok) return;
+                    }
+                    await setSportsEnabled(ref, v, p);
+                  },
                 ),
               ],
             ),
@@ -145,4 +151,35 @@ class SportsSettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// One-time-per-enable notice: Sports is an experimental feature.
+Future<bool> _confirmExperimental(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: const Icon(Icons.science_outlined),
+      title: const Text('Experimental feature'),
+      content: const Text(
+        'Sports is new and still being tested. Games and scores come from a '
+        'free public scoreboard that can change or go down, and channel '
+        'matches are best guesses, so some games may show no channel or the '
+        'wrong one. Kickoff reminders are approximate.\n\n'
+        'Turning it on contacts that scoreboard (only your device address is '
+        'shared). Please report problems on GitHub Issues.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Not now'),
+        ),
+        FilledButton(
+          autofocus: true,
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Turn on'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
 }
