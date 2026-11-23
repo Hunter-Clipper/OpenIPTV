@@ -5,6 +5,12 @@ and downloads are on the [Releases page](https://github.com/Hunter-Clipper/OpenI
 
 ## Unreleased
 
+**Fixed (found by anonymous crash reports)**
+- **The app closing by itself, mostly on phones and boxes set to Spanish.** The bottom bar (or the side rail on a TV) could not find its text labels in a language other than English and crashed the app as it opened a screen. It was the most common crash in the reports by a wide margin, and it has been there since 0.15.1. It is fixed, and a new check opens the bar in every language the app ships.
+- Looked at but nothing to fix: the older crashes on the movie and series pages and the multi-view sheet were already fixed in 0.14.x, and the few freeze (ANR) and system-level video reports carry no usable trace to act on. If they keep coming, the reports will show it.
+
+**Thank you.** This fix exists only because people turned on Settings → Advanced → Anonymous Reports. It showed us in minutes what would otherwise have taken weeks of guessing. If you have it on, thank you: it makes the app better for everyone.
+
 **Removed**
 - **Screen effects (scan lines, soft glow and vignette).** They were a fun novelty, but not worth keeping up, and they cost some drawing time on every screen. Settings → Appearance → Screen effects is gone; the themes themselves are unchanged. Backups that include the old setting still restore normally.
 

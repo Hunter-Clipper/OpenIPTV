@@ -1,5 +1,23 @@
+import 'package:cupertino_ui/cupertino_ui.dart' show GlobalCupertinoLocalizations;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
+import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
+
+/// Localization delegates for every MaterialApp.
+///
+/// Not `AppLocalizations.localizationsDelegates`: the generated list uses the
+/// SDK's old Material/Cupertino delegates, which fill a different
+/// `MaterialLocalizations` type than the one `material_ui` widgets read. With
+/// a non-English language the widgets found nothing, and the bottom navigation
+/// bar crashed (the top crash in the anonymous reports, 0.15.1 onward).
+const appLocalizationsDelegates = <LocalizationsDelegate<dynamic>>[
+  AppLocalizations.delegate,
+  GlobalMaterialLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+];
 
 /// Pref value meaning "follow the system language".
 const kLanguageAuto = 'auto';
