@@ -15,6 +15,7 @@ import 'package:open_iptv/features/sports/sports_match_sheet.dart';
 import 'package:open_iptv/features/sports/sports_models.dart';
 import 'package:open_iptv/features/sports/sports_providers.dart';
 import 'package:open_iptv/features/sports/sports_screen.dart';
+import 'package:open_iptv/l10n/app_languages.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/theme/theme_preset.dart';
@@ -141,7 +142,7 @@ Widget _app(ThemePreset preset, Widget home, {double textScale = 1.0}) {
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.forPreset(preset),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(

@@ -426,7 +426,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     if (!_dbReady) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: locale,
         home: const BrandSplash(),
@@ -438,7 +438,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
     if (_needsProfilePick) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: locale,
         shortcuts: appShortcuts,
@@ -461,7 +461,7 @@ class _OpenIPTVAppState extends ConsumerState<OpenIPTVApp> {
         themeMode: ThemeMode.dark,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: locale,
         shortcuts: appShortcuts,

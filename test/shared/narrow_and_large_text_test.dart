@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:open_iptv/l10n/app_languages.dart';
 import 'package:open_iptv/l10n/gen/app_localizations.dart';
 import 'package:open_iptv/shared/theme/app_theme.dart';
 import 'package:open_iptv/shared/widgets/empty_state_view.dart';
@@ -16,7 +17,7 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(ProviderScope(child: MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    localizationsDelegates: appLocalizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: AppTheme.dark(),
     builder: (context, c) => MediaQuery(
